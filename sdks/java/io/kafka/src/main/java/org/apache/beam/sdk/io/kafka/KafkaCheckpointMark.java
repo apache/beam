@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import com.google.common.base.Joiner;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -52,6 +54,11 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     // is restarted (checkpoint is not available for job restarts).
   }
 
+  @Override
+  public String toString() {
+    return "KafkaCheckpointMark{partitions=" + Joiner.on(",").join(partitions) + '}';
+  }
+
   /**
    * A tuple to hold topic, partition, and offset that comprise the checkpoint
    * for a single partition.
@@ -79,6 +86,15 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
     public long getNextOffset() {
       return nextOffset;
+    }
+
+    @Override
+    public String toString() {
+      return "PartitionMark{"
+          + "topic='" + topic + '\''
+          + ", partition=" + partition
+          + ", nextOffset=" + nextOffset
+          + '}';
     }
   }
 }

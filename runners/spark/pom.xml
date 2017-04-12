@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -55,9 +55,9 @@
     </profile>
 
     <profile>
-      <!-- This profile adds execution of RunnableOnService integration tests
+      <!-- This profile adds execution of ValidatesRunner integration tests
            against a local Spark endpoint. -->
-      <id>local-runnable-on-service-tests</id>
+      <id>local-validates-runner-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
@@ -66,19 +66,24 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>runnable-on-service-tests</id>
+                <id>validates-runner-tests</id>
                 <phase>integration-test</phase>
                 <goals>
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <groups>
+                    org.apache.beam.sdk.testing.ValidatesRunner,
+                    org.apache.beam.runners.spark.UsesCheckpointRecovery
+                  </groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
-                    org.apache.beam.sdk.testing.UsesMetrics
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
+                  <parallel>none</parallel>
                   <forkCount>1</forkCount>
                   <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
@@ -95,6 +100,7 @@
                     </beamTestPipelineOptions>
                     <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
                     <spark.ui.enabled>false</spark.ui.enabled>
+                    <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
                   </systemPropertyVariables>
                 </configuration>
               </execution>
@@ -194,6 +200,11 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>2.6</version>
+    </dependency>
+    <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
       <version>2.4</version>
@@ -224,25 +235,16 @@
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
       <exclusions>
         <!-- Use Hadoop/Spark's backend logger instead of jdk14 for tests -->
         <exclusion>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-jdk14</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro-mapred</artifactId>
-      <version>${avro.version}</version>
-      <classifier>hadoop2</classifier>
-      <exclusions>
-        <!-- exclude old Jetty version of servlet API -->
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -289,7 +291,7 @@
       <scope>test</scope>
     </dependency>
 
-    <!-- Depend on test jar to scan for RunnableOnService tests -->
+    <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -308,6 +310,21 @@
       <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- transitive test dependencies from beam-sdk-java-core -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <version>${jackson.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -317,18 +334,21 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <excludedGroups>
+              org.apache.beam.runners.spark.UsesCheckpointRecovery
+            </excludedGroups>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>
               <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
               <spark.ui.enabled>false</spark.ui.enabled>
+              <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
             </systemPropertyVariables>
           </configuration>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.4.0</version>
           <configuration>
             <executable>java</executable>
             <classpathScope>test</classpathScope> <!-- include provided deps -->
@@ -346,7 +366,6 @@
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.7.5.201505241946</version>
           <executions>
             <execution>
               <goals>
@@ -362,40 +381,6 @@
             </execution>
           </executions>
         </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <artifactSet>
-                  <includes>
-                    <include>com.google.guava:guava</include>
-                  </includes>
-                </artifactSet>
-                <relocations>
-                  <!-- relocate Guava used by Beam (v18) since it conflicts with
-                    version used by Hadoop (v11) -->
-                  <relocation>
-                    <pattern>com.google.common</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.google.common</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>com.google.thirdparty</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
-                  </relocation>
-                </relocations>
-                <transformers>
-                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                </transformers>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -406,10 +391,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

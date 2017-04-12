@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableSet;
@@ -48,15 +49,6 @@ public class ProvidedSparkContextTest {
     private static final String PROVIDED_CONTEXT_EXCEPTION =
             "The provided Spark context was not created or was stopped";
 
-    private SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
-        final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
-        options.setRunner(SparkRunner.class);
-        options.setUsesProvidedSparkContext(true);
-        options.setProvidedSparkContext(jsc);
-        options.setEnableSparkMetricSinks(false);
-        return options;
-    }
-
     /**
      * Provide a context and call pipeline run.
      * @throws Exception
@@ -64,7 +56,34 @@ public class ProvidedSparkContextTest {
     @Test
     public void testWithProvidedContext() throws Exception {
         JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+        testWithValidProvidedContext(jsc);
+        // A provided context must not be stopped after execution
+        assertFalse(jsc.sc().isStopped());
+        jsc.stop();
+    }
 
+    /**
+     * Provide a context and call pipeline run.
+     * @throws Exception
+     */
+    @Test
+    public void testWithNullContext() throws Exception {
+        testWithInvalidContext(null);
+    }
+
+    /**
+     * A SparkRunner with a stopped provided Spark context cannot run pipelines.
+     * @throws Exception
+     */
+    @Test
+    public void testWithStoppedProvidedContext() throws Exception {
+        JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
+        // Stop the provided Spark context directly
+        jsc.stop();
+        testWithInvalidContext(jsc);
+    }
+
+    private void testWithValidProvidedContext(JavaSparkContext jsc) throws Exception {
         SparkContextOptions options = getSparkContextOptions(jsc);
 
         Pipeline p = Pipeline.create(options);
@@ -77,18 +96,9 @@ public class ProvidedSparkContextTest {
 
         // Run test from pipeline
         p.run().waitUntilFinish();
-
-        jsc.stop();
     }
 
-    /**
-     * Provide a context and call pipeline run.
-     * @throws Exception
-     */
-    @Test
-    public void testWithNullContext() throws Exception {
-        JavaSparkContext jsc = null;
-
+    private void testWithInvalidContext(JavaSparkContext jsc) {
         SparkContextOptions options = getSparkContextOptions(jsc);
 
         Pipeline p = Pipeline.create(options);
@@ -101,38 +111,18 @@ public class ProvidedSparkContextTest {
 
         try {
             p.run().waitUntilFinish();
-            fail("Should throw an exception when The provided Spark context is null");
+            fail("Should throw an exception when The provided Spark context is null or stopped");
         } catch (RuntimeException e){
             assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
         }
     }
 
-    /**
-     * A SparkRunner with a stopped provided Spark context cannot run pipelines.
-     * @throws Exception
-     */
-    @Test
-    public void testWithStoppedProvidedContext() throws Exception {
-        JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
-        // Stop the provided Spark context directly
-        jsc.stop();
-
-        SparkContextOptions options = getSparkContextOptions(jsc);
-
-        Pipeline p = Pipeline.create(options);
-        PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder
-                .of()));
-        PCollection<String> output = inputWords.apply(new WordCount.CountWords())
-                .apply(MapElements.via(new WordCount.FormatAsTextFn()));
-
-        PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
-
-        try {
-            p.run().waitUntilFinish();
-            fail("Should throw an exception when The provided Spark context is stopped");
-        } catch (RuntimeException e){
-            assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
-        }
+    private static SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
+        final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
+        options.setRunner(TestSparkRunner.class);
+        options.setUsesProvidedSparkContext(true);
+        options.setProvidedSparkContext(jsc);
+        options.setEnableSparkMetricSinks(false);
+        return options;
     }
-
 }

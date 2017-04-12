@@ -54,12 +54,17 @@ public class CommittedResultTest implements Serializable {
 
   private transient PCollection<Integer> created = p.apply(Create.of(1, 2));
   private transient AppliedPTransform<?, ?, ?> transform =
-      AppliedPTransform.of("foo", p.begin(), PDone.in(p), new PTransform<PBegin, PDone>() {
-        @Override
-        public PDone expand(PBegin begin) {
-          throw new IllegalArgumentException("Should never be applied");
-        }
-      });
+      AppliedPTransform.<PBegin, PDone, PTransform<PBegin, PDone>>of(
+          "foo",
+          p.begin().expand(),
+          PDone.in(p).expand(),
+          new PTransform<PBegin, PDone>() {
+            @Override
+            public PDone expand(PBegin begin) {
+              throw new IllegalArgumentException("Should never be applied");
+            }
+          },
+          p);
   private transient BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   @Test

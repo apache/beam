@@ -18,51 +18,164 @@
 
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.base.Joiner;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;T&gt;} to a
- * {@link PCollection PCollection&lt;String&gt;}.
- *
- * <p>Example of use:
- * <pre> {@code
- * PCollection<Long> longs = ...;
- * PCollection<String> strings = longs.apply(ToString.<Long>element());
- * } </pre>
- *
+ * {@link PTransform PTransforms} for converting a {@link PCollection PCollection&lt;?&gt;},
+ * {@link PCollection PCollection&lt;KV&lt;?,?&gt;&gt;}, or
+ * {@link PCollection PCollection&lt;Iterable&lt;?&gt;&gt;}
+ * to a {@link PCollection PCollection&lt;String&gt;}.
  *
  * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
  * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
  */
 public final class ToString {
-
-  /**
-   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
-   * element of the input {@link PCollection} to a {@link String} using the
-   * {@link Object#toString} method.
-   */
-  public static PTransform<PCollection<?>, PCollection<String>> element() {
-    return new Default();
-  }
-
   private ToString() {
+    // do not instantiate
   }
 
   /**
-   * A {@link PTransform} that converts a {@code PCollection} to a {@code PCollection<String>}
-   * using the {@link  Object#toString} method.
+   * Transforms each element of the input {@link PCollection} to a {@link String} using the {@link
+   * Object#toString} method.
    */
-  private static final class Default extends PTransform<PCollection<?>, PCollection<String>> {
+  public static PTransform<PCollection<?>, PCollection<String>> elements() {
+    return new Elements();
+  }
+
+  /**
+   * Transforms each element of the input {@link PCollection} to a {@link String} by using the
+   * {@link Object#toString} on the key followed by a "," followed by the {@link Object#toString}
+   * of the value.
+   */
+  public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kvs() {
+    return kvs(",");
+  }
+
+  /**
+   * Transforms each element of the input {@link PCollection} to a {@link String} by using the
+   * {@link Object#toString} on the key followed by the specified delimiter followed by the {@link
+   * Object#toString} of the value.
+   *
+   * @param delimiter The delimiter to put between the key and value
+   */
+  public static PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> kvs(
+      String delimiter) {
+    return new KVs(delimiter);
+  }
+
+  /**
+   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String}
+   * using the {@link Object#toString} method followed by a "," until
+   * the last element in the iterable. There is no trailing delimiter.
+   */
+  public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterables() {
+    return iterables(",");
+  }
+
+  /**
+   * Transforms each item in the iterable of the input {@link PCollection} to a {@link String} using
+   * the {@link Object#toString} method followed by the specified delimiter until the last element
+   * in the iterable. There is no trailing delimiter.
+   *
+   * @param delimiter The delimiter to put between the items in the iterable.
+   */
+  public static PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> iterables(
+      String delimiter) {
+    return new Iterables(delimiter);
+  }
+
+  /**
+   * A {@link PTransform} that converts a {@code PCollection} to a {@code PCollection<String>} using
+   * the {@link Object#toString} method.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<Long> longs = ...;
+   * PCollection<String> strings = longs.apply(ToString.elements());
+   * }</pre>
+   *
+   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
+   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   */
+  private static final class Elements extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
     public PCollection<String> expand(PCollection<?> input) {
-      return input.apply(MapElements.via(new ToStringFunction<>()));
+      return input.apply(MapElements.via(new SimpleFunction<Object, String>() {
+        @Override
+        public String apply(Object input) {
+          return input.toString();
+        }
+      }));
+    }
+  }
+
+  /**
+   * A {@link PTransform} that converts a {@code PCollection} of {@code KV} to a {@code
+   * PCollection<String>} using the {@link Object#toString} method for the key and value and an
+   * optional delimiter.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<KV<String, Long>> nameToLong = ...;
+   * PCollection<String> strings = nameToLong.apply(ToString.kv());
+   * }</pre>
+   *
+   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
+   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   */
+  private static final class KVs
+      extends PTransform<PCollection<? extends KV<?, ?>>, PCollection<String>> {
+    private final String delimiter;
+
+    public KVs(String delimiter) {
+      this.delimiter = delimiter;
     }
 
-    private static class ToStringFunction<T> extends SimpleFunction<T, String> {
-      @Override
-      public String apply(T input) {
-        return input.toString();
-      }
+    @Override
+    public PCollection<String> expand(PCollection<? extends KV<?, ?>> input) {
+      return input.apply(MapElements.via(new SimpleFunction<KV<?, ?>, String>() {
+        @Override
+        public String apply(KV<?, ?> input) {
+          return input.getKey().toString() + delimiter + input.getValue().toString();
+        }
+      }));
+    }
+  }
+
+  /**
+   * A {@link PTransform} that converts a {@code PCollection} of {@link Iterable} to a {@code
+   * PCollection<String>} using the {@link Object#toString} method and an optional delimiter.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<Iterable<Long>> longs = ...;
+   * PCollection<String> strings = nameToLong.apply(ToString.iterable());
+   * }</pre>
+   *
+   * <p><b>Note</b>: For any custom string conversion and formatting, we recommend applying your own
+   * {@link SerializableFunction} using {@link MapElements#via(SerializableFunction)}
+   */
+  private static final class Iterables
+      extends PTransform<PCollection<? extends Iterable<?>>, PCollection<String>> {
+    private final String delimiter;
+
+    public Iterables(String delimiter) {
+      this.delimiter = delimiter;
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<? extends Iterable<?>> input) {
+      return input.apply(MapElements.via(new SimpleFunction<Iterable<?>, String>() {
+        @Override
+        public String apply(Iterable<?> input) {
+          return Joiner.on(delimiter).join(input);
+        }
+      }));
     }
   }
 }

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -154,10 +152,8 @@ public class TopTest {
   public void testTopEmptyWithIncompatibleWindows() {
     p.enableAbandonedNodeEnforcement(false);
 
-    Bound<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
-    PCollection<String> input =
-        p.apply(Create.timestamped(Collections.<String>emptyList(), Collections.<Long>emptyList()))
-         .apply(windowingFn);
+    Window<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
+    PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of())).apply(windowingFn);
 
     expectedEx.expect(IllegalStateException.class);
     expectedEx.expectMessage("Top");

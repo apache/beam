@@ -138,6 +138,7 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
+    expectedLogs.verifyInfo(String.format("Started BigQuery job: %s", jobRef));
   }
 
   /**
@@ -161,6 +162,7 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
     verify(response, times(1)).getContentType();
+    expectedLogs.verifyNotLogged("Started BigQuery job");
   }
 
   /**

@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.List;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -32,21 +31,13 @@ public interface PValue extends POutput, PInput {
   String getName();
 
   /**
-   * Returns the {@link AppliedPTransform} that this {@link PValue} is an output of.
-   *
-   * <p>For internal use only.
-   */
-  @Deprecated
-  AppliedPTransform<?, ?, ?> getProducingTransformInternal();
-
-  /**
    * {@inheritDoc}.
    *
    * <p>A {@link PValue} always expands into itself. Calling {@link #expand()} on a PValue is almost
    * never appropriate.
    */
   @Deprecated
-  List<TaggedPValue> expand();
+  Map<TupleTag<?>, PValue> expand();
 
   /**
    * After building, finalizes this {@code PValue} to make it ready for being used as an input to a

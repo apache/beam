@@ -25,8 +25,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -89,7 +89,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPartitioningWindowing() {
     PCollection<String> input =
         p.apply(
@@ -114,7 +114,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testNonPartitioningWindowing() {
     PCollection<String> input =
         p.apply(
@@ -139,7 +139,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMergingWindowing() {
     PCollection<String> input =
         p.apply(
@@ -160,7 +160,7 @@ public class WindowingTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowPreservation() {
     PCollection<String> input1 = p.apply("Create12",
         Create.timestamped(
@@ -189,9 +189,7 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyInput() {
-    PCollection<String> input =
-        p.apply(Create.<String>timestamped()
-            .withCoder(StringUtf8Coder.of()));
+    PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of()));
 
     PCollection<String> output =
         input

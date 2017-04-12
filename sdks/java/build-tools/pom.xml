@@ -22,11 +22,40 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../../../pom.xml</relativePath>
   </parent>
 
   <artifactId>beam-sdks-java-build-tools</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Build Tools</name>
-  
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>net.revelc.code.formatter</groupId>
+        <artifactId>formatter-maven-plugin</artifactId>
+        <version>2.0.1</version>
+        <executions>
+          <execution>
+            <id>test-code-style</id>
+            <phase>process-test-sources</phase>
+            <goals>
+              <goal>format</goal>
+            </goals>
+            <configuration>
+              <configFile>${project.basedir}/src/main/resources/beam/beam-codestyle.xml</configFile>
+              <directories>
+                <directory>${project.build.testSourceDirectory}</directory>
+              </directories>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>

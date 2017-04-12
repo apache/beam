@@ -130,7 +130,7 @@ public class FileIOChannelFactoryTest {
   }
 
   @Test
-  public void testMatchNone() throws Exception {
+  public void testMatchPatternNone() throws Exception {
     List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("a");
     temporaryFolder.newFile("aa");
@@ -142,16 +142,7 @@ public class FileIOChannelFactoryTest {
   }
 
   @Test
-  public void testMatchUsingExplicitPath() throws Exception {
-    List<String> expected = ImmutableList.of(temporaryFolder.newFile("a").toString());
-    temporaryFolder.newFile("aa");
-
-    assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a")),
-        containsInAnyOrder(expected.toArray(new String[expected.size()])));
-  }
-
-  @Test
-  public void testMatchUsingExplicitPathForNonExistentFile() throws Exception {
+  public void testMatchForNonExistentFile() throws Exception {
     List<String> expected = ImmutableList.of();
     temporaryFolder.newFile("aa");
 

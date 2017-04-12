@@ -28,9 +28,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.InputProvider;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -190,10 +187,6 @@ public abstract class DoFnSignature {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
-      } else if (this instanceof InputProviderParameter) {
-        return cases.dispatch((InputProviderParameter) this);
-      } else if (this instanceof OutputReceiverParameter) {
-        return cases.dispatch((OutputReceiverParameter) this);
       } else if (this instanceof StateParameter) {
         return cases.dispatch((StateParameter) this);
       } else if (this instanceof TimerParameter) {
@@ -213,8 +206,6 @@ public abstract class DoFnSignature {
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
-      ResultT dispatch(InputProviderParameter p);
-      ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
       ResultT dispatch(StateParameter p);
       ResultT dispatch(TimerParameter p);
@@ -247,16 +238,6 @@ public abstract class DoFnSignature {
         }
 
         @Override
-        public ResultT dispatch(InputProviderParameter p) {
-          return dispatchDefault(p);
-        }
-
-        @Override
-        public ResultT dispatch(OutputReceiverParameter p) {
-          return dispatchDefault(p);
-        }
-
-        @Override
         public ResultT dispatch(RestrictionTrackerParameter p) {
           return dispatchDefault(p);
         }
@@ -280,10 +261,6 @@ public abstract class DoFnSignature {
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
-    private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
-    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
     /** Returns a {@link ContextParameter}. */
     public static ContextParameter context() {
@@ -303,20 +280,6 @@ public abstract class DoFnSignature {
     /** Returns a {@link WindowParameter}. */
     public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
-    }
-
-    /**
-     * Returns an {@link InputProviderParameter}.
-     */
-    public static InputProviderParameter inputProvider() {
-      return INPUT_PROVIDER_PARAMETER;
-    }
-
-    /**
-     * Returns an {@link OutputReceiverParameter}.
-     */
-    public static OutputReceiverParameter outputReceiver() {
-      return OUTPUT_RECEIVER_PARAMETER;
     }
 
     /**
@@ -378,26 +341,6 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Descriptor for a {@link Parameter} of type {@link InputProvider}.
-     *
-     * <p>All such descriptors are equal.
-     */
-    @AutoValue
-    public abstract static class InputProviderParameter extends Parameter {
-      InputProviderParameter() {}
-    }
-
-    /**
-     * Descriptor for a {@link Parameter} of type {@link OutputReceiver}.
-     *
-     * <p>All such descriptors are equal.
-     */
-    @AutoValue
-    public abstract static class OutputReceiverParameter extends Parameter {
-      OutputReceiverParameter() {}
-    }
-
-    /**
      * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
      *
      * <p>All such descriptors are equal.
@@ -453,21 +396,16 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
-    /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
-    public abstract boolean hasReturnValue();
-
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
         TypeDescriptor<?> trackerT,
-        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
-        boolean hasReturnValue) {
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
           trackerT,
-          windowT,
-          hasReturnValue);
+          windowT);
     }
 
     /**

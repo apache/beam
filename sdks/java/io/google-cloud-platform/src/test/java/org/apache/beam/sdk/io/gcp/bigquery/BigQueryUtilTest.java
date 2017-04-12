@@ -222,7 +222,7 @@ public class BigQueryUtilTest {
     List<TableRow> rows = new ArrayList<>();
     try (BigQueryTableRowIterator iterator =
             BigQueryTableRowIterator.fromTable(
-                BigQueryIO.parseTableSpec("project:dataset.table"), mockClient)) {
+                BigQueryHelpers.parseTableSpec("project:dataset.table"), mockClient)) {
       iterator.open();
       while (iterator.advance()) {
         rows.add(iterator.getCurrent());
@@ -261,7 +261,7 @@ public class BigQueryUtilTest {
     onTableList(dataList);
 
     try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryIO.parseTableSpec("project:dataset.table"),
+        BigQueryHelpers.parseTableSpec("project:dataset.table"),
         mockClient)) {
       iterator.open();
       Assert.assertTrue(iterator.advance());
@@ -291,7 +291,7 @@ public class BigQueryUtilTest {
     onTableList(dataList);
 
     try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryIO.parseTableSpec("project:dataset.table"),
+        BigQueryHelpers.parseTableSpec("project:dataset.table"),
         mockClient)) {
       iterator.open();
 
@@ -320,7 +320,7 @@ public class BigQueryUtilTest {
         .thenReturn(page2);
 
     try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryIO.parseTableSpec("project:dataset.table"),
+        BigQueryHelpers.parseTableSpec("project:dataset.table"),
         mockClient)) {
       iterator.open();
 
@@ -350,7 +350,7 @@ public class BigQueryUtilTest {
         .thenThrow(new IOException("No such table"));
 
     try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryIO.parseTableSpec("project:dataset.table"),
+        BigQueryHelpers.parseTableSpec("project:dataset.table"),
         mockClient)) {
       try {
         iterator.open(); // throws.
@@ -370,7 +370,8 @@ public class BigQueryUtilTest {
     BigQueryServicesImpl.DatasetServiceImpl services =
             new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
-    services.getTable("project", "dataset", "table");
+    services.getTable(
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table"));
 
     verifyTableGet();
   }
@@ -386,7 +387,7 @@ public class BigQueryUtilTest {
     errorsIndices.add(new ArrayList<Long>());
     onInsertAll(errorsIndices);
 
-    TableReference ref = BigQueryIO
+    TableReference ref = BigQueryHelpers
         .parseTableSpec("project:dataset.table");
     DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
 

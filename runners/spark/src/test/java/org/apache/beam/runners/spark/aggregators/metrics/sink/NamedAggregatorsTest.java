@@ -26,10 +26,10 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.examples.WordCount;
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -53,12 +53,11 @@ public class NamedAggregatorsTest {
   public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
   @Rule
-  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final PipelineRule pipelineRule = PipelineRule.batch();
 
   private Pipeline createSparkPipeline() {
-    SparkPipelineOptions options = pipelineOptions.getOptions();
-    options.setEnableSparkMetricSinks(true);
-    return Pipeline.create(options);
+    pipelineRule.getOptions().setEnableSparkMetricSinks(true);
+    return pipelineRule.createPipeline();
   }
 
   private void runPipeline() {
@@ -79,20 +78,24 @@ public class NamedAggregatorsTest {
 
     PAssert.that(output).containsInAnyOrder(expectedCounts);
 
-    pipeline.run().waitUntilFinish();
+    pipeline.run();
   }
 
   @Test
   public void testNamedAggregators() throws Exception {
-
-    // don't reuse context in this test, as is tends to mess up Spark's MetricsSystem thread-safety
-    System.setProperty("beam.spark.test.reuseSparkContext", "false");
-
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 
     runPipeline();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
+  }
 
+  @Test
+  public void testNonExistingAggregatorName() throws Exception {
+    runPipeline();
+
+    final Long valueOf = SparkAggregators.valueOf("myMissingAggregator", Long.class);
+
+    assertThat(valueOf, is(nullValue()));
   }
 }

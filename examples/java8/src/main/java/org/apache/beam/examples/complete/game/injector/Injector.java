@@ -260,8 +260,7 @@ class Injector {
       user = team.getRandomUser();
     }
     String event = user + "," + teamName + "," + random.nextInt(MAX_SCORE);
-    // Randomly introduce occasional parse errors. You can see a custom counter tracking the number
-    // of such errors in the Dataflow Monitoring UI, as the example pipeline runs.
+    // Randomly introduce occasional parse errors.
     if (random.nextInt(parseErrorRate) == 0) {
       System.out.println("Introducing a parse error.");
       event = "THIS LINE REPRESENTS CORRUPT DATA AND WILL CAUSE A PARSE ERROR";

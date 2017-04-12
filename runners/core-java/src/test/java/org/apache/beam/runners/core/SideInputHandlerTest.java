@@ -30,7 +30,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -52,20 +51,22 @@ public class SideInputHandlerTest {
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy1 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_1)));
 
-  private PCollectionView<Iterable<String>> view1 = PCollectionViewTesting.testingView(
-      new TupleTag<Iterable<WindowedValue<String>>>() {},
-      new PCollectionViewTesting.IdentityViewFn<String>(),
-      StringUtf8Coder.of(),
-      windowingStrategy1);
+  private PCollectionView<Iterable<String>> view1 =
+      PCollectionViewTesting.testingView(
+          new TupleTag<Iterable<WindowedValue<String>>>() {},
+          new PCollectionViewTesting.IdentityViewFn<String>(),
+          StringUtf8Coder.of(),
+          windowingStrategy1);
 
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy2 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_2)));
 
-  private PCollectionView<Iterable<String>> view2 = PCollectionViewTesting.testingView(
-      new TupleTag<Iterable<WindowedValue<String>>>() {},
-      new PCollectionViewTesting.IdentityViewFn<String>(),
-      StringUtf8Coder.of(),
-      windowingStrategy2);
+  private PCollectionView<Iterable<String>> view2 =
+      PCollectionViewTesting.testingView(
+          new TupleTag<Iterable<WindowedValue<String>>>() {},
+          new PCollectionViewTesting.IdentityViewFn<String>(),
+          StringUtf8Coder.of(),
+          windowingStrategy2);
 
   @Test
   public void testIsEmpty() {

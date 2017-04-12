@@ -21,6 +21,7 @@ package org.apache.beam.runners.flink;
 import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -32,12 +33,14 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 /**
- * Tests the translation of custom Write.Bound sinks.
+ * Tests the translation of custom Write sinks.
  */
 public class WriteSinkITCase extends JavaProgramTestBase {
 
@@ -78,7 +81,7 @@ public class WriteSinkITCase extends JavaProgramTestBase {
   private static void runProgram(String resultPath) {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
-    p.apply(Create.of(EXPECTED_RESULT)).setCoder(StringUtf8Coder.of())
+    p.apply(Create.of(ImmutableList.copyOf(EXPECTED_RESULT))).setCoder(StringUtf8Coder.of())
       .apply("CustomSink", Write.to(new MyCustomSink(resultPath)));
 
     p.run();
@@ -118,6 +121,11 @@ public class WriteSinkITCase extends JavaProgramTestBase {
       }
 
       @Override
+      public void setWindowedWrites(boolean windowedWrites) {
+
+      }
+
+      @Override
       public void finalize(Iterable<String> writerResults, PipelineOptions options)
           throws Exception {
 
@@ -141,10 +149,24 @@ public class WriteSinkITCase extends JavaProgramTestBase {
         private PrintWriter internalWriter;
 
         @Override
-        public void open(String uId) throws Exception {
+        public final void openWindowed(String uId,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       int shard,
+                                       int numShards) throws Exception {
+          throw new UnsupportedOperationException("Windowed writes not supported.");
+        }
+
+        @Override
+        public final void openUnwindowed(String uId, int shard, int numShards) throws Exception {
           Path path = new Path(resultPath + "/" + uId);
           FileSystem.get(new URI("file:///")).create(path, false);
           internalWriter = new PrintWriter(new File(path.toUri()));
+        }
+
+        @Override
+        public void cleanup() throws Exception {
+
         }
 
         @Override

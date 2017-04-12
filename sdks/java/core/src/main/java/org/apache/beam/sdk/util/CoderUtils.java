@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -61,6 +62,7 @@ public final class CoderUtils {
       .put("kind:pair", KvCoder.class)
       .put("kind:stream", IterableCoder.class)
       .put("kind:global_window", GlobalWindow.Coder.class)
+      .put("kind:interval_window", IntervalWindow.IntervalWindowCoder.class)
       .put("kind:length_prefix", LengthPrefixCoder.class)
       .put("kind:windowed_value", WindowedValue.FullWindowedValueCoder.class)
       .build();
@@ -227,17 +229,16 @@ public final class CoderUtils {
 
   /**
    * A {@link com.fasterxml.jackson.databind.Module} that adds the type
-   * resolver needed for Coder definitions created by the Dataflow service.
+   * resolver needed for Coder definitions.
    */
   static final class Jackson2Module extends SimpleModule {
     /**
      * The Coder custom type resolver.
      *
-     * <p>This resolver resolves coders.  If the Coder ID is a particular
-     * well-known identifier supplied by the Dataflow service, it's replaced
-     * with the corresponding class.  All other Coder instances are resolved
-     * by class name, using the package org.apache.beam.sdk.coders
-     * if there are no "."s in the ID.
+     * <p>This resolver resolves coders. If the Coder ID is a particular
+     * well-known identifier, it's replaced with the corresponding class.
+     * All other Coder instances are resolved by class name, using the package
+     * org.apache.beam.sdk.coders if there are no "."s in the ID.
      */
     private static final class Resolver extends TypeIdResolverBase {
       @SuppressWarnings("unused") // Used via @JsonTypeIdResolver annotation on Mixin
@@ -305,14 +306,14 @@ public final class CoderUtils {
      * {@link ObjectMapper}.
      *
      * <p>This is done via a mixin so that this resolver is <i>only</i> used
-     * during deserialization requested by the Dataflow SDK.
+     * during deserialization requested by the Apache Beam SDK.
      */
     @JsonTypeIdResolver(Resolver.class)
     @JsonTypeInfo(use = Id.CUSTOM, include = As.PROPERTY, property = PropertyNames.OBJECT_TYPE_NAME)
     private static final class Mixin {}
 
     public Jackson2Module() {
-      super("DataflowCoders");
+      super("BeamCoders");
       setMixInAnnotation(Coder.class, Mixin.class);
     }
   }

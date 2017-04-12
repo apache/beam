@@ -17,37 +17,56 @@
  */
 package org.apache.beam.sdk;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.CountingInput.BoundedCountingInput;
+import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformMatcher;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -124,7 +143,7 @@ public class PipelineTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultipleApply() {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
@@ -198,7 +217,7 @@ public class PipelineTest {
    * Tests that Pipeline supports a pass-through identity function.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
     PCollection<Integer> output = pipeline
@@ -221,7 +240,7 @@ public class PipelineTest {
    * Tests that Pipeline supports pulling an element out of a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
@@ -254,7 +273,7 @@ public class PipelineTest {
    * Tests that Pipeline supports putting an element into a tuple as a transform.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
     PCollection<Integer> input = pipeline
         .apply(Create.<Integer>of(1, 2, 3, 4));
@@ -289,5 +308,132 @@ public class PipelineTest {
   @Category(NeedsRunner.class)
   public void testEmptyPipeline() throws Exception {
     pipeline.run();
+  }
+
+  @Test
+  public void testReplaceAll() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    pipeline.apply(CountingInput.unbounded());
+    pipeline.apply(CountingInput.upTo(100L));
+
+    pipeline.replaceAll(
+        ImmutableList.of(
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof UnboundedCountingInput;
+                  }
+                },
+                new UnboundedCountingInputOverride()),
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof BoundedCountingInput;
+                  }
+                },
+                new BoundedCountingInputOverride())));
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              assertThat(
+                  node.getTransform().getClass(),
+                  not(
+                      anyOf(
+                          Matchers.<Class<? extends PTransform>>equalTo(
+                              UnboundedCountingInput.class),
+                          Matchers.<Class<? extends PTransform>>equalTo(
+                              BoundedCountingInput.class))));
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+  }
+
+  /**
+   * Tests that {@link Pipeline#replaceAll(List)} throws when one of the PTransformOverride still
+   * matches.
+   */
+  @Test
+  public void testReplaceAllIncomplete() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    pipeline.apply(CountingInput.unbounded());
+
+    // The order is such that the output of the second will match the first, which is not permitted
+    thrown.expect(IllegalStateException.class);
+    pipeline.replaceAll(
+        ImmutableList.of(
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof BoundedCountingInput;
+                  }
+                },
+                new BoundedCountingInputOverride()),
+            PTransformOverride.of(
+                new PTransformMatcher() {
+                  @Override
+                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
+                    return application.getTransform() instanceof UnboundedCountingInput;
+                  }
+                },
+                new UnboundedCountingInputOverride())));
+  }
+
+  static class BoundedCountingInputOverride
+      implements PTransformOverrideFactory<PBegin, PCollection<Long>, BoundedCountingInput> {
+    @Override
+    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
+        BoundedCountingInput transform) {
+      return Create.of(0L);
+    }
+
+    @Override
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return p.begin();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
+      return Collections.<PValue, ReplacementOutput>singletonMap(
+          newOutput,
+          ReplacementOutput.of(
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
+    }
+  }
+  static class UnboundedCountingInputOverride
+      implements PTransformOverrideFactory<PBegin, PCollection<Long>, UnboundedCountingInput> {
+    @Override
+    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
+        UnboundedCountingInput transform) {
+      return CountingInput.upTo(100L);
+    }
+
+    @Override
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return p.begin();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
+      return Collections.<PValue, ReplacementOutput>singletonMap(
+          newOutput,
+          ReplacementOutput.of(
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
+    }
   }
 }

@@ -19,17 +19,25 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -165,6 +173,85 @@ public class Pipeline {
   public <OutputT extends POutput> OutputT apply(
       String name, PTransform<? super PBegin, OutputT> root) {
     return begin().apply(name, root);
+  }
+
+  /**
+   * Replaces all nodes that match a {@link PTransformOverride} in this pipeline. Overrides are
+   * applied in the order they are present within the list.
+   *
+   * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
+   * overrides.
+   */
+  public void replaceAll(List<PTransformOverride> overrides) {
+    for (PTransformOverride override : overrides) {
+      replace(override);
+    }
+    checkNoMoreMatches(overrides);
+  }
+
+  private void checkNoMoreMatches(final List<PTransformOverride> overrides) {
+    traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          SetMultimap<Node, PTransformOverride> matched = HashMultimap.create();
+
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              for (PTransformOverride override : overrides) {
+                if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                  matched.put(node, override);
+                }
+              }
+            }
+            if (!matched.containsKey(node)) {
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
+            return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (node.isRootNode()) {
+              checkState(
+                  matched.isEmpty(), "Found nodes that matched overrides. Matches: %s", matched);
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            for (PTransformOverride override : overrides) {
+              if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                matched.put(node, override);
+              }
+            }
+          }
+        });
+  }
+
+  private void replace(final PTransformOverride override) {
+    final Collection<Node> matches = new ArrayList<>();
+    transforms.visit(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
+              matches.add(node);
+              // This node will be replaced. It should not be visited.
+              return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            if (override.getMatcher().matches(node.toAppliedPTransform())) {
+              matches.add(node);
+            }
+          }
+        });
+    for (Node match : matches) {
+      applyReplacement(match, override.getOverrideFactory());
+    }
   }
 
   /**
@@ -323,7 +410,7 @@ public class Pipeline {
 
   private final PipelineRunner<?> runner;
   private final PipelineOptions options;
-  private final TransformHierarchy transforms = new TransformHierarchy();
+  private final TransformHierarchy transforms = new TransformHierarchy(this);
   private Collection<PValue> values = new ArrayList<>();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
@@ -385,7 +472,7 @@ public class Pipeline {
     try {
       transforms.finishSpecifyingInput();
       transform.validate(input);
-      OutputT output = runner.apply(transform, input);
+      OutputT output = transform.expand(input);
       transforms.setOutput(output);
 
       return output;
@@ -394,16 +481,42 @@ public class Pipeline {
     }
   }
 
-  /**
-   * Returns the configured {@link PipelineRunner}.
-   */
-  public PipelineRunner<?> getRunner() {
-    return runner;
+  private <InputT extends PInput, OutputT extends POutput,
+          TransformT extends PTransform<? super InputT, OutputT>>
+      void applyReplacement(
+          Node original,
+          PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
+    // Names for top-level transforms have been assigned. Any new collisions are within a node
+    // and its replacement.
+    getOptions().setStableUniqueNames(CheckEnabled.OFF);
+    PTransform<InputT, OutputT> replacement =
+        replacementFactory.getReplacementTransform((TransformT) original.getTransform());
+    if (replacement == original.getTransform()) {
+      return;
+    }
+    InputT originalInput = replacementFactory.getInput(original.getInputs(), this);
+
+    LOG.debug("Replacing {} with {}", original, replacement);
+    transforms.replaceNode(original, originalInput, replacement);
+    try {
+      OutputT newOutput = replacement.expand(originalInput);
+      Map<PValue, ReplacementOutput> originalToReplacement =
+          replacementFactory.mapOutputs(original.getOutputs(), newOutput);
+      // Ensure the internal TransformHierarchy data structures are consistent.
+      transforms.setOutput(newOutput);
+      transforms.replaceOutputs(originalToReplacement);
+    } finally {
+      transforms.popNode();
+    }
   }
 
   /**
    * Returns the configured {@link PipelineOptions}.
+   *
+   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
+   *     provided to a transform if it is required.
    */
+  @Deprecated
   public PipelineOptions getOptions() {
     return options;
   }

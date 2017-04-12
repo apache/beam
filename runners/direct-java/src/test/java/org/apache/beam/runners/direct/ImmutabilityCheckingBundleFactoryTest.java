@@ -56,7 +56,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
   @Before
   public void setup() {
-    created = p.apply(Create.<byte[]>of().withCoder(ByteArrayCoder.of()));
+    created = p.apply(Create.empty(ByteArrayCoder.of()));
     transformed = created.apply(ParDo.of(new IdentityDoFn<byte[]>()));
     DirectGraphVisitor visitor = new DirectGraphVisitor();
     p.traverseTopologically(visitor);

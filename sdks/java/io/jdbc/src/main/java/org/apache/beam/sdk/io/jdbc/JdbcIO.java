@@ -70,11 +70,13 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *        .withUsername("username")
  *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
+ *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
  *     }
  *   })
+ * );
  * }</pre>
  *
  * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}.
@@ -86,6 +88,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
  *       "username", "password"))
  *   .withQuery("select id,name from Person where name = ?")
+ *   .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()))
  *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
  *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
  *       preparedStatement.setString(1, "Darwin");
@@ -96,6 +99,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
  *     }
  *   })
+ * );
  * }</pre>
  *
  * <h3>Writing to JDBC datasource</h3>
@@ -116,11 +120,13 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *          .withPassword("password"))
  *      .withStatement("insert into Person values(?, ?)")
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
- *        public void setParameters(KV<Integer, String> element, PreparedStatement query) {
+ *        public void setParameters(KV<Integer, String> element, PreparedStatement query)
+ *          throws SQLException {
  *          query.setInt(1, kv.getKey());
  *          query.setString(2, kv.getValue());
  *        }
  *      })
+ *    );
  * }</pre>
  *
  * <p>NB: in case of transient failures, Beam runners may execute parts of JdbcIO.Write multiple
@@ -168,6 +174,7 @@ public class JdbcIO {
     @Nullable abstract String getUrl();
     @Nullable abstract String getUsername();
     @Nullable abstract String getPassword();
+    @Nullable abstract String getConnectionProperties();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -178,6 +185,7 @@ public class JdbcIO {
       abstract Builder setUrl(String url);
       abstract Builder setUsername(String username);
       abstract Builder setPassword(String password);
+      abstract Builder setConnectionProperties(String connectionProperties);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -211,6 +219,22 @@ public class JdbcIO {
       return builder().setPassword(password).build();
     }
 
+    /**
+     * Sets the connection properties passed to driver.connect(...).
+     * Format of the string must be [propertyName=property;]*
+     *
+     * <p>NOTE - The "user" and "password" properties can be add via {@link #withUsername(String)},
+     * {@link #withPassword(String)}, so they do not need to be included here.
+     * @param connectionProperties
+     * @return
+     */
+    public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
+      checkArgument(connectionProperties != null, "DataSourceConfiguration.create(driver, url)"
+          + ".withConnectionProperties(connectionProperties) "
+          + "called with null connectionProperties");
+      return builder().setConnectionProperties(connectionProperties).build();
+    }
+
     private void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -232,6 +256,9 @@ public class JdbcIO {
         basicDataSource.setUrl(getUrl());
         basicDataSource.setUsername(getUsername());
         basicDataSource.setPassword(getPassword());
+        if (getConnectionProperties() != null) {
+          basicDataSource.setConnectionProperties(getConnectionProperties());
+        }
         return basicDataSource.getConnection();
       }
     }
@@ -277,7 +304,7 @@ public class JdbcIO {
       return toBuilder().setQuery(query).build();
     }
 
-    public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
+    public Read<T> withStatementPreparator(StatementPreparator statementPreparator) {
       checkArgument(statementPreparator != null,
           "JdbcIO.read().withStatementPreparator(statementPreparator) called "
               + "with null statementPreparator");
@@ -300,10 +327,6 @@ public class JdbcIO {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-          // generate a random key followed by a GroupByKey and then ungroup
-          // to prevent fusion
-          // see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion
-          // for details
           .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
             private Random random;
             @Setup

@@ -38,19 +38,23 @@ public final class SparkContextFactory {
    * {@code true} then the Spark context will be reused for beam pipelines.
    * This property should only be enabled for tests.
    */
-  static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
+  public static final String TEST_REUSE_SPARK_CONTEXT = "beam.spark.test.reuseSparkContext";
 
+  // Spark allows only one context for JVM so this can be static.
   private static JavaSparkContext sparkContext;
   private static String sparkMaster;
+  private static boolean usesProvidedSparkContext;
 
   private SparkContextFactory() {
   }
 
   public static synchronized JavaSparkContext getSparkContext(SparkPipelineOptions options) {
     SparkContextOptions contextOptions = options.as(SparkContextOptions.class);
+    usesProvidedSparkContext = contextOptions.getUsesProvidedSparkContext();
     // reuse should be ignored if the context is provided.
     if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)
-        && !contextOptions.getUsesProvidedSparkContext()) {
+        && !usesProvidedSparkContext) {
+
       // if the context is null or stopped for some reason, re-create it.
       if (sparkContext == null || sparkContext.sc().isStopped()) {
         sparkContext = createSparkContext(contextOptions);
@@ -67,13 +71,14 @@ public final class SparkContextFactory {
   }
 
   public static synchronized void stopSparkContext(JavaSparkContext context) {
-    if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
+    if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)
+            && !usesProvidedSparkContext) {
       context.stop();
     }
   }
 
   private static JavaSparkContext createSparkContext(SparkContextOptions contextOptions) {
-    if (contextOptions.getUsesProvidedSparkContext()) {
+    if (usesProvidedSparkContext) {
       LOG.info("Using a provided Spark Context");
       JavaSparkContext jsc = contextOptions.getProvidedSparkContext();
       if (jsc == null || jsc.sc().isStopped()){

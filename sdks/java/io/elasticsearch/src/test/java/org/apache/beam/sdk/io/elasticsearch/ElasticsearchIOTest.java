@@ -32,7 +32,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -52,7 +51,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -64,7 +62,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ElasticsearchIOTest implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
   private static final String ES_INDEX = "beam";
   private static final String ES_TYPE = "test";
@@ -87,10 +85,7 @@ public class ElasticsearchIOTest implements Serializable {
     ServerSocket serverSocket = new ServerSocket(0);
     int esHttpPort = serverSocket.getLocalPort();
     serverSocket.close();
-    connectionConfiguration =
-        ElasticsearchIO.ConnectionConfiguration.create(
-            new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
-    LOGGER.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
+    LOG.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
             .put("cluster.name", "beam")
@@ -106,8 +101,11 @@ public class ElasticsearchIOTest implements Serializable {
             // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
             .put("threadpool.bulk.queue_size", 100);
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
-    LOGGER.info("Elasticsearch node created");
+    LOG.info("Elasticsearch node created");
     node.start();
+    connectionConfiguration =
+      ElasticsearchIO.ConnectionConfiguration.create(
+        new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
   }
 
   @AfterClass
@@ -130,12 +128,11 @@ public class ElasticsearchIOTest implements Serializable {
     // can't use equal assert as Elasticsearch indexes never have same size
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
-    LOGGER.info("Estimated size: {}", estimatedSize);
+    LOG.info("Estimated size: {}", estimatedSize);
     assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * NUM_DOCS));
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testRead() throws Exception {
     ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
 
@@ -152,7 +149,6 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testReadWithQuery() throws Exception {
     ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
 
@@ -179,7 +175,6 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testWrite() throws Exception {
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(

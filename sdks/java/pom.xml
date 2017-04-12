@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -40,6 +40,9 @@
     <module>io</module>
     <module>maven-archetypes</module>
     <module>extensions</module>
+    <!-- javadoc runs directly from the root parent as the last module
+         in the build to be able to capture runner-specific javadoc.
+    <module>javadoc</module> -->
   </modules>
 
   <profiles>
@@ -49,6 +52,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
+        <module>harness</module>
         <module>java8tests</module>
       </modules>
     </profile>

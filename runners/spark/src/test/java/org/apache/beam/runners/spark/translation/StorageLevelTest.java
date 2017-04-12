@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
+import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
@@ -32,14 +32,14 @@ import org.junit.Test;
 public class StorageLevelTest {
 
   @Rule
-  public final transient SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+  public final transient PipelineRule pipelineRule = PipelineRule.batch();
 
   @Test
   public void test() throws Exception {
-    pipelineOptions.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
+    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
+    Pipeline pipeline = pipelineRule.createPipeline();
 
-    PCollection<String> pCollection = p.apply(Create.of("foo"));
+    PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
     // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
@@ -50,7 +50,7 @@ public class StorageLevelTest {
 
     PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
 
-    p.run();
+    pipeline.run();
   }
 
 }

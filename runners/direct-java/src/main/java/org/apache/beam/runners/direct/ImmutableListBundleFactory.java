@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -94,6 +95,11 @@ class ImmutableListBundleFactory implements BundleFactory {
           "Can't add element %s to committed bundle in PCollection %s",
           element,
           pcollection);
+      checkArgument(
+          element.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
+          "Can't add an element past the end of time (%s), got timestamp %s",
+          BoundedWindow.TIMESTAMP_MAX_VALUE,
+          element.getTimestamp());
       elements.add(element);
       if (element.getTimestamp().isBefore(minSoFar)) {
         minSoFar = element.getTimestamp();

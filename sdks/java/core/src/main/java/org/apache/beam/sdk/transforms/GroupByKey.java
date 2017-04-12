@@ -97,13 +97,11 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
- * {@link Window.Bound#withOutputTimeFn windowing operation}.
+ * {@link Window#withOutputTimeFn windowing operation}.
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
- * <p>If the input {@code PCollection} contains late data (see
- * {@link org.apache.beam.sdk.io.PubsubIO.Read#timestampLabel}
- * for an example of how this can occur) or the
+ * <p>If the input {@code PCollection} contains late data or the
  * {@link Window#triggering requested TriggerFn} can fire before
  * the watermark, then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.
@@ -142,17 +140,17 @@ public class GroupByKey<K, V>
   }
 
   /**
-   * Returns a {@code GroupByKey<K, V>} {@code PTransform}.
+   * Returns a {@code GroupByKey<K, V>} {@code PTransform} that assumes it will be grouping
+   * a small number of keys.
    *
    * @param <K> the type of the keys of the input and output
    * {@code PCollection}s
    * @param <V> the type of the values of the input {@code PCollection}
    * and the elements of the {@code Iterable}s in the output
    * {@code PCollection}
-   * @param fewKeys whether it groups just few keys.
    */
-  static <K, V> GroupByKey<K, V> create(boolean fewKeys) {
-    return new GroupByKey<>(fewKeys);
+  static <K, V> GroupByKey<K, V> createWithFewKeys() {
+    return new GroupByKey<>(true);
   }
 
   /**

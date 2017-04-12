@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -166,10 +167,9 @@ public class IntervalWindow extends BoundedWindow
   /**
    * Encodes an {@link IntervalWindow} as a pair of its upper bound and duration.
    */
-  private static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
+  public static class IntervalWindowCoder extends AtomicCoder<IntervalWindow> {
 
-    private static final IntervalWindowCoder INSTANCE =
-        new IntervalWindowCoder();
+    private static final IntervalWindowCoder INSTANCE = new IntervalWindowCoder();
 
     private static final Coder<Instant> instantCoder = InstantCoder.of();
     private static final Coder<ReadableDuration> durationCoder = DurationCoder.of();
@@ -180,9 +180,7 @@ public class IntervalWindow extends BoundedWindow
     }
 
     @Override
-    public void encode(IntervalWindow window,
-                       OutputStream outStream,
-                       Context context)
+    public void encode(IntervalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
       instantCoder.encode(window.end, outStream, context.nested());
       durationCoder.encode(new Duration(window.start, window.end), outStream, context);
@@ -194,6 +192,11 @@ public class IntervalWindow extends BoundedWindow
       Instant end = instantCoder.decode(inStream, context.nested());
       ReadableDuration duration = durationCoder.decode(inStream, context);
       return new IntervalWindow(end.minus(duration), end);
+    }
+
+    @Override
+    protected CloudObject initializeCloudObject() {
+      return CloudObject.forClassName("kind:interval_window");
     }
   }
 }

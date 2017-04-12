@@ -44,7 +44,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
@@ -72,6 +71,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
   @Nullable private TableReference ref;
   @Nullable private final String projectId;
   @Nullable private TableSchema schema;
+  @Nullable private JobConfigurationQuery queryConfig;
   private final Bigquery client;
   private String pageToken;
   private Iterator<TableRow> iteratorOverCurrentBatch;
@@ -88,69 +88,58 @@ class BigQueryTableRowIterator implements AutoCloseable {
   // following interval to check the status of query execution job
   private static final Duration QUERY_COMPLETION_POLL_TIME = Duration.standardSeconds(1);
 
-  private final String query;
-  // Whether to flatten query results.
-  private final boolean flattenResults;
-  // Whether to use the BigQuery legacy SQL dialect..
-  private final boolean useLegacySql;
   // Temporary dataset used to store query results.
   private String temporaryDatasetId = null;
   // Temporary table used to store query results.
   private String temporaryTableId = null;
 
   private BigQueryTableRowIterator(
-      @Nullable TableReference ref, @Nullable String query, @Nullable String projectId,
-      Bigquery client, boolean flattenResults, boolean useLegacySql) {
+      @Nullable TableReference ref, @Nullable JobConfigurationQuery queryConfig,
+      @Nullable String projectId, Bigquery client) {
     this.ref = ref;
-    this.query = query;
+    this.queryConfig = queryConfig;
     this.projectId = projectId;
     this.client = checkNotNull(client, "client");
-    this.flattenResults = flattenResults;
-    this.useLegacySql = useLegacySql;
   }
 
   /**
    * Constructs a {@code BigQueryTableRowIterator} that reads from the specified table.
    */
-  public static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
+  static BigQueryTableRowIterator fromTable(TableReference ref, Bigquery client) {
     checkNotNull(ref, "ref");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(ref, null, ref.getProjectId(), client, true, true);
+    return new BigQueryTableRowIterator(ref, /* queryConfig */null, ref.getProjectId(), client);
   }
 
   /**
    * Constructs a {@code BigQueryTableRowIterator} that reads from the results of executing the
    * specified query in the specified project.
    */
-  public static BigQueryTableRowIterator fromQuery(
-      String query, String projectId, Bigquery client, @Nullable Boolean flattenResults,
-      @Nullable Boolean useLegacySql) {
-    checkNotNull(query, "query");
+  static BigQueryTableRowIterator fromQuery(
+      JobConfigurationQuery queryConfig, String projectId, Bigquery client) {
+    checkNotNull(queryConfig, "queryConfig");
     checkNotNull(projectId, "projectId");
     checkNotNull(client, "client");
-    return new BigQueryTableRowIterator(null, query, projectId, client,
-        MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
-        MoreObjects.firstNonNull(useLegacySql, Boolean.TRUE));
+    return new BigQueryTableRowIterator(/* ref */null, queryConfig, projectId, client);
   }
 
   /**
    * Opens the table for read.
    * @throws IOException on failure
    */
-  public void open() throws IOException, InterruptedException {
-    if (query != null) {
+  void open() throws IOException, InterruptedException {
+    if (queryConfig != null) {
       ref = executeQueryAndWaitForCompletion();
     }
     // Get table schema.
     schema = getTable(ref).getSchema();
   }
 
-  public boolean advance() throws IOException, InterruptedException {
+  boolean advance() throws IOException, InterruptedException {
     while (true) {
       if (iteratorOverCurrentBatch != null && iteratorOverCurrentBatch.hasNext()) {
         // Embed schema information into the raw row, so that values have an
-        // associated key.  This matches how rows are read when using the
-        // DataflowRunner.
+        // associated key.
         current = getTypedTableRow(schema.getFields(), iteratorOverCurrentBatch.next());
         return true;
       }
@@ -183,7 +172,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
     }
   }
 
-  public TableRow getCurrent() {
+  TableRow getCurrent() {
     if (current == null) {
       throw new NoSuchElementException();
     }
@@ -193,7 +182,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
   /**
    * Adjusts a field returned from the BigQuery API to match what we will receive when running
    * BigQuery's export-to-GCS and parallel read, which is the efficient parallel implementation
-   * used for batch jobs executed on the Cloud Dataflow service.
+   * used for batch jobs executed on the Beam Runners that perform initial splitting.
    *
    * <p>The following is the relationship between BigQuery schema and Java types:
    *
@@ -254,7 +243,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
   }
 
   /**
-   * A list of the field names that cannot be used in BigQuery tables processed by Dataflow,
+   * A list of the field names that cannot be used in BigQuery tables processed by Apache Beam,
    * because they are reserved keywords in {@link TableRow}.
    */
   // TODO: This limitation is unfortunate. We need to give users a way to use BigQueryIO that does
@@ -388,15 +377,17 @@ class BigQueryTableRowIterator implements AutoCloseable {
    */
   private TableReference executeQueryAndWaitForCompletion()
       throws IOException, InterruptedException {
+    checkState(projectId != null, "Unable to execute a query without a configured project id");
+    checkState(queryConfig != null, "Unable to execute a query without a configured query");
     // Dry run query to get source table location
     Job dryRunJob = new Job()
         .setConfiguration(new JobConfiguration()
-            .setQuery(new JobConfigurationQuery()
-                .setQuery(query))
+            .setQuery(queryConfig)
             .setDryRun(true));
     JobStatistics jobStats = executeWithBackOff(
         client.jobs().insert(projectId, dryRunJob),
-        String.format("Error when trying to dry run query %s.", query)).getStatistics();
+        String.format("Error when trying to dry run query %s.",
+            queryConfig.toPrettyString())).getStatistics();
 
     // Let BigQuery to pick default location if the query does not read any tables.
     String location = null;
@@ -409,35 +400,33 @@ class BigQueryTableRowIterator implements AutoCloseable {
     // Create a temporary dataset to store results.
     // Starting dataset name with an "_" so that it is hidden.
     Random rnd = new Random(System.currentTimeMillis());
-    temporaryDatasetId = "_dataflow_temporary_dataset_" + rnd.nextInt(1000000);
-    temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
+    temporaryDatasetId = "_beam_temporary_dataset_" + rnd.nextInt(1000000);
+    temporaryTableId = "beam_temporary_table_" + rnd.nextInt(1000000);
 
     createDataset(temporaryDatasetId, location);
     Job job = new Job();
     JobConfiguration config = new JobConfiguration();
-    JobConfigurationQuery queryConfig = new JobConfigurationQuery();
     config.setQuery(queryConfig);
     job.setConfiguration(config);
-    queryConfig.setQuery(query);
-    queryConfig.setAllowLargeResults(true);
-    queryConfig.setFlattenResults(flattenResults);
-    queryConfig.setUseLegacySql(useLegacySql);
 
     TableReference destinationTable = new TableReference();
     destinationTable.setProjectId(projectId);
     destinationTable.setDatasetId(temporaryDatasetId);
     destinationTable.setTableId(temporaryTableId);
     queryConfig.setDestinationTable(destinationTable);
+    queryConfig.setAllowLargeResults(true);
 
     Job queryJob = executeWithBackOff(
         client.jobs().insert(projectId, job),
-        String.format("Error when trying to execute the job for query %s.", query));
+        String.format("Error when trying to execute the job for query %s.",
+            queryConfig.toPrettyString()));
     JobReference jobId = queryJob.getJobReference();
 
     while (true) {
       Job pollJob = executeWithBackOff(
           client.jobs().get(projectId, jobId.getJobId()),
-          String.format("Error when trying to get status of the job for query %s.", query));
+          String.format("Error when trying to get status of the job for query %s.",
+              queryConfig.toPrettyString()));
       JobStatus status = pollJob.getStatus();
       if (status.getState().equals("DONE")) {
         // Job is DONE, but did not necessarily succeed.
@@ -447,7 +436,8 @@ class BigQueryTableRowIterator implements AutoCloseable {
         } else {
           // There will be no temporary table to delete, so null out the reference.
           temporaryTableId = null;
-          throw new IOException("Executing query " + query + " failed: " + error.getMessage());
+          throw new IOException(String.format(
+              "Executing query %s failed: %s", queryConfig.toPrettyString(), error.getMessage()));
         }
       }
       Uninterruptibles.sleepUninterruptibly(
@@ -455,22 +445,11 @@ class BigQueryTableRowIterator implements AutoCloseable {
     }
   }
 
-  /**
-   * Execute a BQ request with exponential backoff and return the result.
-   *
-   * @deprecated use {@link #executeWithBackOff(AbstractGoogleClientRequest, String)}.
-   */
-  @Deprecated
-  public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error,
-      Object... errorArgs) throws IOException, InterruptedException {
-    return executeWithBackOff(client, String.format(error, errorArgs));
-  }
-
   // Execute a BQ request with exponential backoff and return the result.
   // client - BQ request to be executed
   // error - Formatted message to log if when a request fails. Takes exception message as a
   // formatter parameter.
-  public static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error)
+  private static <T> T executeWithBackOff(AbstractGoogleClientRequest<T> client, String error)
       throws IOException, InterruptedException {
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backOff =

@@ -31,6 +31,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.core.StateTags;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
@@ -54,13 +58,9 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.StateNamespaces;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -414,8 +414,7 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void isDoneWithUnboundedPCollectionAndShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
+  public void isDoneWithUnboundedPCollection() {
     assertThat(context.isDone(unboundedProducer), is(false));
 
     context.handleResult(
@@ -427,33 +426,7 @@ public class EvaluationContextTest {
   }
 
   @Test
-  public void isDoneWithUnboundedPCollectionAndNotShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(graph.getProducer(unbounded)).build());
-    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
-  }
-
-  @Test
-  public void isDoneWithOnlyBoundedPCollections() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(createdProducer), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(createdProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(createdProducer), is(true));
-  }
-
-  @Test
   public void isDoneWithPartiallyDone() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
     assertThat(context.isDone(), is(false));
 
     UncommittedBundle<Integer> rootBundle = context.createBundle(created);
@@ -482,34 +455,6 @@ public class EvaluationContextTest {
     }
     context.extractFiredTimers();
     assertThat(context.isDone(), is(true));
-  }
-
-  @Test
-  public void isDoneWithUnboundedAndNotShutdown() {
-    context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(), is(false));
-
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(createdProducer).build());
-    context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
-    context.handleResult(
-        context.createBundle(created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(downstreamProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(), is(false));
-
-    context.handleResult(
-        context.createBundle(created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(viewProducer).build());
-    context.extractFiredTimers();
-    assertThat(context.isDone(), is(false));
   }
 
   private static class TestBoundedWindow extends BoundedWindow {

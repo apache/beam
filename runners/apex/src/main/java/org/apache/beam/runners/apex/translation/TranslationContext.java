@@ -31,18 +31,18 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.CoderAdapterStreamCodec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -57,6 +57,7 @@ class TranslationContext {
   private final Map<PCollection, Pair<OutputPort<?>, List<InputPort<?>>>> streams = new HashMap<>();
   private final Map<String, Operator> operators = new HashMap<>();
   private final Map<PCollectionView<?>, PInput> viewInputs = new HashMap<>();
+  private Map<PInput, PInput> aliasCollections = new HashMap<>();
 
   public void addView(PCollectionView<?> view) {
     this.viewInputs.put(view, this.getInput());
@@ -84,20 +85,20 @@ class TranslationContext {
     return getCurrentTransform().getFullName();
   }
 
-  public List<TaggedPValue> getInputs() {
+  public Map<TupleTag<?>, PValue> getInputs() {
     return getCurrentTransform().getInputs();
   }
 
-  public PValue getInput() {
-    return Iterables.getOnlyElement(getCurrentTransform().getInputs()).getValue();
+  public <InputT extends PValue> InputT getInput() {
+    return (InputT) Iterables.getOnlyElement(getCurrentTransform().getInputs().values());
   }
 
-  public List<TaggedPValue> getOutputs() {
+  public Map<TupleTag<?>, PValue> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 
-  public PValue getOutput() {
-    return Iterables.getOnlyElement(getCurrentTransform().getOutputs()).getValue();
+  public <OutputT extends PValue> OutputT getOutput() {
+    return (OutputT) Iterables.getOnlyElement(getCurrentTransform().getOutputs().values());
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {
@@ -145,9 +146,22 @@ class TranslationContext {
   }
 
   public void addStream(PInput input, InputPort inputPort) {
+    while (aliasCollections.containsKey(input)) {
+      input = aliasCollections.get(input);
+    }
     Pair<OutputPort<?>, List<InputPort<?>>> stream = this.streams.get(input);
     checkArgument(stream != null, "no upstream operator defined for %s", input);
     stream.getRight().add(inputPort);
+  }
+
+  /**
+   * Set the given output as alias for another input,
+   * i.e. there won't be a stream representation in the target DAG.
+   * @param alias
+   * @param source
+   */
+  public void addAlias(PValue alias, PInput source) {
+    aliasCollections.put(alias, source);
   }
 
   public void populateDAG(DAG dag) {
@@ -178,10 +192,10 @@ class TranslationContext {
   }
 
   /**
-   * Return the {@link StateInternalsFactory} for the pipeline translation.
+   * Return the state backend for the pipeline translation.
    * @return
    */
-  public <K> StateInternalsFactory<K> stateInternalsFactory() {
-    return new ApexStateInternals.ApexStateInternalsFactory();
+  public ApexStateBackend getStateBackend() {
+    return new ApexStateInternals.ApexStateBackend();
   }
 }

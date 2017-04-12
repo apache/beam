@@ -20,12 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
 import org.joda.time.Instant;
 
 /**
@@ -33,11 +28,6 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPane extends OnceTrigger {
-
-private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
-      ELEMENTS_IN_PANE_TAG =
-      StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-          "count", VarLongCoder.of(), Sum.ofLongs()));
 
   private final int countElems;
 

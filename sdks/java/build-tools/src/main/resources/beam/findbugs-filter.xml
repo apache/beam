@@ -34,12 +34,42 @@
           unapproved artifact license.
         -->
   <Match>
+    <Class name="org.apache.beam.fn.harness.control.BeamFnControlClient$InboundObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
+    <Method name="accept"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.logging.BeamFnLoggingClient$LogControlObserver"/>
+    <Method name="onCompleted"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--
     writeReplace makes this object serializable. This is a limitation of FindBugs as discussed here:
-     http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
     -->
   </Match>
 
@@ -125,15 +155,67 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.CsvSink"/>
+    <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$MonitorRunnable" />
+    <Method name="shouldShutdown" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- visibleUpdates is a non-capacity-limited LinkedBlockingQueue, which
+      can never refuse an offered update -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$DirectBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.CsvSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.GraphiteSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.GraphiteSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.io.LocalResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_PARAM_DEREF"/>
+    <!--
+      Path.getParent() could return null. However, we check the returned Path is not null.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Method name="getCurrentDirectory" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <!--
+      GcsPath.getParent() could return null. However, we check the returned Path is not null.
+    -->
   </Match>
 
   <Match>
@@ -159,7 +241,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Class name="org.apache.beam.runners.core.StateMerging"/>
     <Method name="prefetchRead" />
     <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
     <!-- prefetch call readLater -->
@@ -286,12 +368,6 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.transforms.display.DisplayData"/>
-    <Field name="entries"/>
-    <Bug pattern="SE_BAD_FIELD"/>
-    <!--[BEAM-412] Non-transient non-serializable instance field in serializable class-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
@@ -304,9 +380,20 @@
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningValueStateSpec"/>
+    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningStateSpec"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.GcsUtil$StorageObjectOrIOException"/>
+    <Bug pattern="NM_CLASS_NOT_EXCEPTION"/>
+    <!-- It is clear from the name that this class holds either StorageObject or IOException. -->
   </Match>
 </FindBugsFilter>

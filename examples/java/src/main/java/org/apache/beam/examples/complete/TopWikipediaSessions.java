@@ -18,9 +18,9 @@
 package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -29,15 +29,18 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableComparator;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.CalendarWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -136,6 +139,17 @@ public class TopWikipediaSessions {
     }
   }
 
+  static class ParseTableRowJson extends SimpleFunction<String, TableRow> {
+    @Override
+    public TableRow apply(String input) {
+      try {
+        return Transport.getJsonFactory().fromString(input, TableRow.class);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed parsing table row json", e);
+      }
+    }
+  }
+
   static class ComputeTopSessions extends PTransform<PCollection<TableRow>, PCollection<String>> {
 
     private final double samplingThreshold;
@@ -193,11 +207,10 @@ public class TopWikipediaSessions {
 
     double samplingThreshold = 0.1;
 
-    p.apply(TextIO.Read
-        .from(options.getInput())
-        .withCoder(TableRowJsonCoder.of()))
-     .apply(new ComputeTopSessions(samplingThreshold))
-     .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
+    p.apply(TextIO.Read.from(options.getInput()))
+        .apply(MapElements.via(new ParseTableRowJson()))
+        .apply(new ComputeTopSessions(samplingThreshold))
+        .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run().waitUntilFinish();
   }

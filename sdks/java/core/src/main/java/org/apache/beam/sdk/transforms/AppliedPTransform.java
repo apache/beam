@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.value.AutoValue;
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Represents the application of a {@link PTransform} to a specific input to produce
@@ -30,30 +31,36 @@ import org.apache.beam.sdk.values.TaggedPValue;
  *
  * <p>For internal use.
  *
- * @param <InputT> transform input type
- * @param <OutputT> transform output type
+ * @param <InputT>     transform input type
+ * @param <OutputT>    transform output type
  * @param <TransformT> transform type
  */
 @AutoValue
-public abstract class AppliedPTransform
-    <InputT extends PInput, OutputT extends POutput,
-     TransformT extends PTransform<? super InputT, OutputT>> {
+public abstract class AppliedPTransform<
+    InputT extends PInput, OutputT extends POutput,
+    TransformT extends PTransform<? super InputT, OutputT>> {
+  // To prevent extension outside of this package.
+  AppliedPTransform() {}
 
   public static <
           InputT extends PInput,
           OutputT extends POutput,
           TransformT extends PTransform<? super InputT, OutputT>>
       AppliedPTransform<InputT, OutputT, TransformT> of(
-          String fullName, InputT input, OutputT output, TransformT transform) {
+          String fullName,
+          Map<TupleTag<?>, PValue> input,
+          Map<TupleTag<?>, PValue> output,
+          TransformT transform,
+          Pipeline p) {
     return new AutoValue_AppliedPTransform<InputT, OutputT, TransformT>(
-        fullName, input.expand(), output.expand(), transform, input.getPipeline());
+        fullName, input, output, transform, p);
   }
 
   public abstract String getFullName();
 
-  public abstract List<TaggedPValue> getInputs();
+  public abstract Map<TupleTag<?>, PValue> getInputs();
 
-  public abstract List<TaggedPValue> getOutputs();
+  public abstract Map<TupleTag<?>, PValue> getOutputs();
 
   public abstract TransformT getTransform();
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,8 +33,9 @@
   <packaging>jar</packaging>
 
   <properties>
-    <timestamp>${maven.build.timestamp}</timestamp>
-    <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    <dataflow.container_version>beam-master-20170411</dataflow.container_version>
+    <dataflow.fnapi_environment_major_version>1</dataflow.fnapi_environment_major_version>
+    <dataflow.legacy_environment_major_version>6</dataflow.legacy_environment_major_version>
   </properties>
 
   <build>
@@ -75,16 +76,18 @@
         </configuration>
         <executions>
           <execution>
-            <id>runnable-on-service-tests</id>
+            <id>validates-runner-tests</id>
             <configuration>
               <excludedGroups>
+                org.apache.beam.sdk.testing.UsesAttemptedMetrics,
+                org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                org.apache.beam.sdk.testing.UsesSetState,
+                org.apache.beam.sdk.testing.UsesMapState,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
-                org.apache.beam.sdk.testing.UsesMetrics
+                org.apache.beam.sdk.testing.UsesUnboundedPCollections,
+                org.apache.beam.sdk.testing.UsesTestStream,
               </excludedGroups>
-              <excludes>
-                <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
-              </excludes>
             </configuration>
           </execution>
         </executions>
@@ -111,6 +114,7 @@
                 <includes>
                   <include>com.google.cloud.bigtable:bigtable-client-core</include>
                   <include>com.google.guava:guava</include>
+                  <include>org.apache.beam:beam-runners-core-construction-java</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -150,7 +154,14 @@
                     <exclude>com.google.cloud.bigtable.grpc.BigtableTableName</exclude>
                   </excludes>
                 </relocation>
+                <relocation>
+                  <pattern>org.apache.beam.runners.core</pattern>
+                  <shadedPattern>org.apache.beam.runners.dataflow.repackaged.org.apache.beam.runners.core</shadedPattern>
+                </relocation>
               </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
             </configuration>
           </execution>
         </executions>
@@ -168,6 +179,21 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-runner-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
     </dependency>
 
     <dependency>
@@ -199,6 +225,11 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-clouddebugger</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-storage</artifactId>
     </dependency>
 
     <dependency>
@@ -237,12 +268,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
-      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -324,6 +349,20 @@
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
       <artifactId>datastore-v1-protos</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- transitive test dependencies from beam-sdk-java-core -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
   </dependencies>

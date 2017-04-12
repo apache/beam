@@ -41,10 +41,12 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.GqlQuery;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.Mutation;
@@ -60,6 +62,7 @@ import com.google.datastore.v1.client.DatastoreHelper;
 import com.google.datastore.v1.client.DatastoreOptions;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.Int32Value;
+import com.google.rpc.Code;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -67,8 +70,12 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -80,12 +87,14 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +102,8 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
  * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
- * {@link Entity} objects.
+ * {@link Entity} objects. Read is only supported for Bounded PCollections while Write and Delete
+ * are supported for both Bounded and Unbounded PCollections.
  *
  * <p>This API currently requires an authentication workaround. To use {@link DatastoreV1}, users
  * must use the {@code gcloud} command line tool to get credentials for Cloud Datastore:
@@ -122,10 +132,12 @@ import org.slf4j.LoggerFactory;
  *         .withQuery(query));
  * } </pre>
  *
- * <p><b>Note:</b> Normally, a Cloud Dataflow job will read from Cloud Datastore in parallel across
+ * <p><b>Note:</b> A runner may read from Cloud Datastore in parallel across
  * many workers. However, when the {@link Query} is configured with a limit using
- * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)}, then
- * all returned results will be read by a single Dataflow worker in order to ensure correct data.
+ * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
+ * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results
+ * will be read by a single worker in order to ensure correct data. Since data is read from
+ * a single worker, this could have a significant impact on the performance of the job.
  *
  * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write},
  * specifying the Cloud Datastore project to write to:
@@ -170,15 +182,18 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@code PipelineRunner}s for
  * more details.
  *
  * <p>Please see <a href="https://cloud.google.com/datastore/docs/activate">Cloud Datastore Sign Up
  * </a>for security and permission related information specific to Cloud Datastore.
  *
+ * <p>Optionally, Cloud Datastore V1 Emulator, running locally, could be used for testing purposes
+ * by providing the host port information through {@code withLocalhost("host:port"} for all the
+ * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
+ *
  * @see org.apache.beam.sdk.runners.PipelineRunner
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
 public class DatastoreV1 {
 
   // A package-private constructor to prevent direct instantiation from outside of this package
@@ -227,10 +242,12 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable public abstract String getProjectId();
+    @Nullable public abstract ValueProvider<String> getProjectId();
     @Nullable public abstract Query getQuery();
-    @Nullable public abstract String getNamespace();
+    @Nullable public abstract ValueProvider<String> getLiteralGqlQuery();
+    @Nullable public abstract ValueProvider<String> getNamespace();
     public abstract int getNumQuerySplits();
+    @Nullable public abstract String getLocalhost();
 
     @Override
     public abstract String toString();
@@ -239,10 +256,12 @@ public class DatastoreV1 {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setProjectId(String projectId);
+      abstract Builder setProjectId(ValueProvider<String> projectId);
       abstract Builder setQuery(Query query);
-      abstract Builder setNamespace(String namespace);
+      abstract Builder setLiteralGqlQuery(ValueProvider<String> literalGqlQuery);
+      abstract Builder setNamespace(ValueProvider<String> namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
+      abstract Builder setLocalhost(String localhost);
       abstract Read build();
     }
 
@@ -273,7 +292,9 @@ public class DatastoreV1 {
     private static long queryLatestStatisticsTimestamp(Datastore datastore,
         @Nullable String namespace)  throws DatastoreException {
       Query.Builder query = Query.newBuilder();
-      if (namespace == null) {
+      // Note: namespace either being null or empty represents the default namespace, in which
+      // case we treat it as not provided by the user.
+      if (Strings.isNullOrEmpty(namespace)) {
         query.addKindBuilder().setName("__Stat_Total__");
       } else {
         query.addKindBuilder().setName("__Stat_Ns_Total__");
@@ -308,7 +329,7 @@ public class DatastoreV1 {
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
       Query.Builder queryBuilder = Query.newBuilder();
-      if (namespace == null) {
+      if (Strings.isNullOrEmpty(namespace)) {
         queryBuilder.addKindBuilder().setName("__Stat_Kind__");
       } else {
         queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
@@ -333,13 +354,30 @@ public class DatastoreV1 {
       return entity.getProperties().get("entity_bytes").getIntegerValue();
     }
 
+    private static PartitionId.Builder forNamespace(@Nullable String namespace) {
+      PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
+      // Namespace either being null or empty represents the default namespace.
+      // Datastore Client libraries expect users to not set the namespace proto field in
+      // either of these cases.
+      if (!Strings.isNullOrEmpty(namespace)) {
+        partitionBuilder.setNamespaceId(namespace);
+      }
+      return partitionBuilder;
+    }
+
     /** Builds a {@link RunQueryRequest} from the {@code query} and {@code namespace}. */
     static RunQueryRequest makeRequest(Query query, @Nullable String namespace) {
-      RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setQuery(query);
-      if (namespace != null) {
-        requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
-      }
-      return requestBuilder.build();
+      return RunQueryRequest.newBuilder()
+          .setQuery(query)
+          .setPartitionId(forNamespace(namespace)).build();
+    }
+
+    @VisibleForTesting
+    /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
+    static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
+      return RunQueryRequest.newBuilder()
+          .setGqlQuery(gqlQuery)
+          .setPartitionId(forNamespace(namespace)).build();
     }
 
     /**
@@ -349,12 +387,52 @@ public class DatastoreV1 {
     private static List<Query> splitQuery(Query query, @Nullable String namespace,
         Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
-      PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
-      if (namespace != null) {
-        partitionBuilder.setNamespaceId(namespace);
-      }
+      return querySplitter.getSplits(query, forNamespace(namespace).build(), numSplits, datastore);
+    }
 
-      return querySplitter.getSplits(query, partitionBuilder.build(), numSplits, datastore);
+    /**
+     * Translates a Cloud Datastore gql query string to {@link Query}.
+     *
+     * <p>Currently, the only way to translate a gql query string to a Query is to run the query
+     * against Cloud Datastore and extract the {@code Query} from the response. To prevent reading
+     * any data, we set the {@code LIMIT} to 0 but if the gql query already has a limit set, we
+     * catch the exception with {@code INVALID_ARGUMENT} error code and retry the translation
+     * without the zero limit.
+     *
+     * <p>Note: This may result in reading actual data from Cloud Datastore but the service has a
+     * cap on the number of entities returned for a single rpc request, so this should not be a
+     * problem in practice.
+     */
+    @VisibleForTesting
+    static Query translateGqlQueryWithLimitCheck(String gql, Datastore datastore,
+        String namespace) throws DatastoreException {
+      String gqlQueryWithZeroLimit = gql + " LIMIT 0";
+      try {
+        Query translatedQuery = translateGqlQuery(gqlQueryWithZeroLimit, datastore, namespace);
+        // Clear the limit that we set.
+        return translatedQuery.toBuilder().clearLimit().build();
+      } catch (DatastoreException e) {
+        // Note: There is no specific error code or message to detect if the query already has a
+        // limit, so we just check for INVALID_ARGUMENT and assume that that the query might have
+        // a limit already set.
+        if (e.getCode() == Code.INVALID_ARGUMENT) {
+          LOG.warn("Failed to translate Gql query '{}': {}", gqlQueryWithZeroLimit, e.getMessage());
+          LOG.warn("User query might have a limit already set, so trying without zero limit");
+          // Retry without the zero limit.
+          return translateGqlQuery(gql, datastore, namespace);
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    /** Translates a gql query string to {@link Query}.*/
+    private static Query translateGqlQuery(String gql, Datastore datastore, String namespace)
+        throws DatastoreException {
+      GqlQuery gqlQuery = GqlQuery.newBuilder().setQueryString(gql)
+          .setAllowLiterals(true).build();
+      RunQueryRequest req = makeRequest(gqlQuery, namespace);
+      return datastore.runQuery(req).getQuery();
     }
 
     /**
@@ -362,6 +440,14 @@ public class DatastoreV1 {
      * project.
      */
     public DatastoreV1.Read withProjectId(String projectId) {
+      checkNotNull(projectId, "projectId");
+      return toBuilder().setProjectId(StaticValueProvider.of(projectId)).build();
+    }
+
+    /**
+     * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
       checkNotNull(projectId, "projectId");
       return toBuilder().setProjectId(projectId).build();
     }
@@ -382,9 +468,45 @@ public class DatastoreV1 {
     }
 
     /**
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query.
+     * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
+     * </a> to know more about GQL grammar.
+     *
+     * <p><b><i>Note:</i></b> This query is executed with literals allowed, so the users should
+     * ensure that the query is originated from trusted sources to avoid any security
+     * vulnerabilities via SQL Injection.
+     *
+     * <p><b><i>Experimental</i></b>: Cloud Datastore does not a provide a clean way to translate
+     * a gql query string to {@link Query}, so we end up making a query to the service for
+     * translation but this may read the actual data, although it will be a small amount.
+     * It needs more validation through production use cases before marking it as stable.
+     */
+    @Experimental(Kind.SOURCE_SINK)
+    public DatastoreV1.Read withLiteralGqlQuery(String gqlQuery) {
+      checkNotNull(gqlQuery, "gqlQuery");
+      return toBuilder().setLiteralGqlQuery(StaticValueProvider.of(gqlQuery)).build();
+    }
+
+    /**
+     * Same as {@link Read#withLiteralGqlQuery(String)} but with a {@link ValueProvider}.
+     */
+    @Experimental(Kind.SOURCE_SINK)
+    public DatastoreV1.Read withLiteralGqlQuery(ValueProvider<String> gqlQuery) {
+      checkNotNull(gqlQuery, "gqlQuery");
+      return toBuilder().setLiteralGqlQuery(gqlQuery).build();
+    }
+
+    /**
      * Returns a new {@link DatastoreV1.Read} that reads from the given namespace.
      */
     public DatastoreV1.Read withNamespace(String namespace) {
+      return toBuilder().setNamespace(StaticValueProvider.of(namespace)).build();
+    }
+
+    /**
+     * Same as {@link Read#withNamespace(String)} but with a {@link ValueProvider}.
+     */
+    public DatastoreV1.Read withNamespace(ValueProvider<String> namespace) {
       return toBuilder().setNamespace(namespace).build();
     }
 
@@ -410,33 +532,54 @@ public class DatastoreV1 {
           .build();
     }
 
+    /**
+     * Returns a new {@link DatastoreV1.Read} that reads from a Datastore Emulator running at the
+     * given localhost address.
+     */
+    public DatastoreV1.Read withLocalhost(String localhost) {
+      return toBuilder()
+          .setLocalhost(localhost)
+          .build();
+    }
+
     @Override
     public PCollection<Entity> expand(PBegin input) {
-      V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
-          getNamespace());
+      V1Options v1Options = V1Options.from(getProjectId(), getNamespace(), getLocalhost());
 
       /*
        * This composite transform involves the following steps:
-       *   1. Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
-       *   splits the query into {@code numQuerySplits} and assign each split query a unique
-       *   {@code Integer} as the key. The resulting output is of the type
-       *   {@code PCollection<KV<Integer, Query>>}.
+       *   1. Create a singleton of the user provided {@code query} or if {@code gqlQuery} is
+       *   provided apply a {@link ParDo} that translates the {@code gqlQuery} into a {@code query}.
+       *
+       *   2. A {@link ParDo} splits the resulting query into {@code numQuerySplits} and
+       *   assign each split query a unique {@code Integer} as the key. The resulting output is
+       *   of the type {@code PCollection<KV<Integer, Query>>}.
        *
        *   If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
        *   splits will be computed dynamically based on the size of the data for the {@code query}.
        *
-       *   2. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
+       *   3. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
        *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
        *   output a {@code PCollection<Query>}.
        *
-       *   3. In the third step, a {@code ParDo} reads entities for each query and outputs
+       *   4. In the third step, a {@code ParDo} reads entities for each query and outputs
        *   a {@code PCollection<Entity>}.
        */
-      PCollection<KV<Integer, Query>> queries = input
-          .apply(Create.of(getQuery()))
+
+      PCollection<Query> inputQuery;
+      if (getQuery() != null) {
+        inputQuery = input.apply(Create.of(getQuery()));
+      } else {
+        inputQuery = input
+            .apply(Create.of(getLiteralGqlQuery())
+                .withCoder(SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
+            .apply(ParDo.of(new GqlQueryTranslateFn(v1Options)));
+      }
+
+      PCollection<KV<Integer, Query>> splitQueries = inputQuery
           .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
 
-      PCollection<Query> shardedQueries = queries
+      PCollection<Query> shardedQueries = splitQueries
           .apply(GroupByKey.<Integer, Query>create())
           .apply(Values.<Iterable<Query>>create())
           .apply(Flatten.<Query>iterables());
@@ -450,52 +593,129 @@ public class DatastoreV1 {
     @Override
     public void validate(PBegin input) {
       checkNotNull(getProjectId(), "projectId");
-      checkNotNull(getQuery(), "query");
+
+      if (getProjectId().isAccessible() && getProjectId().get() == null) {
+        throw new IllegalArgumentException("Project id cannot be null");
+      }
+
+      if (getQuery() == null && getLiteralGqlQuery() == null) {
+        throw new IllegalArgumentException(
+            "Either query or gql query ValueProvider should be provided");
+      }
+
+      if (getQuery() != null && getLiteralGqlQuery() != null) {
+        throw new IllegalArgumentException(
+            "Only one of query or gql query ValueProvider should be provided");
+      }
+
+      if (getLiteralGqlQuery() != null && getLiteralGqlQuery().isAccessible()) {
+        checkNotNull(getLiteralGqlQuery().get(), "gqlQuery");
+      }
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      String query = getQuery() == null ? null : getQuery().toString();
       builder
           .addIfNotNull(DisplayData.item("projectId", getProjectId())
               .withLabel("ProjectId"))
           .addIfNotNull(DisplayData.item("namespace", getNamespace())
               .withLabel("Namespace"))
-          .addIfNotNull(DisplayData.item("query", getQuery().toString())
-              .withLabel("Query"));
+          .addIfNotNull(DisplayData.item("query", query)
+              .withLabel("Query"))
+          .addIfNotNull(DisplayData.item("gqlQuery", getLiteralGqlQuery())
+              .withLabel("GqlQuery"));
     }
 
-    /**
-     * A class for v1 Cloud Datastore related options.
-     */
     @VisibleForTesting
-    static class V1Options implements Serializable {
-      private final Query query;
-      private final String projectId;
+    static class V1Options implements HasDisplayData, Serializable {
+      private final ValueProvider<String> project;
       @Nullable
-      private final String namespace;
+      private final ValueProvider<String> namespace;
+      @Nullable
+      private final String localhost;
 
-      private V1Options(String projectId, Query query, @Nullable String namespace) {
-        this.projectId = checkNotNull(projectId, "projectId");
-        this.query = checkNotNull(query, "query");
+      private V1Options(ValueProvider<String> project, ValueProvider<String> namespace,
+          String localhost) {
+        this.project = project;
         this.namespace = namespace;
+        this.localhost = localhost;
       }
 
-      public static V1Options from(String projectId, Query query, @Nullable String namespace) {
-        return new V1Options(projectId, query, namespace);
+      public static V1Options from(String projectId, String namespace, String localhost) {
+        return from(StaticValueProvider.of(projectId), StaticValueProvider.of(namespace),
+            localhost);
       }
 
-      public Query getQuery() {
-        return query;
+      public static V1Options from(ValueProvider<String> project, ValueProvider<String> namespace,
+          String localhost) {
+        return new V1Options(project, namespace, localhost);
       }
 
       public String getProjectId() {
-        return projectId;
+        return project.get();
       }
 
       @Nullable
       public String getNamespace() {
+        return namespace == null ? null : namespace.get();
+      }
+
+      public ValueProvider<String> getProjectValueProvider() {
+        return project;
+      }
+
+      @Nullable
+      public ValueProvider<String> getNamespaceValueProvider() {
         return namespace;
+      }
+
+      @Nullable
+      public String getLocalhost() {
+        return localhost;
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder
+            .addIfNotNull(DisplayData.item("projectId", getProjectValueProvider())
+                .withLabel("ProjectId"))
+            .addIfNotNull(DisplayData.item("namespace", getNamespaceValueProvider())
+                .withLabel("Namespace"));
+      }
+    }
+
+    /**
+     * A DoFn that translates a Cloud Datastore gql query string to {@code Query}.
+     */
+    static class GqlQueryTranslateFn extends DoFn<ValueProvider<String>, Query> {
+      private final V1Options v1Options;
+      private transient Datastore datastore;
+      private final V1DatastoreFactory datastoreFactory;
+
+      GqlQueryTranslateFn(V1Options options) {
+        this(options, new V1DatastoreFactory());
+      }
+
+      GqlQueryTranslateFn(V1Options options, V1DatastoreFactory datastoreFactory) {
+        this.v1Options = options;
+        this.datastoreFactory = datastoreFactory;
+      }
+
+      @StartBundle
+      public void startBundle(Context c) throws Exception {
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c) throws Exception {
+        ValueProvider<String> gqlQuery = c.element();
+        LOG.info("User query: '{}'", gqlQuery.get());
+        Query query = translateGqlQueryWithLimitCheck(gqlQuery.get(), datastore,
+            v1Options.getNamespace());
+        LOG.info("User gql query translated to Query({})", query);
+        c.output(query);
       }
     }
 
@@ -529,7 +749,8 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.projectId);
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
+            options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
       }
 
@@ -571,13 +792,11 @@ public class DatastoreV1 {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        builder
-            .addIfNotNull(DisplayData.item("projectId", options.getProjectId())
-                .withLabel("ProjectId"))
-            .addIfNotNull(DisplayData.item("namespace", options.getNamespace())
-                .withLabel("Namespace"))
-            .addIfNotNull(DisplayData.item("query", options.getQuery().toString())
-                .withLabel("Query"));
+        builder.include("options", options);
+        if (numSplits > 0) {
+          builder.add(DisplayData.item("numQuerySplits", numSplits)
+              .withLabel("Requested number of Query splits"));
+        }
       }
     }
 
@@ -603,7 +822,8 @@ public class DatastoreV1 {
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
-        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId());
+        datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
+            options.getLocalhost());
       }
 
       /** Read and output entities for the given query. */
@@ -656,6 +876,12 @@ public class DatastoreV1 {
                   || (currentBatch.getMoreResults() == NOT_FINISHED));
         }
       }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        super.populateDisplayData(builder);
+        builder.include("options", options);
+      }
     }
   }
 
@@ -664,7 +890,7 @@ public class DatastoreV1 {
    * {@code projectId} using {@link DatastoreV1.Write#withProjectId}.
    */
   public Write write() {
-    return new Write(null);
+    return new Write(null, null);
   }
 
   /**
@@ -672,7 +898,7 @@ public class DatastoreV1 {
    * {@code projectId} using {@link DeleteEntity#withProjectId}.
    */
   public DeleteEntity deleteEntity() {
-    return new DeleteEntity(null);
+    return new DeleteEntity(null, null);
   }
 
   /**
@@ -680,7 +906,7 @@ public class DatastoreV1 {
    * {@code projectId} using {@link DeleteKey#withProjectId}.
    */
   public DeleteKey deleteKey() {
-    return new DeleteKey(null);
+    return new DeleteKey(null, null);
   }
 
   /**
@@ -693,8 +919,8 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    Write(@Nullable String projectId) {
-      super(projectId, new UpsertFn());
+    Write(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
+      super(projectId, localhost, new UpsertFn());
     }
 
     /**
@@ -702,7 +928,24 @@ public class DatastoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new Write(projectId);
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Same as {@link Write#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public Write withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
+      return new Write(projectId, localhost);
+    }
+
+    /**
+     * Returns a new {@link Write} that writes to the Cloud Datastore Emulator running locally on
+     * the specified host port.
+     */
+    public Write withLocalhost(String localhost) {
+      checkNotNull(localhost, "localhost");
+      return new Write(projectId, localhost);
     }
   }
 
@@ -716,8 +959,8 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteEntity(@Nullable String projectId) {
-      super(projectId, new DeleteEntityFn());
+    DeleteEntity(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
+      super(projectId, localhost, new DeleteEntityFn());
     }
 
     /**
@@ -726,7 +969,24 @@ public class DatastoreV1 {
      */
     public DeleteEntity withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new DeleteEntity(projectId);
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Same as {@link DeleteEntity#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteEntity withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
+      return new DeleteEntity(projectId, localhost);
+    }
+
+    /**
+     * Returns a new {@link DeleteEntity} that deletes entities from the Cloud Datastore Emulator
+     * running locally on the specified host port.
+     */
+    public DeleteEntity withLocalhost(String localhost) {
+      checkNotNull(localhost, "localhost");
+      return new DeleteEntity(projectId, localhost);
     }
   }
 
@@ -741,8 +1001,8 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    DeleteKey(@Nullable String projectId) {
-      super(projectId, new DeleteKeyFn());
+    DeleteKey(@Nullable ValueProvider<String> projectId, @Nullable String localhost) {
+      super(projectId, localhost, new DeleteKeyFn());
     }
 
     /**
@@ -751,7 +1011,24 @@ public class DatastoreV1 {
      */
     public DeleteKey withProjectId(String projectId) {
       checkNotNull(projectId, "projectId");
-      return new DeleteKey(projectId);
+      return withProjectId(StaticValueProvider.of(projectId));
+    }
+
+    /**
+     * Returns a new {@link DeleteKey} that deletes entities from the Cloud Datastore Emulator
+     * running locally on the specified host port.
+     */
+    public DeleteKey withLocalhost(String localhost) {
+      checkNotNull(localhost, "localhost");
+      return new DeleteKey(projectId, localhost);
+    }
+
+    /**
+     * Same as {@link DeleteKey#withProjectId(String)} but with a {@link ValueProvider}.
+     */
+    public DeleteKey withProjectId(ValueProvider<String> projectId) {
+      checkNotNull(projectId, "projectId ValueProvider");
+      return new DeleteKey(projectId, localhost);
     }
   }
 
@@ -764,8 +1041,9 @@ public class DatastoreV1 {
    * be used by the {@code DoFn} provided, as the commits are retried when failures occur.
    */
   private abstract static class Mutate<T> extends PTransform<PCollection<T>, PDone> {
+    protected ValueProvider<String> projectId;
     @Nullable
-    private final String projectId;
+    protected String localhost;
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 
@@ -773,22 +1051,28 @@ public class DatastoreV1 {
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if
      * it is {@code null} at instantiation time, an error will be thrown.
      */
-    Mutate(@Nullable String projectId, SimpleFunction<T, Mutation> mutationFn) {
+    Mutate(@Nullable ValueProvider<String> projectId, @Nullable String localhost,
+        SimpleFunction<T, Mutation> mutationFn) {
       this.projectId = projectId;
+      this.localhost = localhost;
       this.mutationFn = checkNotNull(mutationFn);
     }
 
     @Override
     public PDone expand(PCollection<T> input) {
       input.apply("Convert to Mutation", MapElements.via(mutationFn))
-          .apply("Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId)));
+          .apply("Write Mutation to Datastore", ParDo.of(
+              new DatastoreWriterFn(projectId, localhost)));
 
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<T> input) {
-      checkNotNull(projectId, "projectId");
+      checkNotNull(projectId, "projectId ValueProvider");
+      if (projectId.isAccessible()) {
+        checkNotNull(projectId.get(), "projectId");
+      }
       checkNotNull(mutationFn, "mutationFn");
     }
 
@@ -810,7 +1094,7 @@ public class DatastoreV1 {
     }
 
     public String getProjectId() {
-      return projectId;
+      return projectId.get();
     }
   }
 
@@ -831,7 +1115,9 @@ public class DatastoreV1 {
   @VisibleForTesting
   static class DatastoreWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(DatastoreWriterFn.class);
-    private final String projectId;
+    private final ValueProvider<String> projectId;
+    @Nullable
+    private final String localhost;
     private transient Datastore datastore;
     private final V1DatastoreFactory datastoreFactory;
     // Current batch of mutations to be written.
@@ -842,19 +1128,25 @@ public class DatastoreV1 {
         FluentBackoff.DEFAULT
             .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
-    DatastoreWriterFn(String projectId) {
-      this(projectId, new V1DatastoreFactory());
+    DatastoreWriterFn(String projectId, @Nullable String localhost) {
+      this(StaticValueProvider.of(projectId), localhost, new V1DatastoreFactory());
+    }
+
+    DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost) {
+      this(projectId, localhost, new V1DatastoreFactory());
     }
 
     @VisibleForTesting
-    DatastoreWriterFn(String projectId, V1DatastoreFactory datastoreFactory) {
+    DatastoreWriterFn(ValueProvider<String> projectId, @Nullable String localhost,
+        V1DatastoreFactory datastoreFactory) {
       this.projectId = checkNotNull(projectId, "projectId");
+      this.localhost = localhost;
       this.datastoreFactory = datastoreFactory;
     }
 
     @StartBundle
     public void startBundle(Context c) {
-      datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId);
+      datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
     }
 
     @ProcessElement
@@ -1009,6 +1301,15 @@ public class DatastoreV1 {
 
     /** Builds a Cloud Datastore client for the given pipeline options and project. */
     public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+      return getDatastore(pipelineOptions, projectId, null);
+    }
+
+    /**
+     * Builds a Cloud Datastore client for the given pipeline options, project and an optional
+     * locahost.
+     */
+    public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId,
+        @Nullable String localhost) {
       Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
       HttpRequestInitializer initializer;
       if (credential != null) {
@@ -1023,6 +1324,12 @@ public class DatastoreV1 {
           new DatastoreOptions.Builder()
               .projectId(projectId)
               .initializer(initializer);
+
+      if (localhost != null) {
+        builder.localHost(localhost);
+      } else {
+        builder.host("batch-datastore.googleapis.com");
+      }
 
       return DatastoreFactory.get().create(builder.build());
     }

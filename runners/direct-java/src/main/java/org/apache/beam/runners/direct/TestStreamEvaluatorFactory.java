@@ -18,8 +18,6 @@
 
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
@@ -27,12 +25,14 @@ import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.TestStream.ElementEvent;
 import org.apache.beam.sdk.testing.TestStream.Event;
@@ -47,7 +47,9 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -106,7 +108,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       if (event.getType().equals(EventType.ELEMENT)) {
         UncommittedBundle<T> bundle =
             context.createBundle(
-                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs()).getValue());
+                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs().values()));
         for (TimestampedValue<T> elem : ((ElementEvent<T>) event).getElements()) {
           bundle.add(
               WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp()));
@@ -161,29 +163,42 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
 
   static class DirectTestStreamFactory<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
+    private final DirectRunner runner;
+
+    DirectTestStreamFactory(DirectRunner runner) {
+      this.runner = runner;
+    }
 
     @Override
     public PTransform<PBegin, PCollection<T>> getReplacementTransform(
         TestStream<T> transform) {
-      return new DirectTestStream<>(transform);
+      return new DirectTestStream<>(runner, transform);
+    }
+
+    @Override
+    public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+      return p.begin();
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
     static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+      private final transient DirectRunner runner;
       private final TestStream<T> original;
 
-      private DirectTestStream(TestStream<T> transform) {
+      @VisibleForTesting
+      DirectTestStream(DirectRunner runner, TestStream<T> transform) {
+        this.runner = runner;
         this.original = transform;
       }
 
       @Override
       public PCollection<T> expand(PBegin input) {
-        PipelineRunner<?> runner = input.getPipeline().getRunner();
-        checkState(
-            runner instanceof DirectRunner,
-            "%s can only be used when running with the %s",
-            getClass().getSimpleName(),
-            DirectRunner.class.getSimpleName());
-        ((DirectRunner) runner).setClockSupplier(new TestClockSupplier());
+        runner.setClockSupplier(new TestClockSupplier());
         return PCollection.<T>createPrimitiveOutputInternal(
                 input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
             .setCoder(original.getValueCoder());

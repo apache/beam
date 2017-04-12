@@ -99,12 +99,14 @@ public class BoundedDataset<T> implements Dataset {
 
   @Override
   public void cache(String storageLevel) {
-    rdd.persist(StorageLevel.fromString(storageLevel));
+    // populate the rdd if needed
+    getRDD().persist(StorageLevel.fromString(storageLevel));
   }
 
   @Override
   public void action() {
-    rdd.count();
+    // Empty function to force computation of RDD.
+    rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
   }
 
   @Override

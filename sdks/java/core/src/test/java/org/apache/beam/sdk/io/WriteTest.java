@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -50,22 +52,28 @@ import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.ToString;
+import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -93,16 +101,26 @@ public class WriteTest {
   @SuppressWarnings("unchecked") // covariant cast
   private static final PTransform<PCollection<String>, PCollection<String>> IDENTITY_MAP =
       (PTransform)
-      MapElements.via(new SimpleFunction<String, String>() {
-        @Override
-        public String apply(String input) {
-          return input;
-        }
-      });
+          MapElements.via(
+              new SimpleFunction<String, String>() {
+                @Override
+                public String apply(String input) {
+                  return input;
+                }
+              });
+
+  private static final PTransform<PCollection<String>, PCollectionView<Integer>>
+      SHARDING_TRANSFORM =
+          new PTransform<PCollection<String>, PCollectionView<Integer>>() {
+            @Override
+            public PCollectionView<Integer> expand(PCollection<String> input) {
+              return null;
+            }
+          };
 
   private static class WindowAndReshuffle<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    private final Window.Bound<T> window;
-    public WindowAndReshuffle(Window.Bound<T> window) {
+    private final Window<T> window;
+    public WindowAndReshuffle(Window<T> window) {
       this.window = window;
     }
 
@@ -167,6 +185,43 @@ public class WriteTest {
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
         Optional.of(1));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testCustomShardedWrite() {
+    // Flag to validate that the pipeline options are passed to the Sink
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+
+    // Clear the sink's contents.
+    sinkContents.clear();
+    // Reset the number of shards produced.
+    numShards.set(0);
+    // Reset the number of records in each shard.
+    recordsPerShard.clear();
+
+    List<String> inputs = new ArrayList<>();
+    // Prepare timestamps for the elements.
+    List<Long> timestamps = new ArrayList<>();
+    for (long i = 0; i < 1000; i++) {
+      inputs.add(Integer.toString(3));
+      timestamps.add(i + 1);
+    }
+
+    TestSink sink = new TestSink();
+    Write<String> write = Write.to(sink).withSharding(new LargestInt());
+    p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
+        .apply(IDENTITY_MAP)
+        .apply(write);
+
+    p.run();
+    assertThat(sinkContents, containsInAnyOrder(inputs.toArray()));
+    assertTrue(sink.hasCorrectState());
+    // The PCollection has values all equal to three, which should be fed as the sharding strategy
+    assertEquals(3, numShards.intValue());
+    assertEquals(3, recordsPerShard.size());
   }
 
   /**
@@ -253,15 +308,24 @@ public class WriteTest {
   @Test
   public void testBuildWrite() {
     Sink<String> sink = new TestSink() {};
-    Write.Bound<String> write = Write.to(sink).withNumShards(3);
-    assertEquals(3, write.getNumShards());
+    Write<String> write = Write.to(sink).withNumShards(3);
     assertThat(write.getSink(), is(sink));
+    PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
+        write.getSharding();
 
-    Write.Bound<String> write2 = write.withNumShards(7);
-    assertEquals(7, write2.getNumShards());
+    assertThat(write.getSharding(), is(nullValue()));
+    assertThat(write.getNumShards(), instanceOf(StaticValueProvider.class));
+    assertThat(write.getNumShards().get(), equalTo(3));
+    assertThat(write.getSharding(), equalTo(originalSharding));
+
+    Write<String> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat(write2.getSink(), is(sink));
+    assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
-    assertEquals(3, write.getNumShards());
+
+    Write<String> writeUnsharded = write2.withRunnerDeterminedSharding();
+    assertThat(writeUnsharded.getSharding(), nullValue());
+    assertThat(write.getSharding(), equalTo(originalSharding));
   }
 
   @Test
@@ -272,7 +336,7 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
@@ -287,22 +351,39 @@ public class WriteTest {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-    Write.Bound<String> write = Write.to(sink).withNumShards(1);
+    Write<String> write = Write.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
     assertThat(displayData, includesDisplayDataFor("sink", sink));
-    assertThat(displayData, hasDisplayItem("numShards", 1));
+    assertThat(displayData, hasDisplayItem("numShards", "1"));
   }
 
   @Test
-  public void testWriteUnbounded() {
-    PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(ToString.element());
+  public void testCustomShardStrategyDisplayData() {
+    TestSink sink = new TestSink() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    Write<String> write =
+        Write.to(sink)
+            .withSharding(
+                new PTransform<PCollection<String>, PCollectionView<Integer>>() {
+                  @Override
+                  public PCollectionView<Integer> expand(PCollection<String> input) {
+                    return null;
+                  }
 
-    TestSink sink = new TestSink();
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Write can only be applied to a Bounded PCollection");
-    unbounded.apply(Write.to(sink));
+                  @Override
+                  public void populateDisplayData(DisplayData.Builder builder) {
+                    builder.add(DisplayData.item("spam", "ham"));
+                  }
+                });
+    DisplayData displayData = DisplayData.from(write);
+    assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
+    assertThat(displayData, includesDisplayDataFor("sink", sink));
+    assertThat(displayData, hasDisplayItem("spam", "ham"));
   }
 
   /**
@@ -322,7 +403,8 @@ public class WriteTest {
    * verifies that the output number of shards is correct.
    */
   private static void runShardedWrite(
-      List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
       Optional<Integer> numConfiguredShards) {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
@@ -343,7 +425,7 @@ public class WriteTest {
     }
 
     TestSink sink = new TestSink();
-    Write.Bound<String> write = Write.to(sink);
+    Write<String> write = Write.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
     }
@@ -445,6 +527,10 @@ public class WriteTest {
     }
 
     @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+    }
+
+    @Override
     public void finalize(Iterable<TestWriterResult> bundleResults, PipelineOptions options)
         throws Exception {
       assertEquals("test_value", options.as(WriteOptions.class).getTestFlag());
@@ -543,7 +629,21 @@ public class WriteTest {
     }
 
     @Override
-    public void open(String uId) throws Exception {
+    public final void openWindowed(String uId,
+                                   BoundedWindow window,
+                                   PaneInfo paneInfo,
+                                   int shard,
+                                   int nShards) throws Exception {
+      numShards.incrementAndGet();
+      this.uId = uId;
+      assertEquals(State.INITIAL, state);
+      state = State.OPENED;
+    }
+
+    @Override
+    public final void openUnwindowed(String uId,
+                                     int shard,
+                                     int nShards) throws Exception {
       numShards.incrementAndGet();
       this.uId = uId;
       assertEquals(State.INITIAL, state);
@@ -563,7 +663,12 @@ public class WriteTest {
       state = State.CLOSED;
       return new TestWriterResult(uId, elementsWritten);
     }
+
+    @Override
+    public void cleanup() throws Exception {
+    }
   }
+
 
   /**
    * Options for test, exposed for PipelineOptionsFactory.
@@ -573,4 +678,28 @@ public class WriteTest {
     String getTestFlag();
     void setTestFlag(String value);
   }
+
+  /**
+   * Outputs the largest integer in a {@link PCollection} into a {@link PCollectionView}. The input
+   * {@link PCollection} must be convertible to integers via {@link Integer#valueOf(String)}
+   */
+  private static class LargestInt
+      extends PTransform<PCollection<String>, PCollectionView<Integer>> {
+    @Override
+    public PCollectionView<Integer> expand(PCollection<String> input) {
+      return input
+          .apply(
+              ParDo.of(
+                  new DoFn<String, Integer>() {
+                    @ProcessElement
+                    public void toInteger(ProcessContext ctxt) {
+                      ctxt.output(Integer.valueOf(ctxt.element()));
+                    }
+                  }))
+          .apply(Top.<Integer>largest(1))
+          .apply(Flatten.<Integer>iterables())
+          .apply(View.<Integer>asSingleton());
+    }
+  }
+
 }

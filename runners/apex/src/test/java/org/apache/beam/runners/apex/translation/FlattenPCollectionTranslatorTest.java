@@ -18,12 +18,17 @@
 
 package org.apache.beam.runners.apex.translation;
 
+import com.datatorrent.api.DAG;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.apex.api.EmbeddedAppLauncher;
+import org.apache.apex.api.Launcher;
+import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -61,7 +66,8 @@ public class FlattenPCollectionTranslatorTest {
     Set<String> expected = Sets.newHashSet();
     List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
     for (String[] collection : collections) {
-      pcList.add(p.apply(Create.of(collection).withCoder(StringUtf8Coder.of())));
+      pcList.add(
+          p.apply(Create.of(ImmutableList.copyOf(collection)).withCoder(StringUtf8Coder.of())));
       expected.addAll(Arrays.asList(collection));
     }
 
@@ -89,6 +95,23 @@ public class FlattenPCollectionTranslatorTest {
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
+  }
+
+  @Test
+  public void testFlattenSingleCollection() {
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    options.setRunner(ApexRunner.class);
+    ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
+    EmbeddedAppLauncher<?> launcher = Launcher.getLauncher(LaunchMode.EMBEDDED);
+    DAG dag = launcher.getDAG();
+
+    Pipeline p = Pipeline.create(options);
+    PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
+    PCollectionList.of(single).apply(Flatten.<String>pCollections())
+      .apply(ParDo.of(new EmbeddedCollector()));
+    translator.translate(p, dag);
+    Assert.assertNotNull(
+        dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));
   }
 
 }

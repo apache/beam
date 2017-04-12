@@ -17,12 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.anyOf;
+
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ClassInfo;
@@ -45,15 +54,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.StringDescription;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Represents the API surface of a package prefix. Used for accessing public classes,
- * methods, and the types they reference, to control what dependencies are re-exported.
+ * Represents the API surface of a package prefix. Used for accessing public classes, methods, and
+ * the types they reference, to control what dependencies are re-exported.
  *
- * <p>For the purposes of calculating the public API surface, exposure includes any public
- * or protected occurrence of:
+ * <p>For the purposes of calculating the public API surface, exposure includes any public or
+ * protected occurrence of:
  *
  * <ul>
  * <li>superclasses
@@ -66,45 +80,277 @@ import org.slf4j.LoggerFactory;
  * <li>wildcard bounds
  * </ul>
  *
- * <p>Exposure is a transitive property. The resulting map excludes primitives
- * and array classes themselves.
+ * <p>Exposure is a transitive property. The resulting map excludes primitives and array classes
+ * themselves.
  *
- * <p>It is prudent (though not required) to prune prefixes like "java" via the builder
- * method {@link #pruningPrefix} to halt the traversal so it does not uselessly catalog references
- * that are not interesting.
+ * <p>It is prudent (though not required) to prune prefixes like "java" via the builder method
+ * {@link #pruningPrefix} to halt the traversal so it does not uselessly catalog references that are
+ * not interesting.
  */
 @SuppressWarnings("rawtypes")
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
+  /** A factory method to create a {@link Class} matcher for classes residing in a given package. */
+  public static Matcher<Class<?>> classesInPackage(final String packageName) {
+    return new Matchers.ClassInPackage(packageName);
+  }
+
   /**
-   * Returns an empty {@link ApiSurface}.
+   * A factory method to create an {@link ApiSurface} matcher, producing a positive match if the
+   * queried api surface contains ONLY classes described by the provided matchers.
    */
+  public static Matcher<ApiSurface> containsOnlyClassesMatching(
+      final Set<Matcher<Class<?>>> classMatchers) {
+    return new Matchers.ClassesInSurfaceMatcher(classMatchers);
+  }
+
+  /** See {@link ApiSurface#containsOnlyClassesMatching(Set)}. */
+  @SafeVarargs
+  public static Matcher<ApiSurface> containsOnlyClassesMatching(
+      final Matcher<Class<?>>... classMatchers) {
+    return new Matchers.ClassesInSurfaceMatcher(Sets.newHashSet(classMatchers));
+  }
+
+  /** See {@link ApiSurface#containsOnlyPackages(Set)}. */
+  public static Matcher<ApiSurface> containsOnlyPackages(final String... packageNames) {
+    return containsOnlyPackages(Sets.newHashSet(packageNames));
+  }
+
+  /**
+   * A factory method to create an {@link ApiSurface} matcher, producing a positive match if the
+   * queried api surface contains classes ONLY from specified package names.
+   */
+  public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
+
+    final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
+        new Function<String, Matcher<Class<?>>>() {
+
+          @Override
+          public Matcher<Class<?>> apply(@Nonnull final String packageName) {
+            return classesInPackage(packageName);
+          }
+        };
+
+    final ImmutableSet<Matcher<Class<?>>> classesInPackages =
+        FluentIterable.from(packageNames).transform(packageNameToClassMatcher).toSet();
+
+    return containsOnlyClassesMatching(classesInPackages);
+  }
+
+  /**
+   * {@link Matcher}s for use in {@link ApiSurface} related tests that aim to keep the public API
+   * conformant to a hard-coded policy by controlling what classes are allowed to be exposed by an
+   * API surface.
+   */
+  // based on previous code by @kennknowles and others.
+  private static class Matchers {
+
+    private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
+
+      private final String packageName;
+
+      private ClassInPackage(final String packageName) {
+        this.packageName = packageName;
+      }
+
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("Classes in package \"");
+        description.appendText(packageName);
+        description.appendText("\"");
+      }
+
+      @Override
+      protected boolean matchesSafely(final Class<?> clazz, final Description mismatchDescription) {
+        return clazz.getName().startsWith(packageName + ".");
+      }
+    }
+
+    private static class ClassesInSurfaceMatcher extends TypeSafeDiagnosingMatcher<ApiSurface> {
+
+      private final Set<Matcher<Class<?>>> classMatchers;
+
+      private ClassesInSurfaceMatcher(final Set<Matcher<Class<?>>> classMatchers) {
+        this.classMatchers = classMatchers;
+      }
+
+      private boolean verifyNoAbandoned(
+          final ApiSurface checkedApiSurface,
+          final Set<Matcher<Class<?>>> allowedClasses,
+          final Description mismatchDescription) {
+
+        // <helper_lambdas>
+
+        final Function<Matcher<Class<?>>, String> toMessage =
+            new Function<Matcher<Class<?>>, String>() {
+
+              @Override
+              public String apply(@Nonnull final Matcher<Class<?>> abandonedClassMacther) {
+                final StringDescription description = new StringDescription();
+                description.appendText("No ");
+                abandonedClassMacther.describeTo(description);
+                return description.toString();
+              }
+            };
+
+        final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
+            new Predicate<Matcher<Class<?>>>() {
+
+              @Override
+              public boolean apply(@Nonnull final Matcher<Class<?>> classMatcher) {
+                return FluentIterable.from(checkedApiSurface.getExposedClasses())
+                    .anyMatch(
+                        new Predicate<Class<?>>() {
+
+                          @Override
+                          public boolean apply(@Nonnull final Class<?> aClass) {
+                            return classMatcher.matches(aClass);
+                          }
+                        });
+              }
+            };
+
+        // </helper_lambdas>
+
+        final ImmutableSet<Matcher<Class<?>>> matchedClassMatchers =
+            FluentIterable.from(allowedClasses).filter(matchedByExposedClasses).toSet();
+
+        final Sets.SetView<Matcher<Class<?>>> abandonedClassMatchers =
+            Sets.difference(allowedClasses, matchedClassMatchers);
+
+        final ImmutableList<String> messages =
+            FluentIterable.from(abandonedClassMatchers)
+                .transform(toMessage)
+                .toSortedList(Ordering.<String>natural());
+
+        if (!messages.isEmpty()) {
+          mismatchDescription.appendText(
+              "The following white-listed scopes did not have matching classes on the API surface:"
+                  + "\n\t"
+                  + Joiner.on("\n\t").join(messages));
+        }
+
+        return messages.isEmpty();
+      }
+
+      private boolean verifyNoDisallowed(
+          final ApiSurface checkedApiSurface,
+          final Set<Matcher<Class<?>>> allowedClasses,
+          final Description mismatchDescription) {
+
+        /* <helper_lambdas> */
+
+        final Function<Class<?>, List<Class<?>>> toExposure =
+            new Function<Class<?>, List<Class<?>>>() {
+
+              @Override
+              public List<Class<?>> apply(@Nonnull final Class<?> aClass) {
+                return checkedApiSurface.getAnyExposurePath(aClass);
+              }
+            };
+
+        final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
+            new Maps.EntryTransformer<Class<?>, List<Class<?>>, String>() {
+
+              @Override
+              public String transformEntry(
+                  @Nonnull final Class<?> aClass, @Nonnull final List<Class<?>> exposure) {
+                return aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
+              }
+            };
+
+        final Predicate<Class<?>> disallowed =
+            new Predicate<Class<?>>() {
+
+              @Override
+              public boolean apply(@Nonnull final Class<?> aClass) {
+                return !classIsAllowed(aClass, allowedClasses);
+              }
+            };
+
+        /* </helper_lambdas> */
+
+        final FluentIterable<Class<?>> disallowedClasses =
+            FluentIterable.from(checkedApiSurface.getExposedClasses()).filter(disallowed);
+
+        final ImmutableMap<Class<?>, List<Class<?>>> exposures =
+            Maps.toMap(disallowedClasses, toExposure);
+
+        final ImmutableList<String> messages =
+            FluentIterable.from(Maps.transformEntries(exposures, toMessage).values())
+                .toSortedList(Ordering.<String>natural());
+
+        if (!messages.isEmpty()) {
+          mismatchDescription.appendText(
+              "The following disallowed classes appeared on the API surface:\n\t"
+                  + Joiner.on("\n\t").join(messages));
+        }
+
+        return messages.isEmpty();
+      }
+
+      @SuppressWarnings({"rawtypes", "unchecked"})
+      private boolean classIsAllowed(
+          final Class<?> clazz, final Set<Matcher<Class<?>>> allowedClasses) {
+        // Safe cast inexpressible in Java without rawtypes
+        return anyOf((Iterable) allowedClasses).matches(clazz);
+      }
+
+      @Override
+      protected boolean matchesSafely(
+          final ApiSurface apiSurface, final Description mismatchDescription) {
+        final boolean noDisallowed =
+            verifyNoDisallowed(apiSurface, classMatchers, mismatchDescription);
+
+        final boolean noAbandoned =
+            verifyNoAbandoned(apiSurface, classMatchers, mismatchDescription);
+
+        return noDisallowed & noAbandoned;
+      }
+
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("API surface to include only:" + "\n\t");
+        for (final Matcher<Class<?>> classMatcher : classMatchers) {
+          classMatcher.describeTo(description);
+          description.appendText("\n\t");
+        }
+      }
+    }
+  }
+
+  ///////////////
+
+  /** Returns an empty {@link ApiSurface}. */
   public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
     return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
   }
 
-  /**
-   * Returns an {@link ApiSurface} object representing the given package and all subpackages.
-   */
-  public static ApiSurface ofPackage(String packageName) throws IOException {
-    return ApiSurface.empty().includingPackage(packageName);
+  /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
+  public static ApiSurface ofPackage(String packageName, ClassLoader classLoader)
+      throws IOException {
+    return ApiSurface.empty().includingPackage(packageName, classLoader);
   }
 
-  /**
-   * Returns an {@link ApiSurface} object representing just the surface of the given class.
-   */
+  /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
+  public static ApiSurface ofPackage(Package aPackage, ClassLoader classLoader) throws IOException {
+    return ofPackage(aPackage.getName(), classLoader);
+  }
+
+  /** Returns an {@link ApiSurface} object representing just the surface of the given class. */
   public static ApiSurface ofClass(Class<?> clazz) {
     return ApiSurface.empty().includingClass(clazz);
   }
 
   /**
-   * Returns an {@link ApiSurface} like this one, but also including the named
-   * package and all of its subpackages.
+   * Returns an {@link ApiSurface} like this one, but also including the named package and all of
+   * its subpackages.
    */
-  public ApiSurface includingPackage(String packageName) throws IOException {
-    ClassPath classPath = ClassPath.from(ClassLoader.getSystemClassLoader());
+  public ApiSurface includingPackage(String packageName, ClassLoader classLoader)
+      throws IOException {
+    ClassPath classPath = ClassPath.from(classLoader);
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
     for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
@@ -119,9 +365,7 @@ public class ApiSurface {
     return new ApiSurface(newRootClasses, patternsToPrune);
   }
 
-  /**
-   * Returns an {@link ApiSurface} like this one, but also including the given class.
-   */
+  /** Returns an {@link ApiSurface} like this one, but also including the given class. */
   public ApiSurface includingClass(Class<?> clazz) {
     Set<Class<?>> newRootClasses = Sets.newHashSet();
     LOG.debug("Including class {}", clazz);
@@ -131,32 +375,28 @@ public class ApiSurface {
   }
 
   /**
-   * Returns an {@link ApiSurface} like this one, but pruning transitive
-   * references from classes whose full name (including package) begins with the provided prefix.
+   * Returns an {@link ApiSurface} like this one, but pruning transitive references from classes
+   * whose full name (including package) begins with the provided prefix.
    */
   public ApiSurface pruningPrefix(String prefix) {
     return pruningPattern(Pattern.compile(Pattern.quote(prefix) + ".*"));
   }
 
-  /**
-   * Returns an {@link ApiSurface} like this one, but pruning references from the named
-   * class.
-   */
+  /** Returns an {@link ApiSurface} like this one, but pruning references from the named class. */
   public ApiSurface pruningClassName(String className) {
     return pruningPattern(Pattern.compile(Pattern.quote(className)));
   }
 
   /**
-   * Returns an {@link ApiSurface} like this one, but pruning references from the
-   * provided class.
+   * Returns an {@link ApiSurface} like this one, but pruning references from the provided class.
    */
   public ApiSurface pruningClass(Class<?> clazz) {
     return pruningClassName(clazz.getName());
   }
 
   /**
-   * Returns an {@link ApiSurface} like this one, but pruning transitive
-   * references from classes whose full name (including package) begins with the provided prefix.
+   * Returns an {@link ApiSurface} like this one, but pruning transitive references from classes
+   * whose full name (including package) begins with the provided prefix.
    */
   public ApiSurface pruningPattern(Pattern pattern) {
     Set<Pattern> newPatterns = Sets.newHashSet();
@@ -165,35 +405,26 @@ public class ApiSurface {
     return new ApiSurface(rootClasses, newPatterns);
   }
 
-  /**
-   * See {@link #pruningPattern(Pattern)}.
-   */
+  /** See {@link #pruningPattern(Pattern)}. */
   public ApiSurface pruningPattern(String patternString) {
     return pruningPattern(Pattern.compile(patternString));
   }
 
-  /**
-   * Returns all public classes originally belonging to the package
-   * in the {@link ApiSurface}.
-   */
+  /** Returns all public classes originally belonging to the package in the {@link ApiSurface}. */
   public Set<Class<?>> getRootClasses() {
     return rootClasses;
   }
 
-  /**
-   * Returns exposed types in this set, including arrays and primitives as
-   * specified.
-   */
+  /** Returns exposed types in this set, including arrays and primitives as specified. */
   public Set<Class<?>> getExposedClasses() {
     return getExposedToExposers().keySet();
   }
 
   /**
-   * Returns a path from an exposed class to a root class. There may be many, but this
-   * gives only one.
+   * Returns a path from an exposed class to a root class. There may be many, but this gives only
+   * one.
    *
-   * <p>If there are only cycles, with no path back to a root class, throws
-   * IllegalStateException.
+   * <p>If there are only cycles, with no path back to a root class, throws IllegalStateException.
    */
   public List<Class<?>> getAnyExposurePath(Class<?> exposedClass) {
     Set<Class<?>> excluded = Sets.newHashSet();
@@ -201,16 +432,18 @@ public class ApiSurface {
     List<Class<?>> path = getAnyExposurePath(exposedClass, excluded);
     if (path == null) {
       throw new IllegalArgumentException(
-          "Class " + exposedClass + " has no path back to any root class."
-          + " It should never have been considered exposed.");
+          "Class "
+              + exposedClass
+              + " has no path back to any root class."
+              + " It should never have been considered exposed.");
     } else {
       return path;
     }
   }
 
   /**
-   * Returns a path from an exposed class to a root class. There may be many, but this
-   * gives only one. It will not return a path that crosses the excluded classes.
+   * Returns a path from an exposed class to a root class. There may be many, but this gives only
+   * one. It will not return a path that crosses the excluded classes.
    *
    * <p>If there are only cycles or paths through the excluded classes, returns null.
    *
@@ -235,9 +468,8 @@ public class ApiSurface {
         return exposurePath;
       }
 
-      List<Class<?>> restOfPath = getAnyExposurePath(
-          exposer,
-          Sets.union(excluded, Sets.newHashSet(exposer)));
+      List<Class<?>> restOfPath =
+          getAnyExposurePath(exposer, Sets.union(excluded, Sets.newHashSet(exposer)));
 
       if (restOfPath != null) {
         exposurePath.addAll(restOfPath);
@@ -264,8 +496,8 @@ public class ApiSurface {
   }
 
   /**
-   * A map from exposed types to place where they are exposed, in the sense of being a part
-   * of a public-facing API surface.
+   * A map from exposed types to place where they are exposed, in the sense of being a part of a
+   * public-facing API surface.
    *
    * <p>This map is the adjencency list representation of a directed graph, where an edge from type
    * {@code T1} to type {@code T2} indicates that {@code T2} directly exposes {@code T1} in its API
@@ -281,28 +513,25 @@ public class ApiSurface {
     return exposedToExposers;
   }
 
-  /**
-   * See {@link #getExposedToExposers}.
-   */
+  /** See {@link #getExposedToExposers}. */
   private void constructExposedToExposers() {
     visited = Sets.newHashSet();
-    exposedToExposers = Multimaps.newSetMultimap(
-        Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
-        new Supplier<Set<Class<?>>>() {
-          @Override
-          public Set<Class<?>> get() {
-            return Sets.newHashSet();
-          }
-        });
+    exposedToExposers =
+        Multimaps.newSetMultimap(
+            Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
+            new Supplier<Set<Class<?>>>() {
+              @Override
+              public Set<Class<?>> get() {
+                return Sets.newHashSet();
+              }
+            });
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);
     }
   }
 
-  /**
-   * A combined {@code Pattern} that implements all the pruning specified.
-   */
+  /** A combined {@code Pattern} that implements all the pruning specified. */
   private Pattern getPrunedPattern() {
     if (prunedPattern == null) {
       constructPrunedPattern();
@@ -310,9 +539,7 @@ public class ApiSurface {
     return prunedPattern;
   }
 
-  /**
-   * See {@link #getPrunedPattern}.
-   */
+  /** See {@link #getPrunedPattern}. */
   private void constructPrunedPattern() {
     Set<String> prunedPatternStrings = Sets.newHashSet();
     for (Pattern patternToPrune : patternsToPrune) {
@@ -321,25 +548,19 @@ public class ApiSurface {
     prunedPattern = Pattern.compile("(" + Joiner.on(")|(").join(prunedPatternStrings) + ")");
   }
 
-  /**
-   * Whether a type and all that it references should be pruned from the graph.
-   */
+  /** Whether a type and all that it references should be pruned from the graph. */
   private boolean pruned(Type type) {
     return pruned(TypeToken.of(type).getRawType());
   }
 
-  /**
-   * Whether a class and all that it references should be pruned from the graph.
-   */
+  /** Whether a class and all that it references should be pruned from the graph. */
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 
-  /**
-   * Whether a type has already beens sufficiently processed.
-   */
+  /** Whether a type has already beens sufficiently processed. */
   private boolean done(Type type) {
     return visited.contains(type);
   }
@@ -356,9 +577,7 @@ public class ApiSurface {
     visited.add(type);
   }
 
-  /**
-   * See {@link #addExposedTypes(Type, Class)}.
-   */
+  /** See {@link #addExposedTypes(Type, Class)}. */
   private void addExposedTypes(TypeToken type, Class<?> cause) {
     LOG.debug(
         "Adding exposed types from {}, which is the type in type token {}", type.getType(), type);
@@ -366,9 +585,9 @@ public class ApiSurface {
   }
 
   /**
-   * Adds any references learned by following a link from {@code cause} to {@code type}.
-   * This will dispatch according to the concrete {@code Type} implementation. See the
-   * other overloads of {@code addExposedTypes} for their details.
+   * Adds any references learned by following a link from {@code cause} to {@code type}. This will
+   * dispatch according to the concrete {@code Type} implementation. See the other overloads of
+   * {@code addExposedTypes} for their details.
    */
   private void addExposedTypes(Type type, Class<?> cause) {
     if (type instanceof TypeVariable) {
@@ -392,8 +611,7 @@ public class ApiSurface {
   }
 
   /**
-   * Adds any types exposed to this set. These will
-   * come from the (possibly absent) bounds on the
+   * Adds any types exposed to this set. These will come from the (possibly absent) bounds on the
    * type variable.
    */
   private void addExposedTypes(TypeVariable type, Class<?> cause) {
@@ -430,9 +648,8 @@ public class ApiSurface {
   }
 
   /**
-   * Adds any types exposed from the given array type. The array type itself is not added. The
-   * cause of the exposure of the underlying type is considered whatever type exposed the array
-   * type.
+   * Adds any types exposed from the given array type. The array type itself is not added. The cause
+   * of the exposure of the underlying type is considered whatever type exposed the array type.
    */
   private void addExposedTypes(GenericArrayType type, Class<?> cause) {
     if (done(type)) {
@@ -447,9 +664,8 @@ public class ApiSurface {
   }
 
   /**
-   * Adds any types exposed to this set. Even if the
-   * root type is to be pruned, the actual type arguments
-   * are processed.
+   * Adds any types exposed to this set. Even if the root type is to be pruned, the actual type
+   * arguments are processed.
    */
   private void addExposedTypes(ParameterizedType type, Class<?> cause) {
     // Even if the type is already done, this link to it may be new
@@ -482,9 +698,8 @@ public class ApiSurface {
   }
 
   /**
-   * Adds a class and all of the types it exposes. The cause
-   * of the class being exposed is given, and the cause
-   * of everything within the class is that class itself.
+   * Adds a class and all of the types it exposes. The cause of the class being exposed is given,
+   * and the cause of everything within the class is that class itself.
    */
   private void addExposedTypes(Class<?> clazz, Class<?> cause) {
     if (pruned(clazz)) {
@@ -535,7 +750,7 @@ public class ApiSurface {
           "Adding exposed types from {}, which is an annotation on invokable {}",
           annotation,
           invokable);
-     addExposedTypes(annotation.annotationType(), cause);
+      addExposedTypes(annotation.annotationType(), cause);
     }
     for (Parameter parameter : invokable.getParameters()) {
       LOG.debug(
@@ -577,9 +792,7 @@ public class ApiSurface {
     }
   }
 
-  /**
-   * Returns an {@link Invokable} for each public methods or constructors of a type.
-   */
+  /** Returns an {@link Invokable} for each public methods or constructors of a type. */
   private Set<Invokable> getExposedInvokables(TypeToken<?> type) {
     Set<Invokable> invokables = Sets.newHashSet();
 
@@ -598,13 +811,10 @@ public class ApiSurface {
     return invokables;
   }
 
-  /**
-   * Returns true of the given modifier bitmap indicates exposure (public or protected access).
-   */
+  /** Returns true of the given modifier bitmap indicates exposure (public or protected access). */
   private boolean exposed(int modifiers) {
     return 0 != (modifiers & (Modifier.PUBLIC | Modifier.PROTECTED));
   }
-
 
   ////////////////////////////////////////////////////////////////////////////
 
@@ -613,25 +823,11 @@ public class ApiSurface {
    *
    * <p>Note that our idea of "public" does not include various internal-only APIs.
    */
-  public static ApiSurface getSdkApiSurface() throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam")
+  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
+    return ApiSurface.ofPackage("org.apache.beam", classLoader)
         .pruningPattern("org[.]apache[.]beam[.].*Test")
-
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
         .pruningPrefix("java");
-  }
-
-  public static void main(String[] args) throws Exception {
-    List<String> names = Lists.newArrayList();
-    for (Class clazz : getSdkApiSurface().getExposedClasses()) {
-      names.add(clazz.getName());
-    }
-    List<String> sortedNames = Lists.newArrayList(names);
-    Collections.sort(sortedNames);
-
-    for (String name : sortedNames) {
-      System.out.println(name);
-    }
   }
 }

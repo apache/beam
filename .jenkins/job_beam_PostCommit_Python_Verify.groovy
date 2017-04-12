@@ -25,10 +25,28 @@ job('beam_PostCommit_Python_Verify') {
   previousNames('beam_PostCommit_PythonVerify')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate, 'python-sdk')
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+    delegate,
+    'Python SDK PostCommit Tests',
+    'Run Python PostCommit')
+
+  // Allow the test to only run on particular nodes
+  // TODO(BEAM-1817): Remove once the tests can run on all nodes
+  parameters {
+      nodeParam('TEST_HOST') {
+          description('select test host as either beam1, 2 or 3')
+          defaultNodes(['beam3'])
+          allowedNodes(['beam1', 'beam2', 'beam3'])
+          trigger('multiSelectionDisallowed')
+          eligibility('IgnoreOfflineNodeEligibility')
+      }
+  }
 
   // Execute shell command to test Python SDK.
   steps {

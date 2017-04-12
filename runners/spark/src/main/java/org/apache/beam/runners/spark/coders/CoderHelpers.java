@@ -18,16 +18,21 @@
 
 package org.apache.beam.runners.spark.coders;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Iterables;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+
 import scala.Tuple2;
 
 /**
@@ -86,6 +91,24 @@ public final class CoderHelpers {
     } catch (IOException e) {
       throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
     }
+  }
+
+  /**
+   * Utility method for deserializing a Iterable of byte arrays using the specified coder.
+   *
+   * @param serialized bytearrays to be deserialized.
+   * @param coder      Coder to deserialize with.
+   * @param <T>        Type of object to be returned.
+   * @return Iterable of deserialized objects.
+   */
+  public static <T> Iterable<T> fromByteArrays(
+      Collection<byte[]> serialized, final Coder<T> coder) {
+    return Iterables.transform(serialized, new com.google.common.base.Function<byte[], T>() {
+      @Override
+      public T apply(@Nonnull byte[] bytes) {
+        return fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder);
+      }
+    });
   }
 
   /**

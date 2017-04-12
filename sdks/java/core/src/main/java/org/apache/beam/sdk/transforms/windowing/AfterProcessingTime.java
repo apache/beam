@@ -17,40 +17,87 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import com.google.common.collect.ImmutableList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.PeriodFormat;
+import org.joda.time.format.PeriodFormatter;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
  * the real-time domain.
- *
- * <p>The time at which to fire the timer can be adjusted via the methods in
- * {@link AfterDelayFromFirstElement}, such as {@link AfterDelayFromFirstElement#plusDelayOf} or
- * {@link AfterDelayFromFirstElement#alignedTo}.
  */
 @Experimental(Experimental.Kind.TRIGGER)
-public class AfterProcessingTime extends AfterDelayFromFirstElement {
+public class AfterProcessingTime extends OnceTrigger {
 
-  private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
-    super(TimeDomain.PROCESSING_TIME, transforms);
+  private static final PeriodFormatter DURATION_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
+
+  private final List<TimestampTransform> timestampTransforms;
+
+  public AfterProcessingTime(List<TimestampTransform> timestampTransforms) {
+    super(null);
+    this.timestampTransforms = timestampTransforms;
   }
 
   /**
-   * Creates a trigger that fires when the current processing time passes the processing time
-   * at which this trigger saw the first element in a pane.
+   * Creates a trigger that fires when the current processing time passes the processing time at
+   * which this trigger saw the first element in a pane.
    */
   public static AfterProcessingTime pastFirstElementInPane() {
-    return new AfterProcessingTime(IDENTITY);
+    return new AfterProcessingTime(Collections.<TimestampTransform>emptyList());
+  }
+
+  /**
+   * The transforms applied to the arrival time of an element to determine when this trigger allows
+   * output.
+   */
+  public List<TimestampTransform> getTimestampTransforms() {
+    return timestampTransforms;
+  }
+
+  /**
+   * Adds some delay to the original target time.
+   *
+   * @param delay the delay to add
+   * @return An updated time trigger that will wait the additional time before firing.
+   */
+  public AfterProcessingTime plusDelayOf(final Duration delay) {
+    return new AfterProcessingTime(
+        ImmutableList.<TimestampTransform>builder()
+            .addAll(timestampTransforms)
+            .add(TimestampTransform.delay(delay))
+            .build());
+  }
+
+  /**
+   * Aligns timestamps to the smallest multiple of {@code period} since the {@code offset} greater
+   * than the timestamp.
+   */
+  public AfterProcessingTime alignedTo(final Duration period, final Instant offset) {
+    return new AfterProcessingTime(
+        ImmutableList.<TimestampTransform>builder()
+            .addAll(timestampTransforms)
+            .add(TimestampTransform.alignTo(period, offset))
+            .build());
+  }
+
+  /**
+   * Aligns the time to be the smallest multiple of {@code period} greater than the epoch
+   * boundary (aka {@code new Instant(0)}).
+   */
+  public AfterProcessingTime alignedTo(final Duration period) {
+    return alignedTo(period, new Instant(0));
   }
 
   @Override
-  protected AfterProcessingTime newWith(
-      List<SerializableFunction<Instant, Instant>> transforms) {
-    return new AfterProcessingTime(transforms);
+  public boolean isCompatible(Trigger other) {
+    return this.equals(other);
   }
 
   @Override
@@ -60,17 +107,28 @@ public class AfterProcessingTime extends AfterDelayFromFirstElement {
 
   @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
-    return new AfterSynchronizedProcessingTime();
+    return AfterSynchronizedProcessingTime.ofFirstElement();
   }
 
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("AfterProcessingTime.pastFirstElementInPane()");
-    for (SerializableFunction<Instant, Instant> delayFn : timestampMappers) {
-      builder
-          .append(".plusDelayOf(")
-          .append(delayFn)
-          .append(")");
+    for (TimestampTransform transform : getTimestampTransforms()) {
+      if (transform instanceof TimestampTransform.Delay) {
+        TimestampTransform.Delay delay = (TimestampTransform.Delay) transform;
+        builder
+            .append(".plusDelayOf(")
+            .append(DURATION_FORMATTER.print(delay.getDelay().toPeriod()))
+            .append(")");
+      } else if (transform instanceof TimestampTransform.AlignTo) {
+        TimestampTransform.AlignTo alignTo = (TimestampTransform.AlignTo) transform;
+        builder
+            .append(".alignedTo(")
+            .append(DURATION_FORMATTER.print(alignTo.getPeriod().toPeriod()))
+            .append(", ")
+            .append(alignTo.getOffset())
+            .append(")");
+      }
     }
 
     return builder.toString();
@@ -84,12 +142,13 @@ public class AfterProcessingTime extends AfterDelayFromFirstElement {
     if (!(obj instanceof AfterProcessingTime)) {
       return false;
     }
+
     AfterProcessingTime that = (AfterProcessingTime) obj;
-    return Objects.equals(this.timestampMappers, that.timestampMappers);
+    return getTimestampTransforms().equals(that.getTimestampTransforms());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getClass(), this.timestampMappers);
+    return Objects.hash(getTimestampTransforms());
   }
 }

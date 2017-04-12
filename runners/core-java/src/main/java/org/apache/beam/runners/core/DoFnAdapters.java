@@ -204,17 +204,7 @@ public class DoFnAdapters {
     }
 
     @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-
-    @Override
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
     }
 
@@ -296,6 +286,11 @@ public class DoFnAdapters {
     }
 
     @Override
+    public void updateWatermark(Instant watermark) {
+      throw new UnsupportedOperationException("Only splittable DoFn's can use updateWatermark()");
+    }
+
+    @Override
     public BoundedWindow window() {
       return context.window();
     }
@@ -316,17 +311,7 @@ public class DoFnAdapters {
     }
 
     @Override
-    public DoFn.InputProvider<InputT> inputProvider() {
-      throw new UnsupportedOperationException("inputProvider() exists only for testing");
-    }
-
-    @Override
-    public DoFn.OutputReceiver<OutputT> outputReceiver() {
-      throw new UnsupportedOperationException("outputReceiver() exists only for testing");
-    }
-
-    @Override
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
     }
 

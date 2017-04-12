@@ -20,29 +20,44 @@ package org.apache.beam.sdk.runners;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
+import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -56,14 +71,16 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TransformHierarchyTest implements Serializable {
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public final transient TestPipeline pipeline =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
   private transient TransformHierarchy hierarchy;
 
   @Before
   public void setup() {
-    hierarchy = new TransformHierarchy();
+    hierarchy = new TransformHierarchy(pipeline);
   }
 
   @Test
@@ -111,7 +128,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.popNode();
     assertThat(hierarchy.getProducer(created), equalTo(node));
     assertThat(
-        "A Transform that produces non-primtive output should be composite",
+        "A Transform that produces non-primitive output should be composite",
         emptyTransform.isCompositeNode(),
         is(true));
   }
@@ -174,6 +191,130 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
+  public void replaceSucceeds() {
+    PTransform<?, ?> enclosingPT =
+        new PTransform<PInput, POutput>() {
+          @Override
+          public POutput expand(PInput input) {
+            return PDone.in(input.getPipeline());
+          }
+        };
+
+    TransformHierarchy.Node enclosing =
+        hierarchy.pushNode("Enclosing", PBegin.in(pipeline), enclosingPT);
+
+    Create.Values<Long> originalTransform = Create.of(1L);
+    TransformHierarchy.Node original =
+        hierarchy.pushNode("Create", PBegin.in(pipeline), originalTransform);
+    assertThat(hierarchy.getCurrent(), equalTo(original));
+    PCollection<Long> originalOutput = pipeline.apply(originalTransform);
+    hierarchy.setOutput(originalOutput);
+    hierarchy.popNode();
+    assertThat(original.finishedSpecifying, is(true));
+    hierarchy.setOutput(PDone.in(pipeline));
+    hierarchy.popNode();
+
+    assertThat(hierarchy.getCurrent(), not(equalTo(enclosing)));
+    Read.Bounded<Long> replacementTransform = Read.from(CountingSource.upTo(1L));
+    PCollection<Long> replacementOutput = pipeline.apply(replacementTransform);
+    Node replacement = hierarchy.replaceNode(original, PBegin.in(pipeline), replacementTransform);
+    assertThat(hierarchy.getCurrent(), equalTo(replacement));
+    hierarchy.setOutput(replacementOutput);
+
+    TaggedPValue taggedReplacement = TaggedPValue.ofExpandedValue(replacementOutput);
+    Map<PValue, ReplacementOutput> replacementOutputs =
+        Collections.<PValue, ReplacementOutput>singletonMap(
+            replacementOutput,
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(originalOutput),
+                taggedReplacement));
+    hierarchy.replaceOutputs(replacementOutputs);
+
+    assertThat(replacement.getInputs(), equalTo(original.getInputs()));
+    assertThat(replacement.getEnclosingNode(), equalTo(original.getEnclosingNode()));
+    assertThat(replacement.getEnclosingNode(), equalTo(enclosing));
+    assertThat(
+        replacement.getTransform(), Matchers.<PTransform<?, ?>>equalTo(replacementTransform));
+    // THe tags of the replacement transform are matched to the appropriate PValues of the original
+    assertThat(
+        replacement.getOutputs().keySet(),
+        Matchers.<TupleTag<?>>contains(taggedReplacement.getTag()));
+    assertThat(replacement.getOutputs().values(), Matchers.<PValue>contains(originalOutput));
+    hierarchy.popNode();
+  }
+
+  @Test
+  public void replaceWithCompositeSucceeds() {
+    final SingleOutput<Long, Long> originalParDo =
+        ParDo.of(
+            new DoFn<Long, Long>() {
+              @ProcessElement
+              public void processElement(ProcessContext ctxt) {
+                ctxt.output(ctxt.element() + 1L);
+              }
+            });
+
+    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    PCollection<Long> upstream = pipeline.apply(genUpstream);
+    PCollection<Long> output = upstream.apply("Original", originalParDo);
+    hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(upstream);
+    hierarchy.popNode();
+
+    TransformHierarchy.Node original = hierarchy.pushNode("Original", upstream, originalParDo);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(output);
+    hierarchy.popNode();
+
+    final TupleTag<Long> longs = new TupleTag<>();
+    final MultiOutput<Long, Long> replacementParDo =
+        ParDo.of(
+                new DoFn<Long, Long>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext ctxt) {
+                    ctxt.output(ctxt.element() + 1L);
+                  }
+                })
+            .withOutputTags(longs, TupleTagList.empty());
+    PTransform<PCollection<Long>, PCollection<Long>> replacementComposite =
+        new PTransform<PCollection<Long>, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PCollection<Long> input) {
+            return input.apply("Contained", replacementParDo).get(longs);
+          }
+        };
+
+    PCollectionTuple replacementOutput = upstream.apply("Contained", replacementParDo);
+
+    Node compositeNode = hierarchy.replaceNode(original, upstream, replacementComposite);
+    Node replacementParNode = hierarchy.pushNode("Original/Contained", upstream, replacementParDo);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(replacementOutput);
+    hierarchy.popNode();
+    hierarchy.setOutput(replacementOutput.get(longs));
+
+    Entry<TupleTag<?>, PValue>
+        replacementLongs = Iterables.getOnlyElement(replacementOutput.expand().entrySet());
+    hierarchy.replaceOutputs(
+        Collections.<PValue, ReplacementOutput>singletonMap(
+            replacementOutput.get(longs),
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(output),
+                TaggedPValue.of(replacementLongs.getKey(), replacementLongs.getValue()))));
+
+    assertThat(
+        replacementParNode.getOutputs().keySet(),
+        Matchers.<TupleTag<?>>contains(replacementLongs.getKey()));
+    assertThat(replacementParNode.getOutputs().values(), Matchers.<PValue>contains(output));
+    assertThat(
+        compositeNode.getOutputs().keySet(),
+        equalTo(replacementOutput.get(longs).expand().keySet()));
+    assertThat(compositeNode.getOutputs().values(), Matchers.<PValue>contains(output));
+    hierarchy.popNode();
+  }
+
+  @Test
   public void visitVisitsAllPushed() {
     TransformHierarchy.Node root = hierarchy.getCurrent();
     PBegin begin = PBegin.in(pipeline);
@@ -185,7 +326,7 @@ public class TransformHierarchyTest implements Serializable {
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
-    ParDo.Bound<Long, Long> pardo =
+    SingleOutput<Long, Long> pardo =
         ParDo.of(
             new DoFn<Long, Long>() {
               @ProcessElement
@@ -201,10 +342,10 @@ public class TransformHierarchyTest implements Serializable {
     TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
     hierarchy.finishSpecifyingInput();
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
-    assertThat(compositeNode.getInputs(), Matchers.emptyIterable());
+    assertThat(compositeNode.getInputs().entrySet(), Matchers.empty());
     assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
     // Not yet set
-    assertThat(compositeNode.getOutputs(), Matchers.emptyIterable());
+    assertThat(compositeNode.getOutputs().entrySet(), Matchers.emptyIterable());
     assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
 
     TransformHierarchy.Node primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
@@ -212,16 +353,14 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.finishSpecifyingInput();
     hierarchy.setOutput(created);
     hierarchy.popNode();
-    assertThat(
-        fromTaggedValues(primitiveNode.getOutputs()), Matchers.<PValue>containsInAnyOrder(created));
-    assertThat(primitiveNode.getInputs(), Matchers.<TaggedPValue>emptyIterable());
+    assertThat(primitiveNode.getOutputs().values(), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(primitiveNode.getInputs().entrySet(), Matchers.emptyIterable());
     assertThat(primitiveNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(read));
     assertThat(primitiveNode.getEnclosingNode(), equalTo(compositeNode));
 
     hierarchy.setOutput(created);
     // The composite is listed as outputting a PValue created by the contained primitive
-    assertThat(
-        fromTaggedValues(compositeNode.getOutputs()), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(compositeNode.getOutputs().values(), Matchers.<PValue>containsInAnyOrder(created));
     // The producer of that PValue is still the primitive in which it is first output
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
@@ -261,14 +400,96 @@ public class TransformHierarchyTest implements Serializable {
     assertThat(visitedValuesInVisitor, equalTo(visitedValues));
   }
 
-  private static List<PValue> fromTaggedValues(List<TaggedPValue> taggedValues) {
-    return Lists.transform(
-        taggedValues,
-        new Function<TaggedPValue, PValue>() {
+  /**
+   * Tests that visiting the {@link TransformHierarchy} after replacing nodes does not visit any
+   * of the original nodes or inaccessible values but does visit all of the replacement nodes,
+   * new inaccessible replacement values, and the original output values.
+   */
+  @Test
+  public void visitAfterReplace() {
+    Node root = hierarchy.getCurrent();
+    final SingleOutput<Long, Long> originalParDo =
+        ParDo.of(
+            new DoFn<Long, Long>() {
+              @ProcessElement
+              public void processElement(ProcessContext ctxt) {
+                ctxt.output(ctxt.element() + 1L);
+              }
+            });
+
+    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    PCollection<Long> upstream = pipeline.apply(genUpstream);
+    PCollection<Long> output = upstream.apply("Original", originalParDo);
+    Node upstreamNode = hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(upstream);
+    hierarchy.popNode();
+
+    Node original = hierarchy.pushNode("Original", upstream, originalParDo);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(output);
+    hierarchy.popNode();
+
+    final TupleTag<Long> longs = new TupleTag<>();
+    final MultiOutput<Long, Long> replacementParDo =
+        ParDo.of(
+                new DoFn<Long, Long>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext ctxt) {
+                    ctxt.output(ctxt.element() + 1L);
+                  }
+                })
+            .withOutputTags(longs, TupleTagList.empty());
+    PTransform<PCollection<Long>, PCollection<Long>> replacementComposite =
+        new PTransform<PCollection<Long>, PCollection<Long>>() {
           @Override
-          public PValue apply(TaggedPValue input) {
-            return input.getValue();
+          public PCollection<Long> expand(PCollection<Long> input) {
+            return input.apply("Contained", replacementParDo).get(longs);
           }
-        });
+        };
+
+    PCollectionTuple replacementOutput = upstream.apply("Contained", replacementParDo);
+
+    Node compositeNode = hierarchy.replaceNode(original, upstream, replacementComposite);
+    Node replacementParNode = hierarchy.pushNode("Original/Contained", upstream, replacementParDo);
+    hierarchy.finishSpecifyingInput();
+    hierarchy.setOutput(replacementOutput);
+    hierarchy.popNode();
+    hierarchy.setOutput(replacementOutput.get(longs));
+
+    Entry<TupleTag<?>, PValue> replacementLongs =
+        Iterables.getOnlyElement(replacementOutput.expand().entrySet());
+    hierarchy.replaceOutputs(
+        Collections.<PValue, ReplacementOutput>singletonMap(
+            replacementOutput.get(longs),
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(output),
+                TaggedPValue.of(replacementLongs.getKey(), replacementLongs.getValue()))));
+    hierarchy.popNode();
+
+    final Set<Node> visitedCompositeNodes = new HashSet<>();
+    final Set<Node> visitedPrimitiveNodes = new HashSet<>();
+    Set<PValue> visitedValues =
+        hierarchy.visit(
+            new Defaults() {
+              @Override
+              public CompositeBehavior enterCompositeTransform(Node node) {
+                visitedCompositeNodes.add(node);
+                return CompositeBehavior.ENTER_TRANSFORM;
+              }
+
+              @Override
+              public void visitPrimitiveTransform(Node node) {
+                visitedPrimitiveNodes.add(node);
+              }
+            });
+
+    /*
+     Final Graph:
+     Upstream -> Upstream.out -> Composite -> (ReplacementParDo -> OriginalParDo.out)
+     */
+    assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
+    assertThat(visitedPrimitiveNodes, containsInAnyOrder(upstreamNode, replacementParNode));
+    assertThat(visitedValues, Matchers.<PValue>containsInAnyOrder(upstream, output));
   }
 }

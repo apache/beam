@@ -22,12 +22,12 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.MergingStateAccessor;
+import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.state.MergingStateAccessor;
-import org.apache.beam.sdk.util.state.StateAccessor;
 import org.joda.time.Instant;
 
 /**
@@ -456,7 +456,7 @@ public abstract class TriggerStateMachine implements Serializable {
    * <p>Note that if {@code t1} is {@link OnceTriggerStateMachine}, then {@code t1.orFinally(t2)} is
    * the same as {@code AfterFirst.of(t1, t2)}.
    */
-  public TriggerStateMachine orFinally(OnceTriggerStateMachine until) {
+  public TriggerStateMachine orFinally(TriggerStateMachine until) {
     return new OrFinallyStateMachine(this, until);
   }
 

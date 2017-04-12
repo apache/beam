@@ -47,8 +47,8 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
@@ -86,7 +86,7 @@ public class GroupByKeyTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGroupByKey() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList(
         KV.of("k1", 3),
@@ -126,7 +126,7 @@ public class GroupByKeyTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGroupByKeyAndWindows() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList(
         KV.of("k1", 3),  // window [0, 5)
@@ -168,7 +168,7 @@ public class GroupByKeyTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGroupByKeyEmpty() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -318,7 +318,7 @@ public class GroupByKeyTest {
    * the two values.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOutputTimeFnEarliest() {
 
     p.apply(
@@ -339,7 +339,7 @@ public class GroupByKeyTest {
    * with the windowing function customized to use the latest value.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testOutputTimeFnLatest() {
     p.apply(
         Create.timestamped(
@@ -374,7 +374,7 @@ public class GroupByKeyTest {
   @Test
   public void testDisplayData() {
     GroupByKey<String, String> groupByKey = GroupByKey.create();
-    GroupByKey<String, String> groupByFewKeys = GroupByKey.create(true);
+    GroupByKey<String, String> groupByFewKeys = GroupByKey.createWithFewKeys();
 
     DisplayData gbkDisplayData = DisplayData.from(groupByKey);
     DisplayData fewKeysDisplayData = DisplayData.from(groupByFewKeys);
@@ -389,7 +389,7 @@ public class GroupByKeyTest {
    * and not the value itself.
    */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
     final int numValues = 10;
     final int numKeys = 5;

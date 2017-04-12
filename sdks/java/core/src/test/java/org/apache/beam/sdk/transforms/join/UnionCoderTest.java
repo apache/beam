@@ -22,8 +22,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,10 +36,5 @@ public class UnionCoderTest {
   public void testCoderIsSerializable() {
     CoderProperties.coderSerializable(UnionCoder.of(ImmutableList.<Coder<?>>of(
         StringUtf8Coder.of(), DoubleCoder.of())));
-  }
-
-  @Test
-  public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(TimerDataCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 }

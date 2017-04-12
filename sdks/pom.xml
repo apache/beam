@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,7 +33,9 @@
   <name>Apache Beam :: SDKs</name>
 
   <modules>
+    <module>common</module>
     <module>java</module>
+    <module>python</module>
   </modules>
 
   <profiles>
@@ -41,11 +43,6 @@
       <id>release</id>
       <build>
         <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-checkstyle-plugin</artifactId>
-          </plugin>
-
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>findbugs-maven-plugin</artifactId>
@@ -58,7 +55,6 @@
   <build>
     <pluginManagement>
       <plugins>
-
         <!-- SDKs will generally offer test suites for runners, as sdks/java does. -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -74,6 +70,13 @@
         </plugin>
       </plugins>
     </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+    </plugins>
   </build>
 
 </project>

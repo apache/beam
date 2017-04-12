@@ -53,10 +53,11 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
@@ -75,8 +76,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -162,14 +165,14 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombine() {
     runTestSimpleCombine(TABLE, 20, Arrays.asList(KV.of("a", "114a"), KV.of("b", "113b")));
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testSimpleCombineWithContext() {
     runTestSimpleCombineWithContext(TABLE, 20,
@@ -178,14 +181,14 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSimpleCombineWithContextEmpty() {
     runTestSimpleCombineWithContext(
         EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList(), new String[] {});
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSimpleCombineEmpty() {
     runTestSimpleCombine(EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList());
   }
@@ -211,7 +214,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBasicCombine() {
     runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), Arrays.asList(
         KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
@@ -219,7 +222,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBasicCombineEmpty() {
     runTestBasicCombine(
         EMPTY_TABLE, ImmutableSet.<Integer>of(), Collections.<KV<String, Set<Integer>>>emptyList());
@@ -245,7 +248,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFixedWindowsCombine() {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
@@ -269,7 +272,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFixedWindowsCombineWithContext() {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
@@ -304,7 +307,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSlidingWindowsCombineWithContext() {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(2L, 3L, 8L, 9L, 10L))
@@ -351,7 +354,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testGlobalCombineWithDefaultsAndTriggers() {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
 
@@ -377,7 +380,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSessionsCombine() {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
@@ -400,7 +403,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSessionsCombineWithContext() {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
@@ -440,10 +443,10 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowedCombineEmpty() {
     PCollection<Double> mean = pipeline
-        .apply(Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply(Create.empty(BigEndianIntegerCoder.of()))
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
         .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
@@ -453,13 +456,13 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testAccumulatingCombine() {
     runTestAccumulatingCombine(TABLE, 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testAccumulatingCombineEmpty() {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
   }
@@ -495,7 +498,7 @@ public class CombineTest implements Serializable {
       };
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testHotKeyCombining() {
     PCollection<KV<String, Integer>> input = copy(createInput(pipeline, TABLE), 10);
 
@@ -529,7 +532,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testHotKeyCombiningWithAccumulationMode() {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
@@ -607,10 +610,10 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCombineGloballyAsSingletonView() {
     final PCollectionView<Integer> view = pipeline
-        .apply("CreateEmptySideInput", Create.<Integer>of().withCoder(BigEndianIntegerCoder.of()))
+        .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
         .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<Integer> output = pipeline
@@ -623,6 +626,49 @@ public class CombineTest implements Serializable {
                 }).withSideInputs(view));
 
     PAssert.thatSingleton(output).isEqualTo(0);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testWindowedCombineGloballyAsSingletonView() {
+    FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
+    final PCollectionView<Integer> view =
+        pipeline
+            .apply(
+                "CreateSideInput",
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(100)),
+                    TimestampedValue.of(3, new Instant(100))))
+            .apply("WindowSideInput", Window.<Integer>into(windowFn))
+            .apply("CombineSideInput", Sum.integersGlobally().asSingletonView());
+
+    TimestampedValue<Void> nonEmptyElement = TimestampedValue.of(null, new Instant(100));
+    TimestampedValue<Void> emptyElement = TimestampedValue.atMinimumTimestamp(null);
+    PCollection<Integer> output =
+        pipeline
+            .apply(
+                "CreateMainInput",
+                Create.<Void>timestamped(nonEmptyElement, emptyElement).withCoder(VoidCoder.of()))
+            .apply("WindowMainInput", Window.<Void>into(windowFn))
+            .apply(
+                "OutputSideInput",
+                ParDo.of(
+                        new DoFn<Void, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.output(c.sideInput(view));
+                          }
+                        })
+                    .withSideInputs(view));
+
+    PAssert.that(output).containsInAnyOrder(4, 0);
+    PAssert.that(output)
+        .inWindow(windowFn.assignWindow(nonEmptyElement.getTimestamp()))
+        .containsInAnyOrder(4);
+    PAssert.that(output)
+        .inWindow(windowFn.assignWindow(emptyElement.getTimestamp()))
+        .containsInAnyOrder(0);
     pipeline.run();
   }
 
@@ -672,7 +718,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCombinePerKeyPrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
@@ -688,7 +734,7 @@ public class CombineTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCombinePerKeyWithHotKeyFanoutPrimitiveDisplayData() {
     int hotKeyFanout = 2;
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();

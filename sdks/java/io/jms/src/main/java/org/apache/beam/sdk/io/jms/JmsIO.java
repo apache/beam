@@ -129,6 +129,8 @@ public class JmsIO {
     @Nullable abstract ConnectionFactory getConnectionFactory();
     @Nullable abstract String getQueue();
     @Nullable abstract String getTopic();
+    @Nullable abstract String getUsername();
+    @Nullable abstract String getPassword();
     abstract long getMaxNumRecords();
     @Nullable abstract Duration getMaxReadTime();
 
@@ -139,6 +141,8 @@ public class JmsIO {
       abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
       abstract Builder setQueue(String queue);
       abstract Builder setTopic(String topic);
+      abstract Builder setUsername(String username);
+      abstract Builder setPassword(String password);
       abstract Builder setMaxNumRecords(long maxNumRecords);
       abstract Builder setMaxReadTime(Duration maxReadTime);
       abstract Read build();
@@ -208,6 +212,24 @@ public class JmsIO {
     public Read withTopic(String topic) {
       checkArgument(topic != null, "withTopic(topic) called with null topic");
       return builder().setTopic(topic).build();
+    }
+
+    /**
+     * Define the username to connect to the JMS broker (authenticated).
+     */
+    public Read withUsername(String username) {
+      checkArgument(username != null, "JmsIO.read().withUsername(username) called with null "
+          + "username");
+      return builder().setUsername(username).build();
+    }
+
+    /**
+     * Define the password to connect to the JMS broker (authenticated).
+     */
+    public Read withPassword(String password) {
+      checkArgument(password != null, "JmsIO.read().withPassword(password) called with null "
+          + "password");
+      return builder().setPassword(password).build();
     }
 
     /**
@@ -303,7 +325,11 @@ public class JmsIO {
 
   private JmsIO() {}
 
-  private static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
+  /**
+   * An unbounded JMS source.
+   */
+  @VisibleForTesting
+  protected static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
 
     private final Read spec;
 
@@ -315,8 +341,15 @@ public class JmsIO {
     public List<UnboundedJmsSource> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
-      for (int i = 0; i < desiredNumSplits; i++) {
+      if (spec.getTopic() != null) {
+        // in the case of a topic, we create a single source, so an unique subscriber, to avoid
+        // element duplication
         sources.add(new UnboundedJmsSource(spec));
+      } else {
+        // in the case of a queue, we allow concurrent consumers
+        for (int i = 0; i < desiredNumSplits; i++) {
+          sources.add(new UnboundedJmsSource(spec));
+        }
       }
       return sources;
     }
@@ -369,23 +402,41 @@ public class JmsIO {
 
     @Override
     public boolean start() throws IOException {
-      ConnectionFactory connectionFactory = source.spec.getConnectionFactory();
+      Read spec = source.spec;
+      ConnectionFactory connectionFactory = spec.getConnectionFactory();
       try {
-        this.connection = connectionFactory.createConnection();
-        this.connection.start();
+        Connection connection;
+        if (spec.getUsername() != null) {
+          connection =
+              connectionFactory.createConnection(spec.getUsername(), spec.getPassword());
+        } else {
+          connection = connectionFactory.createConnection();
+        }
+        connection.start();
+        this.connection = connection;
+      } catch (Exception e) {
+        throw new IOException("Error connecting to JMS", e);
+      }
+
+      try {
         this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        if (source.spec.getTopic() != null) {
+      } catch (Exception e) {
+        throw new IOException("Error creating JMS session", e);
+      }
+
+      try {
+        if (spec.getTopic() != null) {
           this.consumer =
-              this.session.createConsumer(this.session.createTopic(source.spec.getTopic()));
+              this.session.createConsumer(this.session.createTopic(spec.getTopic()));
         } else {
           this.consumer =
-              this.session.createConsumer(this.session.createQueue(source.spec.getQueue()));
+              this.session.createConsumer(this.session.createQueue(spec.getQueue()));
         }
-
-        return advance();
       } catch (Exception e) {
-        throw new IOException(e);
+        throw new IOException("Error creating JMS consumer", e);
       }
+
+      return advance();
     }
 
     @Override
@@ -495,6 +546,8 @@ public class JmsIO {
     @Nullable abstract ConnectionFactory getConnectionFactory();
     @Nullable abstract String getQueue();
     @Nullable abstract String getTopic();
+    @Nullable abstract String getUsername();
+    @Nullable abstract String getPassword();
 
     abstract Builder builder();
 
@@ -503,6 +556,8 @@ public class JmsIO {
       abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
       abstract Builder setQueue(String queue);
       abstract Builder setTopic(String topic);
+      abstract Builder setUsername(String username);
+      abstract Builder setPassword(String password);
       abstract Write build();
     }
 
@@ -572,6 +627,24 @@ public class JmsIO {
       return builder().setTopic(topic).build();
     }
 
+    /**
+     * Define the username to connect to the JMS broker (authenticated).
+     */
+    public Write withUsername(String username) {
+      checkArgument(username != null,  "JmsIO.write().withUsername(username) called with null "
+          + "username");
+      return builder().setUsername(username).build();
+    }
+
+    /**
+     * Define the password to connect to the JMS broker (authenticated).
+     */
+    public Write withPassword(String password) {
+      checkArgument(password != null, "JmsIO.write().withPassword(password) called with null "
+          + "password");
+      return builder().setPassword(password).build();
+    }
+
     @Override
     public PDone expand(PCollection<String> input) {
       input.apply(ParDo.of(new WriterFn(this)));
@@ -601,7 +674,13 @@ public class JmsIO {
       @StartBundle
       public void startBundle(Context c) throws Exception {
         if (producer == null) {
-          this.connection = spec.getConnectionFactory().createConnection();
+          if (spec.getUsername() != null) {
+            this.connection =
+                spec.getConnectionFactory()
+                    .createConnection(spec.getUsername(), spec.getPassword());
+          } else {
+            this.connection = spec.getConnectionFactory().createConnection();
+          }
           this.connection.start();
           // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);

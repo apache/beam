@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
+import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -32,14 +33,15 @@ public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY = MetricUpdates.create(
       Collections.<MetricUpdate<Long>>emptyList(),
-      Collections.<MetricUpdate<DistributionData>>emptyList());
+      Collections.<MetricUpdate<DistributionData>>emptyList(),
+      Collections.<MetricUpdate<GaugeData>>emptyList());
 
   /**
    * Representation of a single metric update.
    * @param <T> The type of value representing the update.
    */
   @AutoValue
-  public abstract static class MetricUpdate<T> {
+  public abstract static class MetricUpdate<T> implements Serializable {
 
     /** The key being updated. */
     public abstract MetricKey getKey();
@@ -63,10 +65,14 @@ public abstract class MetricUpdates {
   /** All of the distribution updates. */
   public abstract Iterable<MetricUpdate<DistributionData>> distributionUpdates();
 
+  /** All of the gauges updates. */
+  public abstract Iterable<MetricUpdate<GaugeData>> gaugeUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
-      Iterable<MetricUpdate<DistributionData>> distributionUpdates) {
-    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates);
+      Iterable<MetricUpdate<DistributionData>> distributionUpdates,
+      Iterable<MetricUpdate<GaugeData>> gaugeUpdates) {
+    return new AutoValue_MetricUpdates(counterUpdates, distributionUpdates, gaugeUpdates);
   }
 }

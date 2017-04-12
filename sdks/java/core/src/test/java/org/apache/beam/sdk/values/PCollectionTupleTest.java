@@ -29,11 +29,12 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -73,7 +74,7 @@ public final class PCollectionTupleTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testComposePCollectionTuple() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
@@ -153,8 +154,8 @@ public final class PCollectionTupleTest implements Serializable {
         PCollectionTuple.of(intTag, ints).and(longTag, longs).and(strTag, strs);
     assertThat(tuple.getAll(), equalTo(pcsByTag));
     PCollectionTuple reconstructed = PCollectionTuple.empty(p);
-    for (TaggedPValue taggedValue : tuple.expand()) {
-      TupleTag<?> tag = taggedValue.getTag();
+    for (Entry<TupleTag<?>, PValue> taggedValue : tuple.expand().entrySet()) {
+      TupleTag<?> tag = taggedValue.getKey();
       PValue value = taggedValue.getValue();
       assertThat("The tag should map back to the value", tuple.get(tag), equalTo(value));
       assertThat(value, Matchers.<PValue>equalTo(pcsByTag.get(tag)));

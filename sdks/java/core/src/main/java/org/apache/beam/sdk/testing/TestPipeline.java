@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -57,7 +59,7 @@ import org.junit.runners.model.Statement;
  * locally or against a remote pipeline runner.
  *
  * <p>It is recommended to tag hand-selected tests for this purpose using the {@link
- * RunnableOnService} {@link Category} annotation, as each test run against a pipeline runner will
+ * ValidatesRunner} {@link Category} annotation, as each test run against a pipeline runner will
  * utilize resources of that pipeline runner.
  *
  * <p>In order to run tests on a pipeline runner, the following conditions must be met:
@@ -77,40 +79,51 @@ import org.junit.runners.model.Statement;
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
  * remote execution modes. For example:
  *
- * <pre>{@code
- * Pipeline p = TestPipeline.create();
- * PCollection<Integer> output = ...
+ * <pre><code>
+ * {@literal @Rule}
+ * public final transient TestPipeline p = TestPipeline.create();
  *
- * PAssert.that(output)
- *     .containsInAnyOrder(1, 2, 3, 4);
- * p.run();
- * }</pre>
+ * {@literal @Test}
+ * {@literal @Category}(NeedsRunner.class)
+ * public void myPipelineTest() throws Exception {
+ *   final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
+ *   PAssert.that(pCollection).containsInAnyOrder(...);
+ *   pipeline.run();
+ * }
+ * </code></pre>
  *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
- * the message from the {@link PAssert} that failed.
+ * the message from the {@link PAssert} that failed.</p>
+ * <p>See also the <a href="https://beam.apache.org/contribute/testing/">Testing</a> documentation
+ * section.</p>
  */
 public class TestPipeline extends Pipeline implements TestRule {
 
   private static class PipelineRunEnforcement {
 
+    @SuppressWarnings("WeakerAccess")
     protected boolean enableAutoRunIfMissing;
+
     protected final Pipeline pipeline;
-    private boolean runInvoked;
+
+    protected boolean runAttempted;
 
     private PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
     }
 
-    private void enableAutoRunIfMissing(final boolean enable) {
+    protected void enableAutoRunIfMissing(final boolean enable) {
       enableAutoRunIfMissing = enable;
     }
 
     protected void beforePipelineExecution() {
-      runInvoked = true;
+      runAttempted = true;
     }
 
-    protected void afterTestCompletion() {
-      if (!runInvoked && enableAutoRunIfMissing) {
+    protected void afterPipelineExecution() {}
+
+    protected void afterUserCodeFinished() {
+      if (!runAttempted && enableAutoRunIfMissing) {
         pipeline.run().waitUntilFinish();
       }
     }
@@ -156,37 +169,54 @@ public class TestPipeline extends Pipeline implements TestRule {
       return nodeRecorder.visited;
     }
 
-    private void verifyPipelineExecution() {
-      final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
-      if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
-        final boolean hasDanglingPAssert =
-            FluentIterable.from(pipelineNodes)
-                .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                .anyMatch(isPAssertNode);
-        if (hasDanglingPAssert) {
-          throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
-        } else {
-          throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
-        }
-      } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
-        pipeline.traverseTopologically(isEmptyVisitor);
+    private boolean isEmptyPipeline(final Pipeline pipeline) {
+      final IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
+      pipeline.traverseTopologically(isEmptyVisitor);
+      return isEmptyVisitor.isEmpty();
+    }
 
-        if (!isEmptyVisitor.isEmpty()) {
-          throw new PipelineRunMissingException("The pipeline has not been run.");
+    private void verifyPipelineExecution() {
+      if (!isEmptyPipeline(pipeline)) {
+        if (!runAttempted && !enableAutoRunIfMissing) {
+          throw new PipelineRunMissingException(
+              "The pipeline has not been run (runner: "
+                  + pipeline.getOptions().getRunner().getSimpleName()
+                  + ")");
+
+        } else {
+          final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
+          if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
+            final boolean hasDanglingPAssert =
+                FluentIterable.from(pipelineNodes)
+                              .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                              .anyMatch(isPAssertNode);
+            if (hasDanglingPAssert) {
+              throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+            } else {
+              throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
+            }
+          }
         }
       }
     }
 
-    @Override
-    protected void beforePipelineExecution() {
-      super.beforePipelineExecution();
-      runVisitedNodes = recordPipelineNodes(pipeline);
+    private boolean visitedAll(final List<TransformHierarchy.Node> pipelineNodes) {
+      return runVisitedNodes.equals(pipelineNodes);
+    }
+
+    private boolean pipelineRunSucceeded() {
+      return runVisitedNodes != null;
     }
 
     @Override
-    protected void afterTestCompletion() {
-      super.afterTestCompletion();
+    protected void afterPipelineExecution() {
+      runVisitedNodes = recordPipelineNodes(pipeline);
+      super.afterPipelineExecution();
+    }
+
+    @Override
+    protected void afterUserCodeFinished() {
+      super.afterUserCodeFinished();
       verifyPipelineExecution();
     }
   }
@@ -214,7 +244,8 @@ public class TestPipeline extends Pipeline implements TestRule {
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private PipelineRunEnforcement enforcement = new PipelineAbandonedNodeEnforcement(this);
+  @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+  private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
 
   /**
    * Creates and returns a new test pipeline.
@@ -239,10 +270,45 @@ public class TestPipeline extends Pipeline implements TestRule {
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
 
+      private void setDeducedEnforcementLevel() {
+        // if the enforcement level has not been set by the user do auto-inference
+        if (!enforcement.isPresent()) {
+
+          final boolean annotatedWithNeedsRunner =
+              FluentIterable.from(description.getAnnotations())
+                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
+
+          final boolean crashingRunner =
+              CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
+
+          checkState(
+              !(annotatedWithNeedsRunner && crashingRunner),
+              "The test was annotated with a [@%s] / [@%s] while the runner "
+                  + "was set to [%s]. Please re-check your configuration.",
+              NeedsRunner.class.getSimpleName(),
+              ValidatesRunner.class.getSimpleName(),
+              CrashingRunner.class.getSimpleName());
+
+          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+        }
+      }
+
       @Override
       public void evaluate() throws Throwable {
+
+        setDeducedEnforcementLevel();
+
+        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
+        // Exceptions thrown during the execution of the user's test code will propagate here,
+        // unless the user explicitly handles them with a "catch" clause in his code. If the
+        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // we move on to invoking the configured enforcements.
+        // If the user does not handle a thrown exception, it will propagate here and interrupt
+        // the flow, preventing the enforcement(s) from being activated.
+        // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.afterTestCompletion();
+        enforcement.get().afterUserCodeFinished();
       }
     };
   }
@@ -253,9 +319,15 @@ public class TestPipeline extends Pipeline implements TestRule {
    */
   @Override
   public PipelineResult run() {
-    enforcement.beforePipelineExecution();
+    checkState(
+        enforcement.isPresent(),
+        "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
+        + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+
+    final PipelineResult pipelineResult;
     try {
-      return super.run();
+      enforcement.get().beforePipelineExecution();
+      pipelineResult = super.run();
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -264,17 +336,40 @@ public class TestPipeline extends Pipeline implements TestRule {
         throw exc;
       }
     }
+
+    // If we reach this point, the pipeline has been run and no exceptions have been thrown during
+    // its execution.
+    enforcement.get().afterPipelineExecution();
+    return pipelineResult;
   }
 
+  /**
+   * Enables the abandoned node detection. Abandoned nodes are <code>PTransforms</code>, <code>
+   * PAsserts</code> included, that were not executed by the pipeline runner. Abandoned nodes are
+   * most likely to occur due to the one of the following scenarios:
+   * <ul>
+   * <li>Lack of a <code>pipeline.run()</code> statement at the end of a test.
+   * <li>Addition of PTransforms after the pipeline has already run.
+   * </ul>
+   * Abandoned node detection is automatically enabled when a real pipeline runner (i.e. not a
+   * {@link CrashingRunner}) and/or a {@link NeedsRunner} or a {@link ValidatesRunner} annotation
+   * are detected.
+   */
   public TestPipeline enableAbandonedNodeEnforcement(final boolean enable) {
     enforcement =
-        enable ? new PipelineAbandonedNodeEnforcement(this) : new PipelineRunEnforcement(this);
+        enable
+            ? Optional.of(new PipelineAbandonedNodeEnforcement(this))
+            : Optional.of(new PipelineRunEnforcement(this));
 
     return this;
   }
 
+  /**
+   * If enabled, a <code>pipeline.run()</code> statement will be added automatically in case it is
+   * missing in the test.
+   */
   public TestPipeline enableAutoRunIfMissing(final boolean enable) {
-    enforcement.enableAutoRunIfMissing(enable);
+    enforcement.get().enableAutoRunIfMissing(enable);
     return this;
   }
 

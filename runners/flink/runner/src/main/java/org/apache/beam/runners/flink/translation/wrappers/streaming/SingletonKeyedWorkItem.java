@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import java.util.Collections;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**

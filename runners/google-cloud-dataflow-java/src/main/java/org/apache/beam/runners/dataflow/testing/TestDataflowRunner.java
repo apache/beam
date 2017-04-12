@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
@@ -46,9 +47,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,6 +100,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     final DataflowPipelineJob job;
@@ -112,8 +111,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
-    CancelWorkflowOnError messageHandler = new CancelWorkflowOnError(
-        job, new MonitoringUtil.LoggingHandler());
+    final ErrorMonitorMessagesHandler messageHandler =
+        new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     try {
       final Optional<Boolean> success;
@@ -127,6 +126,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               for (;;) {
                 JobMetrics metrics = getJobMetrics(job);
                 Optional<Boolean> success = checkForPAssertSuccess(job, metrics);
+                if (messageHandler.hasSeenError()) {
+                  return Optional.of(false);
+                }
+
                 if (success.isPresent() && (!success.get() || atMaxWatermark(job, metrics))) {
                   // It's possible that the streaming pipeline doesn't use PAssert.
                   // So checkForSuccess() will return true before job is finished.
@@ -183,16 +186,15 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return job;
   }
 
-  @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-    if (transform instanceof PAssert.OneSideInputAssert
-        || transform instanceof PAssert.GroupThenAssert
-        || transform instanceof PAssert.GroupThenAssertForSingleton) {
-      expectedNumberOfAssertions += 1;
+  @VisibleForTesting
+  void updatePAssertCount(Pipeline pipeline) {
+    DataflowPipelineOptions options = pipeline.getOptions().as(DataflowPipelineOptions.class);
+    if (DataflowRunner.hasExperiment(options, "beam_fn_api")) {
+      // TODO[BEAM-1866]: FnAPI does not support metrics, so expect 0 assertions.
+      expectedNumberOfAssertions = 0;
+    } else {
+      expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
     }
-
-    return runner.apply(transform, input);
   }
 
   /**
@@ -314,18 +316,22 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Cancels the workflow on the first error message it sees.
+   * Monitors job log output messages for errors.
    *
    * <p>Creates an error message representing the concatenation of all error messages seen.
    */
-  private static class CancelWorkflowOnError implements JobMessagesHandler {
+  private static class ErrorMonitorMessagesHandler implements JobMessagesHandler {
     private final DataflowPipelineJob job;
     private final JobMessagesHandler messageHandler;
     private final StringBuffer errorMessage;
-    private CancelWorkflowOnError(DataflowPipelineJob job, JobMessagesHandler messageHandler) {
+    private volatile boolean hasSeenError;
+
+    private ErrorMonitorMessagesHandler(
+        DataflowPipelineJob job, JobMessagesHandler messageHandler) {
       this.job = job;
       this.messageHandler = messageHandler;
       this.errorMessage = new StringBuffer();
+      this.hasSeenError = false;
     }
 
     @Override
@@ -337,20 +343,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           LOG.info("Dataflow job {} threw exception. Failure message was: {}",
               job.getJobId(), message.getMessageText());
           errorMessage.append(message.getMessageText());
-        }
-      }
-      if (errorMessage.length() > 0) {
-        LOG.info("Cancelling Dataflow job {}", job.getJobId());
-        try {
-          job.cancel();
-        } catch (Exception ignore) {
-          // The TestDataflowRunner will thrown an AssertionError with the job failure
-          // messages.
+          hasSeenError = true;
         }
       }
     }
 
-    private String getErrorMessage() {
+    boolean hasSeenError() {
+      return hasSeenError;
+    }
+
+    String getErrorMessage() {
       return errorMessage.toString();
     }
   }

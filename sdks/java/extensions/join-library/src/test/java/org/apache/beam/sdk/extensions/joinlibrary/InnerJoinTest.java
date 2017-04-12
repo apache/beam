@@ -19,6 +19,9 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -133,12 +136,19 @@ public class InnerJoinTest {
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
-    Join.innerJoin(null, p.apply(Create.of(listRightOfKv)));
+    Join.innerJoin(
+        null,
+        p.apply(
+            Create.of(listRightOfKv)
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))));
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
     p.enableAbandonedNodeEnforcement(false);
-    Join.innerJoin(p.apply(Create.of(leftListOfKv)), null);
+    Join.innerJoin(
+        p.apply(
+            Create.of(leftListOfKv).withCoder(KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()))),
+        null);
   }
 }

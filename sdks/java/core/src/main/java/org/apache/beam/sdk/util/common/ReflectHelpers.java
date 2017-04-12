@@ -155,12 +155,18 @@ public class ReflectHelpers {
     }
 
     private void formatParameterizedType(StringBuilder builder, ParameterizedType t) {
+      if (t.getOwnerType() != null) {
+        format(builder, t.getOwnerType());
+        builder.append('.');
+      }
       format(builder, t.getRawType());
-      builder.append('<');
-      COMMA_SEPARATOR.appendTo(builder,
-          FluentIterable.from(asList(t.getActualTypeArguments()))
-          .transform(TYPE_SIMPLE_DESCRIPTION));
-      builder.append('>');
+      if (t.getActualTypeArguments().length > 0) {
+        builder.append('<');
+        COMMA_SEPARATOR.appendTo(builder,
+            FluentIterable.from(asList(t.getActualTypeArguments()))
+                .transform(TYPE_SIMPLE_DESCRIPTION));
+        builder.append('>');
+      }
     }
 
     private void formatGenericArrayType(StringBuilder builder, GenericArrayType t) {

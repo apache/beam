@@ -31,13 +31,13 @@ A `HDFSFileSource` can be read from using the
 ```java
 HDFSFileSource<K, V> source = HDFSFileSource.from(path, MyInputFormat.class,
   MyKey.class, MyValue.class);
-PCollection<KV<MyKey, MyValue>> records = Read.from(mySource);
+PCollection<KV<MyKey, MyValue>> records = pipeline.apply(Read.from(mySource));
 ```
 
 Alternatively, the `readFrom` method is a convenience method that returns a read
 transform. For example:
 
 ```java
-PCollection<KV<MyKey, MyValue>> records = HDFSFileSource.readFrom(path,
-  MyInputFormat.class, MyKey.class, MyValue.class);
+PCollection<KV<MyKey, MyValue>> records = pipeline.apply(HDFSFileSource.readFrom(path,
+  MyInputFormat.class, MyKey.class, MyValue.class));
 ```

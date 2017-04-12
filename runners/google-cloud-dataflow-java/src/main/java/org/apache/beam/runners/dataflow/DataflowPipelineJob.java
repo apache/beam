@@ -34,6 +34,10 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -57,7 +61,7 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * The id for the job.
    */
-  private String jobId;
+  protected String jobId;
 
   /**
    * The {@link DataflowPipelineOptions} for the job.
@@ -71,6 +75,12 @@ public class DataflowPipelineJob implements PipelineResult {
   private final DataflowClient dataflowClient;
 
   /**
+   * MetricResults object for Dataflow Runner. It allows for querying of metrics from the Dataflow
+   * service.
+   */
+  private final DataflowMetrics dataflowMetrics;
+
+  /**
    * The state the job terminated in or {@code null} if the job has not terminated.
    */
   @Nullable
@@ -82,7 +92,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   private DataflowPipelineJob replacedByJob = null;
 
-  private DataflowAggregatorTransforms aggregatorTransforms;
+  protected DataflowAggregatorTransforms aggregatorTransforms;
 
   /**
    * The Metric Updates retrieved after the job was in a terminal state.
@@ -129,6 +139,7 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowOptions = dataflowOptions;
     this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
     this.aggregatorTransforms = aggregatorTransforms;
+    this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
   /**
@@ -242,7 +253,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @VisibleForTesting
   State waitUntilFinish(
       Duration duration,
-      MonitoringUtil.JobMessagesHandler messageHandler,
+      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock) throws IOException, InterruptedException {
     MonitoringUtil monitor = new MonitoringUtil(dataflowClient);
@@ -331,28 +342,68 @@ public class DataflowPipelineJob implements PipelineResult {
     return null;  // Timed out.
   }
 
+  private AtomicReference<FutureTask<State>> cancelState = new AtomicReference<>();
+
   @Override
   public State cancel() throws IOException {
-    Job content = new Job();
-    content.setProjectId(getProjectId());
-    content.setId(jobId);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    try {
-      dataflowClient.updateJob(jobId, content);
-      return State.CANCELLED;
-    } catch (IOException e) {
-      State state = getState();
-      if (state.isTerminal()) {
-        LOG.warn("Job is already terminated. State is {}", state);
-        return state;
-      } else {
-        String errorMsg = String.format(
-            "Failed to cancel the job, "
-                + "please go to the Developers Console to cancel it manually: %s",
-            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-        LOG.warn(errorMsg);
-        throw new IOException(errorMsg, e);
+    // Enforce that a cancel() call on the job is done at most once - as
+    // a workaround for Dataflow service's current bugs with multiple
+    // cancellation, where it may sometimes return an error when cancelling
+    // a job that was already cancelled, but still report the job state as
+    // RUNNING.
+    // To partially work around these issues, we absorb duplicate cancel()
+    // calls. This, of course, doesn't address the case when the job terminates
+    // externally almost concurrently to calling cancel(), but at least it
+    // makes it possible to safely call cancel() multiple times and from
+    // multiple threads in one program.
+    FutureTask<State> tentativeCancelTask = new FutureTask<>(new Callable<State>() {
+      @Override
+      public State call() throws Exception {
+        Job content = new Job();
+        content.setProjectId(getProjectId());
+        content.setId(jobId);
+        content.setRequestedState("JOB_STATE_CANCELLED");
+        try {
+          Job job = dataflowClient.updateJob(jobId, content);
+          return MonitoringUtil.toState(job.getCurrentState());
+        } catch (IOException e) {
+          State state = getState();
+          if (state.isTerminal()) {
+            LOG.warn("Cancel failed because job is already terminated. State is {}", state);
+            return state;
+          } else if (e.getMessage().contains("has terminated")) {
+            // This handles the case where the getState() call above returns RUNNING but the cancel
+            // was rejected because the job is in fact done. Hopefully, someday we can delete this
+            // code if there is better consistency between the State and whether Cancel succeeds.
+            //
+            // Example message:
+            //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
+            //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
+            //    terminated in state SUCCESS: Workflow job: 2017-04-01_22_50_59-9269855660514862348
+            //    succeeded.
+            LOG.warn("Cancel failed because job is already terminated.", e);
+            return state;
+          } else {
+            String errorMsg = String.format(
+                "Failed to cancel job in state %s, "
+                    + "please go to the Developers Console to cancel it manually: %s",
+                state,
+                MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+            LOG.warn(errorMsg);
+            throw new IOException(errorMsg, e);
+          }
+        }
       }
+    });
+    if (cancelState.compareAndSet(null, tentativeCancelTask)) {
+      // This thread should perform cancellation, while others will
+      // only wait for the result.
+      cancelState.get().run();
+    }
+    try {
+      return cancelState.get().get();
+    } catch (InterruptedException | ExecutionException e) {
+      throw new IOException(e);
     }
   }
 
@@ -462,8 +513,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException(
-        "The DataflowRunner does not currently support metrics.");
+    return dataflowMetrics;
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)

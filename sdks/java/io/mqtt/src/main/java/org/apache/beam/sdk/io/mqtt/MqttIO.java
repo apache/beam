@@ -209,6 +209,10 @@ public class MqttIO {
         String clientId = getClientId() + "-" + UUID.randomUUID().toString();
         LOG.debug("MQTT client id set to {}", clientId);
         client.setClientId(clientId);
+      } else {
+        String clientId = UUID.randomUUID().toString();
+        LOG.debug("MQTT client id set to random value {}", clientId);
+        client.setClientId(clientId);
       }
       return client;
     }
@@ -493,7 +497,7 @@ public class MqttIO {
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
     @Nullable abstract ConnectionConfiguration connectionConfiguration();
-    @Nullable abstract boolean retained();
+    abstract boolean retained();
 
     abstract Builder builder();
 

@@ -19,11 +19,17 @@
 
 package org.apache.beam.sdk.runners;
 
+import com.google.auto.value.AutoValue;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
@@ -38,4 +44,27 @@ public interface PTransformOverrideFactory<
    * Returns a {@link PTransform} that produces equivalent output to the provided transform.
    */
   PTransform<InputT, OutputT> getReplacementTransform(TransformT transform);
+
+  /**
+   * Returns the composite type that replacement transforms consumed from an equivalent expansion.
+   */
+  InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p);
+
+  /**
+   * Returns a {@link Map} from the expanded values in {@code newOutput} to the values produced by
+   * the original transform.
+   */
+  Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, OutputT newOutput);
+
+  /** A mapping between original {@link TaggedPValue} outputs and their replacements. */
+  @AutoValue
+  abstract class ReplacementOutput {
+    public static ReplacementOutput of(TaggedPValue original, TaggedPValue replacement) {
+      return new AutoValue_PTransformOverrideFactory_ReplacementOutput(original, replacement);
+    }
+
+    public abstract TaggedPValue getOriginal();
+
+    public abstract TaggedPValue getReplacement();
+  }
 }

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.Accumulator;
-import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * A utility class for handling Beam {@link Aggregator}s.
@@ -62,27 +61,14 @@ public class SparkAggregators {
   }
 
   /**
-   * Retrieves the {@link NamedAggregators} instance using the provided Spark context.
-   *
-   * @param jsc a Spark context to be used in order to retrieve the name
-   * {@link NamedAggregators} instance
-   * @return a {@link NamedAggregators} instance
-   */
-  public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
-    return AccumulatorSingleton.getInstance(jsc);
-  }
-
-  /**
    * Retrieves the value of an aggregator from a SparkContext instance.
    *
    * @param aggregator The aggregator whose value to retrieve
-   * @param javaSparkContext The SparkContext instance
    * @param <T> The type of the aggregator's output
    * @return The value of the aggregator
    */
-  public static <T> AggregatorValues<T> valueOf(final Aggregator<?, T> aggregator,
-                                                final JavaSparkContext javaSparkContext) {
-    return valueOf(getNamedAggregators(javaSparkContext), aggregator);
+  public static <T> AggregatorValues<T> valueOf(final Aggregator<?, T> aggregator) {
+    return valueOf(AggregatorsAccumulator.getInstance(), aggregator);
   }
 
   /**
@@ -93,10 +79,8 @@ public class SparkAggregators {
    * @param <T>            Type of object to be returned.
    * @return The value of the aggregator.
    */
-  public static <T> T valueOf(final String name,
-                              final Class<T> typeClass,
-                              final JavaSparkContext javaSparkContext) {
-    return valueOf(getNamedAggregators(javaSparkContext), name, typeClass);
+  public static <T> T valueOf(final String name, final Class<T> typeClass) {
+    return valueOf(AggregatorsAccumulator.getInstance(), name, typeClass);
   }
 
   /**

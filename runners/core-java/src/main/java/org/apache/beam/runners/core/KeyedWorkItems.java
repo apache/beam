@@ -21,7 +21,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Objects;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**

@@ -32,20 +32,21 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * {@link Flatten.FlattenPCollectionList} translation to Apex operator.
+ * {@link Flatten.PCollections} translation to Apex operator.
  */
 class FlattenPCollectionTranslator<T> implements
-    TransformTranslator<Flatten.FlattenPCollectionList<T>> {
+    TransformTranslator<Flatten.PCollections<T>> {
   private static final long serialVersionUID = 1L;
 
   @Override
-  public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
-    List<TaggedPValue> inputs = context.getInputs();
+  public void translate(Flatten.PCollections<T> transform, TranslationContext context) {
+    List<PCollection<T>> inputCollections = extractPCollections(context.getInputs());
 
-    if (inputs.isEmpty()) {
+    if (inputCollections.isEmpty()) {
       // create a dummy source that never emits anything
       @SuppressWarnings("unchecked")
       UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(Collections.EMPTY_LIST,
@@ -53,22 +54,25 @@ class FlattenPCollectionTranslator<T> implements
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
           unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
+    } else if (inputCollections.size() == 1) {
+      context.addAlias(context.getOutput(), inputCollections.get(0));
     } else {
+      @SuppressWarnings("unchecked")
       PCollection<T> output = (PCollection<T>) context.getOutput();
       Map<PCollection<?>, Integer> unionTags = Collections.emptyMap();
-      flattenCollections(extractPCollections(inputs), unionTags, output, context);
+      flattenCollections(inputCollections, unionTags, output, context);
     }
   }
 
-  private List<PCollection<T>> extractPCollections(List<TaggedPValue> inputs) {
+  private List<PCollection<T>> extractPCollections(Map<TupleTag<?>, PValue> inputs) {
     List<PCollection<T>> collections = Lists.newArrayList();
-    for (TaggedPValue pv : inputs) {
+    for (PValue pv : inputs.values()) {
       checkArgument(
-          pv.getValue() instanceof PCollection,
+          pv instanceof PCollection,
           "Non-PCollection provided as input to flatten: %s of type %s",
-          pv.getValue(),
+          pv,
           pv.getClass().getSimpleName());
-      collections.add((PCollection<T>) pv.getValue());
+      collections.add((PCollection<T>) pv);
     }
     return collections;
   }

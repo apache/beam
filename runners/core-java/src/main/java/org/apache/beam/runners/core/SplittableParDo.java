@@ -48,20 +48,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
-import org.apache.beam.sdk.util.state.StateNamespace;
-import org.apache.beam.sdk.util.state.StateNamespaces;
-import org.apache.beam.sdk.util.state.StateTag;
-import org.apache.beam.sdk.util.state.StateTags;
-import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
@@ -93,14 +82,14 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
-  private final ParDo.BoundMulti<InputT, OutputT> parDo;
+  private final ParDo.MultiOutput<InputT, OutputT> parDo;
 
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
    *
    * @param parDo The splittable {@link ParDo} transform.
    */
-  public SplittableParDo(ParDo.BoundMulti<InputT, OutputT> parDo) {
+  public SplittableParDo(ParDo.MultiOutput<InputT, OutputT> parDo) {
     checkNotNull(parDo, "parDo must not be null");
     this.parDo = parDo;
     checkArgument(
@@ -188,7 +177,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * Runner-specific primitive {@link PTransform} that invokes the {@link DoFn.ProcessElement}
    * method for a splittable {@link DoFn}.
    */
-  public static class ProcessElements<InputT, OutputT, RestrictionT>
+  public static class ProcessElements<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       extends PTransform<
           PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
           PCollectionTuple> {
@@ -240,7 +230,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return sideOutputTags;
     }
 
-    public ProcessFn<InputT, OutputT, RestrictionT, ?> newProcessFn(DoFn<InputT, OutputT> fn) {
+    public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
+        DoFn<InputT, OutputT> fn) {
       return new SplittableParDo.ProcessFn<>(
           fn, elementCoder, restrictionCoder, windowingStrategy.getWindowFn().windowCoder());
     }
@@ -257,7 +248,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 
-      // Set output type descriptor similarly to how ParDo.BoundMulti does it.
+      // Set output type descriptor similarly to how ParDo.MultiOutput does it.
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
@@ -269,7 +260,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input,
         TypedPValue<T> output)
         throws CannotProvideCoderException {
-      // Similar logic to ParDo.BoundMulti.getDefaultOutputCoder.
+      // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
       @SuppressWarnings("unchecked")
       KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
           (KeyedWorkItemCoder) input.getCoder();
@@ -330,23 +321,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       extends DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> {
-    // Commit at least once every 10k output records.  This keeps the watermark advancing
-    // smoothly, and ensures that not too much work will have to be reprocessed in the event of
-    // a crash.
-    // TODO: Also commit at least once every N seconds (runner-specific parameter).
-    @VisibleForTesting static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
-
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
-     * and is released when the {@link DoFn.ProcessElement} call returns {@link
-     * DoFn.ProcessContinuation#stop}.
+     * and is released when the {@link DoFn.ProcessElement} call returns and there is no residual
+     * restriction captured by the {@link SplittableProcessElementInvoker}.
      *
      * <p>A hold is needed to avoid letting the output watermark immediately progress together with
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
      * completes.
-     *
-     * <p>The hold is updated with the future output watermark reported by ProcessContinuation.
      */
     private static final StateTag<Object, WatermarkHoldState<GlobalWindow>> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
@@ -366,12 +349,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      */
     private StateTag<Object, ValueState<RestrictionT>> restrictionTag;
 
-    private transient StateInternalsFactory<String> stateInternalsFactory;
-    private transient TimerInternalsFactory<String> timerInternalsFactory;
-    private transient OutputWindowedValue<OutputT> outputWindowedValue;
-
     private final DoFn<InputT, OutputT> fn;
     private final Coder<? extends BoundedWindow> windowCoder;
+
+    private transient StateInternalsFactory<String> stateInternalsFactory;
+    private transient TimerInternalsFactory<String> timerInternalsFactory;
+    private transient SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>
+        processElementInvoker;
 
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
@@ -381,7 +365,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
-      this.invoker = DoFnInvokers.invokerFor(fn);
       this.windowCoder = windowCoder;
       this.elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
@@ -396,8 +379,24 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       this.timerInternalsFactory = timerInternalsFactory;
     }
 
-    public void setOutputWindowedValue(OutputWindowedValue<OutputT> outputWindowedValue) {
-      this.outputWindowedValue = outputWindowedValue;
+    public void setProcessElementInvoker(
+        SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> invoker) {
+      this.processElementInvoker = invoker;
+    }
+
+    public DoFn<InputT, OutputT> getFn() {
+      return fn;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
+    }
+
+    @Teardown
+    public void tearDown() throws Exception {
+      invoker.invokeTeardown();
     }
 
     @StartBundle
@@ -412,9 +411,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     @ProcessElement
     public void processElement(final ProcessContext c) {
+      String key = c.element().key();
       StateInternals<String> stateInternals =
-          stateInternalsFactory.stateInternalsForKey(c.element().key());
-      TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(c.element().key());
+          stateInternalsFactory.stateInternalsForKey(key);
+      TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 
       // Initialize state (element and restriction) depending on whether this is the seed call.
       // The seed call is the first call for this element, which actually has the element.
@@ -454,38 +454,28 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       }
 
       final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.restriction());
-      @SuppressWarnings("unchecked")
-      final RestrictionT[] residual = (RestrictionT[]) new Object[1];
-      // TODO: Only let the call run for a limited amount of time, rather than simply
-      // producing a limited amount of output.
-      DoFn.ProcessContinuation cont =
-          invoker.invokeProcessElement(
-              wrapTracker(
-                  tracker, wrapContext(c, elementAndRestriction.element(), tracker, residual)));
-      if (residual[0] == null) {
-        // This means the call completed unsolicited, and the context produced by makeContext()
-        // did not take a checkpoint. Take one now.
-        residual[0] = checkNotNull(tracker.checkpoint());
-      }
+      SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT>.Result result =
+          processElementInvoker.invokeProcessElement(
+              invoker, elementAndRestriction.element(), tracker);
 
       // Save state for resuming.
-      if (!cont.shouldResume()) {
+      if (result.getResidualRestriction() == null) {
         // All work for this element/restriction is completed. Clear state and release hold.
         elementState.clear();
         restrictionState.clear();
         holdState.clear();
         return;
       }
-      restrictionState.write(residual[0]);
-      Instant futureOutputWatermark = cont.getWatermark();
+      restrictionState.write(result.getResidualRestriction());
+      Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.element().getTimestamp();
       }
-      Instant wakeupTime = timerInternals.currentProcessingTime().plus(cont.resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(
+              stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
     }
 
     /**
@@ -554,149 +544,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                   ProcessElement.class.getSimpleName()));
         }
       };
-    }
-
-    private DoFn<InputT, OutputT>.ProcessContext wrapContext(
-        final ProcessContext baseContext,
-        final WindowedValue<InputT> element,
-        final TrackerT tracker,
-        final RestrictionT[] residualRestrictionHolder) {
-      return fn.new ProcessContext() {
-        private int numOutputs = 0;
-
-        public InputT element() {
-          return element.getValue();
-        }
-
-        public Instant timestamp() {
-          return element.getTimestamp();
-        }
-
-        public PaneInfo pane() {
-          return element.getPane();
-        }
-
-        public void output(OutputT output) {
-          outputWindowedValue.outputWindowedValue(
-              output, element.getTimestamp(), element.getWindows(), element.getPane());
-          noteOutput();
-        }
-
-        public void outputWithTimestamp(OutputT output, Instant timestamp) {
-          outputWindowedValue.outputWindowedValue(
-              output, timestamp, element.getWindows(), element.getPane());
-          noteOutput();
-        }
-
-        private void noteOutput() {
-          // Take the checkpoint only if it hasn't been taken yet, because:
-          // 1) otherwise we'd lose the previous checkpoint stored in residualRestrictionHolder
-          // 2) it's not allowed to checkpoint a RestrictionTracker twice, since the first call
-          // by definition already maximally narrows its restriction, so a second checkpoint would
-          // have produced a useless empty residual restriction anyway.
-          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE && residualRestrictionHolder[0] == null) {
-            // Request a checkpoint. The fn *may* produce more output, but hopefully not too much.
-            residualRestrictionHolder[0] = checkNotNull(tracker.checkpoint());
-          }
-        }
-
-        public <T> T sideInput(PCollectionView<T> view) {
-          return baseContext.sideInput(view);
-        }
-
-        public PipelineOptions getPipelineOptions() {
-          return baseContext.getPipelineOptions();
-        }
-
-        public <T> void sideOutput(TupleTag<T> tag, T output) {
-          outputWindowedValue.sideOutputWindowedValue(
-              tag, output, element.getTimestamp(), element.getWindows(), element.getPane());
-          noteOutput();
-        }
-
-        public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-          outputWindowedValue.sideOutputWindowedValue(
-              tag, output, timestamp, element.getWindows(), element.getPane());
-          noteOutput();
-        }
-
-        @Override
-        protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-            String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-          return fn.createAggregator(name, combiner);
-        }
-      };
-    }
-
-    /**
-     * Creates an {@link DoFnInvoker.ArgumentProvider} that provides the given tracker as well as
-     * the given {@link ProcessContext} (which is also provided when a {@link Context} is requested.
-     */
-    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapTracker(
-        TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
-
-      return new ArgumentProviderForTracker<>(tracker, processContext);
-    }
-
-    private static class ArgumentProviderForTracker<
-            InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
-      private final TrackerT tracker;
-      private final DoFn<InputT, OutputT>.ProcessContext processContext;
-
-      ArgumentProviderForTracker(
-          TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
-        this.tracker = tracker;
-        this.processContext = processContext;
-      }
-
-      @Override
-      public BoundedWindow window() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public DoFn.Context context(DoFn<InputT, OutputT> doFn) {
-        return processContext;
-      }
-
-      @Override
-      public DoFn.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-        return processContext;
-      }
-
-      @Override
-      public DoFn.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public DoFn.InputProvider<InputT> inputProvider() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public DoFn.OutputReceiver<OutputT> outputReceiver() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public TrackerT restrictionTracker() {
-        return tracker;
-      }
-
-      @Override
-      public State state(String stateId) {
-        throw new UnsupportedOperationException("State cannot be used with a splittable DoFn");
-      }
-
-      @Override
-      public Timer timer(String timerId) {
-        throw new UnsupportedOperationException("Timers cannot be used with a splittable DoFn");
-      }
     }
   }
 

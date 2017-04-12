@@ -29,17 +29,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   @Default.Boolean(true)
   @Description(
-      "If the pipeline should shut down producers which have reached the maximum "
-          + "representable watermark. If this is set to true, a pipeline in which all PTransforms "
-          + "have reached the maximum watermark will be shut down, even if there are unbounded "
-          + "sources that could produce additional (late) data. By default, if the pipeline "
-          + "contains any unbounded PCollections, it will run until explicitly shut down.")
-  boolean isShutdownUnboundedProducersWithMaxWatermark();
-
-  void setShutdownUnboundedProducersWithMaxWatermark(boolean shutdown);
-
-  @Default.Boolean(true)
-  @Description(
       "If the pipeline should block awaiting completion of the pipeline. If set to true, "
           + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
           + "the Pipeline will execute asynchronously. If set to false, use "

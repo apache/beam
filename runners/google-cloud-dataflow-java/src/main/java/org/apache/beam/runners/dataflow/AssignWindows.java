@@ -42,13 +42,13 @@ import org.apache.beam.sdk.values.PCollection;
  * @param <T> the type of input element
  */
 class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
-  private final Window.Bound<T> transform;
+  private final Window<T> transform;
 
   /**
    * Builds an instance of this class from the overriden transform.
    */
   @SuppressWarnings("unused") // Used via reflection
-  public AssignWindows(Window.Bound<T> transform) {
+  public AssignWindows(Window<T> transform) {
     this.transform = transform;
   }
 

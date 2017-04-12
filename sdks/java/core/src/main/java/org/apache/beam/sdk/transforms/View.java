@@ -19,7 +19,11 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -128,7 +132,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * }
  * </pre>
  *
- * <p>See {@link ParDo#withSideInputs} for details on how to access
+ * <p>See {@link ParDo.SingleOutput#withSideInputs} for details on how to access
  * this variable inside a {@link ParDo} over another {@link PCollection}.
  */
 public class View {
@@ -253,7 +257,7 @@ public class View {
     @Override
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -279,7 +283,7 @@ public class View {
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
-          input.getPipeline(), input.getWindowingStrategy(), input.getCoder())));
+          input, input.getWindowingStrategy(), input.getCoder())));
     }
   }
 
@@ -335,12 +339,68 @@ public class View {
 
     @Override
     public PCollectionView<T> expand(PCollection<T> input) {
-      return input.apply(CreatePCollectionView.<T, T>of(PCollectionViews.singletonView(
-          input.getPipeline(),
-          input.getWindowingStrategy(),
-          hasDefault,
-          defaultValue,
-          input.getCoder())));
+      Combine.Globally<T, T> singletonCombine =
+          Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
+      if (!hasDefault) {
+        singletonCombine = singletonCombine.withoutDefaults();
+      }
+      return input.apply(singletonCombine.asSingletonView());
+    }
+  }
+
+  private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
+    private final boolean hasDefault;
+    private final Coder<T> valueCoder;
+    private final byte[] defaultValue;
+
+    private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
+      this.hasDefault = hasDefault;
+      if (hasDefault) {
+        if (defaultValue == null) {
+          this.defaultValue = null;
+          this.valueCoder = coder;
+        } else {
+          this.valueCoder = coder;
+          try {
+            this.defaultValue = CoderUtils.encodeToByteArray(coder, defaultValue);
+          } catch (CoderException e) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Could not encode the default value %s with the provided coder %s",
+                    defaultValue, coder));
+          }
+        }
+      } else {
+        this.valueCoder = null;
+        this.defaultValue = null;
+      }
+    }
+
+    @Override
+    public T apply(T left, T right) {
+      throw new IllegalArgumentException(
+          "PCollection with more than one element "
+              + "accessed as a singleton view. Consider using Combine.globally().asSingleton() to "
+              + "combine the PCollection into a single value");
+    }
+
+    public T identity() {
+      if (hasDefault) {
+        if (defaultValue == null) {
+          return null;
+        }
+        try {
+          return CoderUtils.decodeFromByteArray(valueCoder, defaultValue);
+        } catch (CoderException e) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not decode the default value with the provided coder %s", valueCoder));
+        }
+      } else {
+        throw new IllegalArgumentException(
+            "Empty PCollection accessed as a singleton view. "
+                + "Consider setting withDefault to provide a default value");
+      }
     }
   }
 
@@ -367,7 +427,7 @@ public class View {
     public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
           PCollectionViews.multimapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }
@@ -404,7 +464,7 @@ public class View {
     public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
           PCollectionViews.mapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder())));
     }
@@ -434,6 +494,15 @@ public class View {
       return new CreatePCollectionView<>(view);
     }
 
+    /**
+     * Return the {@link PCollectionView} that is returned by applying this {@link PTransform}.
+     *
+     * <p>This should not be used to obtain the output of any given application of this
+     * {@link PTransform}. That should be obtained by inspecting the {@link Node}
+     * that contains this {@link CreatePCollectionView}, as this view may have been replaced within
+     * pipeline surgery.
+     */
+    @Deprecated
     public PCollectionView<ViewT> getView() {
       return view;
     }

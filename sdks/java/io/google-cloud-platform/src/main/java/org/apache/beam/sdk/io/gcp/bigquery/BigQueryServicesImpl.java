@@ -100,9 +100,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
-      @Nullable Boolean useLegacySql) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten, useLegacySql);
+      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
+    return BigQueryJsonReaderImpl.fromQuery(bqOptions, projectId, queryConfig);
   }
 
   @VisibleForTesting
@@ -214,6 +213,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
+          LOG.info("Started BigQuery job: {}.", jobRef);
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -394,15 +394,12 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     @Nullable
-    public Table getTable(String projectId, String datasetId, String tableId)
+    public Table getTable(TableReference tableRef)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return getTable(
-          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
-          backoff,
-          Sleeper.DEFAULT);
+      return getTable(tableRef, backoff, Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -447,7 +444,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void createTable(Table table) throws InterruptedException, IOException {
       LOG.info("Trying to create BigQuery table: {}",
-          BigQueryIO.toTableSpec(table.getTableReference()));
+          BigQueryHelpers.toTableSpec(table.getTableReference()));
       BackOff backoff =
               new ExponentialBackOff.Builder()
                       .setMaxElapsedTimeMillis(RETRY_CREATE_TABLE_DURATION_MILLIS)
@@ -506,31 +503,27 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
-    public void deleteTable(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException {
+    public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
-          client.tables().delete(projectId, datasetId, tableId),
+          client.tables().delete(
+              tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
           String.format(
               "Unable to delete table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
+              tableRef.getTableId(), MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff,
           ALWAYS_RETRY);
     }
 
     @Override
-    public boolean isTableEmpty(String projectId, String datasetId, String tableId)
-        throws IOException, InterruptedException {
+    public boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return isTableEmpty(
-          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
-          backoff,
-          Sleeper.DEFAULT);
+      return isTableEmpty(tableRef, backoff, Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -796,6 +789,31 @@ class BigQueryServicesImpl implements BigQueryServices {
       return insertAll(
           ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
     }
+
+
+    @Override
+    public Table patchTableDescription(TableReference tableReference,
+                                       @Nullable String tableDescription)
+        throws IOException, InterruptedException {
+      Table table = new Table();
+      table.setDescription(tableDescription);
+
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+      return executeWithRetries(
+          client.tables().patch(
+              tableReference.getProjectId(),
+              tableReference.getDatasetId(),
+              tableReference.getTableId(),
+              table),
+          String.format(
+              "Unable to patch table description: %s, aborting after %d retries.",
+              tableReference, MAX_RPC_RETRIES),
+          Sleeper.DEFAULT,
+          backoff,
+          ALWAYS_RETRY);
+    }
   }
 
   private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {
@@ -806,20 +824,14 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     private static BigQueryJsonReader fromQuery(
-        BigQueryOptions bqOptions,
-        String query,
-        String projectId,
-        @Nullable Boolean flattenResults,
-        @Nullable Boolean useLegacySql) {
+        BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults,
-              useLegacySql));
+              queryConfig, projectId, Transport.newBigQueryClient(bqOptions).build()));
     }
 
     private static BigQueryJsonReader fromTable(
-        BigQueryOptions bqOptions,
-        TableReference tableRef) {
+        BigQueryOptions bqOptions, TableReference tableRef) {
       return new BigQueryJsonReaderImpl(BigQueryTableRowIterator.fromTable(
           tableRef, Transport.newBigQueryClient(bqOptions).build()));
     }

@@ -31,13 +31,18 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
+
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
@@ -48,18 +53,29 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -94,7 +110,7 @@ public class AvroIOTest {
   }
 
   @Test
-  public void testWriteWithoutValidationFlag() throws Exception {
+  public void testWriteWithoutValPuidationFlag() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write.to("gs://bucket/foo/baz");
     assertTrue(write.needsValidation());
     assertFalse(write.withoutValidation().needsValidation());
@@ -275,6 +291,132 @@ public class AvroIOTest {
     p.run();
   }
 
+  private TimestampedValue<GenericClass> newValue(GenericClass element, Duration duration) {
+    return TimestampedValue.of(element, new Instant(0).plus(duration));
+  }
+
+  private static class WindowedFilenamePolicy extends FilenamePolicy {
+    String outputFilePrefix;
+
+    WindowedFilenamePolicy(String outputFilePrefix) {
+      this.outputFilePrefix = outputFilePrefix;
+    }
+
+    @Override
+    public ValueProvider<String> getBaseOutputFilenameProvider() {
+      return StaticValueProvider.of(outputFilePrefix);
+    }
+
+    @Override
+    public String windowedFilename(WindowedContext input) {
+      String filename = outputFilePrefix + "-" + input.getWindow().toString() +  "-"
+          + input.getShardNumber() + "-of-" + (input.getNumShards() - 1) + "-pane-"
+          + input.getPaneInfo().getIndex();
+      if (input.getPaneInfo().isLast()) {
+        filename += "-final";
+      }
+      return filename;
+    }
+
+    @Override
+    public String unwindowedFilename(Context input) {
+      String filename = outputFilePrefix + input.getShardNumber() + "-of-"
+          + (input.getNumShards() - 1);
+      return filename;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add(DisplayData.item("fileNamePrefix", outputFilePrefix)
+          .withLabel("File Name Prefix"));
+    }
+  }
+
+  @Rule
+  public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class })
+  public void testWindowedAvroIOWrite() throws Throwable {
+    File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
+    final String outputFilePrefix = baseOutputFile.getAbsolutePath();
+
+    Instant base = new Instant(0);
+    ArrayList<GenericClass> allElements = new ArrayList<>();
+    ArrayList<TimestampedValue<GenericClass>> firstWindowElements = new ArrayList<>();
+    ArrayList<Instant> firstWindowTimestamps = Lists.newArrayList(
+        base.plus(Duration.standardSeconds(0)), base.plus(Duration.standardSeconds(10)),
+        base.plus(Duration.standardSeconds(20)), base.plus(Duration.standardSeconds(30)));
+
+    Random random = new Random();
+    for (int i = 0; i < 100; ++i) {
+      GenericClass item = new GenericClass(i, String.valueOf(i));
+      allElements.add(item);
+      firstWindowElements.add(TimestampedValue.of(item,
+          firstWindowTimestamps.get(random.nextInt(firstWindowTimestamps.size()))));
+    }
+
+    ArrayList<TimestampedValue<GenericClass>> secondWindowElements = new ArrayList<>();
+    ArrayList<Instant> secondWindowTimestamps = Lists.newArrayList(
+        base.plus(Duration.standardSeconds(60)), base.plus(Duration.standardSeconds(70)),
+        base.plus(Duration.standardSeconds(80)), base.plus(Duration.standardSeconds(90)));
+    for (int i = 100; i < 200; ++i) {
+      GenericClass item = new GenericClass(i, String.valueOf(i));
+      allElements.add(new GenericClass(i, String.valueOf(i)));
+      secondWindowElements.add(TimestampedValue.of(item,
+          secondWindowTimestamps.get(random.nextInt(secondWindowTimestamps.size()))));
+    }
+
+
+    TimestampedValue<GenericClass>[] firstWindowArray =
+        firstWindowElements.toArray(new TimestampedValue[100]);
+    TimestampedValue<GenericClass>[] secondWindowArray =
+        secondWindowElements.toArray(new TimestampedValue[100]);
+
+    TestStream<GenericClass> values = TestStream.create(AvroCoder.of(GenericClass.class))
+        .advanceWatermarkTo(new Instant(0))
+        .addElements(firstWindowArray[0],
+            Arrays.copyOfRange(firstWindowArray, 1, firstWindowArray.length))
+        .advanceWatermarkTo(new Instant(0).plus(Duration.standardMinutes(1)))
+        .addElements(secondWindowArray[0],
+        Arrays.copyOfRange(secondWindowArray, 1, secondWindowArray.length))
+        .advanceWatermarkToInfinity();
+
+    windowedAvroWritePipeline
+        .apply(values)
+        .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
+        .apply(AvroIO.Write.to(new WindowedFilenamePolicy(outputFilePrefix))
+            .withWindowedWrites()
+            .withNumShards(2)
+            .withSchema(GenericClass.class));
+    windowedAvroWritePipeline.run();
+
+    // Validate that the data written matches the expected elements in the expected order
+    List<File> expectedFiles = new ArrayList<>();
+    for (int shard = 0; shard < 2; shard++) {
+      for (int window = 0; window < 2; window++) {
+        Instant windowStart = new Instant(0).plus(Duration.standardMinutes(window));
+        IntervalWindow intervalWindow = new IntervalWindow(
+            windowStart, Duration.standardMinutes(1));
+        expectedFiles.add(
+            new File(outputFilePrefix + "-" + intervalWindow.toString() + "-" + shard
+                + "-of-1" + "-pane-0-final"));
+      }
+    }
+
+    List<GenericClass> actualElements = new ArrayList<>();
+    for (File outputFile : expectedFiles) {
+      assertTrue("Expected output file " + outputFile.getAbsolutePath(), outputFile.exists());
+      try (DataFileReader<GenericClass> reader =
+               new DataFileReader<>(outputFile, AvroCoder.of(
+                   GenericClass.class).createDatumReader())) {
+        Iterators.addAll(actualElements, reader);
+      }
+      outputFile.delete();
+    }
+    assertThat(actualElements, containsInAnyOrder(allElements.toArray()));
+  }
+
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
     AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
@@ -347,11 +489,13 @@ public class AvroIOTest {
 
     Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
+      System.out.println("NumShards " + numShards);
       write = write.withNumShards(numShards);
     } else {
+      System.out.println("no sharding");
       write = write.withoutSharding();
     }
-    p.apply(Create.<String>of(expectedElements)).apply(write);
+    p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
     p.run();
 
     String shardNameTemplate = write.getShardNameTemplate();
@@ -411,7 +555,7 @@ public class AvroIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
@@ -447,8 +591,8 @@ public class AvroIOTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  @Ignore("[BEAM-436] DirectRunner RunnableOnService tempLocation configuration insufficient")
+  @Category(ValidatesRunner.class)
+  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
   public void testPrimitiveWriteDisplayData() throws IOException {
     PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
     String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();

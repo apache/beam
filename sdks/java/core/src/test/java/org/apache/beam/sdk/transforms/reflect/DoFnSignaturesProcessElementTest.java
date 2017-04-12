@@ -50,7 +50,7 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadReturnType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must return void or ProcessContinuation");
+    thrown.expectMessage("Must return void");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -65,41 +65,35 @@ public class DoFnSignaturesProcessElementTest {
     analyzeProcessElementMethod(
         new AnonymousMethod() {
           private void method(
-              DoFn<Integer, String>.ProcessContext c,
-              DoFn.InputProvider<Integer> input,
-              DoFn.OutputReceiver<String> output) {}
+              DoFn<Integer, String>.ProcessContext c) {}
         });
   }
 
   @Test
   public void testBadGenericsTwoArgs() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("OutputReceiver<Integer>");
-    thrown.expectMessage("should be");
-    thrown.expectMessage("OutputReceiver<String>");
+    thrown.expectMessage("DoFn<Integer, Integer>.ProcessContext");
+    thrown.expectMessage("must have type");
+    thrown.expectMessage("DoFn<Integer, String>.ProcessContext");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
           private void method(
-              DoFn<Integer, String>.ProcessContext c,
-              DoFn.InputProvider<Integer> input,
-              DoFn.OutputReceiver<Integer> output) {}
+              DoFn<Integer, Integer>.ProcessContext c) {}
         });
   }
 
   @Test
   public void testBadGenericWildCards() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("OutputReceiver<? super Integer>");
-    thrown.expectMessage("should be");
-    thrown.expectMessage("OutputReceiver<String>");
+    thrown.expectMessage("DoFn<Integer, ? super Integer>.ProcessContext");
+    thrown.expectMessage("must have type");
+    thrown.expectMessage("DoFn<Integer, String>.ProcessContext");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
           private void method(
-              DoFn<Integer, String>.ProcessContext c,
-              DoFn.InputProvider<Integer> input,
-              DoFn.OutputReceiver<? super Integer> output) {}
+              DoFn<Integer, ? super Integer>.ProcessContext c) {}
         });
   }
 
@@ -107,17 +101,15 @@ public class DoFnSignaturesProcessElementTest {
     @ProcessElement
     @SuppressWarnings("unused")
     public void badTypeVariables(
-        DoFn<InputT, OutputT>.ProcessContext c,
-        DoFn.InputProvider<InputT> input,
-        DoFn.OutputReceiver<InputT> output) {}
+        DoFn<InputT, InputT>.ProcessContext c) {}
   }
 
   @Test
   public void testBadTypeVariables() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("OutputReceiver<InputT>");
-    thrown.expectMessage("should be");
-    thrown.expectMessage("OutputReceiver<OutputT>");
+    thrown.expectMessage("DoFn<InputT, InputT>.ProcessContext");
+    thrown.expectMessage("must have type");
+    thrown.expectMessage("DoFn<InputT, OutputT>.ProcessContext");
 
     DoFnSignatures.getSignature(BadTypeVariables.class);
   }
@@ -164,9 +156,7 @@ public class DoFnSignaturesProcessElementTest {
     @ProcessElement
     @SuppressWarnings("unused")
     public void goodTypeVariables(
-        DoFn<InputT, OutputT>.ProcessContext c,
-        DoFn.InputProvider<InputT> input,
-        DoFn.OutputReceiver<OutputT> output) {}
+        DoFn<InputT, OutputT>.ProcessContext c) {}
   }
 
   @Test
@@ -177,7 +167,7 @@ public class DoFnSignaturesProcessElementTest {
   private static class IdentityFn<T> extends DoFn<T, T> {
     @ProcessElement
     @SuppressWarnings("unused")
-    public void processElement(ProcessContext c, InputProvider<T> input, OutputReceiver<T> output) {
+    public void processElement(ProcessContext c) {
       c.output(c.element());
     }
   }

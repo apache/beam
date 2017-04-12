@@ -27,6 +27,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -36,8 +37,8 @@ import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -162,7 +163,7 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testPickAny() {
       runPickAnyTest(lines, limit);
     }
@@ -197,6 +198,15 @@ public class SampleTest {
         this.expectedSize = expectedSize;
       }
 
+      /**
+       * expectedSize is the number of elements that the Sample should contain. expected is the set
+       * of elements that the sample may contain.
+       */
+      VerifyCorrectSample(int expectedSize, Collection<T> expected) {
+        this.expectedValues = (T[]) expected.toArray();
+        this.expectedSize = expectedSize;
+      }
+
       @Override
       @SuppressWarnings("unchecked")
       public Void apply(Iterable<T> in) {
@@ -225,13 +235,13 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSample() {
 
-      PCollection<Integer> input = pipeline.apply(Create.of(DATA)
-                                                        .withCoder(BigEndianIntegerCoder.of()));
-      PCollection<Iterable<Integer>> output = input.apply(
-          Sample.<Integer>fixedSizeGlobally(3));
+      PCollection<Integer> input =
+          pipeline.apply(
+              Create.of(ImmutableList.copyOf(DATA)).withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Iterable<Integer>> output = input.apply(Sample.<Integer>fixedSizeGlobally(3));
 
       PAssert.thatSingletonIterable(output)
              .satisfies(new VerifyCorrectSample<>(3, DATA));
@@ -239,11 +249,10 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleEmpty() {
 
-      PCollection<Integer> input = pipeline.apply(Create.of(EMPTY)
-                                                        .withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
       PCollection<Iterable<Integer>> output = input.apply(
           Sample.<Integer>fixedSizeGlobally(3));
 
@@ -253,10 +262,10 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleZero() {
 
-      PCollection<Integer> input = pipeline.apply(Create.of(DATA)
+      PCollection<Integer> input = pipeline.apply(Create.of(ImmutableList.copyOf(DATA))
                                                         .withCoder(BigEndianIntegerCoder.of()));
       PCollection<Iterable<Integer>> output = input.apply(
           Sample.<Integer>fixedSizeGlobally(0));
@@ -267,11 +276,12 @@ public class SampleTest {
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleInsufficientElements() {
 
-      PCollection<Integer> input = pipeline.apply(Create.of(DATA)
-                                                        .withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Integer> input =
+          pipeline.apply(
+              Create.of(ImmutableList.copyOf(DATA)).withCoder(BigEndianIntegerCoder.of()));
       PCollection<Iterable<Integer>> output = input.apply(
           Sample.<Integer>fixedSizeGlobally(10));
 
@@ -284,17 +294,19 @@ public class SampleTest {
     public void testSampleNegative() {
       pipeline.enableAbandonedNodeEnforcement(false);
 
-      PCollection<Integer> input = pipeline.apply(Create.of(DATA)
-                                                        .withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Integer> input =
+          pipeline.apply(
+              Create.of(ImmutableList.copyOf(DATA)).withCoder(BigEndianIntegerCoder.of()));
       input.apply(Sample.<Integer>fixedSizeGlobally(-1));
     }
 
     @Test
-    @Category(RunnableOnService.class)
+    @Category(ValidatesRunner.class)
     public void testSampleMultiplicity() {
 
-      PCollection<Integer> input = pipeline.apply(Create.of(REPEATED_DATA)
-                                                        .withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Integer> input =
+          pipeline.apply(
+              Create.of(ImmutableList.copyOf(REPEATED_DATA)).withCoder(BigEndianIntegerCoder.of()));
       // At least one value must be selected with multiplicity.
       PCollection<Iterable<Integer>> output = input.apply(
           Sample.<Integer>fixedSizeGlobally(6));
@@ -306,7 +318,7 @@ public class SampleTest {
 
     @Test
     public void testSampleGetName() {
-      assertEquals("Sample.SampleAny", Sample.<String>any(1).getName());
+      assertEquals("Sample.Any", Sample.<String>any(1).getName());
     }
 
     @Test

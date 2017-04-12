@@ -26,8 +26,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.flink.OldPerKeyCombineFnRunner;
-import org.apache.beam.runners.flink.OldPerKeyCombineFnRunners;
+import org.apache.beam.runners.core.PerKeyCombineFnRunner;
+import org.apache.beam.runners.core.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -62,29 +62,24 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
       Iterable<WindowedValue<KV<K, AccumT>>> elements,
       Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
 
-    FlinkSingleOutputProcessContext<KV<K, AccumT>, KV<K, OutputT>> processContext =
-        new FlinkSingleOutputProcessContext<>(
-            serializedOptions.getPipelineOptions(),
-            getRuntimeContext(),
-            doFn,
-            windowingStrategy,
-            sideInputs, out
-        );
+    PipelineOptions options = serializedOptions.getPipelineOptions();
 
-    OldPerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
-        OldPerKeyCombineFnRunners.create(combineFn);
+    FlinkSideInputReader sideInputReader =
+        new FlinkSideInputReader(sideInputs, getRuntimeContext());
+
+    PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
+        PerKeyCombineFnRunners.create(combineFn);
 
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super BoundedWindow> outputTimeFn =
         (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
 
-
     // get all elements so that we can sort them, has to fit into
     // memory
     // this seems very unprudent, but correct, for now
     ArrayList<WindowedValue<KV<K, AccumT>>> sortedInput = Lists.newArrayList();
-    for (WindowedValue<KV<K, AccumT>> inputValue: elements) {
-      for (WindowedValue<KV<K, AccumT>> exploded: inputValue.explodeWindows()) {
+    for (WindowedValue<KV<K, AccumT>> inputValue : elements) {
+      for (WindowedValue<KV<K, AccumT>> exploded : inputValue.explodeWindows()) {
         sortedInput.add(exploded);
       }
     }
@@ -127,25 +122,24 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
       if (nextWindow.equals(currentWindow)) {
         // continue accumulating and merge windows
 
-        processContext.setWindowedValue(nextValue);
-
         accumulator = combineFnRunner.mergeAccumulators(
-            key, ImmutableList.of(accumulator, nextValue.getValue().getValue()), processContext);
+            key, ImmutableList.of(accumulator, nextValue.getValue().getValue()),
+            options, sideInputReader, currentValue.getWindows());
 
         windowTimestamps.add(nextValue.getTimestamp());
       } else {
         out.collect(
             WindowedValue.of(
-                KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
+                KV.of(key, combineFnRunner.extractOutput(key, accumulator,
+                    options, sideInputReader, currentValue.getWindows())),
                 outputTimeFn.merge(currentWindow, windowTimestamps),
                 currentWindow,
                 PaneInfo.NO_FIRING));
 
         windowTimestamps.clear();
 
-        processContext.setWindowedValue(nextValue);
-
         currentWindow = nextWindow;
+        currentValue = nextValue;
         accumulator = nextValue.getValue().getValue();
         windowTimestamps.add(nextValue.getTimestamp());
       }
@@ -154,7 +148,8 @@ public class FlinkMergingReduceFunction<K, AccumT, OutputT, W extends IntervalWi
     // emit the final accumulator
     out.collect(
         WindowedValue.of(
-            KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
+            KV.of(key, combineFnRunner.extractOutput(key, accumulator,
+                options, sideInputReader, currentValue.getWindows())),
             outputTimeFn.merge(currentWindow, windowTimestamps),
             currentWindow,
             PaneInfo.NO_FIRING));

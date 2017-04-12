@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**

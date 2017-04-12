@@ -37,18 +37,36 @@ public class MapElementsJava8Test implements Serializable {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   /**
-   * Basic test of {@link MapElements} with a lambda (which is instantiated as a
-   * {@link SerializableFunction}).
+   * Basic test of {@link MapElements} with a lambda (which is instantiated as a {@link
+   * SerializableFunction}).
    */
   @Test
-  public void testMapBasic() throws Exception {
+  public void testMapLambda() throws Exception {
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
+            // Note that the type annotation is required.
             .via((Integer i) -> i * 2)
             .withOutputType(new TypeDescriptor<Integer>() {}));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a lambda wrapped into a {@link SimpleFunction} to
+   * remember its type.
+   */
+  @Test
+  public void testMapWrappedLambda() throws Exception {
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements
+                    .via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
 
     PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();
@@ -63,7 +81,7 @@ public class MapElementsJava8Test implements Serializable {
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
-            // Note that the type annotation is required (for Java, not for Dataflow)
+            // Note that the type annotation is required.
             .via(new Doubler()::doubleIt)
             .withOutputType(new TypeDescriptor<Integer>() {}));
 

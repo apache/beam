@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * Flink {@link FlatMapFunction} for implementing
- * {@link org.apache.beam.sdk.transforms.windowing.Window.Bound}.
+ * {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}.
  */
 public class FlinkAssignWindows<T, W extends BoundedWindow>
     implements FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {

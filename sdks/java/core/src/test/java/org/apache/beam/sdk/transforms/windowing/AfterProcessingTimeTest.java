@@ -45,7 +45,7 @@ public class AfterProcessingTimeTest {
     OnceTrigger firstElementPlus1 =
         AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardHours(1));
     assertEquals(
-        new AfterSynchronizedProcessingTime(),
+        AfterSynchronizedProcessingTime.ofFirstElement(),
         firstElementPlus1.getContinuationTrigger());
   }
 

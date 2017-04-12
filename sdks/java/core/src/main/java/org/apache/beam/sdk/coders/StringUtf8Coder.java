@@ -135,11 +135,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     if (context.isWholeStream) {
       return Utf8.encodedLength(value);
     } else {
-      CountingOutputStream countingStream =
-          new CountingOutputStream(ByteStreams.nullOutputStream());
-      DataOutputStream stream = new DataOutputStream(countingStream);
-      writeString(value, stream);
-      return countingStream.getCount();
+      try (CountingOutputStream countingStream =
+          new CountingOutputStream(ByteStreams.nullOutputStream())) {
+        DataOutputStream stream = new DataOutputStream(countingStream);
+        writeString(value, stream);
+        return countingStream.getCount();
+      }
     }
   }
 }

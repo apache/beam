@@ -36,7 +36,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AfterSynchronizedProcessingTimeStateMachineTest {
 
-  private TriggerStateMachine underTest = new AfterSynchronizedProcessingTimeStateMachine();
+  private TriggerStateMachine underTest =
+      AfterSynchronizedProcessingTimeStateMachine.ofFirstElement();
 
   @Test
   public void testAfterProcessingTimeWithFixedWindows() throws Exception {

@@ -32,7 +32,6 @@ import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BigtableOptions.Builder;
 import com.google.cloud.bigtable.config.CredentialOptions;
-import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
@@ -43,7 +42,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.GcpOptions;
@@ -81,17 +79,11 @@ public class BigtableWriteIT implements Serializable {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
 
-    // RetryOptions streamingBatchSize must be explicitly set for getTableData()
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
-    retryOptionsBuilder.setStreamingBatchSize(
-        retryOptionsBuilder.build().getStreamingBufferSize() / 2);
-
     bigtableOptions =
         new Builder()
             .setProjectId(options.getProjectId())
             .setInstanceId(options.getInstanceId())
             .setUserAgent("apache-beam-test")
-            .setRetryOptions(retryOptionsBuilder.build())
             .build();
 
     session =
@@ -137,8 +129,8 @@ public class BigtableWriteIT implements Serializable {
 
     // Test number of column families and column family name equality
     Table table = getTable(tableName);
-    assertThat(table.getColumnFamilies().keySet(), Matchers.hasSize(1));
-    assertThat(table.getColumnFamilies(), Matchers.hasKey(COLUMN_FAMILY_NAME));
+    assertThat(table.getColumnFamiliesMap().keySet(), Matchers.hasSize(1));
+    assertThat(table.getColumnFamiliesMap(), Matchers.hasKey(COLUMN_FAMILY_NAME));
 
     // Test table data equality
     List<KV<ByteString, ByteString>> tableData = getTableData(tableName);
@@ -168,8 +160,7 @@ public class BigtableWriteIT implements Serializable {
   /** Helper function to create an empty table. */
   private void createEmptyTable(String instanceName, String tableId) {
     Table.Builder tableBuilder = Table.newBuilder();
-    Map<String, ColumnFamily> columnFamilies = tableBuilder.getMutableColumnFamilies();
-    columnFamilies.put(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
+    tableBuilder.putColumnFamilies(COLUMN_FAMILY_NAME, ColumnFamily.newBuilder().build());
 
     CreateTableRequest.Builder createTableRequestBuilder = CreateTableRequest.newBuilder()
         .setParent(instanceName)

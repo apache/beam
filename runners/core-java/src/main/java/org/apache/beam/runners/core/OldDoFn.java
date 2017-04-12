@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -142,8 +141,8 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags withOutputTags} to
-     * specify the tags of side outputs that it consumes. Non-consumed side
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags withOutputTags}
+     * to specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
      *
@@ -158,7 +157,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
@@ -182,7 +181,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * to access any information about the input element except for the
      * timestamp.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
@@ -252,7 +251,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * for how this corresponding window is determined.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
+     * @see ParDo.SingleOutput#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 

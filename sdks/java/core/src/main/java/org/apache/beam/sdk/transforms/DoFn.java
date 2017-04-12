@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -32,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -40,9 +38,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -77,15 +77,15 @@ import org.joda.time.Instant;
  *
  * <p>Example usage:
  *
- * <pre>{@code
- * PCollection<String> lines = ... ;
- * PCollection<String> words =
- *     lines.apply(ParDo.of(new DoFn<String, String>() {
- *         {@literal @}ProcessElement
- *         public void processElement(ProcessContext c, BoundedWindow window) {
- *
- *         }}));
- * }</pre>
+ * <pre><code>
+ * {@literal PCollection<String>} lines = ... ;
+ * {@literal PCollection<String>} words =
+ *     {@literal lines.apply(ParDo.of(new DoFn<String, String>())} {
+ *         {@literal @ProcessElement}
+ *          public void processElement(ProcessContext c, BoundedWindow window) {
+ *            ...
+ *          }}));
+ * </code></pre>
  *
  * @param <InputT> the type of the (main) input elements
  * @param <OutputT> the type of the (main) output elements
@@ -159,7 +159,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p>Once passed to {@code sideOutput} the element should not be modified
      * in any way.
      *
-     * <p>The caller of {@code ParDo} uses {@link ParDo#withOutputTags} to
+     * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags} to
      * specify the tags of side outputs that it consumes. Non-consumed side
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
@@ -178,7 +178,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
@@ -205,7 +205,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
      * {@link StartBundle} or {@link FinishBundle} methods.
      *
-     * @see ParDo#withOutputTags
+     * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void sideOutputWithTimestamp(
         TupleTag<T> tag, T output, Instant timestamp);
@@ -271,15 +271,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * Returns the value of the side input.
      *
      * @throws IllegalArgumentException if this is not a side input
-     * @see ParDo#withSideInputs
+     * @see ParDo.SingleOutput#withSideInputs
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
 
     /**
      * Returns the timestamp of the input element.
      *
-     * <p>See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * <p>See {@link Window} for more information.
      */
     public abstract Instant timestamp();
 
@@ -289,10 +288,21 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      *
      * <p>Generally all data is in a single, uninteresting pane unless custom
      * triggering and/or late data has been explicitly requested.
-     * See {@link org.apache.beam.sdk.transforms.windowing.Window}
-     * for more information.
+     * See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
+
+    /**
+     * Gives the runner a (best-effort) lower bound about the timestamps of future output associated
+     * with the current element.
+     *
+     * <p>If the {@link DoFn} has multiple outputs, the watermark applies to all of them.
+     *
+     * <p>Only splittable {@link DoFn DoFns} are allowed to call this method. It is safe to call
+     * this method from a different thread than the one running {@link ProcessElement}, but
+     * all calls must finish before {@link ProcessElement} returns.
+     */
+    public abstract void updateWatermark(Instant watermark);
   }
 
   /**
@@ -317,14 +327,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns the allowed timestamp skew duration, which is the maximum
-   * duration that timestamps can be shifted backward in
-   * {@link DoFn.Context#outputWithTimestamp}.
+   * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
+   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
    *
-   * <p>The default value is {@code Duration.ZERO}, in which case
-   * timestamps can only be shifted forward to future.  For infinite
-   * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
+   * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
+   *
+   * @deprecated This method permits a {@link DoFn} to emit elements behind the watermark. These
+   *     elements are considered late, and if behind the
+   *     {@link Window#withAllowedLateness(Duration) allowed lateness} of a downstream
+   *     {@link PCollection} may be silently dropped. See
+   *     https://issues.apache.org/jira/browse/BEAM-644 for details on a replacement.
+   *
    */
+  @Deprecated
   public Duration getAllowedTimestampSkew() {
     return Duration.ZERO;
   }
@@ -372,40 +388,31 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public interface OutputReceiver<T> {
     void output(T output);
   }
-
-  /** Provides a single value of the given type. */
-  public interface InputProvider<T> {
-    T get();
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Annotation for declaring and dereferencing state cells.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
    * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
    * annotate it with {@link StateId}. See the following code for an example:
    *
-   * <pre>{@code
-   * new DoFn<KV<Key, Foo>, Baz>() {
-   *   {@literal @}StateId("my-state-id")
-   *   private final StateSpec<K, ValueState<MyState>> myStateSpec =
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *
+   *  {@literal @StateId("my-state-id")}
+   *  {@literal private final StateSpec<K, ValueState<MyState>>} myStateSpec =
    *       StateSpecs.value(new MyStateCoder());
    *
-   *   {@literal @}ProcessElement
+   *  {@literal @ProcessElement}
    *   public void processElement(
    *       ProcessContext c,
-   *       {@literal @}StateId("my-state-id") ValueState<MyState> myState) {
+   *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
    *     myState.read();
    *     myState.write(...);
    *   }
    * }
-   * }</pre>
+   * </code></pre>
    *
    * <p>State is subject to the following validity conditions:
    *
@@ -427,32 +434,27 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing timers.
    *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
-   *
    * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
    * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
    * {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and annotate it with
    * {@link TimerId}. See the following code for an example:
    *
-   * <pre>{@code
-   * new DoFn<KV<Key, Foo>, Baz>() {
-   *   {@literal @}TimerId("my-timer-id")
-   *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+   * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
+   *   {@literal @TimerId("my-timer-id")}
+   *    private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
    *
-   *   {@literal @}ProcessElement
-   *   public void processElement(
-   *       ProcessContext c,
-   *       {@literal @}TimerId("my-timer-id") Timer myTimer) {
-   *     myTimer.setForNowPlus(Duration.standardSeconds(...));
-   *   }
+   *   {@literal @ProcessElement}
+   *    public void processElement(
+   *        ProcessContext c,
+   *       {@literal @TimerId("my-timer-id") Timer myTimer}) {
+   *      myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *    }
    *
-   *   {@literal @}OnTimer("my-timer-id")
-   *   public void onMyTimer() {
-   *     ...
-   *   }
-   * }
-   * }</pre>
+   *   {@literal @OnTimer("my-timer-id")}
+   *    public void onMyTimer() {
+   *      ...
+   *    }
+   * }</code></pre>
    *
    * <p>Timers are subject to the following validity conditions:
    *
@@ -475,9 +477,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Annotation for registering a callback for a timer.
-   *
-   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
-   * here.</i>
    *
    * <p>See the javadoc for {@link TimerId} for use in a full example.
    *
@@ -538,8 +537,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *     separate requirements described below. Items below are assuming this is not a splittable
    *     {@link DoFn}.
-   * <li>If one of its arguments is {@link BoundedWindow}, this argument corresponds to the window
-   *     of the current element. If absent, a runner may perform additional optimizations.
+   * <li>If one of its arguments is a subtype of {@link BoundedWindow} then it will
+   *     be passed the window of the current element. When applied by {@link ParDo} the subtype
+   *     of {@link BoundedWindow} must match the type of windows on the input {@link PCollection}.
+   *     If the window is not accessed a runner may perform additional optimizations.
    * <li>It must return {@code void}.
    * </ul>
    *
@@ -558,21 +559,18 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    * <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    * <li>It <i>may</i> define a {@link SplitRestriction} method.
-   * <li>It <i>must</i> define a {@link NewTracker} method returning the same type as the type of
+   * <li>It <i>may</i> define a {@link NewTracker} method returning the same type as the type of
    *     the {@link RestrictionTracker} argument of {@link ProcessElement}, which in turn must be a
    *     subtype of {@code RestrictionTracker<R>} where {@code R} is the restriction type returned
-   *     by {@link GetInitialRestriction}.
+   *     by {@link GetInitialRestriction}. This method is optional in case the restriction type
+   *     returned by {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    * <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
    * <li>The type of restrictions used by all of these methods must be the same.
-   * <li>Its {@link ProcessElement} method <i>may</i> return a {@link ProcessContinuation} to
-   *     indicate whether there is more work to be done for the current element.
    * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters, such as
    *     {@link BoundedWindow}.
    * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or
    *     {@link UnboundedPerElement}, but not both at the same time. If it's not annotated with
-   *     either of these, it's assumed to be {@link BoundedPerElement} if its {@link
-   *     ProcessElement} method returns {@code void} and {@link UnboundedPerElement} if it
-   *     returns a {@link ProcessContinuation}.
+   *     either of these, it's assumed to be {@link BoundedPerElement}.
    * </ul>
    *
    * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
@@ -700,62 +698,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface UnboundedPerElement {}
 
-  // This can't be put into ProcessContinuation itself due to the following problem:
-  // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html
-  private static final ProcessContinuation PROCESS_CONTINUATION_STOP =
-      new AutoValue_DoFn_ProcessContinuation(false, Duration.ZERO, null);
-
-  /**
-   * When used as a return value of {@link ProcessElement}, indicates whether there is more work to
-   * be done for the current element.
-   */
-  @Experimental(Kind.SPLITTABLE_DO_FN)
-  @AutoValue
-  public abstract static class ProcessContinuation {
-    /** Indicates that there is no more work to be done for the current element. */
-    public static ProcessContinuation stop() {
-      return PROCESS_CONTINUATION_STOP;
-    }
-
-    /** Indicates that there is more work to be done for the current element. */
-    public static ProcessContinuation resume() {
-      return new AutoValue_DoFn_ProcessContinuation(true, Duration.ZERO, null);
-    }
-
-    /**
-     * If false, the {@link DoFn} promises that there is no more work remaining for the current
-     * element, so the runner should not resume the {@link ProcessElement} call.
-     */
-    public abstract boolean shouldResume();
-
-    /**
-     * A minimum duration that should elapse between the end of this {@link ProcessElement} call and
-     * the {@link ProcessElement} call continuing processing of the same element. By default, zero.
-     */
-    public abstract Duration resumeDelay();
-
-    /**
-     * A lower bound provided by the {@link DoFn} on timestamps of the output that will be emitted
-     * by future {@link ProcessElement} calls continuing processing of the current element.
-     *
-     * <p>A runner should treat an absent value as equivalent to the timestamp of the input element.
-     */
-    @Nullable
-    public abstract Instant getWatermark();
-
-    /** Builder method to set the value of {@link #resumeDelay()}. */
-    public ProcessContinuation withResumeDelay(Duration resumeDelay) {
-      return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay, getWatermark());
-    }
-
-    /** Builder method to set the value of {@link #getWatermark()}. */
-    public ProcessContinuation withWatermark(Instant watermark) {
-      return new AutoValue_DoFn_ProcessContinuation(
-          shouldResume(), resumeDelay(), watermark);
-    }
-  }
-
   /**
    * Returns an {@link Aggregator} with aggregation logic specified by the {@link CombineFn}
    * argument. The name provided must be unique across {@link Aggregator}s created within the {@link
@@ -814,7 +756,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Finalize the {@link DoFn} construction to prepare for processing.
    * This method should be called by runners before any processing methods.
    */
-  public void prepareForProcessing() {
+  @Deprecated
+  public final void prepareForProcessing() {
     aggregatorsAreFinal = true;
   }
 

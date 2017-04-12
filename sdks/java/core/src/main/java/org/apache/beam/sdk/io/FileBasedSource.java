@@ -222,6 +222,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
             fileOrPatternSpec,
             System.currentTimeMillis() - startTime);
       }
+      LOG.info(
+          "Filepattern {} matched {} files with total size {}",
+          fileOrPatternSpec.get(),
+          inputs.size(),
+          totalSize);
       return totalSize;
     } else {
       long start = getStartOffset();
@@ -286,8 +291,18 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     Collections.shuffle(selectedFiles);
     selectedFiles = selectedFiles.subList(0, sampleSize);
 
-    return files.size() * getExactTotalSizeOfFiles(selectedFiles, ioChannelFactory)
-        / selectedFiles.size();
+    long exactTotalSampleSize = getExactTotalSizeOfFiles(selectedFiles, ioChannelFactory);
+    double avgSize = 1.0 * exactTotalSampleSize / selectedFiles.size();
+    long totalSize = Math.round(files.size() * avgSize);
+    LOG.info(
+        "Sampling {} files gave {} total bytes ({} average per file), "
+            + "inferring total size of {} files to be {}",
+        selectedFiles.size(),
+        exactTotalSampleSize,
+        avgSize,
+        files.size(),
+        totalSize);
+    return totalSize;
   }
 
   @Override
@@ -340,10 +355,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         }
         List<? extends FileBasedSource<T>> splitResults =
             ImmutableList.copyOf(Iterables.concat(Futures.allAsList(futures).get()));
-        LOG.debug(
-            "Splitting the source based on file pattern {} took {} ms",
+        LOG.info(
+            "Splitting filepattern {} into bundles of size {} took {} ms "
+                + "and produced {} files and {} bundles",
             fileOrPatternSpec,
-            System.currentTimeMillis() - startTime);
+            desiredBundleSizeBytes,
+            System.currentTimeMillis() - startTime,
+            expandedFiles.size(),
+            splitResults.size());
         return splitResults;
       } finally {
         service.shutdown();
