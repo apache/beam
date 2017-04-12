@@ -86,6 +86,7 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -278,7 +279,7 @@ public class BigtableIOTest {
 
     // Exception will be thrown by read.validate() when read is applied.
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(String.format("Table %s does not exist", table));
+    thrown.expectMessage(String.format("Table %s does not exist", ValueProvider.StaticValueProvider.of(table)));
 
     p.apply(read);
   }
@@ -423,7 +424,8 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, ValueProvider.StaticValueProvider.of(table), null,
+                ValueProvider.StaticValueProvider.of(service.getTableRange(table)), null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -440,7 +442,8 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, ValueProvider.StaticValueProvider.of(table), null,
+                ValueProvider.StaticValueProvider.of(service.getTableRange(table)), null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -471,10 +474,10 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(serviceFactory,
-            table,
-            null /*filter*/,
-            ByteKeyRange.ALL_KEYS,
-            null /*size*/);
+            ValueProvider.StaticValueProvider.of(table),
+            null,
+            ValueProvider.StaticValueProvider.of(ByteKeyRange.ALL_KEYS),
+            null);
     List<BigtableSource> splits =
         source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -499,9 +502,9 @@ public class BigtableIOTest {
     // Generate source and split it.
     BigtableSource source =
         new BigtableSource(serviceFactory,
-        table,
+        ValueProvider.StaticValueProvider.of(table),
         null /*filter*/,
-        ByteKeyRange.ALL_KEYS,
+                ValueProvider.StaticValueProvider.of(ByteKeyRange.ALL_KEYS),
         null /*size*/);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
@@ -527,7 +530,11 @@ public class BigtableIOTest {
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory,
+                ValueProvider.StaticValueProvider.of(table),
+                ValueProvider.StaticValueProvider.of(filter),
+                ValueProvider.StaticValueProvider.of(ByteKeyRange.ALL_KEYS),
+                null);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -555,9 +562,9 @@ public class BigtableIOTest {
         hasLabel("Table ID"),
         hasValue("fooTable"))));
 
-    assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
+    assertThat(displayData, hasDisplayItem("rowFilter", ValueProvider.StaticValueProvider.of(rowFilter).toString()));
 
-    assertThat(displayData, hasDisplayItem("keyRange", keyRange.toString()));
+    assertThat(displayData, hasDisplayItem("keyRange", ValueProvider.StaticValueProvider.of(keyRange).toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
@@ -622,7 +629,7 @@ public class BigtableIOTest {
 
     // Exception will be thrown by write.validate() when write is applied.
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(String.format("Table %s does not exist", table));
+    thrown.expectMessage(String.format("Table %s does not exist", ValueProvider.StaticValueProvider.of(table)));
 
     emptyInput.apply("write", defaultWrite.withTableId(table));
   }
@@ -663,7 +670,11 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, ByteKeyRange.ALL_KEYS, null);
+        new BigtableSource(serviceFactory,
+                ValueProvider.StaticValueProvider.of(table),
+                null,
+                ValueProvider.StaticValueProvider.of(ByteKeyRange.ALL_KEYS),
+                null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 

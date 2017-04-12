@@ -179,7 +179,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Write write() {
-    return new Write(null, "", null, null, null);
+    return new Write(null, null, null, null, null);
   }
 
   /**
@@ -431,19 +431,19 @@ public class BigtableIO {
      * source is being built.
      */
     @Nullable private final BigtableOptions options;
-    private final String tableId;
+    @Nullable private final ValueProvider<String> tableId;
     @Nullable ValueProvider<String> projectId;
     @Nullable ValueProvider<String> instanceId;
     @Nullable private final BigtableService bigtableService;
 
     private Write(
         @Nullable BigtableOptions options,
-        String tableId,
+        @Nullable ValueProvider<String> tableId,
         @Nullable ValueProvider<String> projectId,
         @Nullable ValueProvider<String> instanceId,
         @Nullable BigtableService bigtableService) {
       this.options = options;
-      this.tableId = checkNotNull(tableId, "tableId");
+      this.tableId = tableId;
       this.projectId = projectId;
       this.instanceId = instanceId;
       this.bigtableService = bigtableService;
@@ -493,7 +493,7 @@ public class BigtableIO {
      */
     public Write withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Write(options, tableId, null, null, bigtableService);
+      return new Write(options, ValueProvider.StaticValueProvider.of(tableId), null, null, bigtableService);
     }
 
     /**
@@ -507,12 +507,12 @@ public class BigtableIO {
      * Returns the table being written to.
      */
     public String getTableId() {
-      return tableId;
+      return tableId.get();
     }
 
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      input.apply(ParDo.of(new BigtableWriterFn(tableId,
+      input.apply(ParDo.of(new BigtableWriterFn(tableId.get(),
           new SerializableFunction<PipelineOptions, BigtableService>() {
         @Override
         public BigtableService apply(PipelineOptions options) {
@@ -525,14 +525,15 @@ public class BigtableIO {
     @Override
     public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       checkArgument(options != null, "BigtableOptions not specified");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
+      if(tableId == null) throw new IllegalArgumentException("Table ID not specified");
+      checkArgument(!tableId.get().isEmpty(), "Table ID not specified");
       try {
         checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
+            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId.get()),
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        LOG.warn("Error checking whether table {} exists; proceeding.", ValueProvider.StaticValueProvider.of(tableId), e);
       }
     }
 
