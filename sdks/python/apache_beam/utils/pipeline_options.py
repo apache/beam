@@ -18,81 +18,8 @@
 """Pipeline options obtained from command line parsing."""
 
 import argparse
-import itertools
 
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import RuntimeValueProvider
-from apache_beam.utils.value_provider import ValueProvider
-
-
-def _static_value_provider_of(value_type):
-  """"Helper function to plug a ValueProvider into argparse.
-
-  Args:
-    value_type: the type of the value. Since the type param of argparse's
-                add_argument will always be ValueProvider, we need to
-                preserve the type of the actual value.
-  Returns:
-    A partially constructed StaticValueProvider in the form of a function.
-
-  """
-  def _f(value):
-    _f.func_name = value_type.__name__
-    return StaticValueProvider(value_type, value)
-  return _f
-
-
-class BeamArgumentParser(argparse.ArgumentParser):
-  """An ArgumentParser that supports ValueProvider options.
-
-  Example Usage::
-
-    class TemplateUserOptions(PipelineOptions):
-      @classmethod
-
-      def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--vp-arg1', default='start')
-        parser.add_value_provider_argument('--vp-arg2')
-        parser.add_argument('--non-vp-arg')
-
-  """
-  def __init__(self, options_id, *args, **kwargs):
-    self._options_id = options_id
-    super(BeamArgumentParser, self).__init__(*args, **kwargs)
-
-  def add_value_provider_argument(self, *args, **kwargs):
-    """ValueProvider arguments can be either of type keyword or positional.
-    At runtime, even positional arguments will need to be supplied in the
-    key/value form.
-    """
-    # Extract the option name from positional argument ['pos_arg']
-    assert args != () and len(args[0]) >= 1
-    if args[0][0] != '-':
-      option_name = args[0]
-      if kwargs.get('nargs') is None:  # make them optionally templated
-        kwargs['nargs'] = '?'
-    else:
-      # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
-      option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
-
-    # reassign the type to make room for using
-    # StaticValueProvider as the type for add_argument
-    value_type = kwargs.get('type') or str
-    kwargs['type'] = _static_value_provider_of(value_type)
-
-    # reassign default to default_value to make room for using
-    # RuntimeValueProvider as the default for add_argument
-    default_value = kwargs.get('default')
-    kwargs['default'] = RuntimeValueProvider(
-        option_name=option_name,
-        value_type=value_type,
-        default_value=default_value,
-        options_id=self._options_id
-    )
-
-    # have add_argument do most of the work
-    self.add_argument(*args, **kwargs)
 
 
 class PipelineOptions(HasDisplayData):
@@ -122,9 +49,8 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  _options_id_generator = itertools.count(1)
 
-  def __init__(self, flags=None, options_id=None, **kwargs):
+  def __init__(self, flags=None, **kwargs):
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -141,10 +67,7 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    self._options_id = (
-        options_id or PipelineOptions._options_id_generator.next())
-    parser = BeamArgumentParser(self._options_id)
-
+    parser = argparse.ArgumentParser()
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -196,12 +119,13 @@ class PipelineOptions(HasDisplayData):
 
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
+    parser = argparse.ArgumentParser()
     subset = {}
-    parser = BeamArgumentParser(self._options_id)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
+
     known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
 
@@ -209,9 +133,7 @@ class PipelineOptions(HasDisplayData):
     for k in result.keys():
       if k in self._all_options:
         result[k] = self._all_options[k]
-      if (drop_default and
-          parser.get_default(k) == result[k] and
-          not isinstance(parser.get_default(k), ValueProvider)):
+      if drop_default and parser.get_default(k) == result[k]:
         del result[k]
 
     return result
@@ -220,7 +142,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
-    view = cls(self._flags, options_id=self._options_id)
+    view = cls(self._flags)
     view._all_options = self._all_options
     return view
 
@@ -244,7 +166,7 @@ class PipelineOptions(HasDisplayData):
                            (type(self).__name__, name))
 
   def __setattr__(self, name, value):
-    if name in ('_flags', '_all_options', '_visible_options', '_options_id'):
+    if name in ('_flags', '_all_options', '_visible_options'):
       super(PipelineOptions, self).__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value

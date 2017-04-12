@@ -43,8 +43,6 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import RuntimeValueProvider
 
 
 class LineSource(FileBasedSource):
@@ -222,28 +220,6 @@ class TestFileBasedSource(unittest.TestCase):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
-
-  def test_string_or_value_provider_only(self):
-    str_file_pattern = tempfile.NamedTemporaryFile(delete=False).name
-    self.assertEqual(str_file_pattern,
-                     FileBasedSource(str_file_pattern)._pattern.value)
-
-    static_vp_file_pattern = StaticValueProvider(value_type=str,
-                                                 value=str_file_pattern)
-    self.assertEqual(static_vp_file_pattern,
-                     FileBasedSource(static_vp_file_pattern)._pattern)
-
-    runtime_vp_file_pattern = RuntimeValueProvider(
-        option_name='arg',
-        value_type=str,
-        default_value=str_file_pattern,
-        options_id=1)
-    self.assertEqual(runtime_vp_file_pattern,
-                     FileBasedSource(runtime_vp_file_pattern)._pattern)
-
-    invalid_file_pattern = 123
-    with self.assertRaises(TypeError):
-      FileBasedSource(invalid_file_pattern)
 
   def test_validation_file_exists(self):
     file_name, _ = write_data(10)
