@@ -483,8 +483,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Clears the record of the elements output so far to the side
-   * output with the given tag.
+   * Clears the record of the elements output so far to the output with the given tag.
    *
    * @see #peekOutputElements
    */

@@ -160,7 +160,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * in any way.
      *
      * <p>The caller of {@code ParDo} uses {@link ParDo.SingleOutput#withOutputTags} to
-     * specify the tags of outputs that it consumes. Non-consumed side
+     * specify the tags of outputs that it consumes. Non-consumed
      * outputs, e.g., outputs for monitoring purposes only, don't necessarily
      * need to be specified.
      *
