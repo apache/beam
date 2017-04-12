@@ -77,6 +77,11 @@
       <artifactId>beam-sdks-common-runner-api</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-construction-java</artifactId>
+    </dependency>
+
     <!-- build dependencies -->
 
     <dependency>

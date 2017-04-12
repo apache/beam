@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.windowing;
+package org.apache.beam.runners.core.construction;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -25,8 +25,22 @@ import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.sdk.transforms.windowing.AfterAll;
+import org.apache.beam.sdk.transforms.windowing.AfterEach;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterSynchronizedProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
+import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.apache.beam.sdk.util.ReshuffleTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -35,7 +49,6 @@ import org.joda.time.Instant;
 
 /** Utilities for working with {@link Triggers Triggers}. */
 @Experimental(Experimental.Kind.TRIGGER)
-@Deprecated
 public class Triggers implements Serializable {
 
   @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
@@ -85,7 +98,7 @@ public class Triggers implements Serializable {
           .build();
     }
 
-    private RunnerApi.Trigger convertSpecific(AfterWatermark.FromEndOfWindow v) {
+    private RunnerApi.Trigger convertSpecific(FromEndOfWindow v) {
       return RunnerApi.Trigger.newBuilder()
           .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.newBuilder())
           .build();
@@ -150,7 +163,7 @@ public class Triggers implements Serializable {
           .build();
     }
 
-    private RunnerApi.Trigger convertSpecific(AfterWatermark.AfterWatermarkEarlyAndLate v) {
+    private RunnerApi.Trigger convertSpecific(AfterWatermarkEarlyAndLate v) {
       RunnerApi.Trigger.AfterEndOfWindow.Builder builder =
           RunnerApi.Trigger.AfterEndOfWindow.newBuilder();
 
