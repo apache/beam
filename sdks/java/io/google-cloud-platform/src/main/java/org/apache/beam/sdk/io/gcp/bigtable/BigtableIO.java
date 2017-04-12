@@ -167,7 +167,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Read read() {
-    return new Read(null, null, StaticValueProvider.of(ByteKeyRange.ALL_KEYS), null, null);
+    return new Read(null, null, StaticValueProvider.of(ByteKeyRange.ALL_KEYS), null, null, null, null);
   }
 
   /**
@@ -179,7 +179,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Write write() {
-    return new Write(null, "", null);
+    return new Write(null, "", null, null, null);
   }
 
   /**
@@ -220,7 +220,7 @@ public class BigtableIO {
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
 
-      return new Read(optionsWithAgent, tableId, keyRange, filter, bigtableService);
+      return new Read(optionsWithAgent, tableId, keyRange, filter, null, null,  bigtableService);
     }
 
     /**
@@ -231,7 +231,7 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       checkNotNull(filter, "filter");
-      return new Read(options, tableId, keyRange, StaticValueProvider.of(filter), bigtableService);
+      return new Read(options, tableId, keyRange, StaticValueProvider.of(filter), null, null, bigtableService);
     }
 
     /**
@@ -241,7 +241,7 @@ public class BigtableIO {
      */
     public Read withKeyRange(ByteKeyRange keyRange) {
       checkNotNull(keyRange, "keyRange");
-      return new Read(options, tableId, StaticValueProvider.of(keyRange), filter, bigtableService);
+      return new Read(options, tableId, StaticValueProvider.of(keyRange), filter, null, null, bigtableService);
     }
 
     /**
@@ -251,7 +251,7 @@ public class BigtableIO {
      */
     public Read withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Read(options, StaticValueProvider.of(tableId), keyRange, filter, bigtableService);
+      return new Read(options, StaticValueProvider.of(tableId), keyRange, filter,null, null, bigtableService);
     }
 
     /**
@@ -351,6 +351,8 @@ public class BigtableIO {
     @Nullable private final ValueProvider<String> tableId;
     private final ValueProvider<ByteKeyRange> keyRange;
     @Nullable private final ValueProvider<RowFilter> filter;
+    @Nullable private final ValueProvider<String> projectId;
+    @Nullable private final ValueProvider<String> instanceId;
     @Nullable private final BigtableService bigtableService;
 
     private Read(
@@ -358,11 +360,15 @@ public class BigtableIO {
         @Nullable ValueProvider<String> tableId,
         ValueProvider<ByteKeyRange> keyRange,
         @Nullable ValueProvider<RowFilter> filter,
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> instanceId,
         @Nullable BigtableService bigtableService) {
       this.options = options;
       this.tableId = tableId;
       this.keyRange = keyRange;
       this.filter = filter;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
       this.bigtableService = bigtableService;
     }
 
@@ -376,7 +382,7 @@ public class BigtableIO {
      */
     Read withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, keyRange, filter, null, null, bigtableService);
     }
 
     /**
@@ -393,6 +399,14 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
+      // Override the projectId in the options with the runtime-provided  projectId.
+      if(projectId != null) {
+        clonedOptions.setProjectId(projectId.get());
+      }
+      // Override the instanceId in the options with the runtime-provided  projectId.
+      if(instanceId != null) {
+        clonedOptions.setInstanceId(instanceId.get());
+      }
       if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
@@ -418,14 +432,20 @@ public class BigtableIO {
      */
     @Nullable private final BigtableOptions options;
     private final String tableId;
+    @Nullable ValueProvider<String> projectId;
+    @Nullable ValueProvider<String> instanceId;
     @Nullable private final BigtableService bigtableService;
 
     private Write(
         @Nullable BigtableOptions options,
         String tableId,
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> instanceId,
         @Nullable BigtableService bigtableService) {
       this.options = options;
       this.tableId = checkNotNull(tableId, "tableId");
+      this.projectId = projectId;
+      this.instanceId = instanceId;
       this.bigtableService = bigtableService;
     }
 
@@ -463,7 +483,7 @@ public class BigtableIO {
           .setUseCachedDataPool(true);
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
-      return new Write(optionsWithAgent, tableId, bigtableService);
+      return new Write(optionsWithAgent, tableId, null, null, bigtableService);
     }
 
     /**
@@ -473,7 +493,7 @@ public class BigtableIO {
      */
     public Write withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Write(options, tableId, bigtableService);
+      return new Write(options, tableId, null, null, bigtableService);
     }
 
     /**
@@ -526,7 +546,7 @@ public class BigtableIO {
      */
     Write withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
-      return new Write(options, tableId, bigtableService);
+      return new Write(options, tableId, null, null, bigtableService);
     }
 
     @Override
@@ -564,6 +584,14 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
+      // Override the projectId in the options with the runtime-provided  projectId.
+      if(projectId != null) {
+        clonedOptions.setProjectId(projectId.get());
+      }
+      // Override the instanceId in the options with the runtime-provided  projectId.
+      if(instanceId != null) {
+        clonedOptions.setInstanceId(instanceId.get());
+      }
       if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
