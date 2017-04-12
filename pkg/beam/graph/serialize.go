@@ -50,19 +50,25 @@ func EncodeMultiEdge(edge *MultiEdge) (*v1.MultiEdge, error) {
 }
 
 func EncodeCustomCoder(c *CustomCoder) (*v1.CustomCoder, error) {
-	ret := &v1.CustomCoder{}
-
+	t, err := EncodeType(c.T)
+	if err != nil {
+		return nil, fmt.Errorf("Bad underlying type: %v", err)
+	}
 	enc, err := EncodeFnRef(c.Enc.Fn.Interface())
 	if err != nil {
 		return nil, fmt.Errorf("Bad enc: %v", err)
 	}
-	ret.Enc = enc
-
 	dec, err := EncodeFnRef(c.Dec.Fn.Interface())
 	if err != nil {
 		return nil, fmt.Errorf("Bad dec: %v", err)
 	}
-	ret.Dec = dec
+
+	ret := &v1.CustomCoder{
+		Name: c.Name,
+		Type: t,
+		Enc:  enc,
+		Dec:  dec,
+	}
 
 	if c.Data != nil {
 		data, err := json.Marshal(c.Data)
@@ -75,6 +81,10 @@ func EncodeCustomCoder(c *CustomCoder) (*v1.CustomCoder, error) {
 }
 
 func DecodeCustomCoder(c *v1.CustomCoder) (*CustomCoder, error) {
+	t, err := DecodeType(c.Type)
+	if err != nil {
+		return nil, fmt.Errorf("Bad type: %v", err)
+	}
 	enc, err := DecodeAndReflectFnRef(c.Enc)
 	if err != nil {
 		return nil, fmt.Errorf("Bad dec: %v", err)
@@ -85,8 +95,10 @@ func DecodeCustomCoder(c *v1.CustomCoder) (*CustomCoder, error) {
 	}
 
 	ret := &CustomCoder{
-		Enc: enc,
-		Dec: dec,
+		Name: c.Name,
+		T:    t,
+		Enc:  enc,
+		Dec:  dec,
 	}
 	if c.Data != "" {
 		data, err := DecodeData(enc, c.Data)

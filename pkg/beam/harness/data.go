@@ -54,6 +54,34 @@ func (m *DataConnectionManager) Open(ctx context.Context, id, endpoint string) e
 	return nil
 }
 
+// TODO: Placeholder. Replace with bytestream api, buffering and async multiplexing.
+
+func (m *DataConnectionManager) Read(id string) ([]*pb.Elements_Data, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	con, ok := m.active[id]
+	if !ok {
+		return nil, fmt.Errorf("Port %s not found", id)
+	}
+
+	log.Print("Recieving ..")
+
+	var data []*pb.Elements_Data
+	for {
+		msg, err := con.client.Recv()
+		if err != nil {
+			return nil, err
+		}
+		data = append(data, msg.Data...)
+
+		if len(msg.Data[len(msg.Data)-1].Data) == 0 {
+			break
+		}
+	}
+	return data, nil
+}
+
 func (m *DataConnectionManager) Commit(id string, data []*pb.Elements_Data) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -90,7 +118,32 @@ type DataConnectionContext struct {
 	InstID string `beam:"data"`
 }
 
-func SinkFn(mgr *DataConnectionManager, id string, coder *graph.Coder, t reflect.Type, opt DataConnectionContext, target *pb.Target, in <-chan typex.T) error {
+func SourceFn(mgr *DataConnectionManager, id string, coder *graph.Coder, opt DataConnectionContext, target *pb.Target, out chan<- typex.T) error {
+	data, err := mgr.Read(id)
+	if err != nil {
+		return err
+	}
+
+	var stream []byte
+	for _, elm := range data {
+		stream = append(stream, elm.Data...)
+	}
+
+	log.Printf("Source done: %v :: %v", len(stream), stream)
+
+	for index := 0; index < len(stream); {
+		ret, offset, err := local.Decode(coder, stream)
+		if err != nil {
+			return err
+		}
+
+		index += offset
+		out <- ret.Interface()
+	}
+	return nil
+}
+
+func SinkFn(mgr *DataConnectionManager, id string, coder *graph.Coder, opt DataConnectionContext, target *pb.Target, in <-chan typex.T) error {
 	var stream []byte
 	for elm := range in {
 		// CAVEAT: the implicit stream coding is simple concatenation of elements (in a nested context).
@@ -98,14 +151,14 @@ func SinkFn(mgr *DataConnectionManager, id string, coder *graph.Coder, t reflect
 
 		log.Printf("Sink elm: %v", elm)
 
-		data, err := local.Encode(coder, reflectx.Convert(reflect.ValueOf(elm), t))
+		data, err := local.Encode(coder, reflectx.Convert(reflect.ValueOf(elm), coder.T))
 		if err != nil {
 			return err
 		}
 		stream = append(stream, data...)
 	}
 
-	log.Print("Sink done: %v :: %v", len(stream), stream)
+	log.Printf("Sink done: %v :: %v", len(stream), stream)
 
 	bundle := []*pb.Elements_Data{
 		{

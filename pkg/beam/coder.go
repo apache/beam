@@ -41,7 +41,7 @@ func inferCoder(t reflect.Type) (*graph.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &graph.Coder{Kind: graph.Pair, Components: []*graph.Coder{key, value}}, nil
+		return &graph.Coder{Kind: graph.Pair, T: t, Components: []*graph.Coder{key, value}}, nil
 	}
 
 	if t.Kind() == reflect.Chan {
@@ -49,11 +49,11 @@ func inferCoder(t reflect.Type) (*graph.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &graph.Coder{Kind: graph.Stream, Components: []*graph.Coder{elm}}, nil
+		return &graph.Coder{Kind: graph.Stream, T: t, Components: []*graph.Coder{elm}}, nil
 	}
 
-	return &graph.Coder{Kind: graph.LengthPrefix, Components: []*graph.Coder{{
-		Kind: graph.Custom, Custom: NewCustomCoder(t),
+	return &graph.Coder{Kind: graph.LengthPrefix, T: t, Components: []*graph.Coder{{
+		Kind: graph.Custom, T: t, Custom: NewCustomCoder(t),
 	}}}, nil
 }
 
@@ -84,7 +84,11 @@ func jsonDec(ctx jsonContext, in []byte) (typex.T, error) {
 // TODO: select optimal coder based on type, notably handling int, string, etc.
 
 func NewCustomCoder(t reflect.Type) *graph.CustomCoder {
-	coder, err := graph.NewCustomCoder("json", jsonEnc, jsonDec, graph.DataType{t})
+	if reflectx.ClassOf(t) != reflectx.Concrete {
+		log.Fatalf("Type must be concrete: %v", t)
+	}
+
+	coder, err := graph.NewCustomCoder("json", t, jsonEnc, jsonDec, graph.DataType{t})
 	if err != nil {
 		log.Fatalf("Bad coder: %v", err)
 	}

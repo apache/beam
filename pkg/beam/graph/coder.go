@@ -4,15 +4,24 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"reflect"
 )
+
+// TODO(herohde) 4/11/2017: re-introduce TypeTag and disallow coder data context?
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
 // type-bound at runtime. Universal coders can thus be used for many different
-// types.
+// types, but each CustomCoder instance will be bound to a specific type.
 type CustomCoder struct {
-	ID string
+	// Name is the coder name. Informational only.
+	Name string
+	// T is the underlying concrete type that is being coded.
+	T reflect.Type
 
+	// Enc is the encoding function : T -> []byte.
 	Enc *UserFn
+	// Dec is the decoding function: []byte -> T.
 	Dec *UserFn
 
 	// Data holds immediate values to be bound into "data" context field, if
@@ -21,10 +30,10 @@ type CustomCoder struct {
 }
 
 func (c *CustomCoder) String() string {
-	return c.ID
+	return fmt.Sprintf("%s<%v>", c.Name, c.T)
 }
 
-func NewCustomCoder(id string, encode, decode, data interface{}) (*CustomCoder, error) {
+func NewCustomCoder(id string, t reflect.Type, encode, decode, data interface{}) (*CustomCoder, error) {
 	enc, err := ReflectFn(encode)
 	if err != nil {
 		return nil, fmt.Errorf("Bad encode: %v", err)
@@ -37,7 +46,8 @@ func NewCustomCoder(id string, encode, decode, data interface{}) (*CustomCoder, 
 	// TODO(herohde): validate coder signature.
 
 	c := &CustomCoder{
-		ID:   id,
+		Name: id,
+		T:    t,
 		Enc:  enc,
 		Dec:  dec,
 		Data: data,
@@ -78,6 +88,7 @@ func (w *Window) String() string {
 // (unwritten) Beam specification. Immutable.
 type Coder struct {
 	Kind CoderKind
+	T    reflect.Type
 
 	Components []*Coder
 	Custom     *CustomCoder
@@ -272,7 +283,7 @@ func EncodeCoder(c *Coder) (*CoderRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, window}}, nil
+		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, window}, IsWrapper: true}, nil
 
 	case Stream:
 		if len(c.Components) != 1 {
@@ -305,7 +316,26 @@ func DecodeCoder(c *CoderRef) (*Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Coder{Kind: Pair, Components: []*Coder{key, value}}, nil
+
+		var t reflect.Type
+		if value.Kind == Stream {
+			// GBK result
+
+			c, _ := value.UnfoldStream()
+
+			t, err = reflectx.MakeGBK(key.T, c.T)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// KV
+
+			t, err = reflectx.MakeKV(key.T, value.T)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &Coder{Kind: Pair, T: t, Components: []*Coder{key, value}}, nil
 
 	case lengthPrefixType:
 		if len(c.Components) != 1 {
@@ -316,7 +346,7 @@ func DecodeCoder(c *CoderRef) (*Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Coder{Kind: LengthPrefix, Components: []*Coder{elm}}, nil
+		return &Coder{Kind: LengthPrefix, T: elm.T, Components: []*Coder{elm}}, nil
 
 	case windowedValueType:
 		if len(c.Components) != 2 {
@@ -331,7 +361,11 @@ func DecodeCoder(c *CoderRef) (*Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Coder{Kind: WindowedValue, Components: []*Coder{elm}, Window: window}, nil
+
+		// TODO(herohde): construct type for WindowedValue? We may
+		// need to handle them specially. Stream, too.
+
+		return &Coder{Kind: WindowedValue, T: elm.T, Components: []*Coder{elm}, Window: window}, nil
 
 	case streamType:
 		if len(c.Components) != 1 {
@@ -342,7 +376,8 @@ func DecodeCoder(c *CoderRef) (*Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Coder{Kind: Stream, Components: []*Coder{elm}}, nil
+		t := reflect.ChanOf(reflect.BothDir, elm.T)
+		return &Coder{Kind: Stream, T: t, Components: []*Coder{elm}}, nil
 
 	default:
 		var ref v1.CustomCoder
@@ -353,7 +388,7 @@ func DecodeCoder(c *CoderRef) (*Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Coder{Kind: Custom, Custom: custom}, nil
+		return &Coder{Kind: Custom, T: custom.T, Custom: custom}, nil
 	}
 }
 

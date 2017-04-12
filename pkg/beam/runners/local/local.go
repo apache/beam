@@ -7,6 +7,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/typex"
 	"log"
 	"reflect"
 	"sync"
@@ -421,10 +422,143 @@ func Encode(coder *graph.Coder, value reflect.Value) ([]byte, error) {
 		// TODO(herohde) 4/7/2017: actually handle windows. Backfilling implicit
 		// context is the death of chan-based bundle processing.
 
-		return Encode(c, value)
+		// Encoding: Timestamp, Window, Pane, Element
+
+		ret := coderx.EncodeTimestamp(typex.Timestamp(time.Now()))
+
+		ret = append(ret, 0x0, 0x0, 0x0, 0x1) // #windows
+		// Ignore GlobalWindow, for now. It encoded into the empty string.
+
+		ret = append(ret, 0xf) // NO_FIRING pane
+
+		val, err := Encode(c, value)
+		if err != nil {
+			return nil, err
+		}
+		return append(ret, val...), nil
 
 	default:
 		return nil, fmt.Errorf("Unexpected coder: %v", coder)
+	}
+}
+
+func Decode(coder *graph.Coder, data []byte) (reflect.Value, int, error) {
+	switch coder.Kind {
+	case graph.Custom:
+		c, _ := coder.UnfoldCustom()
+
+		var args []reflect.Value
+
+		userCtx, hasCtx := makeContext(c.Dec, c.Data)
+		if hasCtx {
+			args = append(args, userCtx)
+		}
+		args = append(args, reflect.ValueOf(data))
+
+		ret := c.Dec.Fn.Call(args)
+		if index, ok := c.Enc.HasError(); ok && !ret[index].IsNil() {
+			return reflect.Value{}, 0, fmt.Errorf("decode error: %v", ret[index].Interface())
+		}
+		return reflectx.Convert(ret[0], c.T), len(data), nil
+
+	case graph.LengthPrefix:
+		c, _ := coder.UnfoldLengthPrefix()
+
+		size, offset, err := coderx.DecodeVarInt(data)
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+
+		value, _, err := Decode(c, data[offset:offset+int(size)])
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+		return value, offset + int(size), nil
+
+	case graph.Pair:
+		k, v, _ := coder.UnfoldPair()
+		pack := reflectx.PackFn(coder.T)
+
+		key, offset, err := Decode(k, data)
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+		val, offset2, err := Decode(v, data[offset:])
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+		return pack(key, val), offset + offset2, nil
+
+	case graph.Stream:
+		c, _ := coder.UnfoldStream()
+
+		size, offset, err := coderx.DecodeInt32(data)
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+
+		ch := reflect.MakeChan(coder.T, 1000) // hack
+		if size > -1 {
+			// Known length stream.
+
+			for i := int32(0); i < size; i++ {
+				elm, o, err := Decode(c, data[offset:])
+				if err != nil {
+					return reflect.Value{}, 0, fmt.Errorf("decode failed at %v:%v: %v", offset, data, err)
+				}
+
+				offset += o
+				ch.Send(elm)
+			}
+		} else {
+			// Unknown length stream.
+
+			for {
+				block, o, err := coderx.DecodeVarUint64(data[offset:])
+				if err != nil {
+					return reflect.Value{}, 0, err
+				}
+
+				log.Printf("Block: %v", block)
+
+				offset += o
+				if block == 0 {
+					break
+				}
+
+				for i := uint64(0); i < block; i++ {
+					elm, o, err := Decode(c, data[offset:])
+					if err != nil {
+						return reflect.Value{}, 0, fmt.Errorf("decode failed at %v:%v: %v", offset, data, err)
+					}
+
+					log.Printf("Elm %v: %v [size: %v @ %v]", i, elm, o, offset)
+
+					offset += o
+					ch.Send(reflectx.Convert(elm, c.T))
+				}
+			}
+		}
+		ch.Close()
+
+		return ch, offset, nil
+
+	case graph.WindowedValue:
+		c, _, _ := coder.UnfoldWindowedValue()
+
+		// TODO(herohde) 4/7/2017: actually handle windows. Skip
+		// timestamp, window and pane for now.
+
+		// Encoding: Timestamp, Window, Pane, Element
+
+		val, offset, err := Decode(c, data[13:])
+		if err != nil {
+			return reflect.Value{}, 0, err
+		}
+		return val, offset, nil
+
+	default:
+		return reflect.Value{}, 0, fmt.Errorf("Unexpected coder: %v", coder)
 	}
 }
 
