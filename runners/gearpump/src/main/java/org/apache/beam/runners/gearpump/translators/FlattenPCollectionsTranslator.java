@@ -47,7 +47,6 @@ public class FlattenPCollectionsTranslator<T> implements
     Set<PCollection<T>> unique = new HashSet<>();
     for (TaggedPValue input: context.getInputs()) {
       PCollection<T> collection = (PCollection<T>) input.getValue();
-      unique.add(collection);
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
         merged = inputStream;
@@ -60,6 +59,7 @@ public class FlattenPCollectionsTranslator<T> implements
 
         merged = merged.merge(inputStream, transform.getName());
       }
+      unique.add(collection);
     }
 
     if (null == merged) {

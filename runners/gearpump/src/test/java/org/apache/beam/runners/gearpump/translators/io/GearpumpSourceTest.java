@@ -37,16 +37,14 @@ import org.apache.gearpump.streaming.source.Watermark;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for {@link GearpumpSource}.
- */
+/** Tests for {@link GearpumpSource}. */
 public class GearpumpSourceTest {
-  private static final List<TimestampedValue<String>> TEST_VALUES = Lists.newArrayList(
-    TimestampedValue.of("a", new org.joda.time.Instant(Long.MIN_VALUE)),
-    TimestampedValue.of("b", new org.joda.time.Instant(0)),
-    TimestampedValue.of("c", new org.joda.time.Instant(53)),
-    TimestampedValue.of("d", new org.joda.time.Instant(Long.MAX_VALUE - 1))
-  );
+  private static final List<TimestampedValue<String>> TEST_VALUES =
+      Lists.newArrayList(
+          TimestampedValue.of("a", new org.joda.time.Instant(Long.MIN_VALUE)),
+          TimestampedValue.of("b", new org.joda.time.Instant(0)),
+          TimestampedValue.of("c", new org.joda.time.Instant(53)),
+          TimestampedValue.of("d", new org.joda.time.Instant(Long.MAX_VALUE - 1)));
 
   private static class SourceForTest<T> extends GearpumpSource<T> {
     private ValuesSource<T> valuesSource;
@@ -64,22 +62,24 @@ public class GearpumpSourceTest {
 
   @Test
   public void testGearpumpSource() {
-    GearpumpPipelineOptions options = PipelineOptionsFactory.create()
-      .as(GearpumpPipelineOptions.class);
-    ValuesSource<TimestampedValue<String>> valuesSource = new ValuesSource<>(TEST_VALUES,
-      TimestampedValue.TimestampedValueCoder.of(StringUtf8Coder.of()));
+    GearpumpPipelineOptions options =
+        PipelineOptionsFactory.create().as(GearpumpPipelineOptions.class);
+    ValuesSource<TimestampedValue<String>> valuesSource =
+        new ValuesSource<>(
+            TEST_VALUES, TimestampedValue.TimestampedValueCoder.of(StringUtf8Coder.of()));
     SourceForTest<TimestampedValue<String>> sourceForTest =
-      new SourceForTest<>(options, valuesSource);
+        new SourceForTest<>(options, valuesSource);
     sourceForTest.open(null, Instant.EPOCH);
 
-    for (TimestampedValue<String> value: TEST_VALUES) {
+    for (TimestampedValue<String> value : TEST_VALUES) {
       // Check the watermark first since the Source will advance when it's opened
       Instant expectedWaterMark = TranslatorUtils.jodaTimeToJava8Time(value.getTimestamp());
       Assert.assertEquals(expectedWaterMark, sourceForTest.getWatermark());
 
-      Message expectedMsg = Message.apply(
-        WindowedValue.timestampedValueInGlobalWindow(value, value.getTimestamp()),
-        value.getTimestamp().getMillis());
+      Message expectedMsg =
+          Message.apply(
+              WindowedValue.timestampedValueInGlobalWindow(value, value.getTimestamp()),
+              value.getTimestamp().getMillis());
       Message message = sourceForTest.read();
       Assert.assertEquals(expectedMsg, message);
     }
