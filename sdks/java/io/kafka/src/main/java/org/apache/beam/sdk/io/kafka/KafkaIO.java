@@ -199,7 +199,7 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <h3>Advanced Kafka Configuration</h3>
- * KafakIO allows setting most of the properties in {@link ConsumerConfig} for source or in
+ * KafkaIO allows setting most of the properties in {@link ConsumerConfig} for source or in
  * {@link ProducerConfig} for sink. E.g. if you would like to enable offset
  * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
