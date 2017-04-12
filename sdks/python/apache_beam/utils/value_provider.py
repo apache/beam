@@ -22,15 +22,6 @@ and dynamically provided values.
 from functools import wraps
 
 
-class RuntimeValueProviderError(RuntimeError):
-  def __init__(self, msg):
-    """Class representing the errors thrown during runtime by the valueprovider
-    Args:
-      msg: Message string for the exception thrown
-    """
-    super(RuntimeValueProviderError, self).__init__(msg)
-
-
 class ValueProvider(object):
   def is_accessible(self):
     raise NotImplementedError(
@@ -76,8 +67,7 @@ class RuntimeValueProvider(ValueProvider):
     runtime_options = (
         RuntimeValueProvider.runtime_options_map.get(self.options_id))
     if runtime_options is None:
-      raise RuntimeValueProviderError(
-          '%s.get() not called from a runtime context' % self)
+      raise RuntimeError('%s.get() not called from a runtime context' % self)
 
     candidate = runtime_options.get(self.option_name)
     if candidate:
@@ -114,7 +104,7 @@ def check_accessible(value_provider_list):
     def _f(self, *args, **kwargs):
       for obj in [getattr(self, vp) for vp in value_provider_list]:
         if not obj.is_accessible():
-          raise RuntimeValueProviderError('%s not accessible' % obj)
+          raise RuntimeError('%s not accessible' % obj)
       return fnc(self, *args, **kwargs)
     return _f
   return _check_accessible
