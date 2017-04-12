@@ -183,33 +183,6 @@
         </plugin>
 
         <plugin>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.4</version>
-          <configuration>
-            <archive>
-              <manifestSections>
-                <manifestSection>
-                  <name>Package-Metadata</name>
-                  <manifestEntries>
-                    <Build-Revision>${buildNumber}</Build-Revision>
-                    <Build-Branch>${scmBranch}</Build-Branch>
-                    <Build-Time>${maven.build.timestamp}</Build-Time>
-                    <Build-Host>${build.hostname}</Build-Host>
-                    <Build-User>${user.name}</Build-User>
-                    <Build-Java>${java.version}</Build-Java>
-                    <Build-OS>${os.name}</Build-OS>
-                    <Package-Vendor>${project.organization.name}</Package-Vendor>
-                    <Package-Group>${project.groupId}</Package-Group>
-                    <Package-Name>${project.artifactId}</Package-Name>
-                    <Package-Version>${project.version}</Package-Version>
-                  </manifestEntries>
-                </manifestSection>
-              </manifestSections>
-            </archive>
-          </configuration>
-        </plugin>
-
-        <plugin>
           <artifactId>maven-clean-plugin</artifactId>
           <version>2.5</version>
           <configuration>
@@ -448,6 +421,11 @@
             </executions>
           </plugin>
 
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>2.4.3</version>
+          </plugin>
         </plugins>
       </build>
     </profile>
