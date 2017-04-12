@@ -854,7 +854,7 @@ class BigQueryWrapper(object):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     location = None
 
-    # Get region of source dataset
+    # Get location of source dataset
     try:
       tr = source_table_reference
       if tr is not None:
@@ -863,7 +863,6 @@ class BigQueryWrapper(object):
 
         table = self._get_table(table_project_id, tr.datasetId, tr.tableId)
         location = table.location
-        #TODO (uj): extract region from acquired table
     except HttpError as exn: pass
 
     # Check if dataset exists to make sure that the temporary id is unique
