@@ -260,9 +260,9 @@ public class GameStats extends LeaderBoard {
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
         rawEvents.apply("ExtractUserScore",
-          MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-            .withOutputType(
-                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
