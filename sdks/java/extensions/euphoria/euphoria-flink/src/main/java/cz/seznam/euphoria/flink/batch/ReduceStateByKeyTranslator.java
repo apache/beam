@@ -40,6 +40,9 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
 
   final StorageProvider stateStorageProvider;
@@ -70,7 +73,6 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     // ~ extract key/value + timestamp from input elements and assign windows
     ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
 
-    // FIXME require keyExtractor to deliver `Comparable`s
     DataSet<BatchElement> wAssigned =
             input.flatMap((i, c) -> {
               BatchElement wel = (BatchElement) i;
@@ -98,8 +100,12 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             Utils.wrapQueryable(
                 // ~ FIXME if the underlying windowing is "non merging" we can group by
                 // "key _and_ window", thus, better utilizing the available resources
-                (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
-                Comparable.class))
+
+                // ~ Grouping by key hashcode will effectively group elements with the same key
+                // to the one bucket. Although there may occur some collisions that we need
+                // to be aware of in later processing.
+                (BatchElement<?, Pair> we) -> we.getElement().getFirst().hashCode(),
+                Integer.class))
             .sortGroup(Utils.wrapQueryable(
                 (KeySelector<BatchElement<?, ?>, Long>)
                         BatchElement::getTimestamp, Long.class),
@@ -125,13 +131,15 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
   static class RSBKReducer
           implements GroupReduceFunction<BatchElement<?, Pair>, BatchElement<?, Pair>>,
-          ResultTypeQueryable<BatchElement<?, Pair>>
-  {
+          ResultTypeQueryable<BatchElement<?, Pair>> {
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
     private final StateMerger<?, ?, State<?, ?>> stateCombiner;
     private final StorageProvider stateStorageProvider;
     private final Windowing windowing;
     private final Trigger trigger;
+
+    // mapping of [Key -> GroupReducer]
+    private transient Map<Object, GroupReducer> activeReducers;
 
     @SuppressWarnings("unchecked")
     RSBKReducer(
@@ -151,18 +159,36 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     public void reduce(Iterable<BatchElement<?, Pair>> values,
                        org.apache.flink.util.Collector<BatchElement<?, Pair>> out)
     {
-      GroupReducer reducer = new GroupReducer(
-              stateFactory,
-              stateCombiner,
-              stateStorageProvider,
-              BatchElement::new,
-              windowing,
-              trigger,
-              elem -> out.collect((BatchElement) elem));
-      for (BatchElement value : values) {
-        reducer.process(value);
+      activeReducers = new HashMap<>();
+      for (BatchElement<?, Pair> batchElement : values) {
+        Object key = batchElement.getElement().getKey();
+
+        GroupReducer reducer = activeReducers.get(key);
+        if (reducer == null) {
+          reducer = new GroupReducer(
+                  stateFactory,
+                  stateCombiner,
+                  stateStorageProvider,
+                  BatchElement::new,
+                  windowing,
+                  trigger,
+                  elem -> out.collect((BatchElement) elem));
+
+          activeReducers.put(key, reducer);
+        }
+
+        reducer.process(batchElement);
       }
-      reducer.close();
+
+      flushStates();
+    }
+
+    private void flushStates() {
+      for (Map.Entry<Object, GroupReducer> e : activeReducers.entrySet()) {
+        GroupReducer reducer = e.getValue();
+        reducer.close();
+      }
+      activeReducers.clear();
     }
 
     @Override
