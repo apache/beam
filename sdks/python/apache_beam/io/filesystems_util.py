@@ -25,7 +25,12 @@ def get_filesystem(path):
   provided in the input.
   """
   if path.startswith('gs://'):
-    from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+    try:
+      from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+    except ImportError:
+      raise ImportError(
+          'Google Cloud Platform IO not available, '
+          'please install apache_beam[gcp]')
     return GCSFileSystem()
   else:
     return LocalFileSystem()
