@@ -91,10 +91,6 @@ class CombiningValueStateTag(StateTag):
 
 class ListStateTag(StateTag):
   """StateTag pointing to a list of elements."""
-
-  def __init__(self, tag):
-    super(ListStateTag, self).__init__(tag)
-
   def __repr__(self):
     return 'ListStateTag(%s)' % self.tag
 
@@ -304,8 +300,7 @@ class AfterWatermark(TriggerFn):
     elif self.early:
       return self.early.should_fire(
           watermark, window, NestedContext(context, 'early'))
-    else:
-      return False
+    return False
 
   def on_fire(self, watermark, window, context):
     if self.is_late(context):
@@ -493,8 +488,7 @@ class ParallelTriggerFn(TriggerFn):
         in proto.after_all.subtriggers or proto.after_any.subtriggers]
     if proto.after_all.subtriggers:
       return AfterAll(*subtriggers)
-    else:
-      return AfterFirst(*subtriggers)
+    return AfterFirst(*subtriggers)
 
   def to_runner_api(self, context):
     subtriggers = [
@@ -596,10 +590,6 @@ class AfterEach(TriggerFn):
 
 
 class OrFinally(AfterFirst):
-
-  def __init__(self, body_trigger, exit_trigger):
-    super(OrFinally, self).__init__(body_trigger, exit_trigger)
-
   @staticmethod
   def from_runner_api(proto, context):
     return OrFinally(
@@ -792,11 +782,11 @@ class MergeableStateAdapter(SimpleState):
   def _get_id(self, window):
     if window in self.window_ids:
       return self.window_ids[window][0]
-    else:
-      window_id = self._get_next_counter()
-      self.window_ids[window] = [window_id]
-      self._persist_window_ids()
-      return window_id
+
+    window_id = self._get_next_counter()
+    self.window_ids[window] = [window_id]
+    self._persist_window_ids()
+    return window_id
 
   def _get_ids(self, window):
     return self.window_ids.get(window, [])

@@ -469,8 +469,7 @@ class SnippetsTest(unittest.TestCase):
 
     if sorted_output:
       return sorted(s.rstrip('\n') for s in all_lines)
-    else:
-      return all_lines
+    return all_lines
 
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')
