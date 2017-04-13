@@ -17,7 +17,6 @@
 #!/bin/bash
 set -e
 
-# Create Cassandra services and Replication controller.
+# Create Cassandra services and statefulset.
 kubectl create -f cassandra-service-for-local-dev.yaml
-kubectl create -f cassandra-svc-rc.yaml
-
+kubectl create -f cassandra-svc-statefulset.yaml

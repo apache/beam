@@ -14,13 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Temporary cassandra single node cluster set up 
+# to connect to production cluster through cqlsh remotely. 
 # Headless service that allows us to get the IP addresses of our Cassandra nodes
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    name: cassandra-peers
-  name: cassandra-peers
+    name: cassandra-temp
+  name: cassandra-temp
 spec:
   clusterIP: None
   ports:
@@ -28,41 +30,39 @@ spec:
       name: intra-node-communication
     - port: 7001
       name: tls-intra-node-communication
+    - port: 9042
+      name: cql
   selector:
-    name: cassandra
-  type: NodePort
+    name: cassandra-temp
 ---
 # Replication Controller for Cassandra which tracks the Cassandra pods.
 apiVersion: v1
 kind: ReplicationController
 metadata:
   labels:
-    name: cassandra
-  name: cassandra
+    name: cassandra-temp
+  name: cassandra-temp
 spec:
   replicas: 1
   selector:
-    name: cassandra
+    name: cassandra-temp
   template:
     metadata:
       labels:
-        name: cassandra
+        name: cassandra-temp
     spec:
       containers:
         - image: cassandra
-          name: cassandra
+          name: cassandra-temp
           env:
             - name: PEER_DISCOVERY_SERVICE
-              value: cassandra-peers
+              value: cassandra-temp
             - name: CASSANDRA_CLUSTER_NAME
               value: Cassandra
             - name: CASSANDRA_DC
               value: DC1
             - name: CASSANDRA_RACK
               value: Kubernetes Cluster
-# Number of tokens currently configured to 1. If this is not configured, default value is 256. You can change it as per requirement.			  
-            - name: CASSANDRA_NUM_TOKENS
-              value: '1'
           ports:
             - containerPort: 9042
               name: cql

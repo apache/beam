@@ -1,3 +1,4 @@
+#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -13,11 +14,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+#!/bin/bash
 
-#!/bin/sh
 set -e
 
-# Create Elasticsearch services and deployments.
-kubectl create -f elasticsearch-service-for-local-dev.yaml
-kubectl create -f elasticsearch-svc-rc.yaml
-
+# Delete Cassandra services and statefulset.
+kubectl delete -f cassandra-svc-statefulset.yaml
+kubectl delete -f cassandra-service-for-local-dev.yaml
+# Delete the persistent storage media for the PersistentVolumes
+kubectl delete pvc -l app=cassandra
