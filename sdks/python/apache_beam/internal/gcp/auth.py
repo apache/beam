@@ -106,9 +106,11 @@ class _GCloudWrapperCredentials(OAuth2Credentials):
     try:
       gcloud_process = processes.Popen(
           ['gcloud', 'auth', 'print-access-token'], stdout=processes.PIPE)
-    except OSError as exn:
-      logging.error('The gcloud tool was not found.', exc_info=True)
-      raise AuthenticationException('The gcloud tool was not found: %s' % exn)
+    except OSError:
+      message = 'gcloud tool not found so falling back to using ' +\
+                'application default credentials'
+      logging.warning(message)
+      raise AuthenticationException(message)
     output, _ = gcloud_process.communicate()
     self.access_token = output.strip()
 
