@@ -194,8 +194,7 @@ class PTransformTest(unittest.TestCase):
     def some_fn(v):
       if v % 2 == 0:
         return [v, pvalue.SideOutputValue('even', v)]
-      else:
-        return [v, pvalue.SideOutputValue('odd', v)]
+      return [v, pvalue.SideOutputValue('odd', v)]
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])

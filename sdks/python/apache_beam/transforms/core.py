@@ -172,9 +172,8 @@ class DoFn(WithTypeHints, HasDisplayData):
     if hasattr(self, func_name):
       f = getattr(self, func_name)
       return f()
-    else:
-      f = getattr(self, func)
-      return inspect.getargspec(f)
+    f = getattr(self, func)
+    return inspect.getargspec(f)
 
   # TODO(sourabhbajaj): Do we want to remove the responsiblity of these from
   # the DoFn or maybe the runner
@@ -191,8 +190,7 @@ class DoFn(WithTypeHints, HasDisplayData):
     if (type_hint in annotations
         or trivial_inference.element_type(type_hint) in annotations):
       return Any
-    else:
-      return type_hint
+    return type_hint
 
   def process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
@@ -446,20 +444,19 @@ class CallableWrapperCombineFn(CombineFn):
   def add_input(self, accumulator, element, *args, **kwargs):
     if accumulator is self._EMPTY:
       return element
-    else:
-      return self._fn([accumulator, element], *args, **kwargs)
+    return self._fn([accumulator, element], *args, **kwargs)
 
   def add_inputs(self, accumulator, elements, *args, **kwargs):
     if accumulator is self._EMPTY:
       return self._fn(elements, *args, **kwargs)
     elif isinstance(elements, (list, tuple)):
       return self._fn([accumulator] + list(elements), *args, **kwargs)
-    else:
-      def union():
-        yield accumulator
-        for e in elements:
-          yield e
-      return self._fn(union(), *args, **kwargs)
+
+    def union():
+      yield accumulator
+      for e in elements:
+        yield e
+    return self._fn(union(), *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     # It's (weakly) assumed that self._fn is associative.
@@ -859,8 +856,7 @@ class CombineGlobally(PTransform):
       type_hints = self.get_type_hints()
       if type_hints.input_types:
         return transform.with_input_types(type_hints.input_types[0][0])
-      else:
-        return transform
+      return transform
 
     combined = (pcoll
                 | 'KeyWithVoid' >> add_input_types(
@@ -897,8 +893,7 @@ class CombineGlobally(PTransform):
         # TODO(robertwb): We should infer this.
         if combined.element_type:
           return transform.with_output_types(combined.element_type)
-        else:
-          return transform
+        return transform
       return (pcoll.pipeline
               | 'DoOnce' >> Create([None])
               | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
@@ -987,24 +982,24 @@ class CombineValuesDoFn(DoFn):
       return [
           (element[0],
            self.combinefn.apply(element[1], *args, **kwargs))]
-    else:
-      # Add the elements into three accumulators (for testing of merge).
-      elements = element[1]
-      accumulators = []
-      for k in range(3):
-        if len(elements) <= k:
-          break
-        accumulators.append(
-            self.combinefn.add_inputs(
-                self.combinefn.create_accumulator(*args, **kwargs),
-                elements[k::3],
-                *args, **kwargs))
-      # Merge the accumulators.
-      accumulator = self.combinefn.merge_accumulators(
-          accumulators, *args, **kwargs)
-      # Convert accumulator to the final result.
-      return [(element[0],
-               self.combinefn.extract_output(accumulator, *args, **kwargs))]
+
+    # Add the elements into three accumulators (for testing of merge).
+    elements = element[1]
+    accumulators = []
+    for k in range(3):
+      if len(elements) <= k:
+        break
+      accumulators.append(
+          self.combinefn.add_inputs(
+              self.combinefn.create_accumulator(*args, **kwargs),
+              elements[k::3],
+              *args, **kwargs))
+    # Merge the accumulators.
+    accumulator = self.combinefn.merge_accumulators(
+        accumulators, *args, **kwargs)
+    # Convert accumulator to the final result.
+    return [(element[0],
+             self.combinefn.extract_output(accumulator, *args, **kwargs))]
 
   def default_type_hints(self):
     hints = self.combinefn.get_type_hints().copy()
@@ -1112,22 +1107,18 @@ class GroupByKey(PTransform):
                      self.GroupAlsoByWindow(pcoll.windowing))
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
-    else:
-      return (pcoll
-              | 'reify_windows' >> ParDo(self.ReifyWindows())
-              | 'group_by_key' >> GroupByKeyOnly()
-              | 'group_by_window' >> ParDo(
-                    self.GroupAlsoByWindow(pcoll.windowing)))
+    # If the input_type is None, run the default
+    return (pcoll
+            | 'reify_windows' >> ParDo(self.ReifyWindows())
+            | 'group_by_key' >> GroupByKeyOnly()
+            | 'group_by_window' >> ParDo(
+                self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
 class GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
-
-  def __init__(self):
-    super(GroupByKeyOnly, self).__init__()
-
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return KV[key_type, Iterable[value_type]]
@@ -1212,12 +1203,12 @@ class Windowing(object):
     if type(self) == type(other):
       if self._is_default and other._is_default:
         return True
-      else:
-        return (
-            self.windowfn == other.windowfn
-            and self.triggerfn == other.triggerfn
-            and self.accumulation_mode == other.accumulation_mode
-            and self.output_time_fn == other.output_time_fn)
+      return (
+          self.windowfn == other.windowfn
+          and self.triggerfn == other.triggerfn
+          and self.accumulation_mode == other.accumulation_mode
+          and self.output_time_fn == other.output_time_fn)
+    return False
 
   def is_default(self):
     return self._is_default
@@ -1342,8 +1333,7 @@ class Flatten(PTransform):
     if not inputs:
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
-    else:
-      return super(Flatten, self).get_windowing(inputs)
+    return super(Flatten, self).get_windowing(inputs)
 
 
 class Create(PTransform):
@@ -1366,8 +1356,7 @@ class Create(PTransform):
   def infer_output_type(self, unused_input_type):
     if not self.value:
       return Any
-    else:
-      return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
+    return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
@@ -1404,8 +1393,7 @@ class Create(PTransform):
         def split_points_unclaimed(stop_position):
           if current_position >= stop_position:
             return 0
-          else:
-            return stop_position - current_position - 1
+          return stop_position - current_position - 1
 
         range_tracker.set_split_points_unclaimed_callback(
             split_points_unclaimed)

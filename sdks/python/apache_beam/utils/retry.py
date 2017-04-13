@@ -86,16 +86,8 @@ class FuzzedExponentialIntervals(object):
 def retry_on_server_errors_filter(exception):
   """Filter allowing retries on server errors and non-HttpErrors."""
   if (HttpError is not None) and isinstance(exception, HttpError):
-    if exception.status_code >= 500:
-      return True
-    else:
-      return False
-  elif isinstance(exception, PermanentException):
-    return False
-  else:
-    # We may get here for non HttpErrors such as socket timeouts, SSL
-    # exceptions, etc.
-    return True
+    return exception.status_code >= 500
+  return not isinstance(exception, PermanentException)
 
 
 def retry_on_server_errors_and_timeout_filter(exception):
