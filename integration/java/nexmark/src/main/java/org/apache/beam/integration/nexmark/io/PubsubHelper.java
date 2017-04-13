@@ -24,8 +24,6 @@ import java.util.List;
 
 import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.options.PubsubOptions;
-import org.apache.beam.sdk.util.PubsubClient;
-import org.apache.beam.sdk.util.PubsubJsonClient;
 
 /**
  * Helper for working with pubsub.
