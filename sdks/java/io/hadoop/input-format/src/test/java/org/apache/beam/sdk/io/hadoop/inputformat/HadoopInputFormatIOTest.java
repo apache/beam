@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.EmployeeInputFormat.NewObjectsE
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableSplit;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -518,8 +519,8 @@ public class HadoopInputFormatIOTest {
     // Validate if estimated size is equal to the size of records.
     assertEquals(referenceRecords.size(), estimatedSize);
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        hifSource.splitIntoBundles(0, p.getOptions());
-    // Validate if splitIntoBundles() has split correctly.
+        hifSource.split(0, p.getOptions());
+    // Validate if split() has split correctly.
     assertEquals(TestEmployeeDataSet.NUMBER_OF_SPLITS, boundedSourceList.size());
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
@@ -638,12 +639,14 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
-   * createReader()} method when {@link HadoopInputFormatBoundedSource#splitIntoBundles()
-   * splitIntoBundles()} is not called.
+   * This test validates behavior of
+   * {@link HadoopInputFormatBoundedSource#createReader(PipelineOptions)}
+   * createReader()} method when
+   * {@link HadoopInputFormatBoundedSource#split(long, PipelineOptions)}
+   * split()} is not called.
    */
   @Test
-  public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception {
+  public void testCreateReaderIfSplitNotCalled() throws Exception {
     HadoopInputFormatBoundedSource<Text, Employee> hifSource = getTestHIFSource(
         EmployeeInputFormat.class,
         Text.class,
@@ -658,7 +661,7 @@ public class HadoopInputFormatIOTest {
   /**
    * This test validates behavior of
    * {@link HadoopInputFormatBoundedSource#computeSplitsIfNecessary() computeSplits()} when Hadoop
-   * InputFormat's {@link InputFormat#getSplits() getSplits()} returns empty list.
+   * InputFormat's {@link InputFormat#getSplits(JobContext)} returns empty list.
    */
   @Test
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {
@@ -843,6 +846,6 @@ public class HadoopInputFormatIOTest {
         inputFormatValueClass,
         keyCoder,
         valueCoder);
-    return boundedSource.splitIntoBundles(0, p.getOptions());
+    return boundedSource.split(0, p.getOptions());
   }
 }

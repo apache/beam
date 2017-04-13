@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * amount of test coverage with few code. Most notable ones are:
  * <ul>
  *   <li>{@link #assertSourcesEqualReferenceSource} helps testing that the data read
- *   by the union of sources produced by {@link BoundedSource#splitIntoBundles}
+ *   by the union of sources produced by {@link BoundedSource#split}
  *   is the same as data read by the original source.
  *   <li>If your source implements dynamic work rebalancing, use the
  *   {@code assertSplitAtFraction} family of functions - they test behavior of
@@ -685,7 +685,7 @@ public class SourceTestUtils {
    *
    * <p>It forwards most methods to the given {@code boundedSource}, except:
    * <ol>
-   * <li> {@link BoundedSource#splitIntoBundles} rejects initial splitting
+   * <li> {@link BoundedSource#split} rejects initial splitting
    * by returning itself in a list.
    * <li> {@link BoundedReader#splitAtFraction} rejects dynamic splitting by returning null.
    * </ol>
@@ -708,7 +708,7 @@ public class SourceTestUtils {
     }
 
     @Override
-    public List<? extends BoundedSource<T>> splitIntoBundles(
+    public List<? extends BoundedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       return ImmutableList.of(this);
     }

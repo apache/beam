@@ -326,7 +326,7 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testSplitIntoBundles() throws Exception {
+  public void testSplit() throws Exception {
     ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
@@ -336,7 +336,7 @@ public class ElasticsearchIOTest implements Serializable {
     // as many bundles as ES shards and bundle size is shard size
     int desiredBundleSizeBytes = 0;
     List<? extends BoundedSource<String>> splits =
-        initialSource.splitIntoBundles(desiredBundleSizeBytes, options);
+        initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     //this is the number of ES shards
     // (By default, each index in Elasticsearch is allocated 5 primary shards)

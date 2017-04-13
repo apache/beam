@@ -105,7 +105,7 @@ public class SourceRDD {
             + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
       }
       try {
-        List<? extends Source<T>> partitionedSources = source.splitIntoBundles(desiredSizeBytes,
+        List<? extends Source<T>> partitionedSources = source.split(desiredSizeBytes,
             runtimeContext.getPipelineOptions());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
@@ -258,7 +258,7 @@ public class SourceRDD {
     @Override
     public Partition[] getPartitions() {
       try {
-        List<? extends Source<T>> partitionedSources = microbatchSource.splitIntoBundles(
+        List<? extends Source<T>> partitionedSources = microbatchSource.split(
             -1 /* ignored */, runtimeContext.getPipelineOptions());
         Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {

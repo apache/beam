@@ -131,7 +131,7 @@ public class GroupByKeyTranslatorTest {
     }
 
     @Override
-    public List<? extends UnboundedSource<String, CheckpointMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<String, CheckpointMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       return Collections.<UnboundedSource<String, CheckpointMark>>singletonList(this);
     }

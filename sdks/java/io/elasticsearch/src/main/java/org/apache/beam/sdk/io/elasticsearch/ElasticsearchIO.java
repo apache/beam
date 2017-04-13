@@ -428,7 +428,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public List<? extends BoundedSource<String>> splitIntoBundles(
+    public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 
