@@ -30,8 +30,9 @@ calculates the sum of scores per user, over an entire batch of gaming data
 data that arrives after the day's cutoff point.
 
 To execute this pipeline using the static example input data, specify the
-`--dataset=YOUR-DATASET` flag along with other runner specific flags. (Note:
-BigQuery dataset you specify must already exist.)
+`--dataset=YOUR-DATASET` flag along with other runner specific flags. Note:
+The BigQuery dataset you specify must already exist. You can simply create a new
+empty BigQuery dataset if you don't have an existing one.
 
 Optionally include the `--input` argument to specify a batch input file. See the
 `--input` default value for an example batch data file.
