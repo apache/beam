@@ -160,7 +160,7 @@ Data processing is tricky, full of corner cases, and difficult to debug, because
     * Third-party APIs failing
     * Third-party APIs providing wildly inaccurate information
     * Leaks of `Closeable`/`AutoCloseable` resources in failure cases
-    * Common corner cases when developing sources: complicated arithmetic in `BoundedSource.splitIntoBundles` (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.
+    * Common corner cases when developing sources: complicated arithmetic in `BoundedSource.split` (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.
 * Mock out the interactions with third-party systems, or better, use ["fake"](http://martinfowler.com/articles/mocksArentStubs.html) implementations when available. Make sure that the mocked-out interactions are representative of all interesting cases of the actual behavior of these systems.
 * To unit test `DoFn`s, `CombineFn`s, and `BoundedSource`s, consider using `DoFnTester`, `CombineFnTester`, and `SourceTestUtils` respectively which can exercise the code in non-trivial ways to flesh out potential bugs. 
 * For transforms that work over unbounded collections, test their behavior in the presence of late or out-of-order data using `TestStream`.
