@@ -48,15 +48,16 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.hamcrest.Matchers;
-import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link Coders}. */
-@RunWith(Parameterized.class)
+@RunWith(Enclosed.class)
 public class CodersTest {
   private static final Set<StandardCoder<?>> KNOWN_CODERS =
       ImmutableSet.<StandardCoder<?>>builder()
@@ -71,78 +72,92 @@ public class CodersTest {
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
           .build();
 
-  @BeforeClass
-  public static void validateKnownCoders() {
-    // Validates that every known coder in the Coders class is represented in a "Known Coder" tests,
-    // which demonstrates that they are serialized via components and specified URNs rather than
-    // java serialized
-    Set<Class<? extends StandardCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
-    Set<Class<? extends StandardCoder>> knownCoderTests = new HashSet<>();
-    for (StandardCoder<?> coder : KNOWN_CODERS) {
-      knownCoderTests.add(coder.getClass());
+  /**
+   * Tests that all known coders are present in the parameters that will be used by
+   * {@link ToFromProtoTest}.
+   */
+  @RunWith(JUnit4.class)
+  public static class ValidateKnownCodersPresentTest {
+    @Test
+    public void validateKnownCoders() {
+      // Validates that every known coder in the Coders class is represented in a "Known Coder"
+      // tests, which demonstrates that they are serialized via components and specified URNs rather
+      // than java serialized
+      Set<Class<? extends StandardCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
+      Set<Class<? extends StandardCoder>> knownCoderTests = new HashSet<>();
+      for (StandardCoder<?> coder : KNOWN_CODERS) {
+        knownCoderTests.add(coder.getClass());
+      }
+      Set<Class<? extends StandardCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
+      missingKnownCoders.removeAll(knownCoderTests);
+      checkState(
+          missingKnownCoders.isEmpty(),
+          "Missing validation of known coder %s in %s",
+          missingKnownCoders,
+          CodersTest.class.getSimpleName());
     }
-    Set<Class<? extends StandardCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
-    missingKnownCoders.removeAll(knownCoderTests);
-    checkState(
-        missingKnownCoders.isEmpty(),
-        "Missing validation of known coder %s in %s",
-        missingKnownCoders,
-        CodersTest.class.getSimpleName());
   }
 
-  @Parameters(name = "{index}: {0}")
-  public static Iterable<Coder<?>> data() {
-    return ImmutableList.<Coder<?>>builder()
-        .addAll(KNOWN_CODERS)
-        .add(
-            StringUtf8Coder.of(),
-            SerializableCoder.of(Record.class),
-            new RecordCoder(),
-            KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
-        .build();
-  }
 
-  @Parameter(0)
-  public Coder<?> coder;
+  /**
+   * Tests round-trip coder encodings for both known and unknown {@link Coder coders}.
+   */
+  @RunWith(Parameterized.class)
+  public static class ToFromProtoTest {
+    @Parameters(name = "{index}: {0}")
+    public static Iterable<Coder<?>> data() {
+      return ImmutableList.<Coder<?>>builder()
+          .addAll(KNOWN_CODERS)
+          .add(
+              StringUtf8Coder.of(),
+              SerializableCoder.of(Record.class),
+              new RecordCoder(),
+              KvCoder.of(new RecordCoder(), AvroCoder.of(Record.class)))
+          .build();
+    }
 
-  @Test
-  public void toAndFromProto() throws Exception {
-    SdkComponents componentsBuilder = SdkComponents.create();
-    RunnerApi.Coder coderProto = Coders.toProto(coder, componentsBuilder);
+    @Parameter(0)
+    public Coder<?> coder;
 
-    Components encodedComponents = componentsBuilder.toComponents();
-    Coder<?> decodedCoder = Coders.fromProto(coderProto, encodedComponents);
-    assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(coder));
+    @Test
+    public void toAndFromProto() throws Exception {
+      SdkComponents componentsBuilder = SdkComponents.create();
+      RunnerApi.Coder coderProto = Coders.toProto(coder, componentsBuilder);
 
-    if (KNOWN_CODERS.contains(coder)) {
-      for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
-        assertThat(
-            encodedCoder.getSpec().getSpec().getUrn(), not(equalTo(Coders.CUSTOM_CODER_URN)));
+      Components encodedComponents = componentsBuilder.toComponents();
+      Coder<?> decodedCoder = Coders.fromProto(coderProto, encodedComponents);
+      assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(coder));
+
+      if (KNOWN_CODERS.contains(coder)) {
+        for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
+          assertThat(
+              encodedCoder.getSpec().getSpec().getUrn(), not(equalTo(Coders.CUSTOM_CODER_URN)));
+        }
       }
     }
-  }
 
-  static class Record implements Serializable {
-  }
+    static class Record implements Serializable {}
 
-  private static class RecordCoder extends CustomCoder<Record> {
-    @Override
-    public void encode(Record value, OutputStream outStream, Context context)
-        throws CoderException, IOException {}
+    private static class RecordCoder extends CustomCoder<Record> {
+      @Override
+      public void encode(Record value, OutputStream outStream, Context context)
+          throws CoderException, IOException {}
 
-    @Override
-    public Record decode(InputStream inStream, Context context) throws CoderException, IOException {
-      return new Record();
-    }
+      @Override
+      public Record decode(InputStream inStream, Context context)
+          throws CoderException, IOException {
+        return new Record();
+      }
 
-    @Override
-    public boolean equals(Object other) {
-      return other != null && getClass().equals(other.getClass());
-    }
+      @Override
+      public boolean equals(Object other) {
+        return other != null && getClass().equals(other.getClass());
+      }
 
-    @Override
-    public int hashCode() {
-      return getClass().hashCode();
+      @Override
+      public int hashCode() {
+        return getClass().hashCode();
+      }
     }
   }
 }
