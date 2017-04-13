@@ -29,9 +29,11 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +43,7 @@ import org.junit.Test;
  * Verify metrics support for {@link Source Sources} in streaming pipelines.
  */
 public class StreamingSourceMetricsTest implements Serializable {
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   // Force streaming pipeline using pipeline rule.
   @Rule
@@ -65,10 +68,15 @@ public class StreamingSourceMetricsTest implements Serializable {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
                     .build());
 
     assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(UnboundedCountingSource)",
+            1000L)));
   }
 }

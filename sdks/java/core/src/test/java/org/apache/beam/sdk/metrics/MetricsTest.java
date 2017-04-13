@@ -56,6 +56,7 @@ public class MetricsTest implements Serializable {
   private static final String NAME = "name";
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
   private static final String NAMESPACE = MetricsTest.class.getName();
+  private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -245,11 +246,16 @@ public class MetricsTest implements Serializable {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
                     .build());
 
     assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult("io", "elementsRead", "Read(BoundedCountingSource)", 1000L)));
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(BoundedCountingSource)",
+            1000L)));
   }
 
   @Test
@@ -269,10 +275,15 @@ public class MetricsTest implements Serializable {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .addNameFilter(
+                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
                     .build());
 
     assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
+        attemptedMetricsResult(
+            ELEMENTS_READ.namespace(),
+            ELEMENTS_READ.name(),
+            "Read(UnboundedCountingSource)",
+            1000L)));
   }
 }

@@ -96,7 +96,7 @@ public class MetricsContainer {
     return gauges.get(metricName);
   }
 
-  private <UpdateT, CellT extends MetricCell<?, UpdateT>>
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -120,8 +120,8 @@ public class MetricsContainer {
         extractUpdates(gauges));
   }
 
-  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?, ?>> cells) {
-    for (MetricCell<?, ?> cell : cells.values()) {
+  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
+    for (MetricCell<?> cell : cells.values()) {
       cell.getDirty().afterCommit();
     }
   }
@@ -135,7 +135,7 @@ public class MetricsContainer {
     commitUpdates(distributions);
   }
 
-  private <UpdateT, CellT extends MetricCell<?, UpdateT>>
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
