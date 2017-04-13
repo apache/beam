@@ -30,11 +30,11 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * of indirection.
  */
 @Experimental(Kind.METRICS)
-public class DistributionCell implements MetricCell<Distribution, DistributionData>, Distribution {
+public class DistributionCell implements MetricCell<DistributionData> {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicReference<DistributionData> value =
-      new AtomicReference<DistributionData>(DistributionData.EMPTY);
+      new AtomicReference<>(DistributionData.EMPTY);
 
   /**
    * Package-visibility because all {@link DistributionCell DistributionCells} should be created by
@@ -43,7 +43,6 @@ public class DistributionCell implements MetricCell<Distribution, DistributionDa
   DistributionCell() {}
 
   /** Increment the counter by the given amount. */
-  @Override
   public void update(long n) {
     DistributionData original;
     do {
@@ -60,11 +59,6 @@ public class DistributionCell implements MetricCell<Distribution, DistributionDa
   @Override
   public DistributionData getCumulative() {
     return value.get();
-  }
-
-  @Override
-  public Distribution getInterface() {
-    return this;
   }
 }
 

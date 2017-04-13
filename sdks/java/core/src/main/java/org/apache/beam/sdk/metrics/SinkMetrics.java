@@ -17,25 +17,33 @@
  */
 package org.apache.beam.sdk.metrics;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-
 /**
- * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
- * specific metric name in a single context.
- *
- * @param <DataT> The type of metric data stored (and extracted) from this cell.
+ * Standard Sink Metrics.
  */
-@Experimental(Kind.METRICS)
-public interface MetricCell<DataT> {
+public class SinkMetrics {
+
+  private static final String SINK_NAMESPACE = "sink";
+
+  private static final String ELEMENTS_WRITTEN = "elements_written";
+  private static final String BYTES_WRITTEN = "bytes_written";
+
+  private static final Counter ELEMENTS_WRITTEN_COUNTER =
+      Metrics.counter(SINK_NAMESPACE, ELEMENTS_WRITTEN);
+  private static final Counter BYTES_WRITTEN_COUNTER =
+      Metrics.counter(SINK_NAMESPACE, BYTES_WRITTEN);
 
   /**
-   * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
+   * Counter of elements written to a sink.
    */
-  DirtyState getDirty();
+  public static Counter elementsWritten() {
+    return ELEMENTS_WRITTEN_COUNTER;
+  }
 
   /**
-   * Return the cumulative value of this metric.
+   * Counter of bytes written to a sink.
    */
-  DataT getCumulative();
+  public static Counter bytesWritten() {
+    return BYTES_WRITTEN_COUNTER;
+  }
+
 }
