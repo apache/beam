@@ -24,6 +24,7 @@ metadata:
 spec:
   selector:
     component: elasticsearch
+  type: NodePort
   ports:
   - name: http
     port: 9200

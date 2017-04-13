@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Hashcode for 50m records is c89f996324e4dd4b6071a9b735281e0329a58b75
+# Hashcode for 50m records is 85b9cec947fc5d849f0a778801696d2b
 
 # Script to load data using YCSB on Cassandra multi node cluster.
  
@@ -34,21 +34,12 @@ function delete_service {
 # Delete cassandra single node set up before exit 
 trap delete_service EXIT
 
-# Check if cassandra service already exists
-services_exists="$(kubectl get svc -o=name)"
-
-#Convert string of space(' ') separated words to array of words
-service_list=( $services_exists )
-
-for i in "${service_list[@]}"
-do
-   if [ "$i" == "services/cassandra-temp" ]; then
-      echo "Service cassandra-temp already exists"
-      echo "Deleting service cassandra-temp "
-      delete_service
-      break 
-   fi
-done
+# Check and delete cassandra service if already exists
+if [ "$(kubectl get svc -o=name | grep cassandra-temp)" ]; then
+  echo "Service cassandra-temp already exists"
+  echo "Deleting service cassandra-temp "
+  delete_service
+fi
   
 # Temporarily set up cassandra single node cluster for invoking cqlsh on actual cluster remotely
 kubectl create -f cassandra-svc-temp.yaml

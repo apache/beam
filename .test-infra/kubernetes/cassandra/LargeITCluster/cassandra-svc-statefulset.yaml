@@ -26,6 +26,7 @@ spec:
     - port: 9042
   selector:
     app: cassandra
+  type: NodePort
 ---
 # Kubernetes statefulset to set up cassandra multinode cluster
 apiVersion: "apps/v1beta1"
@@ -110,4 +111,4 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 10Gi
+          storage: 30Gi

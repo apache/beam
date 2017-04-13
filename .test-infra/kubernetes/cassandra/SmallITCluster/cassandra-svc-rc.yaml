@@ -30,6 +30,7 @@ spec:
       name: tls-intra-node-communication
   selector:
     name: cassandra
+  type: NodePort
 ---
 # Replication Controller for Cassandra which tracks the Cassandra pods.
 apiVersion: v1
