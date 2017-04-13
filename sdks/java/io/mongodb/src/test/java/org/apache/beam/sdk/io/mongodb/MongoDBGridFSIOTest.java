@@ -267,7 +267,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     // make sure 2 files can fit in
     long desiredBundleSizeBytes = (src.getEstimatedSizeBytes(options) * 2L) / 5L + 1000;
-    List<? extends BoundedSource<ObjectId>> splits = src.splitIntoBundles(
+    List<? extends BoundedSource<ObjectId>> splits = src.splitIntoSubSources(
         desiredBundleSizeBytes, options);
 
     int expectedNbSplits = 3;

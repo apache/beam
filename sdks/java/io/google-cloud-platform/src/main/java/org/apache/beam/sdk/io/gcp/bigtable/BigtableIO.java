@@ -724,7 +724,7 @@ public class BigtableIO {
     }
 
     @Override
-    public List<BigtableSource> splitIntoBundles(
+    public List<BigtableSource> splitIntoSubSources(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       // Update the desiredBundleSizeBytes in order to limit the
       // number of splits to maximumNumberOfSplits.
@@ -734,11 +734,11 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitIntoBundlesBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return splitIntoSubSourcesBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
-    private List<BigtableSource> splitIntoBundlesBasedOnSamples(
+    private List<BigtableSource> splitIntoSubSourcesBasedOnSamples(
         long desiredBundleSizeBytes, List<SampleRowKeysResponse> sampleRowKeys) {
       // There are no regions, or no samples available. Just scan the entire range.
       if (sampleRowKeys.isEmpty()) {

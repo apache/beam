@@ -94,7 +94,7 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
   }
 
   @Override
-  public List<? extends UnboundedSource<String, CheckpointMarkT>> generateInitialSplits(
+  public List<? extends UnboundedSource<String, CheckpointMarkT>> splitIntoSubSources(
       int desiredNumSplits,
       PipelineOptions options) throws Exception {
     return Collections.<UnboundedSource<String, CheckpointMarkT>>singletonList(this);

@@ -301,7 +301,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         throws Exception {
       UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
       List<? extends UnboundedSource<OutputT, ?>> splits =
-          source.generateInitialSplits(targetParallelism, evaluationContext.getPipelineOptions());
+          source.splitIntoSubSources(targetParallelism, evaluationContext.getPipelineOptions());
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()

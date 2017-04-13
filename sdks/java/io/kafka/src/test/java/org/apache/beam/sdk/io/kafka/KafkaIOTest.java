@@ -389,7 +389,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
         mkKafkaReadTransform(numElements, null).makeSource();
     List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.splitIntoSubSources(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -446,7 +446,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
-          .generateInitialSplits(1, PipelineOptionsFactory.create())
+          .splitIntoSubSources(1, PipelineOptionsFactory.create())
           .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -486,7 +486,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
             .makeSource()
-            .generateInitialSplits(1, PipelineOptionsFactory.create())
+            .splitIntoSubSources(1, PipelineOptionsFactory.create())
             .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -515,7 +515,7 @@ public class KafkaIOTest {
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
-        .generateInitialSplits(1, PipelineOptionsFactory.create())
+        .splitIntoSubSources(1, PipelineOptionsFactory.create())
         .get(0);
 
     reader = source.createReader(null, mark);

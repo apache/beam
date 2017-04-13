@@ -52,10 +52,10 @@ class TransformingSource<T, V> extends BoundedSource<V> {
   }
 
   @Override
-  public List<? extends BoundedSource<V>> splitIntoBundles(
+  public List<? extends BoundedSource<V>> splitIntoSubSources(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     return Lists.transform(
-        boundedSource.splitIntoBundles(desiredBundleSizeBytes, options),
+        boundedSource.splitIntoSubSources(desiredBundleSizeBytes, options),
         new Function<BoundedSource<T>, BoundedSource<V>>() {
           @Override
           public BoundedSource<V> apply(BoundedSource<T> input) {

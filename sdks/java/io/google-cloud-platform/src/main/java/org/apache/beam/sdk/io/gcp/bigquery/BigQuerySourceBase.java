@@ -81,7 +81,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   @Override
-  public List<BoundedSource<TableRow>> splitIntoBundles(
+  public List<BoundedSource<TableRow>> splitIntoSubSources(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);

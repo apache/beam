@@ -450,7 +450,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public List<? extends UnboundedSource<T, TestCheckpointMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<T, TestCheckpointMark>> splitIntoSubSources(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       return ImmutableList.of(this);
     }

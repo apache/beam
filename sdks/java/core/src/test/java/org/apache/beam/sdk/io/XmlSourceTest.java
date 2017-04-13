@@ -363,7 +363,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(50, null);
+    List<? extends FileBasedSource<Train>> splits = source.splitIntoSubSources(50, null);
 
     assertTrue(splits.size() > 2);
 
@@ -686,7 +686,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(100, null);
+    List<? extends FileBasedSource<Train>> splits = source.splitIntoSubSources(100, null);
 
     assertTrue(splits.size() > 2);
 
@@ -710,7 +710,7 @@ public class XmlSourceTest {
             .withRecordElement("train")
             .withRecordClass(Train.class)
             .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(256, null);
+    List<? extends FileBasedSource<Train>> splits = source.splitIntoSubSources(256, null);
 
     // Not a trivial split
     assertTrue(splits.size() > 2);
@@ -737,7 +737,7 @@ public class XmlSourceTest {
             .withMinBundleSize(10);
 
     List<? extends FileBasedSource<Train>> splits =
-        fileSource.splitIntoBundles(file.length() / 3, null);
+        fileSource.splitIntoSubSources(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
       int numItems = readEverythingFromReader(splitSource.createReader(null)).size();
       // Should not split while unstarted.

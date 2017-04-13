@@ -1756,7 +1756,7 @@ public class BigQueryIOTest implements Serializable {
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
-    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoBundles(100, options);
+    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoSubSources(100, options);
     assertEquals(1, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
@@ -1835,7 +1835,7 @@ public class BigQueryIOTest implements Serializable {
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
-    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoBundles(100, options);
+    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoSubSources(100, options);
     assertEquals(1, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
@@ -1917,7 +1917,7 @@ public class BigQueryIOTest implements Serializable {
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
-    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoBundles(100, options);
+    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoSubSources(100, options);
     assertEquals(1, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
@@ -1963,7 +1963,7 @@ public class BigQueryIOTest implements Serializable {
         stringSource, 100, 0.3, ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT, options);
 
     SourceTestUtils.assertSourcesEqualReferenceSource(
-        stringSource, stringSource.splitIntoBundles(100, options), options);
+        stringSource, stringSource.splitIntoSubSources(100, options), options);
   }
 
   @Test
@@ -1994,7 +1994,7 @@ public class BigQueryIOTest implements Serializable {
         stringSource, 100, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     SourceTestUtils.assertSourcesEqualReferenceSource(
-        stringSource, stringSource.splitIntoBundles(100, options), options);
+        stringSource, stringSource.splitIntoSubSources(100, options), options);
   }
 
   @Test

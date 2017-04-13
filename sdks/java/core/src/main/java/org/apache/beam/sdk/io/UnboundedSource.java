@@ -65,7 +65,7 @@ public abstract class UnboundedSource<
    * as possible, but does not have to match exactly.  A low number of splits
    * will limit the amount of parallelism in the source.
    */
-  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> generateInitialSplits(
+  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> splitIntoSubSources(
       int desiredNumSplits, PipelineOptions options) throws Exception;
 
   /**

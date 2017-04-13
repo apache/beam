@@ -153,7 +153,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Partition Assignment and Checkpointing</h3>
  * The Kafka partitions are evenly distributed among splits (workers).
  * Checkpointing is fully supported and each split can resume from previous checkpoint. See
- * {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for more details on
+ * {@link UnboundedKafkaSource#splitIntoSubSources(int, PipelineOptions)} for more details on
  * splits and checkpoint support.
  *
  * <p>When the pipeline starts for the first time without any checkpoint, the source starts
@@ -311,7 +311,7 @@ public class KafkaIO {
 
     /**
      * Returns a new {@link Read} that reads from the topic.
-     * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
+     * See {@link UnboundedKafkaSource#splitIntoSubSources(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
@@ -321,7 +321,7 @@ public class KafkaIO {
     /**
      * Returns a new {@link Read} that reads from the topics. All the partitions from each
      * of the topics are read.
-     * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
+     * See {@link UnboundedKafkaSource#splitIntoSubSources(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
@@ -333,7 +333,7 @@ public class KafkaIO {
     /**
      * Returns a new {@link Read} that reads from the partitions. This allows reading only a subset
      * of partitions for one or more topics when (if ever) needed.
-     * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
+     * See {@link UnboundedKafkaSource#splitIntoSubSources(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
@@ -626,7 +626,7 @@ public class KafkaIO {
      * {@code <topic, partition>} and then assigned to splits in round-robin order.
      */
     @Override
-    public List<UnboundedKafkaSource<K, V>> generateInitialSplits(
+    public List<UnboundedKafkaSource<K, V>> splitIntoSubSources(
         int desiredNumSplits, PipelineOptions options) throws Exception {
 
       List<TopicPartition> partitions = new ArrayList<>(spec.getTopicPartitions());
@@ -698,7 +698,7 @@ public class KafkaIO {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
           return new UnboundedKafkaReader<K, V>(
-              generateInitialSplits(1, options).get(0), checkpointMark);
+              splitIntoSubSources(1, options).get(0), checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

@@ -62,7 +62,7 @@ public class UnboundedFlinkSource<T> extends UnboundedSource<T, UnboundedSource.
   }
 
   @Override
-  public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> generateInitialSplits(
+  public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark>> splitIntoSubSources(
       int desiredNumSplits,
       PipelineOptions options) throws Exception {
     throw new RuntimeException("Flink Sources are supported only when "

@@ -385,8 +385,8 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public List<? extends BoundedSource<ObjectId>> splitIntoBundles(long desiredBundleSizeBytes,
-          PipelineOptions options) throws Exception {
+      public List<? extends BoundedSource<ObjectId>> splitIntoSubSources(
+          long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
         Mongo mongo = spec.connectionConfiguration().setupMongo();
         try {
           GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);

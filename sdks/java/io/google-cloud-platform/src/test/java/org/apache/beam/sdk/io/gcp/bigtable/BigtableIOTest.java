@@ -476,7 +476,7 @@ public class BigtableIOTest {
             ByteKeyRange.ALL_KEYS,
             null /*size*/);
     List<BigtableSource> splits =
-        source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
+        source.splitIntoSubSources(numRows * bytesPerRow / numSamples, null /* options */);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));
@@ -503,7 +503,8 @@ public class BigtableIOTest {
         null /*filter*/,
         ByteKeyRange.ALL_KEYS,
         null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    List<BigtableSource> splits =
+        source.splitIntoSubSources(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -528,7 +529,8 @@ public class BigtableIOTest {
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
         new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    List<BigtableSource> splits =
+        source.splitIntoSubSources(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));

@@ -549,13 +549,13 @@ public class DirectRunnerTest implements Serializable {
     }
 
     @Override
-    public List<? extends BoundedSource<T>> splitIntoBundles(
+    public List<? extends BoundedSource<T>> splitIntoSubSources(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       // Must have more than
       checkState(
           desiredBundleSizeBytes < getEstimatedSizeBytes(options),
           "Must split into more than one source");
-      return underlying.splitIntoBundles(desiredBundleSizeBytes, options);
+      return underlying.splitIntoSubSources(desiredBundleSizeBytes, options);
     }
 
     @Override

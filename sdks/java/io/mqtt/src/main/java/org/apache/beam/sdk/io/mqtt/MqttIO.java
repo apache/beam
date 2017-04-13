@@ -365,7 +365,7 @@ public class MqttIO {
     }
 
     @Override
-    public List<UnboundedMqttSource> generateInitialSplits(int desiredNumSplits,
+    public List<UnboundedMqttSource> splitIntoSubSources(int desiredNumSplits,
                                                            PipelineOptions options) {
       // MQTT is based on a pub/sub pattern
       // so, if we create several subscribers on the same topic, they all will receive the same

@@ -324,15 +324,15 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       @Override
       public List<? extends FileBasedSource<T>> call() throws Exception {
         return createForSubrangeOfFile(file, 0, Long.MAX_VALUE)
-            .splitIntoBundles(desiredBundleSizeBytes, options);
+            .splitIntoSubSources(desiredBundleSizeBytes, options);
       }
     });
   }
 
   @Override
-  public final List<? extends FileBasedSource<T>> splitIntoBundles(
+  public final List<? extends FileBasedSource<T>> splitIntoSubSources(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    // This implementation of method splitIntoBundles is provided to simplify subclasses. Here we
+    // This implementation of method splitIntoSubSources is provided to simplify subclasses. Here we
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
     // those files to FileBasedSources based on sub ranges of single files.
@@ -370,7 +370,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     } else {
       if (isSplittable()) {
         List<FileBasedSource<T>> splitResults = new ArrayList<>();
-        for (OffsetBasedSource<T> split : super.splitIntoBundles(desiredBundleSizeBytes, options)) {
+        for (OffsetBasedSource<T> split :
+            super.splitIntoSubSources(desiredBundleSizeBytes, options)) {
           splitResults.add((FileBasedSource<T>) split);
         }
         return splitResults;
