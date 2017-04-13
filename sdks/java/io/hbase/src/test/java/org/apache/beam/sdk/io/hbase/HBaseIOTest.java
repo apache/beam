@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
-import com.google.protobuf.ByteString;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -284,7 +284,7 @@ public class HBaseIOTest {
     public void testWritingFailsTableDoesNotExist() throws Exception {
         final String table = "TEST-TABLE";
 
-        PCollection<KV<ByteString, Iterable<Mutation>>> emptyInput =
+        PCollection<KV<byte[], Iterable<Mutation>>> emptyInput =
                 p.apply(Create.empty(HBaseIO.WRITE_CODER));
 
         // Exception will be thrown by write.validate() when write is applied.
@@ -380,8 +380,8 @@ public class HBaseIOTest {
 
     // Beam helper methods
     /** Helper function to make a single row mutation to be written. */
-    private static KV<ByteString, Iterable<Mutation>> makeWrite(String key, String value) {
-        ByteString rowKey = ByteString.copyFromUtf8(key);
+    private static KV<byte[], Iterable<Mutation>> makeWrite(String key, String value) {
+        byte[] rowKey = key.getBytes(StandardCharsets.UTF_8);
         List<Mutation> mutations = new ArrayList<>();
         mutations.add(makeMutation(key, value));
         return KV.of(rowKey, (Iterable<Mutation>) mutations);
@@ -389,17 +389,17 @@ public class HBaseIOTest {
 
 
     private static Mutation makeMutation(String key, String value) {
-        ByteString rowKey = ByteString.copyFromUtf8(key);
-        return new Put(rowKey.toByteArray())
+        byte[] rowKey = key.getBytes(StandardCharsets.UTF_8);
+        return new Put(rowKey)
                     .addColumn(COLUMN_FAMILY, COLUMN_NAME, Bytes.toBytes(value))
                     .addColumn(COLUMN_FAMILY, COLUMN_EMAIL, Bytes.toBytes(value + "@email.com"));
     }
 
-    private static KV<ByteString, Iterable<Mutation>> makeBadWrite(String key) {
+    private static KV<byte[], Iterable<Mutation>> makeBadWrite(String key) {
         Put put = new Put(key.getBytes());
         List<Mutation> mutations = new ArrayList<>();
         mutations.add(put);
-        return KV.of(ByteString.copyFromUtf8(key), (Iterable<Mutation>) mutations);
+        return KV.of(key.getBytes(StandardCharsets.UTF_8), (Iterable<Mutation>) mutations);
     }
 
     private void runReadTest(HBaseIO.Read read, List<Result> expected) {
