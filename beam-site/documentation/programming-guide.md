@@ -38,7 +38,8 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
   * [Using Combine](#transforms-combine)
   * [Using Flatten and Partition](#transforms-flatten-partition)
   * [General Requirements for Writing User Code for Beam Transforms](#transforms-usercodereqs)
-  * [Side Inputs and Side Outputs](#transforms-sideio)
+  * [Side Inputs](#transforms-sideio)
+  * [Additional Outputs](#transforms-outputs)
 * [Composite Transforms](#transforms-composite)
 * [Pipeline I/O](#io)
 * [Running the Pipeline](#running)
@@ -740,9 +741,7 @@ Your function object should be thread-compatible. Each instance of your function
 
 It's recommended that you make your function object idempotent--that is, that it can be repeated or retried as often as necessary without causing unintended side effects. The Beam model provides no guarantees as to the number of times your user code might be invoked or retried; as such, keeping your function object idempotent keeps your pipeline's output deterministic, and your transforms' behavior more predictable and easier to debug.
 
-#### <a name="transforms-sideio"></a>Side Inputs and Side Outputs
-
-##### **Side inputs**
+#### <a name="transforms-sideio"></a>Side Inputs
 
 In addition to the main input `PCollection`, you can provide additional inputs to a `ParDo` transform in the form of side inputs. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. When you specify a side input, you create a view of some other data that can be read from within the `ParDo` transform's `DoFn` while procesing each element.
 
@@ -809,51 +808,51 @@ If the main input element exists in more than one window, then `processElement` 
 
 If the side input has multiple trigger firings, Beam uses the value from the latest trigger firing. This is particularly useful if you use a side input with a single global window and specify a trigger.
 
-##### **Side outputs**
+#### <a name="transforms-outputs"></a>Additional Outputs
 
-While `ParDo` always produces a main output `PCollection` (as the return value from apply), you can also have your `ParDo` produce any number of additional output `PCollection`s. If you choose to have multiple outputs, your `ParDo` returns all of the output `PCollection`s (including the main output) bundled together.
+While `ParDo` always produces a main output `PCollection` (as the return value from `apply`), you can also have your `ParDo` produce any number of additional output `PCollection`s. If you choose to have multiple outputs, your `ParDo` returns all of the output `PCollection`s (including the main output) bundled together.
 
-##### Tags for side outputs:
+##### Tags for muitiple outputs:
 
 ```java
-// To emit elements to a side output PCollection, create a TupleTag object to identify each collection that your ParDo produces.
-// For example, if your ParDo produces three output PCollections (the main output and two side outputs), you must create three TupleTags.
-// The following example code shows how to create TupleTags for a ParDo with a main output and two side outputs:
+// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection that your ParDo produces.
+// For example, if your ParDo produces three output PCollections (the main output and two additional outputs), you must create three TupleTags.
+// The following example code shows how to create TupleTags for a ParDo with three output PCollections.
 
   // Input PCollection to our ParDo.
   PCollection<String> words = ...;
 
   // The ParDo will filter words whose length is below a cutoff and add them to
   // the main ouput PCollection<String>.
-  // If a word is above the cutoff, the ParDo will add the word length to a side output
-  // PCollection<Integer>.
-  // If a word starts with the string "MARKER", the ParDo will add that word to a different
-  // side output PCollection<String>.
+  // If a word is above the cutoff, the ParDo will add the word length to an
+  // output PCollection<Integer>.
+  // If a word starts with the string "MARKER", the ParDo will add that word to an
+  // output PCollection<String>.
   final int wordLengthCutOff = 10;
 
-  // Create the TupleTags for the main and side outputs.
-  // Main output.
+  // Create three TupleTags, one for each output PCollection.
+  // Output that contains words below the length cutoff.
   final TupleTag<String> wordsBelowCutOffTag =
       new TupleTag<String>(){};
-  // Word lengths side output.
+  // Output that contains word lengths.
   final TupleTag<Integer> wordLengthsAboveCutOffTag =
       new TupleTag<Integer>(){};
-  // "MARKER" words side output.
+  // Output that contains "MARKER" words.
   final TupleTag<String> markedWordsTag =
       new TupleTag<String>(){};
 
 // Passing Output Tags to ParDo:
 // After you specify the TupleTags for each of your ParDo outputs, pass the tags to your ParDo by invoking .withOutputTags.
-// You pass the tag for the main output first, and then the tags for any side outputs in a TupleTagList.
-// Building on our previous example, we pass the three TupleTags (one for the main output and two for the side outputs) to our ParDo.
-// Note that all of the outputs (including the main output PCollection) are bundled into the returned PCollectionTuple.
+// You pass the tag for the main output first, and then the tags for any additional outputs in a TupleTagList.
+// Building on our previous example, we pass the three TupleTags for our three output PCollections
+// to our ParDo. Note that all of the outputs (including the main output PCollection) are bundled into the returned PCollectionTuple.
 
   PCollectionTuple results =
       words.apply(
           ParDo
-          // Specify the tag for the main output, wordsBelowCutoffTag.
+          // Specify the tag for the main output.
           .withOutputTags(wordsBelowCutOffTag,
-          // Specify the tags for the two side outputs as a TupleTagList.
+          // Specify the tags for the two additional outputs as a TupleTagList.
                           TupleTagList.of(wordLengthsAboveCutOffTag)
                                       .and(markedWordsTag))
           .of(new DoFn<String, String>() {
@@ -875,30 +874,30 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_side_outputs_iter
 %}```
 
-##### Emitting to side outputs in your DoFn:
+##### Emitting to multiple outputs in your DoFn:
 
 ```java
-// Inside your ParDo's DoFn, you can emit an element to a side output by using the method ProcessContext.sideOutput.
-// Pass the appropriate TupleTag for the target side output collection when you call ProcessContext.sideOutput.
-// After your ParDo, extract the resulting main and side output PCollections from the returned PCollectionTuple.
-// Based on the previous example, this shows the DoFn emitting to the main and side outputs.
+// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
+// appropriate TupleTag when you call ProcessContext.output.
+// After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
+// Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
   .of(new DoFn<String, String>() {
      public void processElement(ProcessContext c) {
        String word = c.element();
        if (word.length() <= wordLengthCutOff) {
-         // Emit this short word to the main output.
+         // Emit short word to the main output.
+         // In this example, it is the output with tag wordsBelowCutOffTag.
          c.output(word);
        } else {
-         // Emit this long word's length to a side output.
-         c.sideOutput(wordLengthsAboveCutOffTag, word.length());
+         // Emit long word length to the output with tag wordLengthsAboveCutOffTag.
+         c.output(wordLengthsAboveCutOffTag, word.length());
        }
        if (word.startsWith("MARKER")) {
-         // Emit this word to a different side output.
-         c.sideOutput(markedWordsTag, word);
+         // Emit word to the output with tag markedWordsTag.
+         c.output(markedWordsTag, word);
        }
      }}));
-
 ```
 
 ```py

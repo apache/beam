@@ -38,7 +38,7 @@ The Beam SDK for Java provides a convenient way to test an individual `DoFn` cal
 `DoFnTester`uses the [JUnit](http://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
 
 1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
-2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces side outputs, you should also create the side inputs and the side output tags.
+2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs]({{ site.baseurl }}/documentation/programming-guide#transforms-outputs), you should also create the side inputs and the output tags.
 3.  Call `DoFnTester.processBundle` to process the main inputs.
 4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBundle` match your expected values.
 
@@ -65,7 +65,7 @@ DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
 String testInput = "test1";
 ```
 
-#### Side Inputs and Outputs
+#### Side Inputs
 
 If your `DoFn` accepts side inputs, you can create those side inputs by using the method `DoFnTester.setSideInputs`.
 
@@ -79,11 +79,20 @@ Iterable<Integer> value = ...;
 fnTester.setSideInputInGlobalWindow(sideInput, value);
 ```
 
-If your `DoFn` produces side outputs, you'll need to set the appropriate `TupleTag` objects that you'll use to access each output. A `DoFn` with side outputs produces a `PCollectionTuple` for each side output; you'll need to provide a `TupleTagList` that corresponds to each side output in that tuple.
+See the `ParDo` documentation on [side inputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-sideio) for more information.
 
-Suppose your `DoFn` produces side outputs of type `String` and `Integer`. You create `TupleTag` objects for each, and bundle them into a `TupleTagList`, then set it for the `DoFnTester` as follows:
+#### Additional Outputs
 
-```java  
+If your `DoFn` produces multiple output `PCollection`s, you'll need to set the
+appropriate `TupleTag` objects that you'll use to access each output. A `DoFn`
+with multiple outputs produces a `PCollectionTuple` for each output; you'll need
+to provide a `TupleTagList` that corresponds to each output in that tuple.
+
+Suppose your `DoFn` produces outputs of type `String` and `Integer`. You create
+`TupleTag` objects for each, and bundle them into a `TupleTagList`, then set it
+for the `DoFnTester` as follows:
+
+```java
 static class MyDoFn extends DoFn<String, Integer> { ... }
 MyDoFn myDoFn = ...;
 DoFnTester<String, Integer> fnTester = DoFnTester.of(myDoFn);
@@ -92,10 +101,10 @@ TupleTag<String> tag1 = ...;
 TupleTag<Integer> tag2 = ...;
 TupleTagList tags = TupleTagList.of(tag1).and(tag2);
 
-fnTester.setSideOutputTags(tags);
+fnTester.setOutputTags(tags);
 ```
 
-See the `ParDo` documentation on [side inputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-sideio) for more information.
+See the `ParDo` documentation on [additional outputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-outputs) for more information.
 
 ### Processing Test Inputs and Checking Results
 

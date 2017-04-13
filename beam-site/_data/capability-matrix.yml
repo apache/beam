@@ -178,7 +178,7 @@ categories:
           - class: model
             l1: 'Partially'
             l2: user-provided metrics
-            l3: Allow transforms to aggregate simple metrics across bundles in a <tt>DoFn</tt>. Semantically equivalent to using a side output, but support partial results as the transform executes. Will likely want to augment <tt>Aggregators</tt> to be more useful for processing unbounded data by making them windowed.
+            l3: Allow transforms to aggregate simple metrics across bundles in a <tt>DoFn</tt>. Semantically equivalent to using an additional output, but support partial results as the transform executes. Will likely want to augment <tt>Aggregators</tt> to be more useful for processing unbounded data by making them windowed.
           - class: dataflow
             l1: 'Partially'
             l2: may miscount in streaming mode

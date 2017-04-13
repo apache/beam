@@ -103,7 +103,7 @@ Do:
 * If the transform has side effects, strive to make them idempotent (i.e. safe to apply multiple times). Due to retries, the side effects may be executed multiple times, possibly in parallel.
 * If the transform can have unprocessable (permanently failing) records and you want the pipeline to proceed despite that:
     * If bad records are safe to ignore, count the bad records in a metric. Make sure the transform's documentation mentions this aggregator. Beware that there is no programmatic access to reading the aggregator value from inside the pipeline during execution.
-    * If bad records may need manual inspection by the user, emit them into a side output.
+    * If bad records may need manual inspection by the user, emit them into an output that contains only those records.
     * Alternatively take a (default zero) threshold above which element failures become bundle failures (structure the transform to count the total number of elements and of failed elements, compare them and fail if failures are above the threshold).
 * If the user requests a higher data consistency guarantee than you're able to provide, fail. E.g.: if a user requests QoS 2 (exactly-once delivery) from an MQTT connector, the connector should fail since Beam runners may retry writing to the connector and hence exactly-once delivery can't be done.
 
