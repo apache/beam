@@ -168,8 +168,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * final PCollectionView<Integer> maxWordLengthCutOffView =
  *     maxWordLengthCutOff.apply(View.<Integer>asSingleton());
  * PCollection<String> wordsBelowCutOff =
- *     words.apply(ParDo.withSideInputs(maxWordLengthCutOffView)
- *                      .of(new DoFn<String, String>() {
+ *     words.apply(ParDo.of(new DoFn<String, String>() {
  *        {@literal @}ProcessElement
  *         public void processElement(ProcessContext c) {
  *           String word = c.element();
@@ -177,7 +176,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *           if (word.length() <= lengthCutOff) {
  *             c.output(word);
  *           }
- *         }}));
+ *         }}).withSideInputs(maxWordLengthCutOffView));
  * }</pre>
  *
  * <h2>Side Outputs</h2>
