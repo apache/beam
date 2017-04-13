@@ -18,14 +18,14 @@
 package org.apache.beam.runners.apex.translation.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.IOChannelUtils;
 
 /**
  * A wrapper to enable serialization of {@link PipelineOptions}.
@@ -55,6 +55,15 @@ public class SerializablePipelineOptions implements Externalizable {
     String s = in.readUTF();
     this.pipelineOptions = new ObjectMapper().readValue(s, PipelineOptions.class)
         .as(ApexPipelineOptions.class);
+    try {
+      IOChannelUtils.registerIOFactories(pipelineOptions);
+      FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+    } catch (Exception e) {
+      if (e.getMessage().contains("already registered")) {
+        return;
+      }
+      throw e;
+    }
   }
 
 }
