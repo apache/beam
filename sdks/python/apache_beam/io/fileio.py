@@ -65,7 +65,7 @@ class ChannelFactory(object):
   def rename_batch(src_dest_pairs):
     sources = [s for s, _ in src_dest_pairs]
     destinations = [d for _, d in src_dest_pairs]
-    if len(sources) == 0:
+    if not sources:
       return []
     bfs = get_filesystem(sources[0])
     try:
@@ -165,7 +165,7 @@ class FileSink(iobase.Sink):
 
     if shard_name_template is None:
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
-    elif shard_name_template is '':
+    elif shard_name_template == '':
       num_shards = 1
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
@@ -275,7 +275,7 @@ class FileSink(iobase.Sink):
         return exceptions
       except BeamIOError as exp:
         if exp.exception_details is None:
-          raise exp
+          raise
         for (src, dest), exception in exp.exception_details.iteritems():
           if exception:
             logging.warning('Rename not successful: %s -> %s, %s', src, dest,
