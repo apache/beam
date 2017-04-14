@@ -33,6 +33,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import group_by_key_input_visitor
+from apache_beam.runners.runner import flatten_input_visitor
 from apache_beam.utils.pipeline_options import DirectOptions
 
 
@@ -70,6 +71,7 @@ class DirectRunner(PipelineRunner):
     logging.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(group_by_key_input_visitor())
+    pipeline.visit(flatten_input_visitor())
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(

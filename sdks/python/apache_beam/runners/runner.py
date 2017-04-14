@@ -133,6 +133,26 @@ def group_by_key_input_visitor():
 
   return GroupByKeyInputVisitor()
 
+def flatten_input_visitor():
+  # Imported here to avoid circular dependencies.
+  from apache_beam.pipeline import PipelineVisitor
+
+  class FlattenInputVisitor(PipelineVisitor):
+    """A visitor that replaces the element type for input ``PCollections``s of a
+     ``Flatten`` transform with that of the output ``PCollection``.
+    """
+
+    def visit_transform(self, transform_node):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam import Flatten
+      from apache_beam import typehints
+      if (isinstance(transform_node.transform, Flatten)):
+        output_pcoll = transform_node.outputs[None]
+        for input_pcoll in transform_node.inputs:
+          input_pcoll.element_type = output_pcoll.element_type
+
+  return FlattenInputVisitor()
 
 class PipelineRunner(object):
   """A runner of a pipeline object.
@@ -168,6 +188,7 @@ class PipelineRunner(object):
           raise
 
     pipeline.visit(group_by_key_input_visitor())
+    pipeline.visit(flatten_input_visitor())
     pipeline.visit(RunVisitor(self))
 
   def clear(self, pipeline, node=None):

@@ -160,5 +160,28 @@ class RunnerTest(unittest.TestCase):
           AppliedPTransform(None, transform, "label", [pcoll]))
       self.assertEqual(pcoll.element_type, typehints.Any)
 
+  def test_flatten_input_with_visitor_with_single_input(self):
+    self._test_flatten_input_visitor(typehints.KV[int, int], typehints.Any, 1)
+
+  def test_flatten_input_with_visitor_with_multiple_inputs(self):
+    self._test_flatten_input_visitor(
+        typehints.KV[int, typehints.Any], typehints.Any, 5)
+
+  def _test_flatten_input_visitor(self, input_type, output_type, num_inputs):
+    p = TestPipeline()
+    inputs = []
+    for _ in range(num_inputs):
+      input_pcoll = PCollection(p)
+      input_pcoll.element_type = input_type
+      inputs.append(input_pcoll)
+    output_pcoll = PCollection(p)
+    output_pcoll.element_type = output_type
+
+    flatten = AppliedPTransform(None, beam.Flatten(), "label", inputs)
+    flatten.add_output(output_pcoll, None)
+    runner.flatten_input_visitor().visit_transform(flatten)
+    for i in range(num_inputs):
+      self.assertEqual(inputs[0].element_type, output_type)
+
 if __name__ == '__main__':
   unittest.main()
