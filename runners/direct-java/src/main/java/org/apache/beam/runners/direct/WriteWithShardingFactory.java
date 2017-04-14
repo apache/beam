@@ -21,14 +21,14 @@ package org.apache.beam.runners.direct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -53,14 +53,12 @@ class WriteWithShardingFactory<InputT>
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
-      Write<InputT> transform) {
-    return transform.withSharding(new LogElementShardsWithDrift<InputT>());
-  }
+  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
+      AppliedPTransform<PCollection<InputT>, PDone, Write<InputT>> transform) {
 
-  @Override
-  public PCollection<InputT> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-    return (PCollection<InputT>) Iterables.getOnlyElement(inputs.values());
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
   }
 
   @Override

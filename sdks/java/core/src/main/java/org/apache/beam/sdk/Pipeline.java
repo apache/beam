@@ -33,11 +33,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -497,17 +499,18 @@ public class Pipeline {
       void applyReplacement(
           Node original,
           PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
-    PTransform<InputT, OutputT> replacement =
-        replacementFactory.getReplacementTransform((TransformT) original.getTransform());
-    if (replacement == original.getTransform()) {
+    PTransformReplacement<InputT, OutputT> replacement =
+        replacementFactory.getReplacementTransform(
+            (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform());
+    if (replacement.getTransform() == original.getTransform()) {
       return;
     }
-    InputT originalInput = replacementFactory.getInput(original.getInputs(), this);
+    InputT originalInput = replacement.getInput();
 
     LOG.debug("Replacing {} with {}", original, replacement);
-    transforms.replaceNode(original, originalInput, replacement);
+    transforms.replaceNode(original, originalInput, replacement.getTransform());
     try {
-      OutputT newOutput = replacement.expand(originalInput);
+      OutputT newOutput = replacement.getTransform().expand(originalInput);
       Map<PValue, ReplacementOutput> originalToReplacement =
           replacementFactory.mapOutputs(original.getOutputs(), newOutput);
       // Ensure the internal TransformHierarchy data structures are consistent.

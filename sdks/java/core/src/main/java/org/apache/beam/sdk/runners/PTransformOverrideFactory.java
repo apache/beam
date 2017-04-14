@@ -21,9 +21,9 @@ package org.apache.beam.sdk.runners;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -41,14 +41,11 @@ public interface PTransformOverrideFactory<
     OutputT extends POutput,
     TransformT extends PTransform<? super InputT, OutputT>> {
   /**
-   * Returns a {@link PTransform} that produces equivalent output to the provided transform.
+   * Returns a {@link PTransform} that produces equivalent output to the provided {@link
+   * AppliedPTransform transform}.
    */
-  PTransform<InputT, OutputT> getReplacementTransform(TransformT transform);
-
-  /**
-   * Returns the composite type that replacement transforms consumed from an equivalent expansion.
-   */
-  InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p);
+  PTransformReplacement<InputT, OutputT> getReplacementTransform(
+      AppliedPTransform<InputT, OutputT, TransformT> transform);
 
   /**
    * Returns a {@link Map} from the expanded values in {@code newOutput} to the values produced by
@@ -56,7 +53,25 @@ public interface PTransformOverrideFactory<
    */
   Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, OutputT newOutput);
 
-  /** A mapping between original {@link TaggedPValue} outputs and their replacements. */
+  /**
+   * A {@link PTransform} that replaces an {@link AppliedPTransform}, and the input required to
+   * do so. The input must be constructed from the expanded form, as the transform may not have
+   * originally been applied within this process or from within a Java SDK.
+   */
+  @AutoValue
+  abstract class PTransformReplacement<InputT extends PInput, OutputT extends POutput> {
+    public static <InputT extends PInput, OutputT extends POutput>
+        PTransformReplacement<InputT, OutputT> of(
+            InputT input, PTransform<InputT, OutputT> transform) {
+      return new AutoValue_PTransformOverrideFactory_PTransformReplacement(input, transform);
+    }
+    public abstract InputT getInput();
+    public abstract PTransform<InputT, OutputT> getTransform();
+  }
+
+  /**
+   * A mapping between original {@link TaggedPValue} outputs and their replacements.
+   */
   @AutoValue
   abstract class ReplacementOutput {
     public static ReplacementOutput of(TaggedPValue original, TaggedPValue replacement) {
