@@ -1039,8 +1039,7 @@ def is_consistent_with(sub, base):
   if isinstance(base, TypeConstraint):
     if isinstance(sub, UnionConstraint):
       return all(is_consistent_with(c, base) for c in sub.union_types)
-    else:
-      return base._consistent_with_check_(sub)
+    return base._consistent_with_check_(sub)
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object

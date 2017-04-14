@@ -23,10 +23,6 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 
 
 class TestDataflowRunner(DataflowRunner):
-
-  def __init__(self):
-    super(TestDataflowRunner, self).__init__()
-
   def run(self, pipeline):
     """Execute test pipeline and verify test matcher"""
     options = pipeline.options.view_as(TestOptions)

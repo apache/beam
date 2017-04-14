@@ -281,11 +281,11 @@ class EvaluationContext(object):
     """
     if transform:
       return self._is_transform_done(transform)
-    else:
-      for applied_ptransform in self._step_names:
-        if not self._is_transform_done(applied_ptransform):
-          return False
-      return True
+
+    for applied_ptransform in self._step_names:
+      if not self._is_transform_done(applied_ptransform):
+        return False
+    return True
 
   def _is_transform_done(self, transform):
     tw = self._watermark_manager.get_watermarks(transform)
