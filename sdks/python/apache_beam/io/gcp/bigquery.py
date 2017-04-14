@@ -967,13 +967,12 @@ class BigQueryWrapper(object):
           % (project_id, dataset_id, table_id))
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
-    else:
-      # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
-      # the table before this point.
-      return self._create_table(project_id=project_id,
-                                dataset_id=dataset_id,
-                                table_id=table_id,
-                                schema=schema or found_table.schema)
+    # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
+    # the table before this point.
+    return self._create_table(project_id=project_id,
+                              dataset_id=dataset_id,
+                              table_id=table_id,
+                              schema=schema or found_table.schema)
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
