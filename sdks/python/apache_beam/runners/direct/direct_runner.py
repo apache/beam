@@ -91,7 +91,9 @@ class DirectRunner(PipelineRunner):
     # execution in background threads and return.
 
     if pipeline.options:
-      RuntimeValueProvider.set_runtime_options(pipeline.options._options_id, {})
+      # DirectRunner does not support RuntimeValueProviders.
+      RuntimeValueProvider.set_runtime_options(None, {})
+
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
@@ -100,11 +102,6 @@ class DirectRunner(PipelineRunner):
       # completes in order to have full results in the cache.
       result.wait_until_finish()
       self._cache.finalize()
-
-      # Unset runtime options after the pipeline finishes.
-      # TODO: Move this to a post finish hook and clean for all cases.
-      if pipeline.options:
-        RuntimeValueProvider.unset_runtime_options(pipeline.options._options_id)
 
     return result
 

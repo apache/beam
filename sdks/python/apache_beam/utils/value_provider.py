@@ -59,42 +59,32 @@ class StaticValueProvider(ValueProvider):
 
 
 class RuntimeValueProvider(ValueProvider):
-  runtime_options_map = {}
+  runtime_options = None
 
-  def __init__(self, option_name, value_type, default_value, options_id):
-    assert options_id is not None
+  def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name
     self.default_value = default_value
     self.value_type = value_type
-    self.options_id = options_id
 
   def is_accessible(self):
-    return RuntimeValueProvider.runtime_options_map.get(
-        self.options_id) is not None
+    return RuntimeValueProvider.runtime_options is not None
 
   def get(self):
-    runtime_options = (
-        RuntimeValueProvider.runtime_options_map.get(self.options_id))
-    if runtime_options is None:
+    if RuntimeValueProvider.runtime_options is None:
       raise RuntimeValueProviderError(
           '%s.get() not called from a runtime context' % self)
 
-    candidate = runtime_options.get(self.option_name)
+    candidate = RuntimeValueProvider.runtime_options.get(self.option_name)
     if candidate:
       value = self.value_type(candidate)
     else:
       value = self.default_value
     return value
 
+  # TODO(altay): Remove _unused_options_id
   @classmethod
-  def set_runtime_options(cls, options_id, pipeline_options):
-    assert options_id not in RuntimeValueProvider.runtime_options_map
-    RuntimeValueProvider.runtime_options_map[options_id] = pipeline_options
-
-  @classmethod
-  def unset_runtime_options(cls, options_id):
-    assert options_id in RuntimeValueProvider.runtime_options_map
-    del RuntimeValueProvider.runtime_options_map[options_id]
+  def set_runtime_options(cls, _unused_options_id, pipeline_options):
+    RuntimeValueProvider.runtime_options = pipeline_options
 
   def __str__(self):
     return '%s(option: %s, type: %s, default_value: %s)' % (

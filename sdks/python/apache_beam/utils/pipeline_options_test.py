@@ -30,7 +30,8 @@ from apache_beam.utils.value_provider import RuntimeValueProvider
 
 class PipelineOptionsTest(unittest.TestCase):
   def setUp(self):
-    RuntimeValueProvider.runtime_options_map = {}
+    # Clean up the global variable used by RuntimeValueProvider
+    RuntimeValueProvider.runtime_options = None
 
   TEST_CASES = [
       {'flags': ['--num_workers', '5'],
@@ -223,8 +224,7 @@ class PipelineOptionsTest(unittest.TestCase):
                           non_vp_arg=RuntimeValueProvider(
                               option_name='foo',
                               value_type=int,
-                              default_value=10,
-                              options_id=10))
+                              default_value=10))
     self.assertEqual(options.vp_arg, 5)
     self.assertTrue(options.vp_arg2.is_accessible(),
                     '%s is not accessible' % options.vp_arg2)

@@ -236,8 +236,7 @@ class TestFileBasedSource(unittest.TestCase):
     runtime_vp_file_pattern = RuntimeValueProvider(
         option_name='arg',
         value_type=str,
-        default_value=str_file_pattern,
-        options_id=1)
+        default_value=str_file_pattern)
     self.assertEqual(runtime_vp_file_pattern,
                      FileBasedSource(runtime_vp_file_pattern)._pattern)
 

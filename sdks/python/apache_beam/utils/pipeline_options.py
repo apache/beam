@@ -18,7 +18,6 @@
 """Pipeline options obtained from command line parsing."""
 
 import argparse
-import itertools
 
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils.value_provider import StaticValueProvider
@@ -57,8 +56,7 @@ class BeamArgumentParser(argparse.ArgumentParser):
         parser.add_argument('--non-vp-arg')
 
   """
-  def __init__(self, options_id, *args, **kwargs):
-    self._options_id = options_id
+  def __init__(self, *args, **kwargs):
     super(BeamArgumentParser, self).__init__(*args, **kwargs)
 
   def add_value_provider_argument(self, *args, **kwargs):
@@ -87,8 +85,7 @@ class BeamArgumentParser(argparse.ArgumentParser):
     kwargs['default'] = RuntimeValueProvider(
         option_name=option_name,
         value_type=value_type,
-        default_value=default_value,
-        options_id=self._options_id
+        default_value=default_value
     )
 
     # have add_argument do most of the work
@@ -122,9 +119,7 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-  _options_id_generator = itertools.count(1)
-
-  def __init__(self, flags=None, options_id=None, **kwargs):
+  def __init__(self, flags=None, **kwargs):
     """Initialize an options class.
 
     The initializer will traverse all subclasses, add all their argparse
@@ -141,9 +136,7 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    self._options_id = (
-        options_id or PipelineOptions._options_id_generator.next())
-    parser = BeamArgumentParser(self._options_id)
+    parser = BeamArgumentParser()
 
     for cls in type(self).mro():
       if cls == PipelineOptions:
@@ -197,7 +190,7 @@ class PipelineOptions(HasDisplayData):
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
-    parser = BeamArgumentParser(self._options_id)
+    parser = BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
@@ -220,7 +213,7 @@ class PipelineOptions(HasDisplayData):
     return self.get_all_options(True)
 
   def view_as(self, cls):
-    view = cls(self._flags, options_id=self._options_id)
+    view = cls(self._flags)
     view._all_options = self._all_options
     return view
 
@@ -244,7 +237,7 @@ class PipelineOptions(HasDisplayData):
                            (type(self).__name__, name))
 
   def __setattr__(self, name, value):
-    if name in ('_flags', '_all_options', '_visible_options', '_options_id'):
+    if name in ('_flags', '_all_options', '_visible_options'):
       super(PipelineOptions, self).__setattr__(name, value)
     elif name in self._visible_option_list():
       self._all_options[name] = value
