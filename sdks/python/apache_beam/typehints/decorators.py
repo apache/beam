@@ -237,8 +237,7 @@ def _unpack_positional_arg_hints(arg, hint):
     if isinstance(hint, typehints.TupleConstraint):
       return tuple(_unpack_positional_arg_hints(a, t)
                    for a, t in zip(arg, hint.tuple_types))
-    else:
-      return (typehints.Any,) * len(arg)
+    return (typehints.Any,) * len(arg)
   return hint
 
 

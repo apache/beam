@@ -66,11 +66,8 @@ class PipelineStateMatcher(BaseMatcher):
 
 def retry_on_io_error_and_server_error(exception):
   """Filter allowing retries on file I/O errors and service error."""
-  if isinstance(exception, IOError) or \
-          (HttpError is not None and isinstance(exception, HttpError)):
-    return True
-  else:
-    return False
+  return isinstance(exception, IOError) or \
+          (HttpError is not None and isinstance(exception, HttpError))
 
 
 class FileChecksumMatcher(BaseMatcher):

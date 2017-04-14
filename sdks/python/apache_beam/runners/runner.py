@@ -111,8 +111,7 @@ def group_by_key_input_visitor():
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import GroupByKey, GroupByKeyOnly
       from apache_beam import typehints
-      if (isinstance(transform_node.transform, GroupByKey) or
-          isinstance(transform_node.transform, GroupByKeyOnly)):
+      if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
         pcoll = transform_node.inputs[0]
         input_type = pcoll.element_type
         # If input_type is not specified, then treat it as `Any`.
