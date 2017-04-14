@@ -878,7 +878,7 @@ class BigQueryWrapper(object):
     tr = source_table_reference
     if tr is not None:
       if tr.projectId is None:
-        # if the source table has no projectId, assume the given project_id  
+        # if the source table has no projectId, assume the given project_id
         source_project_id = project_id
       else:
         source_project_id = tr.projectId
