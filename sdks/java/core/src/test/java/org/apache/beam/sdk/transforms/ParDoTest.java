@@ -394,10 +394,10 @@ public class ParDoTest implements Serializable {
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("additional3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
@@ -433,10 +433,10 @@ public class ParDoTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testParDoEmptyWithTaggedOutput() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("additional3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.empty(VarIntCoder.of()))
@@ -471,8 +471,8 @@ public class ParDoTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testParDoWithEmptyTaggedOutput() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("side2"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.empty(VarIntCoder.of()))
@@ -498,7 +498,7 @@ public class ParDoTest implements Serializable {
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<Void> mainOutputTag = new TupleTag<Void>("main"){};
-    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("side"){};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additional"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
@@ -522,13 +522,13 @@ public class ParDoTest implements Serializable {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    TupleTag<String> sideTag = new TupleTag<String>("side"){};
+    TupleTag<String> notOutputTag = new TupleTag<String>("additional"){};
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFn(
             Arrays.<PCollectionView<Integer>>asList(),
-            Arrays.asList(sideTag))));
+            Arrays.asList(notOutputTag))));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -548,13 +548,13 @@ public class ParDoTest implements Serializable {
         .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
-              TupleTag<String> specialSideTag = new TupleTag<String>(){};
-              c.output(specialSideTag, "side");
-              c.output(specialSideTag, "side");
-              c.output(specialSideTag, "side");
+              TupleTag<String> specialOutputTag = new TupleTag<String>(){};
+              c.output(specialOutputTag, "special");
+              c.output(specialOutputTag, "special");
+              c.output(specialOutputTag, "special");
 
               for (int i = 0; i < 998; i++) {
-                c.output(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "tag" + i);
               }
             }}));
     pipeline.run();
@@ -565,7 +565,7 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
-                c.output(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "output" + i);
               }
             }}));
 
@@ -862,10 +862,10 @@ public class ParDoTest implements Serializable {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("output1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("output2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("output3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(Arrays.asList(3, -42, 666))).setName("MyInput")
@@ -879,10 +879,10 @@ public class ParDoTest implements Serializable {
                    .and(additionalOutputTagUnwritten).and(additionalOutputTag2)));
 
     assertEquals("MyParDo.main", outputs.get(mainOutputTag).getName());
-    assertEquals("MyParDo.side1", outputs.get(additionalOutputTag1).getName());
-    assertEquals("MyParDo.side2", outputs.get(additionalOutputTag2).getName());
-    assertEquals("MyParDo.side3", outputs.get(additionalOutputTag3).getName());
-    assertEquals("MyParDo.sideUnwritten",
+    assertEquals("MyParDo.output1", outputs.get(additionalOutputTag1).getName());
+    assertEquals("MyParDo.output2", outputs.get(additionalOutputTag2).getName());
+    assertEquals("MyParDo.output3", outputs.get(additionalOutputTag3).getName());
+    assertEquals("MyParDo.unwrittenOutput",
                  outputs.get(additionalOutputTagUnwritten).getName());
   }
 
@@ -892,29 +892,29 @@ public class ParDoTest implements Serializable {
     PCollection<Long> longs = pipeline.apply(CountingInput.unbounded());
 
     TupleTag<Long> mainOut = new TupleTag<>();
-    final TupleTag<String> sideOutOne = new TupleTag<>();
-    final TupleTag<Integer> sideOutTwo = new TupleTag<>();
+    final TupleTag<String> valueAsString = new TupleTag<>();
+    final TupleTag<Integer> valueAsInt = new TupleTag<>();
     DoFn<Long, Long> fn =
         new DoFn<Long, Long>() {
           @ProcessElement
           public void processElement(ProcessContext cxt) {
             cxt.output(cxt.element());
-            cxt.output(sideOutOne, Long.toString(cxt.element()));
-            cxt.output(sideOutTwo, Long.valueOf(cxt.element()).intValue());
+            cxt.output(valueAsString, Long.toString(cxt.element()));
+            cxt.output(valueAsInt, Long.valueOf(cxt.element()).intValue());
           }
         };
 
     ParDo.MultiOutput<Long, Long> parDo =
-        ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(sideOutOne).and(sideOutTwo));
+        ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(valueAsString).and(valueAsInt));
     PCollectionTuple firstApplication = longs.apply("first", parDo);
     PCollectionTuple secondApplication = longs.apply("second", parDo);
     assertThat(firstApplication, not(equalTo(secondApplication)));
     assertThat(
         firstApplication.getAll().keySet(),
-        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, sideOutOne, sideOutTwo));
+        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, valueAsString, valueAsInt));
     assertThat(
         secondApplication.getAll().keySet(),
-        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, sideOutOne, sideOutTwo));
+        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, valueAsString, valueAsInt));
   }
 
   @Test
@@ -1018,27 +1018,27 @@ public class ParDoTest implements Serializable {
   }
 
   private static class TaggedOutputDummyFn extends DoFn<Integer, Integer> {
-    private TupleTag<TestDummy> sideTag;
-    public TaggedOutputDummyFn(TupleTag<TestDummy> sideTag) {
-      this.sideTag = sideTag;
+    private TupleTag<TestDummy> dummyOutputTag;
+    public TaggedOutputDummyFn(TupleTag<TestDummy> dummyOutputTag) {
+      this.dummyOutputTag = dummyOutputTag;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(1);
-      c.output(sideTag, new TestDummy());
+      c.output(dummyOutputTag, new TestDummy());
      }
   }
 
   private static class MainOutputDummyFn extends DoFn<Integer, TestDummy> {
-    private TupleTag<Integer> sideTag;
-    public MainOutputDummyFn(TupleTag<Integer> sideTag) {
-      this.sideTag = sideTag;
+    private TupleTag<Integer> intOutputTag;
+    public MainOutputDummyFn(TupleTag<Integer> intOutputTag) {
+      this.intOutputTag = intOutputTag;
     }
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());
-      c.output(sideTag, 1);
+      c.output(intOutputTag, 1);
      }
   }
 
@@ -1255,9 +1255,11 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
     final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("unregisteredMain");
-    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("side") {};
-    PCollectionTuple outputTuple = input.apply(ParDo.of(new MainOutputDummyFn(additionalOutputTag))
-        .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additionalOutput") {};
+    PCollectionTuple outputTuple =
+        input.apply(
+            ParDo.of(new MainOutputDummyFn(additionalOutputTag))
+                .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputTuple.get(mainOutputTag).setCoder(new TestDummyCoder());
 
@@ -1272,7 +1274,7 @@ public class ParDoTest implements Serializable {
     // additional output.
 
     final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("main");
-    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("side");
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("additionalOutput");
     PCollectionTuple tuple = pipeline
         .apply(Create.of(new TestDummy())
             .withCoder(TestDummyCoder.of()))
@@ -1335,7 +1337,7 @@ public class ParDoTest implements Serializable {
         pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main"){};
-    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("side"){};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additional"){};
 
     PCollection<String> output =
         input

@@ -231,7 +231,7 @@ public class SplittableDoFnTest {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
       c.output("main:" + side + ":" + c.element());
-      c.output(additionalOutput, "side:" + side + ":" + c.element());
+      c.output(additionalOutput, "additional:" + side + ":" + c.element());
     }
 
     @GetInitialRestriction
@@ -247,7 +247,7 @@ public class SplittableDoFnTest {
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
     TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    TupleTag<String> additionalOutputTag = new TupleTag<>("side");
+    TupleTag<String> additionalOutputTag = new TupleTag<>("additional");
 
     PCollectionTuple res =
         p.apply("input", Create.of(0, 1, 2))
@@ -261,7 +261,8 @@ public class SplittableDoFnTest {
     PAssert.that(res.get(mainOutputTag))
         .containsInAnyOrder(Arrays.asList("main:foo:0", "main:foo:1", "main:foo:2"));
     PAssert.that(res.get(additionalOutputTag))
-        .containsInAnyOrder(Arrays.asList("side:foo:0", "side:foo:1", "side:foo:2"));
+        .containsInAnyOrder(
+            Arrays.asList("additional:foo:0", "additional:foo:1", "additional:foo:2"));
 
     p.run();
   }

@@ -82,7 +82,7 @@ public final class PCollectionTupleTest implements Serializable {
 
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main") {};
     TupleTag<Integer> emptyOutputTag = new TupleTag<Integer>("empty") {};
-    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("side") {};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("extra") {};
 
     PCollection<Integer> mainInput = pipeline
         .apply(Create.of(inputs));

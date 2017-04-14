@@ -144,8 +144,8 @@ public class DoFnOperatorTest {
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> mainOutput = new TupleTag<>("main-output");
-    TupleTag<String> additionalOutput1 = new TupleTag<>("side-output-1");
-    TupleTag<String> additionalOutput2 = new TupleTag<>("side-output-2");
+    TupleTag<String> additionalOutput1 = new TupleTag<>("output-1");
+    TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, Integer> outputMapping = ImmutableMap.<TupleTag<?>, Integer>builder()
         .put(mainOutput, 1)
         .put(additionalOutput1, 2)
@@ -176,8 +176,8 @@ public class DoFnOperatorTest {
     assertThat(
         this.stripStreamRecordFromRawUnion(testHarness.getOutput()),
         contains(
-            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("side: one")),
-            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("side: two")),
+            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("extra: one")),
+            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("extra: two")),
             new RawUnionValue(1, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(2, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(3, WindowedValue.valueInGlobalWindow("got: hello"))));
@@ -553,9 +553,9 @@ public class DoFnOperatorTest {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (c.element().equals("one")) {
-        c.output(additionalOutput1, "side: one");
+        c.output(additionalOutput1, "extra: one");
       } else if (c.element().equals("two")) {
-        c.output(additionalOutput2, "side: two");
+        c.output(additionalOutput2, "extra: two");
       } else {
         c.output("got: " + c.element());
         c.output(additionalOutput1, "got: " + c.element());
