@@ -228,44 +228,38 @@ public class Pipeline {
   }
 
   private void replace(final PTransformOverride override) {
-    final Collection<Node> matches = new ArrayList<>();
-    final Set<String> freedNames = new HashSet<>();
+    final Set<Node> matches = new HashSet<>();
+    final Set<Node> freedNodes = new HashSet<>();
     transforms.visit(
         new PipelineVisitor.Defaults() {
-          Node clearingNamesFor = null;
-
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
-            if (clearingNamesFor != null) {
-              freedNames.add(node.getFullName());
+            if (!node.isRootNode() && freedNodes.contains(node.getEnclosingNode())) {
+              // This node will be freed because its parent will be freed.
+              freedNodes.add(node);
               return CompositeBehavior.ENTER_TRANSFORM;
             }
             if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
-              // This node will be replaced. It should not be visited.
-              clearingNamesFor = node;
-              freedNames.add(node.getFullName());
+              // This node will be freed. When we visit any of its children, they will also be freed
+              freedNodes.add(node);
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
 
-          public void leaveCompositeTransform(Node node) {
-            if (clearingNamesFor == node) {
-              clearingNamesFor = null;
-            }
-          }
-
           @Override
           public void visitPrimitiveTransform(Node node) {
-            if (clearingNamesFor != null) {
-              freedNames.add(node.getFullName());
+            if (freedNodes.contains(node.getEnclosingNode())) {
+              freedNodes.add(node);
             } else if (override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
-              freedNames.add(node.getFullName());
+              freedNodes.add(node);
             }
           }
         });
-    this.usedFullNames.removeAll(freedNames);
+    for (Node freedNode : freedNodes) {
+      usedFullNames.remove(freedNode.getFullName());
+    }
     for (Node match : matches) {
       applyReplacement(match, override.getOverrideFactory());
     }
