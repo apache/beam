@@ -588,7 +588,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
-    self.client.create_temporary_dataset(self.executing_project, self.source.table_reference)
+    self.client.create_temporary_dataset(
+        self.executing_project, self.source.table_reference)
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
@@ -790,9 +791,9 @@ class BigQueryWrapper(object):
       return dataset
     except HttpError as exn:
       if exn.status_code == 404:
-        dr = bigquery.DatasetReference(
+        dataset_reference = bigquery.DatasetReference(
             projectId=project_id, datasetId=dataset_id)
-        dataset = bigquery.Dataset(datasetReference=dr)
+        dataset = bigquery.Dataset(datasetReference=dataset_reference)
         if location is not None:
           dataset.location = location
         request = bigquery.BigqueryDatasetsInsertRequest(
@@ -858,8 +859,10 @@ class BigQueryWrapper(object):
     try:
       tr = source_table_reference
       if tr is not None:
-        if tr.projectId is None: table_project_id = project_id
-        else:                    table_project_id = tr.projectId
+        if tr.projectId is None:
+          table_project_id = project_id
+        else:
+          table_project_id = tr.projectId
 
         table = self._get_table(table_project_id, tr.datasetId, tr.tableId)
         location = table.location
