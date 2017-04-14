@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -107,14 +107,14 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link DoFn.Context#output(Object)} is called.
+   * {@link Context#output(Object)} is called.
    */
   @Override
   public void noteOutput(WindowedValue<?> output) {}
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link DoFn.Context#output(TupleTag, Object)} is called.
+   * {@link Context#output(TupleTag, Object)} is called.
    */
   @Override
   public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
