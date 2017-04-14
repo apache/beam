@@ -476,7 +476,7 @@ public class BigtableIOTest {
             ByteKeyRange.ALL_KEYS,
             null /*size*/);
     List<BigtableSource> splits =
-        source.splitIntoSubSources(numRows * bytesPerRow / numSamples, null /* options */);
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));
@@ -504,7 +504,7 @@ public class BigtableIOTest {
         ByteKeyRange.ALL_KEYS,
         null /*size*/);
     List<BigtableSource> splits =
-        source.splitIntoSubSources(numRows * bytesPerRow / numSplits, null);
+        source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -530,7 +530,7 @@ public class BigtableIOTest {
     BigtableSource source =
         new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
     List<BigtableSource> splits =
-        source.splitIntoSubSources(numRows * bytesPerRow / numSplits, null);
+        source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));

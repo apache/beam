@@ -98,7 +98,7 @@ public class CustomSources {
       int desiredNumSplits =
           getDesiredNumUnboundedSourceSplits(options.as(DataflowPipelineOptions.class));
       for (UnboundedSource<?, ?> split :
-          unboundedSource.splitIntoSubSources(desiredNumSplits, options)) {
+          unboundedSource.split(desiredNumSplits, options)) {
         encodedSplits.add(encodeBase64String(serializeToByteArray(split)));
       }
       checkArgument(!encodedSplits.isEmpty(), "UnboundedSources must have at least one split");

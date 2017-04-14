@@ -104,7 +104,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     try {
       this.numPartitions =
           createMicrobatchSource()
-              .splitIntoSubSources(initialParallelism, options)
+              .split(initialParallelism, options)
               .size();
     } catch (Exception e) {
       throw new RuntimeException(e);

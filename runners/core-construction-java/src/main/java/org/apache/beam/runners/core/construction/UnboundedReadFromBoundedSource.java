@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * {@link PTransform} that converts a {@link BoundedSource} as an {@link UnboundedSource}.
  *
  * <p>{@link BoundedSource} is read directly without calling
- * {@link BoundedSource#splitIntoSubSources},
+ * {@link BoundedSource#split},
  * and element timestamps are propagated. While any elements remain, the watermark is the beginning
  * of time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, and after all elements have been produced
  * the watermark goes to the end of time {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
@@ -131,7 +131,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public List<BoundedToUnboundedSourceAdapter<T>> splitIntoSubSources(
+    public List<BoundedToUnboundedSourceAdapter<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       try {
         long desiredBundleSize = boundedSource.getEstimatedSizeBytes(options) / desiredNumSplits;
@@ -141,7 +141,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           return ImmutableList.of(this);
         }
         List<? extends BoundedSource<T>> splits =
-            boundedSource.splitIntoSubSources(desiredBundleSize, options);
+            boundedSource.split(desiredBundleSize, options);
         if (splits == null) {
           LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
           return ImmutableList.of(this);

@@ -225,7 +225,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public List<BoundedSource<Document>> splitIntoSubSources(long desiredBundleSizeBytes,
+    public List<BoundedSource<Document>> split(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
       MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()));
       MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());

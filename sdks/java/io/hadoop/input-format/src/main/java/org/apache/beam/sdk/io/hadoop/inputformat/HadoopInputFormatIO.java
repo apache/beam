@@ -449,7 +449,7 @@ public class HadoopInputFormatIO {
     }
 
     @Override
-    public List<BoundedSource<KV<K, V>>> splitIntoSubSources(long desiredBundleSizeBytes,
+    public List<BoundedSource<KV<K, V>>> split(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
       // desiredBundleSizeBytes is not being considered as splitting based on this
       // value is not supported by inputFormat getSplits() method.
@@ -485,7 +485,7 @@ public class HadoopInputFormatIO {
     /**
      * This is a helper function to compute splits. This method will also calculate size of the
      * data being read. Note: This method is executed exactly once and the splits are retrieved
-     * and cached in this. These splits are further used by splitIntoSubSources() and
+     * and cached in this. These splits are further used by split() and
      * getEstimatedSizeBytes().
      */
     @VisibleForTesting

@@ -156,7 +156,7 @@ public class UnboundedSourceWrapper<
     // get the splits early. we assume that the generated splits are stable,
     // this is necessary so that the mapping of state to source is correct
     // when restoring
-    splitSources = source.splitIntoSubSources(parallelism, pipelineOptions);
+    splitSources = source.split(parallelism, pipelineOptions);
   }
 
 

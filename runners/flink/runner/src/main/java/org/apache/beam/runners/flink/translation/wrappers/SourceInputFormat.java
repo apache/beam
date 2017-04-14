@@ -101,7 +101,7 @@ public class SourceInputFormat<T>
     try {
       long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
       List<? extends Source<T>> shards =
-          initialSource.splitIntoSubSources(desiredSizeBytes, options);
+          initialSource.split(desiredSizeBytes, options);
       int numShards = shards.size();
       SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
       for (int i = 0; i < numShards; i++) {

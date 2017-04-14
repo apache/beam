@@ -76,7 +76,7 @@ public class BoundedSourceWrapper<OutputT>
     // get the splits early. we assume that the generated splits are stable,
     // this is necessary so that the mapping of state to source is correct
     // when restoring
-    splitSources = source.splitIntoSubSources(desiredBundleSize, pipelineOptions);
+    splitSources = source.split(desiredBundleSize, pipelineOptions);
   }
 
   @Override

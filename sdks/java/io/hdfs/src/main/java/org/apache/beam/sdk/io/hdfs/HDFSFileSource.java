@@ -265,7 +265,7 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
   // =======================================================================
 
   @Override
-  public List<? extends BoundedSource<T>> splitIntoSubSources(
+  public List<? extends BoundedSource<T>> split(
       final long desiredBundleSizeBytes,
       PipelineOptions options) throws Exception {
     if (serializableSplit() == null) {
@@ -296,7 +296,7 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
     long size = 0;
 
     try {
-      // If this source represents a split from splitIntoSubSources,
+      // If this source represents a split from split,
       // then return the size of the split, rather then the entire input
       if (serializableSplit() != null) {
         return serializableSplit().getSplit().getLength();
