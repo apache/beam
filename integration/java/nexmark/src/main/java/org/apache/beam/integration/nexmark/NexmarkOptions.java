@@ -110,6 +110,13 @@ public interface NexmarkOptions extends PubsubOptions {
 
   void setPreloadSeconds(Integer preloadSeconds);
 
+  @Description(
+      "Time in seconds to wait in pipelineResult.waitUntilFinish(), useful in streaming mode")
+  @Nullable
+  Integer getStreamTimeout();
+
+  void setStreamTimeout(Integer preloadSeconds);
+
   @Description("Number of unbounded sources to create events.")
   @Nullable
   Integer getNumEventGenerators();

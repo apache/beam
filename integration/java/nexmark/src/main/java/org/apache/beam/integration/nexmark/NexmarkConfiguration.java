@@ -106,6 +106,12 @@ public class NexmarkConfiguration implements Serializable {
   public int preloadSeconds = 0;
 
   /**
+   * Timeout for stream pipelines to stop in seconds.
+   */
+  @JsonProperty
+  public int streamTimeout = 240;
+
+  /**
    * If true, and in streaming mode, generate events only when they are due according to their
    * timestamp.
    */
@@ -275,6 +281,9 @@ public class NexmarkConfiguration implements Serializable {
     if (options.getPreloadSeconds() != null) {
       preloadSeconds = options.getPreloadSeconds();
     }
+    if (options.getStreamTimeout() != null) {
+      streamTimeout = options.getStreamTimeout();
+    }
     if (options.getIsRateLimited() != null) {
       isRateLimited = options.getIsRateLimited();
     }
@@ -368,6 +377,7 @@ public class NexmarkConfiguration implements Serializable {
     result.rateUnit = rateUnit;
     result.ratePeriodSec = ratePeriodSec;
     result.preloadSeconds = preloadSeconds;
+    result.streamTimeout = streamTimeout;
     result.isRateLimited = isRateLimited;
     result.useWallclockEventTime = useWallclockEventTime;
     result.avgPersonByteSize = avgPersonByteSize;
@@ -435,6 +445,9 @@ public class NexmarkConfiguration implements Serializable {
     }
     if (preloadSeconds != DEFAULT.preloadSeconds) {
       sb.append(String.format("; preloadSeconds:%d", preloadSeconds));
+    }
+    if (streamTimeout != DEFAULT.streamTimeout) {
+      sb.append(String.format("; streamTimeout:%d", streamTimeout));
     }
     if (isRateLimited != DEFAULT.isRateLimited) {
       sb.append(String.format("; isRateLimited:%s", isRateLimited));
@@ -536,13 +549,44 @@ public class NexmarkConfiguration implements Serializable {
 
   @Override
   public int hashCode() {
-    return Objects.hash(debug, query, sourceType, sinkType, pubSubMode,
-        numEvents, numEventGenerators, rateShape, firstEventRate, nextEventRate, rateUnit,
-        ratePeriodSec, preloadSeconds, isRateLimited, useWallclockEventTime, avgPersonByteSize,
-        avgAuctionByteSize, avgBidByteSize, hotAuctionRatio, hotSellersRatio, hotBiddersRatio,
-        windowSizeSec, windowPeriodSec, watermarkHoldbackSec, numInFlightAuctions, numActivePeople,
-        coderStrategy, cpuDelayMs, diskBusyBytes, auctionSkip, fanout, maxAuctionsWaitingTime,
-        occasionalDelaySec, probDelayedEvent, maxLogEvents, usePubsubPublishTime,
+    return Objects.hash(
+        debug,
+        query,
+        sourceType,
+        sinkType,
+        pubSubMode,
+        numEvents,
+        numEventGenerators,
+        rateShape,
+        firstEventRate,
+        nextEventRate,
+        rateUnit,
+        ratePeriodSec,
+        preloadSeconds,
+        streamTimeout,
+        isRateLimited,
+        useWallclockEventTime,
+        avgPersonByteSize,
+        avgAuctionByteSize,
+        avgBidByteSize,
+        hotAuctionRatio,
+        hotSellersRatio,
+        hotBiddersRatio,
+        windowSizeSec,
+        windowPeriodSec,
+        watermarkHoldbackSec,
+        numInFlightAuctions,
+        numActivePeople,
+        coderStrategy,
+        cpuDelayMs,
+        diskBusyBytes,
+        auctionSkip,
+        fanout,
+        maxAuctionsWaitingTime,
+        occasionalDelaySec,
+        probDelayedEvent,
+        maxLogEvents,
+        usePubsubPublishTime,
         outOfOrderGroupSize);
   }
 
@@ -628,6 +672,9 @@ public class NexmarkConfiguration implements Serializable {
       return false;
     }
     if (preloadSeconds != other.preloadSeconds) {
+      return false;
+    }
+    if (streamTimeout != other.streamTimeout) {
       return false;
     }
     if (Double.doubleToLongBits(probDelayedEvent)

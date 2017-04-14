@@ -1230,7 +1230,7 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
         waitForPublisherPreload();
       }
       mainResult = p.run();
-      mainResult.waitUntilFinish();
+      mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
       return monitor(query);
     } finally {
       //
