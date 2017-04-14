@@ -47,6 +47,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -354,6 +356,148 @@ public class Pipeline {
       @Override
       public void visitValue(PValue value, TransformHierarchy.Node producer) { }
     }
+
+    /**
+     * A {@link PipelineVisitor} used in {@link Pipeline#visualizePipeline()}
+     * to visualize a {@code Pipeline}.
+     *
+     */
+    class DisplayVisitor extends Defaults {
+      private List<String> pCollections = new ArrayList<>();
+      private List<String> collectionProducer = new ArrayList<>();
+      private List<TransformEdge> transformEdges = new ArrayList<>();
+
+      private List<Integer> endPoints = new ArrayList<>();
+      private boolean[][] edgeVector;
+
+      @Override
+      public void visitPrimitiveTransform(TransformHierarchy.Node transformTreeNode) {
+        String operationName = transformTreeNode.getFullName();
+        List<TaggedPValue> inputTags = transformTreeNode.getInputs();
+        List<TaggedPValue> outputTags = transformTreeNode.getOutputs();
+
+        switch ((inputTags.isEmpty() ? 0 : 2) + (outputTags.isEmpty() ? 0 : 1)) {
+        case 3:// case for !input.isEmpty() && !output.isEmpty()
+          for (TaggedPValue in : inputTags) {
+            if (!pCollections.contains(in.getValue().getName())) {
+              pCollections.add(in.getValue().getName());
+              collectionProducer.add(operationName);
+            }
+            for (TaggedPValue out : outputTags) {
+              if (!pCollections.contains(out.getValue().getName())) {
+                pCollections.add(out.getValue().getName());
+                collectionProducer.add(operationName);
+              }
+
+              transformEdges.add(new TransformEdge(in.getValue().getName(), operationName,
+                  out.getValue().getName()));
+            }
+          }
+          break;
+        case 2:// case for !input.isEmpty() && output.isEmpty()
+          String endpoint = String.format("END_%s", pCollections.size());
+          endPoints.add(pCollections.size());
+          collectionProducer.add(operationName);
+          pCollections.add(endpoint);
+          for (TaggedPValue in : inputTags) {
+            if (!pCollections.contains(in.getValue().getName())) {
+              pCollections.add(in.getValue().getName());
+              collectionProducer.add(operationName);
+            }
+
+            transformEdges.add(new TransformEdge(in.getValue().getName(), operationName, endpoint));
+          }
+          break;
+        case 1:// case for input.isEmpty() && !output.isEmpty()
+          String startpoint = String.format("START_%s", pCollections.size());
+          pCollections.add(startpoint);
+          collectionProducer.add(null); // no step
+          for (TaggedPValue out : outputTags) {
+            if (!pCollections.contains(out.getValue().getName())) {
+              pCollections.add(out.getValue().getName());
+              collectionProducer.add(operationName);
+            }
+
+            transformEdges
+                .add(new TransformEdge(startpoint, operationName, out.getValue().getName()));
+          }
+          break;
+        case 0:// case for input.isEmpty() && output.isEmpty()
+          throw new RuntimeException("invalid transform " + transformTreeNode);
+        default:
+        }
+      }
+
+      /**
+       * Backtrack the flow of pipeline with modified DFS, and format as an easy-to-read string.
+       * @return
+       */
+      public String prettify() {
+        populateEdgeVector();
+        StringBuffer sb = new StringBuffer();
+        for (int endpoint : endPoints) {
+          sb.append("[end] ").append(collectionProducer.get(endpoint)).append("\n");
+          visitPath(1, endpoint, sb);
+        }
+        return sb.toString();
+      }
+
+      private void visitPath(int indentation, int startPoint, StringBuffer sb) {
+        for (int idx = 0; idx < pCollections.size(); ++idx) {
+          if (edgeVector[idx][startPoint] && collectionProducer.get(idx) != null) {
+            for (int i = 0; i < indentation; ++i) {
+              sb.append("    ");
+            }
+            sb.append(collectionProducer.get(idx)).append("\n");
+
+            visitPath(indentation + 1, idx, sb);
+          }
+        }
+
+      }
+
+      private void populateEdgeVector() {
+        edgeVector = new boolean[pCollections.size()][pCollections.size()];
+        for (TransformEdge edge : transformEdges) {
+          int fromIndex = pCollections.indexOf(edge.inputCollections);
+          int toIndex = pCollections.indexOf(edge.outputCollections);
+          if (fromIndex == -1 || toIndex == -1) {
+            throw new RuntimeException("Invalid transform " + edge.toString());
+          }
+          edgeVector[fromIndex][toIndex] = true; // it's a reversed vector
+        }
+        // retrieve to detect additional OUT
+        for (int idx = 0; idx < edgeVector.length; ++idx) {
+          boolean[] row = edgeVector[idx];
+          if (!ArrayUtils.contains(row, true) && !endPoints.contains(idx)) {
+            endPoints.add(idx);
+          }
+        }
+      }
+
+      /**
+       * internal object to express data flow of one transform.
+       *
+       */
+      private static class TransformEdge {
+        private String inputCollections;
+        private String outputCollections;
+        private String operationName;
+
+        public TransformEdge(String inputCollections, String operationName,
+            String outputCollections) {
+          this.inputCollections = inputCollections;
+          this.outputCollections = outputCollections;
+          this.operationName = operationName;
+        }
+
+        @Override
+        public String toString() {
+          return "TransformEdge [inputCollections=" + inputCollections + ", outputCollections="
+              + outputCollections + ", operationName=" + operationName + "]";
+        }
+      }
+    }
   }
 
   /**
@@ -377,6 +521,32 @@ public class Pipeline {
     checkState(
         visitedValues.containsAll(values),
         "internal error: should have visited all the values after visiting all the transforms");
+  }
+
+  /**
+   * retrieve {@code Pipeline}, and print out data flow in visualized format.
+   *
+   * <p>Give a pipeline like
+   * <pre>{@code
+   * Pipeline pipeline = Pipeline.create(...);
+   * PCollection<?> stream = pipeline.apply("source",IO.<?>read())
+   *   .apply("process_step", ParDo.of(...));
+   * stream.apply("persistent", IO.<?>write());
+   * }</pre>
+   *
+   * <p>It's visualized as
+   * <pre>{@code
+   * 1. persistent
+   *     2. process_step
+   *         3. source
+   *             4. [START]
+   * }</pre>
+   *
+   */
+  public String visualizePipeline(){
+    PipelineVisitor.DisplayVisitor vistor = new PipelineVisitor.DisplayVisitor();
+    traverseTopologically(vistor);
+    return vistor.prettify();
   }
 
   /**
