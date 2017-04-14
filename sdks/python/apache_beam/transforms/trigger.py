@@ -839,7 +839,7 @@ class TriggerDriver(object):
 
 
 class _UnwindowedValues(observable.ObservableMixin):
-  """Exposes iterable of windowed values as interable of unwindowed values."""
+  """Exposes iterable of windowed values as iterable of unwindowed values."""
 
   def __init__(self, windowed_values):
     super(_UnwindowedValues, self).__init__()
