@@ -192,7 +192,7 @@ class SdkComponents {
   public void validate() {
     Map<AppliedPTransform<?, ?, ?>, String> missingTransforms = new HashMap<>();
     for (Entry<AppliedPTransform<?, ?, ?>, String> registeredTransform : transformIds.entrySet()) {
-      if (componentsBuilder.getTransformsMap().containsKey(registeredTransform.getValue())) {
+      if (!componentsBuilder.getTransformsMap().containsKey(registeredTransform.getValue())) {
         missingTransforms.put(
             registeredTransform.getKey(), registeredTransform.getValue());
       }

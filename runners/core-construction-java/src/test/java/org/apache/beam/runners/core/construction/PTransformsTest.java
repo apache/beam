@@ -67,14 +67,19 @@ public class PTransformsTest {
   @Parameters(name = "{index}: {0}")
   public static Iterable<ToAndFromProtoSpec> data() {
     // This pipeline exists for construction, not to run any test.
-    TestPipeline pipeline = TestPipeline.create();
     // TODO: Leaf node with understood payload - i.e. validate payloads
+    ToAndFromProtoSpec readLeaf = ToAndFromProtoSpec.leaf(read(TestPipeline.create()));
+    ToAndFromProtoSpec readMultipleInAndOut =
+        ToAndFromProtoSpec.leaf(multiMultiParDo(TestPipeline.create()));
+    TestPipeline compositeReadPipeline = TestPipeline.create();
+    ToAndFromProtoSpec compositeRead =
+        ToAndFromProtoSpec.composite(
+            countingInput(compositeReadPipeline),
+            ToAndFromProtoSpec.leaf(read(compositeReadPipeline)));
     return ImmutableList.<ToAndFromProtoSpec>builder()
-        .add(ToAndFromProtoSpec.leaf(read(pipeline)))
-        .add(ToAndFromProtoSpec.leaf(multiMultiParDo(pipeline)))
-        .add(
-            ToAndFromProtoSpec.composite(
-                countingInput(pipeline), ToAndFromProtoSpec.leaf(read(pipeline))))
+        .add(readLeaf)
+        .add(readMultipleInAndOut)
+        .add(compositeRead)
         // TODO: Composite with multiple children
         // TODO: Composite with a composite child
         .build();

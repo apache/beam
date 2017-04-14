@@ -53,13 +53,19 @@ public class PTransforms {
       throws IOException {
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
     for (Map.Entry<TupleTag<?>, PValue> taggedInput : application.getInputs().entrySet()) {
-      checkArgument(taggedInput.getValue() instanceof PCollection);
+      checkArgument(
+          taggedInput.getValue() instanceof PCollection,
+          "Unexpected input type %s",
+          taggedInput.getValue().getClass());
       transformBuilder.putInputs(
           toProto(taggedInput.getKey()),
           components.registerPCollection((PCollection<?>) taggedInput.getValue()));
     }
     for (Map.Entry<TupleTag<?>, PValue> taggedOutput : application.getOutputs().entrySet()) {
-      checkArgument(taggedOutput.getValue() instanceof PCollection);
+      checkArgument(
+          taggedOutput.getValue() instanceof PCollection,
+          "Unexpected output type %s",
+          taggedOutput.getValue().getClass());
       transformBuilder.putOutputs(
           toProto(taggedOutput.getKey()),
           components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
