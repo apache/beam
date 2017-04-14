@@ -874,18 +874,17 @@ class BigQueryWrapper(object):
     dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
     location = None
 
-    # Get location of source dataset
-    try:
-      tr = source_table_reference
-      if tr is not None:
-        if tr.projectId is None:
-          table_project_id = project_id
-        else:
-          table_project_id = tr.projectId
+    # If given, use source table location as location for the temp dataset
+    tr = source_table_reference
+    if tr is not None:
+      if tr.projectId is None:
+        # if the source table has no projectId, assume the given project_id  
+        source_project_id = project_id
+      else:
+        source_project_id = tr.projectId
 
-        table = self._get_table(table_project_id, tr.datasetId, tr.tableId)
-        location = table.location
-    except HttpError as exn: pass
+      table = self._get_table(source_project_id, tr.datasetId, tr.tableId)
+      location = table.location
 
     # Check if dataset exists to make sure that the temporary id is unique
     try:
@@ -899,8 +898,9 @@ class BigQueryWrapper(object):
     except HttpError as exn:
       if exn.status_code == 404:
         logging.warning(
-            'Dataset %s:%s does not exist so we will create it as temporary',
-            project_id, dataset_id)
+            'Dataset %s:%s does not exist so we will create it as temporary '
+            'with location=%s',
+            project_id, dataset_id, location)
         self.get_or_create_dataset(project_id, dataset_id, location=location)
       else:
         raise
