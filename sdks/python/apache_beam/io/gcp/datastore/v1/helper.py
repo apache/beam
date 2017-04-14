@@ -62,8 +62,7 @@ def key_comparator(k1, k2):
   k2_path = next(k2_iter, None)
   if k2_path:
     return -1
-  else:
-    return 0
+  return 0
 
 
 def compare_path(p1, p2):
@@ -99,8 +98,7 @@ def str_compare(s1, s2):
     return 0
   elif s1 < s2:
     return -1
-  else:
-    return 1
+  return 1
 
 
 def get_datastore(project):
@@ -131,13 +129,9 @@ def make_partition(project, namespace):
 def retry_on_rpc_error(exception):
   """A retry filter for Cloud Datastore RPCErrors."""
   if isinstance(exception, RPCError):
-    if exception.code >= 500:
-      return True
-    else:
-      return False
-  else:
-    # TODO(vikasrk): Figure out what other errors should be retried.
-    return False
+    return exception.code >= 500
+  # TODO(vikasrk): Figure out what other errors should be retried.
+  return False
 
 
 def fetch_entities(project, namespace, query, datastore):

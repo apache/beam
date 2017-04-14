@@ -198,9 +198,9 @@ class _TextSource(filebasedsource.FileBasedSource):
         if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
-        else:
-          # Found a '\n'. Accepting that as the next separator.
-          return (next_lf, next_lf + 1)
+
+        # Found a '\n'. Accepting that as the next separator.
+        return (next_lf, next_lf + 1)
 
       current_pos = len(read_buffer.data)
 
@@ -256,10 +256,9 @@ class _TextSource(filebasedsource.FileBasedSource):
       # Current record should not contain the separator.
       return (read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
               sep_bounds[1] - record_start_position_in_buffer)
-    else:
-      # Current record should contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
-              sep_bounds[1] - record_start_position_in_buffer)
+    # Current record should contain the separator.
+    return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
+            sep_bounds[1] - record_start_position_in_buffer)
 
 
 class _TextSink(fileio.FileSink):

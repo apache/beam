@@ -42,9 +42,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, int) or isinstance(start, long)
+    assert isinstance(start, (int, long))
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, int) or isinstance(end, long)
+      assert isinstance(end, (int, long))
 
     assert start <= end
 
@@ -91,8 +91,8 @@ class OffsetRangeTracker(iobase.RangeTracker):
           'The first record [starting at %d] must be at a split point' %
           record_start)
 
-    if (split_point and self._offset_of_last_split_point is not -1 and
-        record_start is self._offset_of_last_split_point):
+    if (split_point and self._offset_of_last_split_point != -1 and
+        record_start == self._offset_of_last_split_point):
       raise ValueError(
           'Record at a split point has same offset as the previous split '
           'point: %d' % record_start)
@@ -354,8 +354,7 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if self._stop_position is None or position < self._stop_position:
         self._last_claim = position
         return True
-      else:
-        return False
+      return False
 
   def position_at_fraction(self, fraction):
     return self.fraction_to_position(
@@ -373,15 +372,13 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
             position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
-      else:
-        return None
+      return None
 
   def fraction_consumed(self):
     if self._last_claim is self.UNSTARTED:
       return 0
-    else:
-      return self.position_to_fraction(
-          self._last_claim, self._start_position, self._stop_position)
+    return self.position_to_fraction(
+        self._last_claim, self._start_position, self._stop_position)
 
   def position_to_fraction(self, pos, start, end):
     """

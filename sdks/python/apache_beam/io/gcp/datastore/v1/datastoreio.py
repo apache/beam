@@ -253,7 +253,7 @@ class ReadFromDatastore(PTransform):
     query = helper.make_latest_timestamp_query(namespace)
     req = helper.make_request(project, namespace, query)
     resp = datastore.run_query(req)
-    if len(resp.batch.entity_results) == 0:
+    if not resp.batch.entity_results:
       raise RuntimeError("Datastore total statistics unavailable.")
 
     entity = resp.batch.entity_results[0].entity
@@ -281,7 +281,7 @@ class ReadFromDatastore(PTransform):
 
     req = helper.make_request(project, namespace, kind_stats_query)
     resp = datastore.run_query(req)
-    if len(resp.batch.entity_results) == 0:
+    if not resp.batch.entity_results:
       raise RuntimeError("Datastore statistics for kind %s unavailable" % kind)
 
     entity = resp.batch.entity_results[0].entity
