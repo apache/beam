@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 
+from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -43,7 +44,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.value_provider import RuntimeValueProviderError
 
 
 class DataflowRunner(PipelineRunner):
@@ -480,7 +480,7 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
-      except RuntimeValueProviderError:
+      except error.RuntimeValueProviderError:
         # Size estimation is best effort, and this error is by value provider.
         logging.info(
             'Could not estimate size of source %r due to ' + \

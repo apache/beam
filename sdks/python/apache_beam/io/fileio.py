@@ -156,12 +156,10 @@ class FileSink(iobase.Sink):
                  or if compression_type is not member of CompressionTypes.
       ValueError: if shard_name_template is not of expected format.
     """
-    if not (isinstance(file_path_prefix, basestring)
-            or isinstance(file_path_prefix, ValueProvider)):
+    if not isinstance(file_path_prefix, (basestring, ValueProvider)):
       raise TypeError('file_path_prefix must be a string or ValueProvider;'
                       'got %r instead' % file_path_prefix)
-    if not (isinstance(file_name_suffix, basestring)
-            or isinstance(file_name_suffix, ValueProvider)):
+    if not isinstance(file_name_suffix, (basestring, ValueProvider)):
       raise TypeError('file_name_suffix must be a string or ValueProvider;'
                       'got %r instead' % file_name_suffix)
 

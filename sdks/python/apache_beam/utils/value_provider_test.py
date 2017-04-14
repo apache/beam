@@ -132,7 +132,7 @@ class ValueProviderTests(unittest.TestCase):
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
     RuntimeValueProvider.set_runtime_options(
-        options._options_id, {'vp_arg': 'abc', 'vp_pos_arg':'3.2'})
+        None, {'vp_arg': 'abc', 'vp_pos_arg':'3.2'})
     self.assertTrue(options.vp_arg.is_accessible())
     self.assertEqual(options.vp_arg.get(), 'abc')
     self.assertTrue(options.vp_arg2.is_accessible())
@@ -143,23 +143,3 @@ class ValueProviderTests(unittest.TestCase):
     self.assertIsNone(options.vp_arg4.get())
     self.assertTrue(options.vp_pos_arg.is_accessible())
     self.assertEqual(options.vp_pos_arg.get(), 1.2)
-
-  def test_options_id(self):
-    class Opt1(PipelineOptions):
-      @classmethod
-      def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--arg1')
-
-    class Opt2(PipelineOptions):
-      @classmethod
-      def _add_argparse_args(cls, parser):
-        parser.add_value_provider_argument('--arg2')
-
-    opt1 = Opt1()
-    opt2 = Opt2()
-    self.assertFalse(opt1.arg1.is_accessible())
-    self.assertFalse(opt2.arg2.is_accessible())
-    RuntimeValueProvider.set_runtime_options(
-        opt1.arg1.options_id, {'arg1': 'val1'})
-    self.assertTrue(opt1.arg1.is_accessible())
-    self.assertFalse(opt2.arg2.is_accessible())

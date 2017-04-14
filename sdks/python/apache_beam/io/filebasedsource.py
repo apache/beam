@@ -78,8 +78,7 @@ class FileBasedSource(iobase.BoundedSource):
       IOError: when the file pattern specified yields an empty result.
     """
 
-    if (not (isinstance(file_pattern, basestring)
-             or isinstance(file_pattern, ValueProvider))):
+    if not isinstance(file_pattern, (basestring, ValueProvider)):
       raise TypeError('%s: file_pattern must be of type string'
                       ' or ValueProvider; got %r instead'
                       % (self.__class__.__name__, file_pattern))
