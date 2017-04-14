@@ -112,7 +112,6 @@
               <shadeTestJar>true</shadeTestJar>
               <artifactSet>
                 <includes>
-                  <include>com.google.cloud.bigtable:bigtable-client-core</include>
                   <include>com.google.guava:guava</include>
                   <include>org.apache.beam:beam-runners-core-construction-java</include>
                 </includes>
@@ -142,17 +141,6 @@
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
                   <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.thirdparty</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.cloud.bigtable</pattern>
-                  <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.cloud.bigtable</shadedPattern>
-                  <excludes>
-                    <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
-                    <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>
-                    <exclude>com.google.cloud.bigtable.config.RetryOptions*</exclude>
-                    <exclude>com.google.cloud.bigtable.grpc.BigtableClusterName</exclude>
-                    <exclude>com.google.cloud.bigtable.grpc.BigtableTableName</exclude>
-                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.beam.runners.core</pattern>
