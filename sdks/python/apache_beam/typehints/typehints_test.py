@@ -49,7 +49,7 @@ def check_type_hints(f):
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
     hints = get_type_hints(f)
-    if hints.input_types:
+    if hints.input_types:  # pylint: disable=too-many-nested-blocks
       input_hints = getcallargs_forhints(
           f, *hints.input_types[0], **hints.input_types[1])
       inputs = inspect.getcallargs(f, *args, **kwargs)

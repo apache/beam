@@ -463,7 +463,7 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
-  def __init__(self, label='ToList'):
+  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
     super(ToList, self).__init__(label)
 
   def expand(self, pcoll):
@@ -497,7 +497,7 @@ class ToDict(ptransform.PTransform):
   will be present in the resulting dict.
   """
 
-  def __init__(self, label='ToDict'):
+  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
     super(ToDict, self).__init__(label)
 
   def expand(self, pcoll):
