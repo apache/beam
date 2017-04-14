@@ -20,6 +20,7 @@ package org.apache.beam.runners.core;
 import java.io.IOException;
 import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -41,15 +42,13 @@ public interface ExecutionContext {
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
-   * is called.
+   * {@link DoFn.Context#output(TupleTag, Object)} is called.
    */
   void noteOutput(WindowedValue<?> output);
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link org.apache.beam.sdk.transforms.DoFn.Context#output}
-   * is called.
+   * {@link DoFn.Context#output(TupleTag, Object)} is called.
    */
   void noteOutput(TupleTag<?> tag, WindowedValue<?> output);
 
