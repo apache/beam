@@ -61,7 +61,7 @@ public class SerializablePipelineOptions implements Externalizable {
         .as(ApexPipelineOptions.class);
 
     if (FILE_SYSTEMS_INTIIALIZED.compareAndSet(false, true)) {
-      IOChannelUtils.registerIOFactories(pipelineOptions);
+      IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
       FileSystems.setDefaultConfigInWorkers(pipelineOptions);
     }
   }
