@@ -162,9 +162,8 @@ class IOTypeHints(object):
       return self
     elif not self:
       return hints
-    else:
-      return IOTypeHints(self.input_types or hints.input_types,
-                         self.output_types or hints.output_types)
+    return IOTypeHints(self.input_types or hints.input_types,
+                       self.output_types or hints.output_types)
 
   def __nonzero__(self):
     return bool(self.input_types or self.output_types)
@@ -220,8 +219,7 @@ def _positional_arg_hints(arg, hints):
   """
   if isinstance(arg, list):
     return typehints.Tuple[[_positional_arg_hints(a, hints) for a in arg]]
-  else:
-    return hints.get(arg, typehints.Any)
+  return hints.get(arg, typehints.Any)
 
 
 def _unpack_positional_arg_hints(arg, hint):
@@ -241,8 +239,7 @@ def _unpack_positional_arg_hints(arg, hint):
                    for a, t in zip(arg, hint.tuple_types))
     else:
       return (typehints.Any,) * len(arg)
-  else:
-    return hint
+  return hint
 
 
 def getcallargs_forhints(func, *typeargs, **typekwargs):
@@ -483,11 +480,10 @@ def _interleave_type_check(type_constraint, var_name=None):
   def wrapper(gen):
     if isinstance(gen, GeneratorWrapper):
       return gen
-    else:
-      return GeneratorWrapper(
-          gen,
-          lambda x: _check_instance_type(type_constraint, x, var_name)
-      )
+    return GeneratorWrapper(
+        gen,
+        lambda x: _check_instance_type(type_constraint, x, var_name)
+    )
   return wrapper
 
 
@@ -517,8 +513,7 @@ class GeneratorWrapper(object):
       return self.__next__()
     elif attr == '__iter__':
       return self.__iter__()
-    else:
-      return getattr(self.internal_gen, attr)
+    return getattr(self.internal_gen, attr)
 
   def next(self):
     next_val = next(self.internal_gen)

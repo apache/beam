@@ -41,9 +41,8 @@ def check_or_interleave(hint, value, var):
     return value
   elif isinstance(hint, typehints.IteratorHint.IteratorTypeConstraint):
     return _interleave_type_check(hint, var)(value)
-  else:
-    _check_instance_type(hint, value, var)
-    return value
+  _check_instance_type(hint, value, var)
+  return value
 
 
 def check_type_hints(f):

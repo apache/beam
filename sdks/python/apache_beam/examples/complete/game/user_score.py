@@ -172,9 +172,6 @@ class WriteToBigQuery(beam.PTransform):
 
 
 class UserScore(beam.PTransform):
-  def __init__(self):
-    super(UserScore, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'ParseGameEvent' >> beam.ParDo(ParseEventFn())

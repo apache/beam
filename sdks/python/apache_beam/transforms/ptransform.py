@@ -83,8 +83,7 @@ class _SetInputPValues(_PValueishTransform):
   def visit(self, node, replacements):
     if id(node) in replacements:
       return replacements[id(node)]
-    else:
-      return super(_SetInputPValues, self).visit(node, replacements)
+    return super(_SetInputPValues, self).visit(node, replacements)
 
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
@@ -107,8 +106,7 @@ class _MaterializePValues(_PValueishTransform):
       return self._pvalue_cache.get_unwindowed_pvalue(node)
     elif isinstance(node, pvalue.DoOutputsTuple):
       return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
-    else:
-      return super(_MaterializePValues, self).visit(node)
+    return super(_MaterializePValues, self).visit(node)
 
 
 class GetPValues(_PValueishTransform):
@@ -340,8 +338,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     """Used to compose PTransforms, e.g., ptransform1 | ptransform2."""
     if isinstance(right, PTransform):
       return ChainedPTransform(self, right)
-    else:
-      return NotImplemented
+    return NotImplemented
 
   def __ror__(self, left, label=None):
     """Used to apply this PTransform to non-PValues, e.g., a tuple."""
@@ -380,12 +377,11 @@ class PTransform(WithTypeHints, HasDisplayData):
     result = p.apply(self, pvalueish, label)
     if deferred:
       return result
-    else:
-      # Get a reference to the runners internal cache, otherwise runner may
-      # clean it after run.
-      cache = p.runner.cache
-      p.run().wait_until_finish()
-      return _MaterializePValues(cache).visit(result)
+    # Get a reference to the runners internal cache, otherwise runner may
+    # clean it after run.
+    cache = p.runner.cache
+    p.run().wait_until_finish()
+    return _MaterializePValues(cache).visit(result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.
@@ -431,8 +427,7 @@ class ChainedPTransform(PTransform):
       # Create a flat list rather than a nested tree of composite
       # transforms for better monitoring, etc.
       return ChainedPTransform(*(self._parts + (right,)))
-    else:
-      return NotImplemented
+    return NotImplemented
 
   def expand(self, pval):
     return reduce(operator.or_, self._parts, pval)
@@ -521,8 +516,8 @@ class PTransformWithSideInputs(PTransform):
       def element_type(side_input):
         if isinstance(side_input, pvalue.AsSideInput):
           return side_input.element_type
-        else:
-          return instance_to_type(side_input)
+        return instance_to_type(side_input)
+
       arg_types = [pvalueish.element_type] + [element_type(v) for v in args]
       kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
       argspec_fn = self.process_argspec_fn()
@@ -598,8 +593,7 @@ class CallablePTransform(PTransform):
     if self._args:
       return '%s(%s)' % (
           label_from_callable(self.fn), label_from_callable(self._args[0]))
-    else:
-      return label_from_callable(self.fn)
+    return label_from_callable(self.fn)
 
 
 def ptransform_fn(fn):
@@ -652,10 +646,8 @@ def label_from_callable(fn):
       return '<lambda at %s:%s>' % (
           os.path.basename(fn.func_code.co_filename),
           fn.func_code.co_firstlineno)
-    else:
-      return fn.__name__
-  else:
-    return str(fn)
+    return fn.__name__
+  return str(fn)
 
 
 class _NamedPTransform(PTransform):
