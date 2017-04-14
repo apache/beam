@@ -570,9 +570,9 @@ message StateKey {
 
 // A logical byte stream which can be continued using the state API.
 message ContinuableStream {
-  // If specified, represents a token which can be used with the state API
-  // to get the next chunk of this logical byte stream. The end of the logical
-  // byte stream is signalled by this field being unset.
+  // (Optional) If specified, represents a token which can be used with the
+  // state API to get the next chunk of this logical byte stream. The end of
+  // the logical byte stream is signalled by this field being unset.
   bytes continuation_token = 1;
 
   // Represents a part of a logical byte stream. Elements within
