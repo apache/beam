@@ -30,7 +30,6 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -229,26 +228,38 @@ public class Pipeline {
   }
 
   private void replace(final PTransformOverride override) {
-    final Collection<Node> matches = new ArrayList<>();
+    final Set<Node> matches = new HashSet<>();
+    final Set<Node> freedNodes = new HashSet<>();
     transforms.visit(
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
+            if (!node.isRootNode() && freedNodes.contains(node.getEnclosingNode())) {
+              // This node will be freed because its parent will be freed.
+              freedNodes.add(node);
+              return CompositeBehavior.ENTER_TRANSFORM;
+            }
             if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
-              // This node will be replaced. It should not be visited.
-              return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
+              // This node will be freed. When we visit any of its children, they will also be freed
+              freedNodes.add(node);
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            if (override.getMatcher().matches(node.toAppliedPTransform())) {
+            if (freedNodes.contains(node.getEnclosingNode())) {
+              freedNodes.add(node);
+            } else if (override.getMatcher().matches(node.toAppliedPTransform())) {
               matches.add(node);
+              freedNodes.add(node);
             }
           }
         });
+    for (Node freedNode : freedNodes) {
+      usedFullNames.remove(freedNode.getFullName());
+    }
     for (Node match : matches) {
       applyReplacement(match, override.getOverrideFactory());
     }
@@ -486,9 +497,6 @@ public class Pipeline {
       void applyReplacement(
           Node original,
           PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
-    // Names for top-level transforms have been assigned. Any new collisions are within a node
-    // and its replacement.
-    getOptions().setStableUniqueNames(CheckEnabled.OFF);
     PTransform<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform((TransformT) original.getTransform());
     if (replacement == original.getTransform()) {

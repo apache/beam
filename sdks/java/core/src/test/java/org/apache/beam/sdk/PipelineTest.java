@@ -19,6 +19,7 @@ package org.apache.beam.sdk;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
@@ -29,8 +30,10 @@ import static org.junit.Assert.fail;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.io.CountingInput;
@@ -51,6 +54,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -382,6 +386,79 @@ public class PipelineTest {
                   }
                 },
                 new UnboundedCountingInputOverride())));
+  }
+
+  @Test
+  public void testReplacedNames() {
+    final PCollection<String> originalInput = pipeline.apply(Create.of("foo", "bar", "baz"));
+    class OriginalTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementOverrideFactory
+        implements PTransformOverrideFactory<
+            PCollection<String>, PCollection<Long>, OriginalTransform> {
+
+      @Override
+      public PTransform<PCollection<String>, PCollection<Long>> getReplacementTransform(
+          OriginalTransform transform) {
+        return new ReplacementTransform();
+      }
+
+      @Override
+      public PCollection<String> getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+        return originalInput;
+      }
+
+      @Override
+      public Map<PValue, ReplacementOutput> mapOutputs(
+          Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+        return Collections.<PValue, ReplacementOutput>singletonMap(
+            newOutput,
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(
+                    Iterables.getOnlyElement(outputs.values())),
+                    TaggedPValue.ofExpandedValue(newOutput)));
+      }
+    }
+
+    class OriginalMatcher implements PTransformMatcher {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform() instanceof OriginalTransform;
+      }
+    }
+
+    originalInput.apply("original_application", new OriginalTransform());
+    pipeline.replaceAll(
+        Collections.singletonList(
+            PTransformOverride.of(new OriginalMatcher(), new ReplacementOverrideFactory())));
+    final Set<String> names = new HashSet<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              names.add(node.getFullName());
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            names.add(node.getFullName());
+          }
+        });
+
+    assertThat(names, hasItem("original_application/custom_name"));
+    assertThat(names, not(hasItem("original_application/custom_name2")));
   }
 
   static class BoundedCountingInputOverride

@@ -254,13 +254,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T value) {
-      sideOutputWithTimestamp(tag, value, element.getTimestamp());
+    public <T> void output(TupleTag<T> tag, T value) {
+      outputWithTimestamp(tag, value, element.getTimestamp());
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
-      output.sideOutputWindowedValue(
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
+      output.outputWindowedValue(
           tag, value, timestamp, element.getWindows(), element.getPane());
       noteOutput();
     }

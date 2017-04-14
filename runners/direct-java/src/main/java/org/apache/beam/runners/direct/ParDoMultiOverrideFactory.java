@@ -192,7 +192,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
               TupleTagList.of(underlyingParDo.getMainOutputTag())
-                  .and(underlyingParDo.getSideOutputTags().getAll()),
+                  .and(underlyingParDo.getAdditionalOutputTags().getAll()),
               input.getWindowingStrategy(),
               input.isBounded());
 

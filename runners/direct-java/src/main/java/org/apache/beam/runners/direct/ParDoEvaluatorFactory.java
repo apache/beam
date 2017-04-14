@@ -80,7 +80,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 doFn,
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
-                transform.getSideOutputTags().getAll());
+                transform.getAdditionalOutputTags().getAll());
     return evaluator;
   }
 
@@ -103,7 +103,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> doFn,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags)
+      List<TupleTag<?>> additionalOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -119,7 +119,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             inputBundleKey,
             sideInputs,
             mainOutputTag,
-            sideOutputTags,
+            additionalOutputTags,
             stepContext,
             fnManager.<InputT, OutputT>get(),
             fnManager),
@@ -131,7 +131,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
@@ -147,7 +147,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           key,
           sideInputs,
           mainOutputTag,
-          sideOutputTags,
+          additionalOutputTags,
           pcollections(application.getOutputs()));
     } catch (Exception e) {
       try {

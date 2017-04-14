@@ -267,7 +267,7 @@ public class ParDoTranslatorTest {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
     final TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    final TupleTag<Void> sideOutputTag = new TupleTag<>("sideOutput");
+    final TupleTag<Void> additionalOutputTag = new TupleTag<>("output");
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -288,10 +288,10 @@ public class ParDoTranslatorTest {
             .withSideInputs(sideInput1)
             .withSideInputs(sideInputUnread)
             .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
-    outputs.get(sideOutputTag).setCoder(VoidCoder.of());
+    outputs.get(additionalOutputTag).setCoder(VoidCoder.of());
     ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
 
     HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
@@ -312,12 +312,12 @@ public class ParDoTranslatorTest {
     private static final long serialVersionUID = 1L;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
-    final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
+    final List<TupleTag<String>> additionalOutputTupleTags = new ArrayList<>();
 
     public TestMultiOutputWithSideInputsFn(List<PCollectionView<Integer>> sideInputViews,
-        List<TupleTag<String>> sideOutputTupleTags) {
+        List<TupleTag<String>> additionalOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
-      this.sideOutputTupleTags.addAll(sideOutputTupleTags);
+      this.additionalOutputTupleTags.addAll(additionalOutputTupleTags);
     }
 
     @ProcessElement
@@ -334,9 +334,9 @@ public class ParDoTranslatorTest {
         value += ": " + sideInputValues;
       }
       c.output(value);
-      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
-                     sideOutputTupleTag.getId() + ": " + value);
+      for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
+        c.output(additionalOutputTupleTag,
+                     additionalOutputTupleTag.getId() + ": " + value);
       }
     }
 

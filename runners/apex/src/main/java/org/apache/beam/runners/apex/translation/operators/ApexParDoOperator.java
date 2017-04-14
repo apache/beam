@@ -88,7 +88,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Bind(JavaSerializer.class)
   private final TupleTag<OutputT> mainOutputTag;
   @Bind(JavaSerializer.class)
-  private final List<TupleTag<?>> sideOutputTags;
+  private final List<TupleTag<?>> additionalOutputTags;
   @Bind(JavaSerializer.class)
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
@@ -108,15 +108,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
   private transient SideInputHandler sideInputHandler;
-  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>> sideOutputPortMapping =
-      Maps.newHashMapWithExpectedSize(5);
+  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>>
+      additionalOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
   private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
       Coder<WindowedValue<InputT>> inputCoder,
@@ -125,15 +125,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
-    this.sideOutputTags = sideOutputTags;
+    this.additionalOutputTags = additionalOutputTags;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
     this.sideInputStateInternals = new StateInternalsProxy<>(
         stateBackend.newStateInternalsFactory(VoidCoder.of()));
 
-    if (sideOutputTags.size() > sideOutputPorts.length) {
-      String msg = String.format("Too many side outputs (currently only supporting %s).",
-          sideOutputPorts.length);
+    if (additionalOutputTags.size() > additionalOutputPorts.length) {
+      String msg = String.format("Too many additional outputs (currently only supporting %s).",
+          additionalOutputPorts.length);
       throw new UnsupportedOperationException(msg);
     }
 
@@ -148,7 +148,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.pipelineOptions = null;
     this.doFn = null;
     this.mainOutputTag = null;
-    this.sideOutputTags = null;
+    this.additionalOutputTags = null;
     this.windowingStrategy = null;
     this.sideInputs = null;
     this.pushedBack = null;
@@ -218,29 +218,31 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   public final transient DefaultOutputPort<ApexStreamTuple<?>> output = new DefaultOutputPort<>();
 
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput1 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput1 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput2 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput2 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput3 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput3 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput4 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput4 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput5 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput5 =
       new DefaultOutputPort<>();
 
-  public final transient DefaultOutputPort<?>[] sideOutputPorts = {sideOutput1, sideOutput2,
-      sideOutput3, sideOutput4, sideOutput5};
+  public final transient DefaultOutputPort<?>[] additionalOutputPorts = {
+    additionalOutput1, additionalOutput2, additionalOutput3, additionalOutput4, additionalOutput5
+  };
 
   @Override
   public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple) {
-    DefaultOutputPort<ApexStreamTuple<?>> sideOutputPort = sideOutputPortMapping.get(tag);
-    if (sideOutputPort != null) {
-      sideOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
+    DefaultOutputPort<ApexStreamTuple<?>> additionalOutputPort =
+        additionalOutputPortMapping.get(tag);
+    if (additionalOutputPort != null) {
+      additionalOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
     } else {
       output.emit(ApexStreamTuple.DataTuple.of(tuple));
     }
@@ -306,11 +308,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       sideInputReader = sideInputHandler;
     }
 
-    for (int i = 0; i < sideOutputTags.size(); i++) {
+    for (int i = 0; i < additionalOutputTags.size(); i++) {
       @SuppressWarnings("unchecked")
       DefaultOutputPort<ApexStreamTuple<?>> port = (DefaultOutputPort<ApexStreamTuple<?>>)
-          sideOutputPorts[i];
-      sideOutputPortMapping.put(sideOutputTags.get(i), port);
+          additionalOutputPorts[i];
+      additionalOutputPortMapping.put(additionalOutputTags.get(i), port);
     }
 
     NoOpStepContext stepContext = new NoOpStepContext() {
@@ -332,7 +334,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         sideInputReader,
         this,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         new NoOpAggregatorFactory(),
         windowingStrategy

@@ -90,7 +90,7 @@ public class HIFIOElasticIT implements Serializable {
   public void testHifIOWithElastic() throws SecurityException, IOException {
     // Expected hashcode is evaluated during insertion time one time and hardcoded here.
     final long expectedRowCount = 1000L;
-    String expectedHashCode = "ed36c09b5e24a95fd8d3cc711a043a85320bb47d";
+    String expectedHashCode = "42e254c8689050ed0a617ff5e80ea392";
     Configuration conf = getConfiguration(options);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
@@ -155,7 +155,7 @@ public class HIFIOElasticIT implements Serializable {
    */
   @Test
   public void testHifIOWithElasticQuery() {
-    String expectedHashCode = "83c108ff81e87b6f3807c638e6bb9a9e3d430dc7";
+    String expectedHashCode = "d7a7e4e42c2ca7b83ef7c1ad1ebce000";
     Long expectedRecordsCount = 1L;
     Configuration conf = getConfiguration(options);
     String query = "{"

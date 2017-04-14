@@ -64,10 +64,10 @@ public class SimpleOldDoFnRunnerTest {
 
   private DoFnRunner<String, String> createRunner(OldDoFn<String, String> fn) {
     // Pass in only necessary parameters for the test
-    List<TupleTag<?>> sideOutputTags = Arrays.asList();
+    List<TupleTag<?>> additionalOutputTags = Arrays.asList();
     StepContext context = mock(StepContext.class);
     return new SimpleOldDoFnRunner<>(
-          null, fn, null, null, null, sideOutputTags, context, null, null);
+        null, fn, null, null, null, additionalOutputTags, context, null, null);
   }
 
   static class ThrowingDoFn extends OldDoFn<String, String> {

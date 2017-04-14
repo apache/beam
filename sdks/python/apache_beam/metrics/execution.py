@@ -129,8 +129,7 @@ class _MetricsEnvironment(object):
     index = len(self.PER_THREAD.container) - 1
     if index < 0:
       return None
-    else:
-      return self.PER_THREAD.container[index]
+    return self.PER_THREAD.container[index]
 
   def set_current_container(self, container):
     self.set_container_stack()

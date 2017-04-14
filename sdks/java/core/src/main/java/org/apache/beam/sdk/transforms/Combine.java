@@ -2191,7 +2191,7 @@ public class Combine {
                 c.output(kv);
               } else {
                 int nonce = counter++ % spread;
-                c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                c.output(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
               }
             }
           })

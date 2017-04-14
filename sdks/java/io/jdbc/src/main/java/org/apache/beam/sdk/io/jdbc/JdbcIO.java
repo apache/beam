@@ -31,6 +31,7 @@ import java.util.Random;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -135,6 +136,7 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
  */
+@Experimental
 public class JdbcIO {
   /**
    * Read data from a JDBC datasource.

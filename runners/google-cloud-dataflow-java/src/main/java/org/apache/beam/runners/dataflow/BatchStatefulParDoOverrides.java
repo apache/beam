@@ -175,7 +175,7 @@ public class BatchStatefulParDoOverrides {
               ParDo.of(new BatchStatefulDoFn<K, InputT, OutputT>(fn))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
-                      originalParDo.getMainOutputTag(), originalParDo.getSideOutputTags());
+                      originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
 
       return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
     }

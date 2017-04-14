@@ -47,7 +47,7 @@ public class FlinkNoOpStepContext implements StepContext {
   }
 
   @Override
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
+  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
 
   }
 

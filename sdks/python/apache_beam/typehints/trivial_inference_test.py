@@ -130,8 +130,7 @@ class TrivialInferenceTest(unittest.TestCase):
     def some_fn(v):
       if v:
         return 1
-      else:
-        return 2
+      return 2
 
     self.assertReturnType(int, some_fn)
 

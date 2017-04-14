@@ -82,7 +82,7 @@ public final class PCollectionTupleTest implements Serializable {
 
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main") {};
     TupleTag<Integer> emptyOutputTag = new TupleTag<Integer>("empty") {};
-    final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>("side") {};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("extra") {};
 
     PCollection<Integer> mainInput = pipeline
         .apply(Create.of(inputs));
@@ -91,14 +91,14 @@ public final class PCollectionTupleTest implements Serializable {
         .of(new DoFn<Integer, Integer>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
-            c.sideOutput(sideOutputTag, c.element());
+            c.output(additionalOutputTag, c.element());
           }})
-        .withOutputTags(emptyOutputTag, TupleTagList.of(sideOutputTag)));
+        .withOutputTags(emptyOutputTag, TupleTagList.of(additionalOutputTag)));
     assertNotNull("outputs.getPipeline()", outputs.getPipeline());
     outputs = outputs.and(mainOutputTag, mainInput);
 
     PAssert.that(outputs.get(mainOutputTag)).containsInAnyOrder(inputs);
-    PAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
+    PAssert.that(outputs.get(additionalOutputTag)).containsInAnyOrder(inputs);
     PAssert.that(outputs.get(emptyOutputTag)).empty();
 
     pipeline.run();

@@ -81,13 +81,14 @@ class SdkComponents {
    * ID for the {@link PCollection}. Multiple registrations of the same {@link PCollection} will
    * return the same unique ID.
    */
-  String registerPCollection(PCollection<?> pCollection) {
+  String registerPCollection(PCollection<?> pCollection) throws IOException {
     String existing = pCollectionIds.get(pCollection);
     if (existing != null) {
       return existing;
     }
     String uniqueName = uniqify(pCollection.getName(), pCollectionIds.values());
     pCollectionIds.put(pCollection, uniqueName);
+    componentsBuilder.putPcollections(uniqueName, PCollections.toProto(pCollection, this));
     return uniqueName;
   }
 
@@ -96,7 +97,7 @@ class SdkComponents {
    * unique ID for the {@link WindowingStrategy}. Multiple registrations of the same {@link
    * WindowingStrategy} will return the same unique ID.
    */
-  String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) {
+  String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) throws IOException {
     String existing = windowingStrategyIds.get(windowingStrategy);
     if (existing != null) {
       return existing;
@@ -108,6 +109,9 @@ class SdkComponents {
             NameUtils.approximateSimpleName(windowingStrategy.getWindowFn()));
     String name = uniqify(baseName, windowingStrategyIds.values());
     windowingStrategyIds.put(windowingStrategy, name);
+    RunnerApi.WindowingStrategy windowingStrategyProto =
+        WindowingStrategies.toProto(windowingStrategy, this);
+    componentsBuilder.putWindowingStrategies(name, windowingStrategyProto);
     return name;
   }
 

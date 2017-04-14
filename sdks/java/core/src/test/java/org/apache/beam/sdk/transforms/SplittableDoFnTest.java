@@ -218,12 +218,12 @@ public class SplittableDoFnTest {
 
   private static class SDFWithSideInputsAndOutputs extends DoFn<Integer, String> {
     private final PCollectionView<String> sideInput;
-    private final TupleTag<String> sideOutput;
+    private final TupleTag<String> additionalOutput;
 
     private SDFWithSideInputsAndOutputs(
-        PCollectionView<String> sideInput, TupleTag<String> sideOutput) {
+        PCollectionView<String> sideInput, TupleTag<String> additionalOutput) {
       this.sideInput = sideInput;
-      this.sideOutput = sideOutput;
+      this.additionalOutput = additionalOutput;
     }
 
     @ProcessElement
@@ -231,7 +231,7 @@ public class SplittableDoFnTest {
       checkState(tracker.tryClaim(tracker.currentRestriction().getFrom()));
       String side = c.sideInput(sideInput);
       c.output("main:" + side + ":" + c.element());
-      c.sideOutput(sideOutput, "side:" + side + ":" + c.element());
+      c.output(additionalOutput, "additional:" + side + ":" + c.element());
     }
 
     @GetInitialRestriction
@@ -247,21 +247,22 @@ public class SplittableDoFnTest {
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
     TupleTag<String> mainOutputTag = new TupleTag<>("main");
-    TupleTag<String> sideOutputTag = new TupleTag<>("side");
+    TupleTag<String> additionalOutputTag = new TupleTag<>("additional");
 
     PCollectionTuple res =
         p.apply("input", Create.of(0, 1, 2))
             .apply(
-                ParDo.of(new SDFWithSideInputsAndOutputs(sideInput, sideOutputTag))
+                ParDo.of(new SDFWithSideInputsAndOutputs(sideInput, additionalOutputTag))
                     .withSideInputs(sideInput)
-                    .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+                    .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
     res.get(mainOutputTag).setCoder(StringUtf8Coder.of());
-    res.get(sideOutputTag).setCoder(StringUtf8Coder.of());
+    res.get(additionalOutputTag).setCoder(StringUtf8Coder.of());
 
     PAssert.that(res.get(mainOutputTag))
         .containsInAnyOrder(Arrays.asList("main:foo:0", "main:foo:1", "main:foo:2"));
-    PAssert.that(res.get(sideOutputTag))
-        .containsInAnyOrder(Arrays.asList("side:foo:0", "side:foo:1", "side:foo:2"));
+    PAssert.that(res.get(additionalOutputTag))
+        .containsInAnyOrder(
+            Arrays.asList("additional:foo:0", "additional:foo:1", "additional:foo:2"));
 
     p.run();
   }
