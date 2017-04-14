@@ -120,7 +120,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             doFn,
             application.getTransform().getUnderlyingParDo().getSideInputs(),
             application.getTransform().getUnderlyingParDo().getMainOutputTag(),
-            application.getTransform().getUnderlyingParDo().getSideOutputTags().getAll());
+            application.getTransform().getUnderlyingParDo().getAdditionalOutputTags().getAll());
 
     return new StatefulParDoEvaluator<>(delegateEvaluator);
   }

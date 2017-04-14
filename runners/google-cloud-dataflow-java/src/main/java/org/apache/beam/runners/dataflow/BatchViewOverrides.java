@@ -494,7 +494,7 @@ class BatchViewOverrides {
        */
       private void outputMetadataRecordForSize(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value, long uniqueKeyCount) {
-        c.sideOutput(outputForSize,
+        c.output(outputForSize,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), uniqueKeyCount)));
@@ -503,7 +503,7 @@ class BatchViewOverrides {
       /** This outputs records which will be used to construct the entry set. */
       private void outputMetadataRecordForEntrySet(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value) {
-        c.sideOutput(outputForEntrySet,
+        c.output(outputForEntrySet,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), value.getKey().getKey())));
@@ -773,7 +773,7 @@ class BatchViewOverrides {
           coderForMapLike(windowCoder, inputCoder.getKeyCoder(), inputCoder.getValueCoder());
 
       // Create the various output tags representing the main output containing the data stream
-      // and the side outputs containing the metadata about the size and entry set.
+      // and the additional outputs containing the metadata about the size and entry set.
       TupleTag<IsmRecord<WindowedValue<V>>> mainOutputTag = new TupleTag<>();
       TupleTag<KV<Integer, KV<W, Long>>> outputForSizeTag = new TupleTag<>();
       TupleTag<KV<Integer, KV<W, K>>> outputForEntrySetTag = new TupleTag<>();

@@ -300,7 +300,7 @@ public class ProcessBundleHandlerTest {
 
   private static class TestDoFn extends DoFn<String, String> {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
-    private static final TupleTag<String> sideOutput = new TupleTag<>("sideOutput");
+    private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
     @StartBundle
     public void startBundle(Context context) {
@@ -310,7 +310,7 @@ public class ProcessBundleHandlerTest {
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output("MainOutput" + context.element());
-      context.sideOutput(sideOutput, "SideOutput" + context.element());
+      context.output(additionalOutput, "AdditionalOutput" + context.element());
     }
 
     @FinishBundle
@@ -321,7 +321,7 @@ public class ProcessBundleHandlerTest {
 
   /**
    * Create a DoFn that has 3 inputs (inputATarget1, inputATarget2, inputBTarget) and 2 outputs
-   * (mainOutput, sideOutput). Validate that inputs are fed to the {@link DoFn} and that outputs
+   * (mainOutput, output). Validate that inputs are fed to the {@link DoFn} and that outputs
    * are directed to the correct consumers.
    */
   @Test
@@ -329,7 +329,7 @@ public class ProcessBundleHandlerTest {
     Map<String, Message> fnApiRegistry = ImmutableMap.of(STRING_CODER_SPEC_ID, STRING_CODER_SPEC);
     String primitiveTransformId = "100L";
     long mainOutputId = 101L;
-    long sideOutputId = 102L;
+    long additionalOutputId = 102L;
 
     DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
         new TestDoFn(),
@@ -339,7 +339,7 @@ public class ProcessBundleHandlerTest {
         mainOutputId,
         ImmutableMap.of(
             mainOutputId, TestDoFn.mainOutput,
-            sideOutputId, TestDoFn.sideOutput));
+            additionalOutputId, TestDoFn.additionalOutput));
     BeamFnApi.FunctionSpec functionSpec = BeamFnApi.FunctionSpec.newBuilder()
         .setId("1L")
         .setUrn(JAVA_DO_FN_URN)
@@ -372,25 +372,25 @@ public class ProcessBundleHandlerTest {
         .putOutputs(Long.toString(mainOutputId), BeamFnApi.PCollection.newBuilder()
             .setCoderReference(STRING_CODER_SPEC_ID)
             .build())
-        .putOutputs(Long.toString(sideOutputId), BeamFnApi.PCollection.newBuilder()
+        .putOutputs(Long.toString(additionalOutputId), BeamFnApi.PCollection.newBuilder()
             .setCoderReference(STRING_CODER_SPEC_ID)
             .build())
         .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    List<WindowedValue<String>> sideOutputValues = new ArrayList<>();
+    List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     BeamFnApi.Target mainOutputTarget = BeamFnApi.Target.newBuilder()
         .setPrimitiveTransformReference(primitiveTransformId)
         .setName(Long.toString(mainOutputId))
         .build();
-    BeamFnApi.Target sideOutputTarget = BeamFnApi.Target.newBuilder()
+    BeamFnApi.Target additionalOutputTarget = BeamFnApi.Target.newBuilder()
         .setPrimitiveTransformReference(primitiveTransformId)
-        .setName(Long.toString(sideOutputId))
+        .setName(Long.toString(additionalOutputId))
         .build();
     Multimap<BeamFnApi.Target, ThrowingConsumer<WindowedValue<String>>> existingConsumers =
         ImmutableMultimap.of(
             mainOutputTarget, mainOutputValues::add,
-            sideOutputTarget, sideOutputValues::add);
+            additionalOutputTarget, additionalOutputValues::add);
     Multimap<BeamFnApi.Target, ThrowingConsumer<WindowedValue<String>>> newConsumers =
         HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
@@ -422,12 +422,12 @@ public class ProcessBundleHandlerTest {
         valueInGlobalWindow("MainOutputA1"),
         valueInGlobalWindow("MainOutputA2"),
         valueInGlobalWindow("MainOutputB")));
-    assertThat(sideOutputValues, contains(
-        valueInGlobalWindow("SideOutputA1"),
-        valueInGlobalWindow("SideOutputA2"),
-        valueInGlobalWindow("SideOutputB")));
+    assertThat(additionalOutputValues, contains(
+        valueInGlobalWindow("AdditionalOutputA1"),
+        valueInGlobalWindow("AdditionalOutputA2"),
+        valueInGlobalWindow("AdditionalOutputB")));
     mainOutputValues.clear();
-    sideOutputValues.clear();
+    additionalOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
     assertThat(mainOutputValues, contains(valueInGlobalWindow("FinishBundle")));

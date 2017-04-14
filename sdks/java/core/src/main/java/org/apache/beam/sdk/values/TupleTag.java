@@ -31,25 +31,23 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 
 /**
- * A {@link TupleTag} is a typed tag to use as the key of a
- * heterogeneously typed tuple, like {@link PCollectionTuple}.
- * Its generic type parameter allows tracking
- * the static type of things stored in tuples.
+ * A {@link TupleTag} is a typed tag to use as the key of a heterogeneously typed tuple, like {@link
+ * PCollectionTuple}. Its generic type parameter allows tracking the static type of things stored in
+ * tuples.
  *
- * <p>To aid in assigning default {@link org.apache.beam.sdk.coders.Coder Coders} for results of
- * side outputs of {@link ParDo}, an output
- * {@link TupleTag} should be instantiated with an extra {@code {}} so
- * it is an instance of an anonymous subclass without generic type
- * parameters.  Input {@link TupleTag TupleTags} require no such extra
- * instantiation (although it doesn't hurt).  For example:
+ * <p>To aid in assigning default {@link org.apache.beam.sdk.coders.Coder Coders} for results of a
+ * {@link ParDo}, an output {@link TupleTag} should be instantiated with an extra {@code {}} so it
+ * is an instance of an anonymous subclass without generic type parameters. Input {@link TupleTag
+ * TupleTags} require no such extra instantiation (although it doesn't hurt). For example:
  *
- * <pre> {@code
+ * <pre>{@code
  * TupleTag<SomeType> inputTag = new TupleTag<>();
  * TupleTag<SomeOtherType> outputTag = new TupleTag<SomeOtherType>(){};
- * } </pre>
+ * }
+ * </pre>
  *
- * @param <V> the type of the elements or values of the tagged thing,
- * e.g., a {@code PCollection<V>}.
+ * @param <V> the type of the elements or values of the tagged thing, e.g., a {@code
+ *     PCollection<V>}.
  */
 public class TupleTag<V> implements Serializable {
   /**

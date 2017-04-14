@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
@@ -103,7 +104,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
- * are included in the output {@link PCollection}.
+ * are included in an output {@link PCollection}.
  *
  * <p>For example:
  *
@@ -180,20 +181,20 @@ import org.apache.beam.sdk.values.TypedPValue;
  *         }}));
  * }</pre>
  *
- * <h2>Side Outputs</h2>
+ * <h2>Additional Outputs</h2>
  *
  * <p>Optionally, a {@link ParDo} transform can produce multiple
  * output {@link PCollection PCollections}, both a "main output"
- * {@code PCollection<OutputT>} plus any number of "side output"
+ * {@code PCollection<OutputT>} plus any number of additional output
  * {@link PCollection PCollections}, each keyed by a distinct {@link TupleTag},
  * and bundled in a {@link PCollectionTuple}. The {@link TupleTag TupleTags}
  * to be used for the output {@link PCollectionTuple} are specified by
- * invoking {@link SingleOutput#withOutputTags}. Unconsumed side outputs do not
+ * invoking {@link SingleOutput#withOutputTags}. Unconsumed outputs do not
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
- * {@link DoFn.Context#output}, while an element is added to a side output
- * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
+ * {@link DoFn.Context#output(Object)}, while an element is added to any additional output
+ * {@link PCollection} using {@link DoFn.Context#output(TupleTag, Object)}. For example:
  *
  * <pre>{@code
  * PCollection<String> words = ...;
@@ -201,7 +202,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * // plus the lengths of words that are above the cut off.
  * // Also select words starting with "MARKER".
  * final int wordLengthCutOff = 10;
- * // Create tags to use for the main and side outputs.
+ * // Create tags to use for the main and additional outputs.
  * final TupleTag<String> wordsBelowCutOffTag =
  *     new TupleTag<String>(){};
  * final TupleTag<Integer> wordLengthsAboveCutOffTag =
@@ -212,7 +213,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *     words.apply(
  *         ParDo
  *         .of(new DoFn<String, String>() {
- *             // Create a tag for the unconsumed side output.
+ *             // Create a tag for the unconsumed output.
  *             final TupleTag<String> specialWordsTag =
  *                 new TupleTag<String>(){};
  *            {@literal @}ProcessElement
@@ -222,19 +223,19 @@ import org.apache.beam.sdk.values.TypedPValue;
  *                 // Emit this short word to the main output.
  *                 c.output(word);
  *               } else {
- *                 // Emit this long word's length to a side output.
- *                 c.sideOutput(wordLengthsAboveCutOffTag, word.length());
+ *                 // Emit this long word's length to a specified output.
+ *                 c.output(wordLengthsAboveCutOffTag, word.length());
  *               }
  *               if (word.startsWith("MARKER")) {
- *                 // Emit this word to a different side output.
- *                 c.sideOutput(markedWordsTag, word);
+ *                 // Emit this word to a different specified output.
+ *                 c.output(markedWordsTag, word);
  *               }
  *               if (word.startsWith("SPECIAL")) {
- *                 // Emit this word to the unconsumed side output.
- *                 c.sideOutput(specialWordsTag, word);
+ *                 // Emit this word to the unconsumed output.
+ *                 c.output(specialWordsTag, word);
  *               }
  *             }})
- *             // Specify the main and consumed side output tags of the
+ *             // Specify the main and consumed output tags of the
  *             // PCollectionTuple result:
  *         .withOutputTags(wordsBelowCutOffTag,
  *             TupleTagList.of(wordLengthsAboveCutOffTag)
@@ -254,9 +255,9 @@ import org.apache.beam.sdk.values.TypedPValue;
  * elements of the main output {@link PCollection PCollection&lt;OutputT&gt;} is
  * inferred from the concrete type of the {@link DoFn DoFn&lt;InputT, OutputT&gt;}.
  *
- * <p>By default, the {@link Coder Coder&lt;SideOutputT&gt;} for the elements of
- * a side output {@link PCollection PCollection&lt;SideOutputT&gt;} is inferred
- * from the concrete type of the corresponding {@link TupleTag TupleTag&lt;SideOutputT&gt;}.
+ * <p>By default, the {@link Coder Coder&lt;AdditionalOutputT&gt;} for the elements of
+ * an output {@link PCollection PCollection&lt;AdditionalOutputT&gt;} is inferred
+ * from the concrete type of the corresponding {@link TupleTag TupleTag&lt;AdditionalOutputT&gt;}.
  * To be successful, the {@link TupleTag} should be created as an instance
  * of a trivial anonymous subclass, with {@code {}} suffixed to the
  * constructor call. Such uses block Java's generic type parameter
@@ -265,12 +266,12 @@ import org.apache.beam.sdk.values.TypedPValue;
  * <pre> {@code
  * // A TupleTag to use for a side input can be written concisely:
  * final TupleTag<Integer> sideInputag = new TupleTag<>();
- * // A TupleTag to use for a side output should be written with "{}",
+ * // A TupleTag to use for an output should be written with "{}",
  * // and explicit generic parameter type:
- * final TupleTag<String> sideOutputTag = new TupleTag<String>(){};
+ * final TupleTag<String> additionalOutputTag = new TupleTag<String>(){};
  * } </pre>
  * This style of {@code TupleTag} instantiation is used in the example of
- * multiple side outputs, above.
+ * {@link ParDo ParDos} that produce multiple outputs, above.
  *
  * <h2>Serializability of {@link DoFn DoFns}</h2>
  *
@@ -358,7 +359,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * that state across Java processes. All information should be
  * communicated to {@link DoFn} instances via main and side inputs and
  * serialized state, and all output should be communicated from a
- * {@link DoFn} instance via main and side outputs, in the absence of
+ * {@link DoFn} instance via output {@link PCollection PCollections}, in the absence of
  * external communication mechanisms written by user code.
  *
  * <h2>Fault Tolerance</h2>
@@ -602,14 +603,14 @@ public class ParDo {
 
     /**
      * Returns a new multi-output {@link ParDo} {@link PTransform} that's like this {@link
-     * PTransform} but with the specified main and side output tags. Does not modify this {@link
+     * PTransform} but with the specified output tags. Does not modify this {@link
      * PTransform}.
      *
-     * <p>See the discussion of Side Outputs above for more explanation.
+     * <p>See the discussion of Additional Outputs above for more explanation.
      */
     public MultiOutput<InputT, OutputT> withOutputTags(
-        TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
-      return new MultiOutput<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
+        TupleTag<OutputT> mainOutputTag, TupleTagList additionalOutputTags) {
+      return new MultiOutput<>(fn, sideInputs, mainOutputTag, additionalOutputTags, fnDisplayData);
     }
 
     @Override
@@ -671,11 +672,9 @@ public class ParDo {
   }
 
   /**
-   * A {@link PTransform} that, when applied to a
-   * {@code PCollection<InputT>}, invokes a user-specified
-   * {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements
-   * to any of the {@link PTransform}'s main and side output
-   * {@code PCollection}s, which are bundled into a result
+   * A {@link PTransform} that, when applied to a {@code PCollection<InputT>}, invokes a
+   * user-specified {@code DoFn<InputT, OutputT>} on all its elements, which can emit elements to
+   * any of the {@link PTransform}'s output {@code PCollection}s, which are bundled into a result
    * {@code PCollectionTuple}.
    *
    * @param <InputT> the type of the (main) input {@code PCollection} elements
@@ -685,7 +684,7 @@ public class ParDo {
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
-    private final TupleTagList sideOutputTags;
+    private final TupleTagList additionalOutputTags;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final DoFn<InputT, OutputT> fn;
 
@@ -693,11 +692,11 @@ public class ParDo {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
-        TupleTagList sideOutputTags,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        TupleTagList additionalOutputTags,
+        ItemSpec<? extends Class<?>> fnDisplayData) {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
-      this.sideOutputTags = sideOutputTags;
+      this.additionalOutputTags = additionalOutputTags;
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
     }
@@ -730,7 +729,7 @@ public class ParDo {
               .addAll(sideInputs)
               .build(),
           mainOutputTag,
-          sideOutputTags,
+          additionalOutputTags,
           fnDisplayData);
     }
 
@@ -745,7 +744,7 @@ public class ParDo {
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
+          TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
           input.getWindowingStrategy(),
           input.isBounded());
 
@@ -794,8 +793,8 @@ public class ParDo {
       return mainOutputTag;
     }
 
-    public TupleTagList getSideOutputTags() {
-      return sideOutputTags;
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
     }
 
     public List<PCollectionView<?>> getSideInputs() {

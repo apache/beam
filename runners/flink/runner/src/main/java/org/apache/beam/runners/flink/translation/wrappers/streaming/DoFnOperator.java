@@ -97,7 +97,7 @@ import org.joda.time.Instant;
  * @param <InputT> the input type of the {@link DoFn}
  * @param <FnOutputT> the output type of the {@link DoFn}
  * @param <OutputT> the output type of the operator, this can be different from the fn output
- *                 type when we have side outputs
+ *                 type when we have additional tagged outputs
  */
 public class DoFnOperator<InputT, FnOutputT, OutputT>
     extends AbstractStreamOperator<OutputT>
@@ -110,7 +110,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   protected final SerializedPipelineOptions serializedOptions;
 
   protected final TupleTag<FnOutputT> mainOutputTag;
-  protected final List<TupleTag<?>> sideOutputTags;
+  protected final List<TupleTag<?>> additionalOutputTags;
 
   protected final Collection<PCollectionView<?>> sideInputs;
   protected final Map<Integer, PCollectionView<?>> sideInputTagMapping;
@@ -155,7 +155,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       DoFn<InputT, FnOutputT> doFn,
       Coder<WindowedValue<InputT>> inputCoder,
       TupleTag<FnOutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
@@ -165,7 +165,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     this.doFn = doFn;
     this.inputCoder = inputCoder;
     this.mainOutputTag = mainOutputTag;
-    this.sideOutputTags = sideOutputTags;
+    this.additionalOutputTags = additionalOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(options);
@@ -275,7 +275,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         sideInputReader,
         outputManager,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         aggregatorFactory,
         windowingStrategy);
@@ -619,7 +619,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       return new DoFnRunners.OutputManager() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> value) {
-          // with side outputs we can't get around this because we don't
+          // with tagged outputs we can't get around this because we don't
           // know our own output type...
           @SuppressWarnings("unchecked")
           OutputT castValue = (OutputT) value;
@@ -675,7 +675,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     public void noteOutput(WindowedValue<?> output) {}
 
     @Override
-    public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
+    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 
     @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(

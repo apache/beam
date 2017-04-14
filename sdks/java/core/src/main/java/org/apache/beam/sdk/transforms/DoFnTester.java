@@ -65,7 +65,7 @@ import org.joda.time.Instant;
  *
  * // Set arguments shared across all bundles:
  * fnTester.setSideInputs(...);      // If fn takes side inputs.
- * fnTester.setSideOutputTags(...);  // If fn writes to side outputs.
+ * fnTester.setOutputTags(...);  // If fn writes to more than one output.
  *
  * // Process a bundle containing a single input element:
  * Input testInput = ...;
@@ -464,14 +464,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Returns the elements output so far to the side output with the
+   * Returns the elements output so far to the output with the
    * given tag.  Does not clear them, so subsequent calls will
    * continue to include these elements.
    *
-   * @see #takeSideOutputElements
-   * @see #clearSideOutputElements
+   * @see #takeOutputElements
+   * @see #clearOutputElements
    */
-  public <T> List<T> peekSideOutputElements(TupleTag<T> tag) {
+  public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getImmutableOutput(tag),
         new Function<ValueInSingleWindow<T>, T>() {
@@ -483,24 +483,23 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Clears the record of the elements output so far to the side
-   * output with the given tag.
+   * Clears the record of the elements output so far to the output with the given tag.
    *
-   * @see #peekSideOutputElements
+   * @see #peekOutputElements
    */
-  public <T> void clearSideOutputElements(TupleTag<T> tag) {
+  public <T> void clearOutputElements(TupleTag<T> tag) {
     getMutableOutput(tag).clear();
   }
 
   /**
-   * Returns the elements output so far to the side output with the given tag.
+   * Returns the elements output so far to the output with the given tag.
    * Clears the list so these elements don't appear in future calls.
    *
-   * @see #peekSideOutputElements
+   * @see #peekOutputElements
    */
-  public <T> List<T> takeSideOutputElements(TupleTag<T> tag) {
-    List<T> resultElems = new ArrayList<>(peekSideOutputElements(tag));
-    clearSideOutputElements(tag);
+  public <T> List<T> takeOutputElements(TupleTag<T> tag) {
+    List<T> resultElems = new ArrayList<>(peekOutputElements(tag));
+    clearOutputElements(tag);
     return resultElems;
   }
 
@@ -563,12 +562,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
+    public <T> void output(TupleTag<T> tag, T output) {
       throwUnsupportedOutputFromBundleMethods();
     }
 
@@ -683,21 +682,21 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public void output(OutputT output) {
-      sideOutput(mainOutputTag, output);
+      output(mainOutputTag, output);
     }
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      sideOutputWithTimestamp(mainOutputTag, output, timestamp);
+      outputWithTimestamp(mainOutputTag, output, timestamp);
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      sideOutputWithTimestamp(tag, output, element.getTimestamp());
+    public <T> void output(TupleTag<T> tag, T output) {
+      outputWithTimestamp(tag, output, element.getTimestamp());
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }

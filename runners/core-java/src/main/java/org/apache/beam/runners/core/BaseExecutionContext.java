@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -106,19 +107,17 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@code DoFn.Context#output}
-   * is called.
+   * {@link Context#output(Object)} is called.
    */
   @Override
   public void noteOutput(WindowedValue<?> output) {}
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@code DoFn.Context#sideOutput}
-   * is called.
+   * {@link Context#output(TupleTag, Object)} is called.
    */
   @Override
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {}
+  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 
   /**
    * Base class for implementations of {@link ExecutionContext.StepContext}.
@@ -153,8 +152,8 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
     }
 
     @Override
-    public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
-      executionContext.noteSideOutput(tag, output);
+    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
+      executionContext.noteOutput(tag, output);
     }
 
     @Override

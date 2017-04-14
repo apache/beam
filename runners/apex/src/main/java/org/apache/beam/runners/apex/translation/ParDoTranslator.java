@@ -94,7 +94,7 @@ class ParDoTranslator<InputT, OutputT>
             context.getPipelineOptions(),
             doFn,
             transform.getMainOutputTag(),
-            transform.getSideOutputTags().getAll(),
+            transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),
             sideInputs,
             wvInputCoder,
@@ -114,9 +114,9 @@ class ParDoTranslator<InputT, OutputT>
         ports.put(pc, operator.output);
       } else {
         int portIndex = 0;
-        for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
+        for (TupleTag<?> tag : transform.getAdditionalOutputTags().getAll()) {
           if (tag.equals(output.getKey())) {
-            ports.put(pc, operator.sideOutputPorts[portIndex]);
+            ports.put(pc, operator.additionalOutputPorts[portIndex]);
             break;
           }
           portIndex++;

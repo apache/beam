@@ -118,7 +118,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input.getWindowingStrategy(),
             parDo.getSideInputs(),
             parDo.getMainOutputTag(),
-            parDo.getSideOutputTags()));
+            parDo.getAdditionalOutputTags()));
   }
 
   private static <InputT, OutputT, RestrictionT>
@@ -188,14 +188,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private final WindowingStrategy<?, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
-    private final TupleTagList sideOutputTags;
+    private final TupleTagList additionalOutputTags;
 
     /**
      * @param fn the splittable {@link DoFn}.
      * @param windowingStrategy the {@link WindowingStrategy} of the input collection.
      * @param sideInputs list of side inputs that should be available to the {@link DoFn}.
      * @param mainOutputTag {@link TupleTag Tag} of the {@link DoFn DoFn's} main output.
-     * @param sideOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} side outputs.
+     * @param additionalOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} additional
+     *     outputs.
      */
     public ProcessElements(
         DoFn<InputT, OutputT> fn,
@@ -204,14 +205,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         WindowingStrategy<?, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
-        TupleTagList sideOutputTags) {
+        TupleTagList additionalOutputTags) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
       this.windowingStrategy = windowingStrategy;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
-      this.sideOutputTags = sideOutputTags;
+      this.additionalOutputTags = additionalOutputTags;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -226,8 +227,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return mainOutputTag;
     }
 
-    public TupleTagList getSideOutputTags() {
-      return sideOutputTags;
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
     }
 
     public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
@@ -244,7 +245,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       PCollectionTuple outputs =
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
-              TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 
@@ -522,12 +523,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
 
         @Override
-        public <T> void sideOutput(TupleTag<T> tag, T output) {
+        public <T> void output(TupleTag<T> tag, T output) {
           throwUnsupportedOutput();
         }
 
         @Override
-        public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
           throwUnsupportedOutput();
         }
 

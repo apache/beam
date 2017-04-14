@@ -51,7 +51,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs) {
     AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
@@ -80,7 +80,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
             sideInputReader,
             outputManager,
             mainOutputTag,
-            sideOutputTags,
+            additionalOutputTags,
             stepContext,
             aggregatorChanges,
             windowingStrategy);
