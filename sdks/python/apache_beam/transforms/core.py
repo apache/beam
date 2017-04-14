@@ -1172,7 +1172,7 @@ class Windowing(object):
 
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
                output_time_fn=None):
-    global AccumulationMode, DefaultTrigger
+    global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
     # pylint: enable=wrong-import-order, wrong-import-position

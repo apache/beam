@@ -176,7 +176,7 @@ def with_exponential_backoff(
               sleep_interval = retry_intervals.next()
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              raise exn, None, exn_traceback
+              raise exn, None, exn_traceback  # pylint: disable=raising-bad-type
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

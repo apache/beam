@@ -656,7 +656,7 @@ class _NamedPTransform(PTransform):
     super(_NamedPTransform, self).__init__(label)
     self.transform = transform
 
-  def __ror__(self, pvalueish):
+  def __ror__(self, pvalueish, _unused=None):
     return self.transform.__ror__(pvalueish, self.label)
 
   def expand(self, pvalue):

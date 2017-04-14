@@ -160,7 +160,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         # followed by a new line character. Since such a record is at the last
         # position of a file, it should not be a part of the considered range.
         # We do this check to ignore such records.
-        if len(record) == 0 and num_bytes_to_next_record < 0:
+        if len(record) == 0 and num_bytes_to_next_record < 0:  # pylint: disable=len-as-condition
           break
 
         # Record separator must be larger than zero bytes.

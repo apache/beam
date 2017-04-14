@@ -94,6 +94,7 @@ disable =
   import-error,
   import-self,
   invalid-name,
+  invalid-unary-operand-type,
   locally-disabled,
   locally-enabled,
   misplaced-bare-raise,
@@ -104,6 +105,8 @@ disable =
   no-self-use,
   no-value-for-parameter,
   not-callable,
+  # Re-enable the context manager check once https://github.com/PyCQA/pylint/issues/782 is fixed
+  not-context-manager,
   pointless-statement,
   protected-access,
   raising-non-exception,
@@ -115,6 +118,7 @@ disable =
   similarities,
   simplifiable-if-statement,
   super-init-not-called,
+  super-on-old-class,
   undefined-variable,
   unexpected-keyword-arg,
   unidiomatic-typecheck,
@@ -123,7 +127,6 @@ disable =
   unused-argument,
   unused-wildcard-import,
   wildcard-import,
-
 
 [REPORTS]
 # Tells whether to display a full report or only the messages
