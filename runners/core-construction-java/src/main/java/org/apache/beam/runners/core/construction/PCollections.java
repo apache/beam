@@ -83,7 +83,7 @@ public class PCollections {
         return IsBounded.UNBOUNDED;
       case UNRECOGNIZED:
       default:
-        // Whether or not it is proto that cannot recognize it (due to the version of the
+        // Whether or not this enum cannot be recognized by the proto (due to the version of the
         // generated code we link to) or the switch hasn't been updated to handle it,
         // the situation is the same: we don't know what this IsBounded means
         throw new IllegalArgumentException(

@@ -120,7 +120,7 @@ public class SdkComponentsTest {
   }
 
   @Test
-  public void registerPCollectionExistingNameCollision()  throws IOException {
+  public void registerPCollectionExistingNameCollision() throws IOException {
     PCollection<Long> pCollection =
         pipeline.apply("FirstCount", CountingInput.unbounded()).setName("foo");
     String firstId = components.registerPCollection(pCollection);
