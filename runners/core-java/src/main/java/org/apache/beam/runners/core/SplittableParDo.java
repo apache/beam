@@ -115,7 +115,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             fn,
             input.getCoder(),
             restrictionCoder,
-            input.getWindowingStrategy(),
+            (WindowingStrategy<InputT, ?>) input.getWindowingStrategy(),
             parDo.getSideInputs(),
             parDo.getMainOutputTag(),
             parDo.getAdditionalOutputTags()));
@@ -185,7 +185,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
     private final Coder<RestrictionT> restrictionCoder;
-    private final WindowingStrategy<?, ?> windowingStrategy;
+    private final WindowingStrategy<InputT, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList additionalOutputTags;
@@ -202,7 +202,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
-        WindowingStrategy<?, ?> windowingStrategy,
+        WindowingStrategy<InputT, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags) {
@@ -234,7 +234,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
         DoFn<InputT, OutputT> fn) {
       return new SplittableParDo.ProcessFn<>(
-          fn, elementCoder, restrictionCoder, windowingStrategy.getWindowFn().windowCoder());
+          fn, elementCoder, restrictionCoder, windowingStrategy);
     }
 
     @Override
@@ -351,7 +351,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private StateTag<Object, ValueState<RestrictionT>> restrictionTag;
 
     private final DoFn<InputT, OutputT> fn;
-    private final Coder<? extends BoundedWindow> windowCoder;
+    private final Coder<InputT> elementCoder;
+    private final Coder<RestrictionT> restrictionCoder;
+    private final WindowingStrategy<InputT, ?> inputWindowingStrategy;
 
     private transient StateInternalsFactory<String> stateInternalsFactory;
     private transient TimerInternalsFactory<String> timerInternalsFactory;
@@ -364,11 +366,16 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
         Coder<RestrictionT> restrictionCoder,
-        Coder<? extends BoundedWindow> windowCoder) {
+        WindowingStrategy<InputT, ?> inputWindowingStrategy) {
       this.fn = fn;
-      this.windowCoder = windowCoder;
+      this.elementCoder = elementCoder;
+      this.restrictionCoder = restrictionCoder;
+      this.inputWindowingStrategy = inputWindowingStrategy;
       this.elementTag =
-          StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
+          StateTags.value(
+              "element",
+              WindowedValue.getFullCoder(
+                  elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
@@ -387,6 +394,18 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public DoFn<InputT, OutputT> getFn() {
       return fn;
+    }
+
+    public Coder<InputT> getElementCoder() {
+      return elementCoder;
+    }
+
+    public Coder<RestrictionT> getRestrictionCoder() {
+      return restrictionCoder;
+    }
+
+    public WindowingStrategy<InputT, ?> getInputWindowingStrategy() {
+      return inputWindowingStrategy;
     }
 
     @Setup
