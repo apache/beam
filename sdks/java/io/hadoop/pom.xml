@@ -29,9 +29,19 @@
   <description>Parent for Beam SDK Hadoop IO which reads data from any source which implements Hadoop Input Format.</description>
 
   <modules>
-    <module>jdk1.8-tests</module>
     <module>input-format</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>jdk1.8-tests</module>
+      </modules>
+    </profile>
+  </profiles>
 
   <dependencies>
     <dependency>
