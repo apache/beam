@@ -51,11 +51,13 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -220,9 +222,13 @@ public class SplittableParDoTest {
         int maxOutputsPerBundle,
         Duration maxBundleDuration)
         throws Exception {
+      // The exact windowing strategy doesn't matter in this test, but it should be able to
+      // encode IntervalWindow's because that's what all tests here use.
+      WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
+          (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
       final SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           new SplittableParDo.ProcessFn<>(
-              fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
+              fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
