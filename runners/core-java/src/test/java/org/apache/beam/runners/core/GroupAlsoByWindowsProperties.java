@@ -57,7 +57,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * Properties of {@link GroupAlsoByWindowsDoFn}.
+ * Properties of {@link GroupAlsoByWindowsAggregators}.
  *
  * <p>Some properties may not hold of some implementations, due to restrictions on the context in
  * which the implementation is applicable. For example, some {@code GroupAlsoByWindows} may not
@@ -66,12 +66,13 @@ import org.joda.time.Instant;
 public class GroupAlsoByWindowsProperties {
 
   /**
-   * A factory of {@link GroupAlsoByWindowsDoFn} so that the various properties can provide the
-   * appropriate windowing strategy under test.
+   * A factory of {@link GroupAlsoByWindowsAggregators} so that the various properties can provide
+   * the appropriate windowing strategy under test.
    */
   public interface GroupAlsoByWindowsDoFnFactory<K, InputT, OutputT> {
-    <W extends BoundedWindow> GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> forStrategy(
-        WindowingStrategy<?, W> strategy, StateInternalsFactory<K> stateInternalsFactory);
+    <W extends BoundedWindow>
+        GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W> forStrategy(
+            WindowingStrategy<?, W> strategy, StateInternalsFactory<K> stateInternalsFactory);
   }
 
   /**
@@ -311,7 +312,7 @@ public class GroupAlsoByWindowsProperties {
   }
 
   /**
-   * Tests that the given {@link GroupAlsoByWindowsDoFn} implementation combines elements per
+   * Tests that the given {@link GroupAlsoByWindowsAggregators} implementation combines elements per
    * session window correctly according to the provided {@link CombineFn}.
    */
   public static void combinesElementsPerSession(
@@ -498,7 +499,7 @@ public class GroupAlsoByWindowsProperties {
   }
 
   /**
-   * Tests that the given {@link GroupAlsoByWindowsDoFn} implementation combines elements per
+   * Tests that the given {@link GroupAlsoByWindowsAggregators} implementation combines elements per
    * session window correctly according to the provided {@link CombineFn}.
    */
   public static void combinesElementsPerSessionWithEndOfWindowTimestamp(
@@ -597,7 +598,7 @@ public class GroupAlsoByWindowsProperties {
 
   private static <K, InputT, OutputT, W extends BoundedWindow>
       List<WindowedValue<KV<K, OutputT>>> processElement(
-          GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> fn,
+          GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W> fn,
           KV<K, Iterable<WindowedValue<InputT>>> element)
           throws Exception {
     TestProcessContext<K, InputT, OutputT, W> c = new TestProcessContext<>(fn, element);
@@ -621,18 +622,18 @@ public class GroupAlsoByWindowsProperties {
   }
 
   /**
-   * A {@link GroupAlsoByWindowsDoFn.ProcessContext} providing just enough context for a {@link
-   * GroupAlsoByWindowsDoFn} - namely, information about the element and output via {@link
-   * WindowingInternals}, but no side inputs/outputs and no normal output.
+   * A {@link GroupAlsoByWindowViaOutputBufferDoFn.ProcessContext} providing just enough context for
+   * a {@link GroupAlsoByWindowsAggregators} - namely, information about the element and output via
+   * {@link WindowingInternals}, but no side inputs/outputs and no normal output.
    */
   private static class TestProcessContext<K, InputT, OutputT, W extends BoundedWindow>
-      extends GroupAlsoByWindowsDoFn<K, InputT, OutputT, W>.ProcessContext {
+      extends GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W>.ProcessContext {
     private final PipelineOptions options = PipelineOptionsFactory.create();
     private final KV<K, Iterable<WindowedValue<InputT>>> element;
     private final List<WindowedValue<KV<K, OutputT>>> output = new ArrayList<>();
 
     private TestProcessContext(
-        GroupAlsoByWindowsDoFn<K, InputT, OutputT, W> fn,
+        GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W> fn,
         KV<K, Iterable<WindowedValue<InputT>>> element) {
       fn.super();
       this.element = element;
