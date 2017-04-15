@@ -28,8 +28,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
@@ -41,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
+import org.hamcrest.collection.IsEmptyIterable;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -124,7 +127,7 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class})
   @Test
   public void committedMetricsReportToQuery() {
-    PipelineResult result = runPipelineWithMetrics();
+    PipelineResult result = runPipelineWithMetrics(pipeline);
 
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
         .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
@@ -153,7 +156,7 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
   @Test
   public void attemptedMetricsReportToQuery() {
-    PipelineResult result = runPipelineWithMetrics();
+    PipelineResult result = runPipelineWithMetrics(pipeline);
 
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
         .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
@@ -179,7 +182,26 @@ public class MetricsTest implements Serializable {
         distributionAttemptedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));
   }
 
-  private PipelineResult runPipelineWithMetrics() {
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
+  @Test
+  public void testDisabledMetrics() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setMetricsEnabled(false);
+
+    Pipeline pipelineWithMetricsDisabled = TestPipeline.create(options);
+
+    PipelineResult result = runPipelineWithMetrics(pipelineWithMetricsDisabled);
+
+    // query to get all metrics
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder().build());
+
+    assertThat(metrics.counters(), IsEmptyIterable.<MetricResult<Long>>emptyIterable());
+    assertThat(metrics.distributions(),
+        IsEmptyIterable.<MetricResult<DistributionResult>>emptyIterable());
+    assertThat(metrics.gauges(), IsEmptyIterable.<MetricResult<GaugeResult>>emptyIterable());
+  }
+
+  private PipelineResult runPipelineWithMetrics(Pipeline pipeline) {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
     final TupleTag<Integer> output2 = new TupleTag<Integer>(){};

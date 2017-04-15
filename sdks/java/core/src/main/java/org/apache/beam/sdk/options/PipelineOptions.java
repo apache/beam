@@ -349,4 +349,9 @@ public interface PipelineOptions extends HasDisplayData {
       return NEXT_ID.getAndIncrement();
     }
   }
+
+  @Description("Enable/disable metrics reporting.")
+  @Default.Boolean(true)
+  boolean getMetricsEnabled();
+  void setMetricsEnabled(boolean enabled);
 }

@@ -61,7 +61,7 @@ public class DirectMetricsTest {
   private static final MetricName NAME3 = MetricName.named("ns2", "name1");
   private static final MetricName NAME4 = MetricName.named("ns2", "name2");
 
-  private DirectMetrics metrics = new DirectMetrics();
+  private DirectMetrics metrics = new DirectMetrics(true);
 
   @Before
   public void setUp() {

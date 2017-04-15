@@ -59,7 +59,9 @@ public class MetricsAccumulator {
               opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.<CheckpointDir>absent();
           Accumulator<SparkMetricsContainer> accumulator =
-              jsc.sc().accumulator(new SparkMetricsContainer(), ACCUMULATOR_NAME,
+              jsc.sc().accumulator(
+                  new SparkMetricsContainer(opts.getMetricsEnabled()),
+                  ACCUMULATOR_NAME,
                   new MetricsAccumulatorParam());
           if (maybeCheckpointDir.isPresent()) {
             Optional<SparkMetricsContainer> maybeRecoveredValue =

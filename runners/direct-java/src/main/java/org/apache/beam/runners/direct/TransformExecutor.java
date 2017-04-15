@@ -90,7 +90,9 @@ class TransformExecutor<T> implements Runnable {
   @Override
   public void run() {
     MetricsContainer metricsContainer = new MetricsContainer(transform.getFullName());
-    try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+    try (Closeable metricsScope =
+        MetricsEnvironment.scopedMetricsContainer(
+            context.getMetrics().isMetricsEnabled() ? metricsContainer : null)) {
       Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
       for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);

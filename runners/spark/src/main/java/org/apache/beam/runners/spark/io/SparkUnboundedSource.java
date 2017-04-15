@@ -100,7 +100,10 @@ public class SparkUnboundedSource {
         Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream =
         inputDStream.mapWithState(
             StateSpec
-                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc, stepName))
+                .function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(
+                    rc,
+                    stepName,
+                    options.getMetricsEnabled()))
                 .numPartitions(sourceDStream.getNumPartitions()));
 
     // set checkpoint duration for read stream, if set.
