@@ -201,6 +201,7 @@
     <dependency>
       <groupId>com.google.oauth-client</groupId>
       <artifactId>google-oauth-client</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
