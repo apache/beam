@@ -227,8 +227,6 @@ public class JdbcIO {
      *
      * <p>NOTE - The "user" and "password" properties can be add via {@link #withUsername(String)},
      * {@link #withPassword(String)}, so they do not need to be included here.
-     * @param connectionProperties
-     * @return
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
       checkArgument(connectionProperties != null, "DataSourceConfiguration.create(driver, url)"

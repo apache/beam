@@ -249,7 +249,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * not interfere with the output of other Writers, as a bundle may be executed many times for
      * fault tolerance. See {@link Sink} for more information about bundle ids.
      *
-     * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
+     * <p>The window and paneInfo arguments are populated when windowed writes are requested.
      * shard and numbShards are populated for the case of static sharding. In cases where the
      * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
