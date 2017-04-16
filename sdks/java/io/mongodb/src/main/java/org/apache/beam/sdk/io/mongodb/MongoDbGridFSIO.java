@@ -130,14 +130,11 @@ public class MongoDbGridFSIO {
     /**
      * Output the object.  The default timestamp will be the GridFSDBFile
      * creation timestamp.
-     * @param output
      */
     void output(T output);
 
     /**
      * Output the object using the specified timestamp.
-     * @param output
-     * @param timestamp
      */
     void output(T output, Instant timestamp);
   }
@@ -145,7 +142,6 @@ public class MongoDbGridFSIO {
   /**
    * Interface for the parser that is used to parse the GridFSDBFile into
    * the appropriate types.
-   * @param <T>
    */
   public interface Parser<T> extends Serializable {
     void parse(GridFSDBFile input, ParserCallback<T> callback) throws IOException;
@@ -533,7 +529,6 @@ public class MongoDbGridFSIO {
 
   /**
    * Function that is called to write the data to the give GridFS OutputStream.
-   * @param <T>
    */
   public interface WriteFn<T> extends Serializable {
     /**
@@ -624,6 +619,7 @@ public class MongoDbGridFSIO {
       return PDone.in(input.getPipeline());
     }
   }
+
   private static class GridFsWriteFn<T> extends DoFn<T, Void> {
 
     private final Write<T> spec;
@@ -686,6 +682,5 @@ public class MongoDbGridFSIO {
         }
       }
     }
-
   }
 }
