@@ -140,11 +140,18 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- compile dependencies -->
@@ -207,6 +214,7 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-hadoop</artifactId>
       <version>${elasticsearch.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.datastax.cassandra</groupId>

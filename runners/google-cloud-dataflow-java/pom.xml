@@ -245,6 +245,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
