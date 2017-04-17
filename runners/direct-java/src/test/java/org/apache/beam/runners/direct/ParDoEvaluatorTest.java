@@ -169,7 +169,8 @@ public class ParDoEvaluatorTest {
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
         additionalOutputTags,
-        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output));
+        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output),
+        ParDoEvaluator.<Integer, Integer>defaultRunnerFactory());
   }
 
   private static class RecorderFn extends DoFn<Integer, Integer> {
