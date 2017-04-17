@@ -158,7 +158,7 @@
   <li><a href="#a-basic-pipeline" id="markdown-toc-a-basic-pipeline">A basic pipeline</a></li>
   <li><a href="#branching-pcollections" id="markdown-toc-branching-pcollections">Branching PCollections</a>    <ul>
       <li><a href="#multiple-transforms-process-the-same-pcollection" id="markdown-toc-multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
-      <li><a href="#a-single-transform-that-uses-side-outputs" id="markdown-toc-a-single-transform-that-uses-side-outputs">A single transform that uses side outputs</a></li>
+      <li><a href="#a-single-transform-that-produces-multiple-outputs" id="markdown-toc-a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</a></li>
     </ul>
   </li>
   <li><a href="#merging-pcollections" id="markdown-toc-merging-pcollections">Merging PCollections</a></li>
@@ -228,18 +228,18 @@
 </code></pre>
 </div>
 
-<h3 id="a-single-transform-that-uses-side-outputs">A single transform that uses side outputs</h3>
+<h3 id="a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</h3>
 
-<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#transforms-sideio">side outputs</a>. Transforms that use side outputs, process each element of the input once, and allow you to output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
+<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#transforms-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
 
-<p>Figure 3 below illustrates the same example described above, but with one transform that uses a side output; Names that start with ‘A’ are added to the output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to the side output <code class="highlighter-rouge">PCollection</code>.</p>
+<p>Figure 3 below illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with ‘A’ are added to the main output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to an additional output <code class="highlighter-rouge">PCollection</code>.</p>
 
 <figure id="fig3">
-    <img src="/images/design-your-pipeline-side-outputs.png" alt="A pipeline with a transform that outputs multiple PCollections." />
+    <img src="/images/design-your-pipeline-additional-outputs.png" alt="A pipeline with a transform that outputs multiple PCollections." />
 </figure>
 <p>Figure 3: A pipeline with a transform that outputs multiple PCollections.</p>
 
-<p>The pipeline in Figure 2 contains two transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One transform uses the following logic pattern:</p>
+<p>The pipeline in Figure 2 contains two transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One transform uses the following logic:</p>
 
 <pre>if (starts with 'A') { outputToPCollectionA }</pre>
 
@@ -249,43 +249,46 @@
 
 <p>Because each transform reads the entire input <code class="highlighter-rouge">PCollection</code>, each element in the input <code class="highlighter-rouge">PCollection</code> is processed twice.</p>
 
-<p>The pipeline in Figure 3 performs the same operation in a different way - with only one transform that uses the logic</p>
+<p>The pipeline in Figure 3 performs the same operation in a different way - with only one transform that uses the following logic:</p>
 
 <pre>if (starts with 'A') { outputToPCollectionA } else if (starts with 'B') { outputToPCollectionB }</pre>
 
 <p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once. See the example code below:</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//define main stream and side output</span>
-<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mainStreamTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
-<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">sideoutTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Define two TupleTags, one for each output.</span>
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithATag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
+<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithBTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
 
 <span class="n">PCollectionTuple</span> <span class="n">mixedCollection</span> <span class="o">=</span>
     <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">ParDo</span>
-        <span class="c1">// Specify the tag for the main output, wordsBelowCutoffTag.</span>
-        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">mainStreamTag</span><span class="o">,</span>
-        <span class="c1">// Specify the tags for the two side outputs as a TupleTagList.</span>
-                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">))</span>
+        <span class="c1">// Specify main output. In this example, it is the output</span>
+        <span class="c1">// with tag startsWithATag.</span>
+        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">,</span>
+        <span class="c1">// Specify the output with tag startsWithBTag, as a TupleTagList.</span>
+                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">))</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
           <span class="nd">@ProcessElement</span>
-        <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-          <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">)){</span><span class="c1">//output to main stream</span>
-            <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
-          <span class="o">}</span><span class="k">else</span> <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">)){</span><span class="c1">//emit as Side outputs</span>
-            <span class="n">c</span><span class="o">.</span><span class="na">sideOutput</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+          <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">))</span> <span class="o">{</span>
+              <span class="c1">// Emit to main output, which is the output with tag startsWithATag.</span>
+              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+            <span class="o">}</span> <span class="k">else</span> <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">))</span> <span class="o">{</span>
+              <span class="c1">// Emit to output with tag startsWithBTag.</span>
+              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+            <span class="o">}</span>
           <span class="o">}</span>
-        <span class="o">}</span>
         <span class="o">}</span>
         <span class="o">));</span>
 
-<span class="c1">// get subset of main stream </span>
-<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">mainStreamTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
+<span class="c1">// Get subset of the output with tag startsWithATag.</span>
+<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
 
-<span class="c1">// get subset of Side output</span>
-<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">sideoutTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
+<span class="c1">// Get subset of the output with tag startsWithBTag.</span>
+<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
 </code></pre>
 </div>
 
-<p>You can use either mechanism to produce multiple output <code class="highlighter-rouge">PCollection</code>s. However, using side outputs makes more sense if the transform’s computation per element is time-consuming.</p>
+<p>You can use either mechanism to produce multiple output <code class="highlighter-rouge">PCollection</code>s. However, using additional outputs makes more sense if the transform’s computation per element is time-consuming.</p>
 
 <h2 id="merging-pcollections">Merging PCollections</h2>
 

@@ -157,7 +157,8 @@
   <li><a href="#testing-individual-dofn-objects" id="markdown-toc-testing-individual-dofn-objects">Testing Individual DoFn Objects</a>    <ul>
       <li><a href="#creating-a-dofntester" id="markdown-toc-creating-a-dofntester">Creating a DoFnTester</a></li>
       <li><a href="#creating-test-inputs" id="markdown-toc-creating-test-inputs">Creating Test Inputs</a>        <ul>
-          <li><a href="#side-inputs-and-outputs" id="markdown-toc-side-inputs-and-outputs">Side Inputs and Outputs</a></li>
+          <li><a href="#side-inputs" id="markdown-toc-side-inputs">Side Inputs</a></li>
+          <li><a href="#additional-outputs" id="markdown-toc-additional-outputs">Additional Outputs</a></li>
         </ul>
       </li>
       <li><a href="#processing-test-inputs-and-checking-results" id="markdown-toc-processing-test-inputs-and-checking-results">Processing Test Inputs and Checking Results</a></li>
@@ -204,7 +205,7 @@
 
 <ol>
   <li>Create a <code class="highlighter-rouge">DoFnTester</code>. You’ll need to pass an instance of the <code class="highlighter-rouge">DoFn</code> you want to test to the static factory method for <code class="highlighter-rouge">DoFnTester</code>.</li>
-  <li>Create one or more main test inputs of the appropriate type for your <code class="highlighter-rouge">DoFn</code>. If your <code class="highlighter-rouge">DoFn</code> takes side inputs and/or produces side outputs, you should also create the side inputs and the side output tags.</li>
+  <li>Create one or more main test inputs of the appropriate type for your <code class="highlighter-rouge">DoFn</code>. If your <code class="highlighter-rouge">DoFn</code> takes side inputs and/or produces <a href="/documentation/programming-guide#transforms-outputs">multiple outputs</a>, you should also create the side inputs and the output tags.</li>
   <li>Call <code class="highlighter-rouge">DoFnTester.processBundle</code> to process the main inputs.</li>
   <li>Use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to ensure the test outputs returned from <code class="highlighter-rouge">processBundle</code> match your expected values.</li>
 </ol>
@@ -232,7 +233,7 @@
 </code></pre>
 </div>
 
-<h4 id="side-inputs-and-outputs">Side Inputs and Outputs</h4>
+<h4 id="side-inputs">Side Inputs</h4>
 
 <p>If your <code class="highlighter-rouge">DoFn</code> accepts side inputs, you can create those side inputs by using the method <code class="highlighter-rouge">DoFnTester.setSideInputs</code>.</p>
 
@@ -246,9 +247,18 @@
 </code></pre>
 </div>
 
-<p>If your <code class="highlighter-rouge">DoFn</code> produces side outputs, you’ll need to set the appropriate <code class="highlighter-rouge">TupleTag</code> objects that you’ll use to access each output. A <code class="highlighter-rouge">DoFn</code> with side outputs produces a <code class="highlighter-rouge">PCollectionTuple</code> for each side output; you’ll need to provide a <code class="highlighter-rouge">TupleTagList</code> that corresponds to each side output in that tuple.</p>
+<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#transforms-sideio">side inputs</a> for more information.</p>
 
-<p>Suppose your <code class="highlighter-rouge">DoFn</code> produces side outputs of type <code class="highlighter-rouge">String</code> and <code class="highlighter-rouge">Integer</code>. You create <code class="highlighter-rouge">TupleTag</code> objects for each, and bundle them into a <code class="highlighter-rouge">TupleTagList</code>, then set it for the <code class="highlighter-rouge">DoFnTester</code> as follows:</p>
+<h4 id="additional-outputs">Additional Outputs</h4>
+
+<p>If your <code class="highlighter-rouge">DoFn</code> produces multiple output <code class="highlighter-rouge">PCollection</code>s, you’ll need to set the
+appropriate <code class="highlighter-rouge">TupleTag</code> objects that you’ll use to access each output. A <code class="highlighter-rouge">DoFn</code>
+with multiple outputs produces a <code class="highlighter-rouge">PCollectionTuple</code> for each output; you’ll need
+to provide a <code class="highlighter-rouge">TupleTagList</code> that corresponds to each output in that tuple.</p>
+
+<p>Suppose your <code class="highlighter-rouge">DoFn</code> produces outputs of type <code class="highlighter-rouge">String</code> and <code class="highlighter-rouge">Integer</code>. You create
+<code class="highlighter-rouge">TupleTag</code> objects for each, and bundle them into a <code class="highlighter-rouge">TupleTagList</code>, then set it
+for the <code class="highlighter-rouge">DoFnTester</code> as follows:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">MyDoFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 <span class="n">MyDoFn</span> <span class="n">myDoFn</span> <span class="o">=</span> <span class="o">...;</span>
@@ -258,11 +268,11 @@
 <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">tag2</span> <span class="o">=</span> <span class="o">...;</span>
 <span class="n">TupleTagList</span> <span class="n">tags</span> <span class="o">=</span> <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">tag1</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">tag2</span><span class="o">);</span>
 
-<span class="n">fnTester</span><span class="o">.</span><span class="na">setSideOutputTags</span><span class="o">(</span><span class="n">tags</span><span class="o">);</span>
+<span class="n">fnTester</span><span class="o">.</span><span class="na">setOutputTags</span><span class="o">(</span><span class="n">tags</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#transforms-sideio">side inputs</a> for more information.</p>
+<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#transforms-outputs">additional outputs</a> for more information.</p>
 
 <h3 id="processing-test-inputs-and-checking-results">Processing Test Inputs and Checking Results</h3>
 

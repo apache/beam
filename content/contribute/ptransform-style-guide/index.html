@@ -321,7 +321,7 @@ One advantage of putting a parameter into transform configuration is, it can be 
   <li>If the transform can have unprocessable (permanently failing) records and you want the pipeline to proceed despite that:
     <ul>
       <li>If bad records are safe to ignore, count the bad records in a metric. Make sure the transform’s documentation mentions this aggregator. Beware that there is no programmatic access to reading the aggregator value from inside the pipeline during execution.</li>
-      <li>If bad records may need manual inspection by the user, emit them into a side output.</li>
+      <li>If bad records may need manual inspection by the user, emit them into an output that contains only those records.</li>
       <li>Alternatively take a (default zero) threshold above which element failures become bundle failures (structure the transform to count the total number of elements and of failed elements, compare them and fail if failures are above the threshold).</li>
     </ul>
   </li>
