@@ -75,7 +75,7 @@ public class PTransforms {
           components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
-      transformBuilder.addSubtransforms(components.registerPTransform(subtransform));
+      transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));
     }
 
     transformBuilder.setUniqueName(appliedPTransform.getFullName());
