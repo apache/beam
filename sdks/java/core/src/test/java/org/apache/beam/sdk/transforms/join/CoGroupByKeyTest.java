@@ -40,7 +40,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.join.CoGroupByKey.FilterOption;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
@@ -148,13 +147,6 @@ public class CoGroupByKeyTest implements Serializable {
     p.run();
   }
 
-  private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbk(
-      Pipeline p,
-      TupleTag<String> purchasesTag,
-      TupleTag<String> addressesTag,
-      TupleTag<String> namesTag){
-    return buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag, FilterOption.NONE);
-  }
   /**
    * Returns a {@code PCollection<KV<Integer, CoGbkResult>>} containing the
    * results of the {@code CoGroupByKey} over three
@@ -165,8 +157,7 @@ public class CoGroupByKeyTest implements Serializable {
       Pipeline p,
       TupleTag<String> purchasesTag,
       TupleTag<String> addressesTag,
-      TupleTag<String> namesTag,
-      FilterOption option) {
+      TupleTag<String> namesTag) {
     List<KV<Integer, String>> idToPurchases =
         Arrays.asList(
             KV.of(2, "Boat"),
@@ -210,8 +201,7 @@ public class CoGroupByKeyTest implements Serializable {
         KeyedPCollectionTuple.of(namesTag, nameTable)
             .and(addressesTag, addressTable)
             .and(purchasesTag, purchasesTable)
-            .apply(option.equals(FilterOption.NONE) ? CoGroupByKey.<Integer>create()
-                : CoGroupByKey.<Integer>create().withInnerFilter());
+            .apply(CoGroupByKey.<Integer>create());
     return coGbkResults;
   }
 
@@ -321,6 +311,9 @@ public class CoGroupByKeyTest implements Serializable {
     p.run();
   }
 
+  /**
+   * Test an inner_filter applied to the output of CoGbkResult.
+   */
   @Test
   @Category(ValidatesRunner.class)
   public void testCoGroupByKeyWithInnerJoinOption() {
@@ -330,7 +323,8 @@ public class CoGroupByKeyTest implements Serializable {
 
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
-        buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag, FilterOption.INNER_JOIN);
+        buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag)
+        .apply("InnerJoinFilter", CoGbkResultFilter.<Integer>createInnerJoinFilter());
 
     PAssert.thatMap(coGbkResults).satisfies(
         new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {

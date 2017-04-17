@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
@@ -32,7 +31,6 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple.TaggedKeyedPCol
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple
@@ -78,19 +76,6 @@ public class CoGroupByKey<K> extends
                PCollection<KV<K, CoGbkResult>>> {
 
   /**
-   *  Filter options apply to the output collection of {@code CoGroupByKey} transform.
-   *
-   *  <p>By default, it's set to {@code NONE} and no filter is applied. With {@code INNER_JOIN},
-   *  a transform {@link InnerJoinFilter} is applied to the output
-   *  {@code PCollection<KV<K, CoGbkResult>>}.
-   *
-   */
-  @VisibleForTesting enum FilterOption {
-    NONE,
-    INNER_JOIN //similar as INNER_JOIN in SQL
-  }
-
-  /**
    * Returns a {@code CoGroupByKey<K>} {@code PTransform}.
    *
    * @param <K> the type of the keys in the input and output
@@ -100,35 +85,7 @@ public class CoGroupByKey<K> extends
     return new CoGroupByKey<>();
   }
 
-  /**
-   * Add a {@link FilterOption#INNER_JOIN} filter to the output {@code PCollection}
-   * of {@code CoGroupByKey}.
-   *
-   *<p>This filter verifies values of each input {@code TupleTag} in {@code CoGbkResult}. Only
-   *when none is empty, this element is emitted. For example, given the results as below
-   *<pre>{@code
-   * user1, [[], [order1, order2]]
-   * user2, [[address2], [order3]]
-   * user3, [[address3], []]
-   *}
-   *</pre>
-   *
-   *<p>The output after {@code withInnerFilter} is
-   *<pre>{@code
-   * user2, [[address2], [order3]]
-   *}
-   *</pre>
-   *
-   * @return
-   */
-  public CoGroupByKey<K> withInnerFilter() {
-    this.filterOption = FilterOption.INNER_JOIN;
-    return this;
-  }
-
   private CoGroupByKey() { }
-
-  private FilterOption filterOption = FilterOption.NONE;
 
   @Override
   public PCollection<KV<K, CoGbkResult>> expand(
@@ -176,11 +133,6 @@ public class CoGroupByKey<K> extends
     result.setCoder(KvCoder.of(keyCoder,
         CoGbkResultCoder.of(tupleTags, unionCoder)));
 
-    //apply a filter to the output.
-    if (filterOption.equals(FilterOption.INNER_JOIN)) {
-      result = result.apply("inner_filter", new InnerJoinFilter<K>());
-    }
-
     return result;
   }
 
@@ -212,33 +164,6 @@ public class CoGroupByKey<K> extends
 
     return pCollection.apply("MakeUnionTable" + index,
         ParDo.of(new ConstructUnionTableFn<K, V>(index))).setCoder(unionTableEncoder);
-  }
-
-  /**
-   * A filter act as INNER_JOIN in SQL.
-   *
-   * @param <K>
-   */
-  private static class InnerJoinFilter<K>
-      extends PTransform<PCollection<KV<K, CoGbkResult>>, PCollection<KV<K, CoGbkResult>>> {
-
-    @Override
-    public PCollection<KV<K, CoGbkResult>> expand(PCollection<KV<K, CoGbkResult>> input) {
-      return input.apply("InnerJoinFilter",
-          ParDo.of(new DoFn<KV<K, CoGbkResult>, KV<K, CoGbkResult>>() {
-
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              CoGbkResult result = c.element().getValue();
-              for (TupleTag<?> tag : result.getSchema().getTupleTagList().getAll()) {
-                if (!result.getAll(tag).iterator().hasNext()) {
-                  return;
-                }
-              }
-              c.output(c.element());
-            }
-          }));
-    }
   }
 
   /**
