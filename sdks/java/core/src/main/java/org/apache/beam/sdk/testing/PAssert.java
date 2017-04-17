@@ -145,7 +145,7 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
      * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
@@ -233,7 +233,7 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
      * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
@@ -939,7 +939,8 @@ public class PAssert {
               PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
               PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
           removeTriggering =
-              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>triggering(Never.ever())
+              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                  .triggering(Never.ever())
                   .discardingFiredPanes()
                   .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
       // Group the contents by key. If it is empty, this PCollection will be empty, too.
@@ -983,7 +984,8 @@ public class PAssert {
                   Flatten.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>pCollections())
               .apply(
                   "NeverTrigger",
-                  Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>triggering(Never.ever())
+                  Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                      .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
               .apply(
@@ -1110,7 +1112,7 @@ public class PAssert {
           .apply("WindowToken", windowToken)
           .apply(
               "RunChecks",
-              ParDo.withSideInputs(actual).of(new SideInputCheckerDoFn<>(checkerFn, actual, site)));
+              ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual, site)).withSideInputs(actual));
 
       return PDone.in(input.getPipeline());
     }

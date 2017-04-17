@@ -62,7 +62,7 @@ public class SparkPipelineStateTest implements Serializable {
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
-  private ParDo.Bound<String, String> printParDo(final String prefix) {
+  private ParDo.SingleOutput<String, String> printParDo(final String prefix) {
     return ParDo.of(new DoFn<String, String>() {
 
       @ProcessElement

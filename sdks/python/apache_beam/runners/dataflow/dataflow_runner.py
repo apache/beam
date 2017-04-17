@@ -21,7 +21,6 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-import base64
 import logging
 import threading
 import time
@@ -31,7 +30,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
-from apache_beam.pvalue import PCollectionView
+from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -93,8 +92,7 @@ class DataflowRunner(PipelineRunner):
         return -1
       elif 'Traceback' in msg:
         return 1
-      else:
-        return 0
+      return 0
 
     job_id = result.job_id()
     while True:
@@ -153,8 +151,13 @@ class DataflowRunner(PipelineRunner):
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.runners.dataflow.internal import apiclient
+    except ImportError:
+      raise ImportError(
+          'Google Cloud Dataflow runner not available, '
+          'please install apache_beam[gcp]')
     self.job = apiclient.Job(pipeline.options)
 
     # The superclass's run will trigger a traversal of all reachable nodes.
@@ -174,7 +177,7 @@ class DataflowRunner(PipelineRunner):
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
-    self._metrics = DataflowMetrics(self.dataflow_client, result)
+    self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
 
@@ -190,8 +193,7 @@ class DataflowRunner(PipelineRunner):
       return coders.WindowedValueCoder(
           coders.registry.get_coder(typehint),
           window_coder=window_coder)
-    else:
-      return coders.registry.get_coder(typehint)
+    return coders.registry.get_coder(typehint)
 
   def _get_cloud_encoding(self, coder):
     """Returns an encoding based on a coder object."""
@@ -219,9 +221,9 @@ class DataflowRunner(PipelineRunner):
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
     if (len(transform_node.outputs) == 1
-        and transform_node.outputs[0].element_type is not None):
+        and transform_node.outputs[None].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[0].element_type
+      element_type = transform_node.outputs[None].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -229,7 +231,7 @@ class DataflowRunner(PipelineRunner):
       element_type = typehints.Any
     if window_value:
       window_coder = (
-          transform_node.outputs[0].windowing.windowfn.get_window_coder())
+          transform_node.outputs[None].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     return self._get_typehint_based_encoding(
@@ -261,46 +263,26 @@ class DataflowRunner(PipelineRunner):
 
     return step
 
-  def run_Create(self, transform_node):
-    transform = transform_node.transform
-    step = self._add_step(TransformNames.CREATE_PCOLLECTION,
-                          transform_node.full_label, transform_node)
-    # TODO(silviuc): Eventually use a coder based on typecoders.
-    # Note that we base64-encode values here so that the service will accept
-    # the values.
-    element_coder = coders.PickleCoder()
-    step.add_property(
-        PropertyNames.ELEMENT,
-        [base64.b64encode(element_coder.encode(v))
-         for v in transform.value])
-    # The service expects a WindowedValueCoder here, so we wrap the actual
-    # encoding in a WindowedValueCoder.
-    step.encoding = self._get_cloud_encoding(
-        coders.WindowedValueCoder(element_coder))
-    step.add_property(
-        PropertyNames.OUTPUT_INFO,
-        [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-
-  def run_CreatePCollectionView(self, transform_node):
-    step = self._add_step(TransformNames.COLLECTION_TO_SINGLETON,
-                          transform_node.full_label, transform_node)
-    input_tag = transform_node.inputs[0].tag
-    input_step = self._cache.get_pvalue(transform_node.inputs[0])
+  def _add_singleton_step(self, label, full_label, tag, input_step):
+    """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
+    # Import here to avoid adding the dependency for local running scenarios.
+    from apache_beam.runners.dataflow.internal import apiclient
+    step = apiclient.Step(TransformNames.COLLECTION_TO_SINGLETON, label)
+    self.job.proto.steps.append(step.proto)
+    step.add_property(PropertyNames.USER_NAME, full_label)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
-         PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+         PropertyNames.OUTPUT_NAME: input_step.get_output(tag)})
     step.encoding = self._get_side_input_encoding(input_step.encoding)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+            '%s.%s' % (full_label, PropertyNames.OUTPUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    return step
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,
@@ -371,20 +353,26 @@ class DataflowRunner(PipelineRunner):
     si_dict = {}
     # We must call self._cache.get_pvalue exactly once due to refcounting.
     si_labels = {}
-    for side_pval in transform_node.side_inputs:
-      si_labels[side_pval] = self._cache.get_pvalue(side_pval).step_name
     lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
-      assert isinstance(side_pval, PCollectionView)
-      si_label = lookup_label(side_pval)
+      assert isinstance(side_pval, AsSideInput)
+      si_label = 'SideInput-' + self._get_unique_step_name()
+      si_full_label = '%s/%s' % (transform_node.full_label, si_label)
+      self._add_singleton_step(
+          si_label, si_full_label, side_pval.pvalue.tag,
+          self._cache.get_pvalue(side_pval.pvalue))
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
+      si_labels[side_pval] = si_label
 
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(
-        TransformNames.DO, transform_node.full_label, transform_node,
+        TransformNames.DO,
+        transform_node.full_label + (
+            '/Do' if transform_node.side_inputs else ''),
+        transform_node,
         transform_node.transform.side_output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))

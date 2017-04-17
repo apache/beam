@@ -82,14 +82,14 @@ import org.joda.time.Instant;
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
     extends PTransform<PCollection<InputT>, PCollectionTuple> {
-  private final ParDo.BoundMulti<InputT, OutputT> parDo;
+  private final ParDo.MultiOutput<InputT, OutputT> parDo;
 
   /**
    * Creates the transform for the given original multi-output {@link ParDo}.
    *
    * @param parDo The splittable {@link ParDo} transform.
    */
-  public SplittableParDo(ParDo.BoundMulti<InputT, OutputT> parDo) {
+  public SplittableParDo(ParDo.MultiOutput<InputT, OutputT> parDo) {
     checkNotNull(parDo, "parDo must not be null");
     this.parDo = parDo;
     checkArgument(
@@ -118,7 +118,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input.getWindowingStrategy(),
             parDo.getSideInputs(),
             parDo.getMainOutputTag(),
-            parDo.getSideOutputTags()));
+            parDo.getAdditionalOutputTags()));
   }
 
   private static <InputT, OutputT, RestrictionT>
@@ -188,14 +188,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private final WindowingStrategy<?, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
-    private final TupleTagList sideOutputTags;
+    private final TupleTagList additionalOutputTags;
 
     /**
      * @param fn the splittable {@link DoFn}.
      * @param windowingStrategy the {@link WindowingStrategy} of the input collection.
      * @param sideInputs list of side inputs that should be available to the {@link DoFn}.
      * @param mainOutputTag {@link TupleTag Tag} of the {@link DoFn DoFn's} main output.
-     * @param sideOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} side outputs.
+     * @param additionalOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} additional
+     *     outputs.
      */
     public ProcessElements(
         DoFn<InputT, OutputT> fn,
@@ -204,14 +205,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         WindowingStrategy<?, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
-        TupleTagList sideOutputTags) {
+        TupleTagList additionalOutputTags) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
       this.windowingStrategy = windowingStrategy;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
-      this.sideOutputTags = sideOutputTags;
+      this.additionalOutputTags = additionalOutputTags;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -226,8 +227,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return mainOutputTag;
     }
 
-    public TupleTagList getSideOutputTags() {
-      return sideOutputTags;
+    public TupleTagList getAdditionalOutputTags() {
+      return additionalOutputTags;
     }
 
     public ProcessFn<InputT, OutputT, RestrictionT, TrackerT> newProcessFn(
@@ -244,11 +245,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       PCollectionTuple outputs =
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
-              TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 
-      // Set output type descriptor similarly to how ParDo.BoundMulti does it.
+      // Set output type descriptor similarly to how ParDo.MultiOutput does it.
       outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
@@ -260,7 +261,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input,
         TypedPValue<T> output)
         throws CannotProvideCoderException {
-      // Similar logic to ParDo.BoundMulti.getDefaultOutputCoder.
+      // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
       @SuppressWarnings("unchecked")
       KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
           (KeyedWorkItemCoder) input.getCoder();
@@ -324,14 +325,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
      * acquired during the first {@link DoFn.ProcessElement} call for each element and restriction,
-     * and is released when the {@link DoFn.ProcessElement} call returns {@link
-     * DoFn.ProcessContinuation#stop}.
+     * and is released when the {@link DoFn.ProcessElement} call returns and there is no residual
+     * restriction captured by the {@link SplittableProcessElementInvoker}.
      *
      * <p>A hold is needed to avoid letting the output watermark immediately progress together with
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
      * completes.
-     *
-     * <p>The hold is updated with the future output watermark reported by ProcessContinuation.
      */
     private static final StateTag<Object, WatermarkHoldState<GlobalWindow>> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
@@ -461,7 +460,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               invoker, elementAndRestriction.element(), tracker);
 
       // Save state for resuming.
-      if (!result.getContinuation().shouldResume()) {
+      if (result.getResidualRestriction() == null) {
         // All work for this element/restriction is completed. Clear state and release hold.
         elementState.clear();
         restrictionState.clear();
@@ -469,16 +468,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         return;
       }
       restrictionState.write(result.getResidualRestriction());
-      Instant futureOutputWatermark = result.getContinuation().getWatermark();
+      Instant futureOutputWatermark = result.getFutureOutputWatermark();
       if (futureOutputWatermark == null) {
         futureOutputWatermark = elementAndRestriction.element().getTimestamp();
       }
-      Instant wakeupTime =
-          timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(
+              stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
     }
 
     /**
@@ -525,12 +523,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
 
         @Override
-        public <T> void sideOutput(TupleTag<T> tag, T output) {
+        public <T> void output(TupleTag<T> tag, T output) {
           throwUnsupportedOutput();
         }
 
         @Override
-        public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
           throwUnsupportedOutput();
         }
 

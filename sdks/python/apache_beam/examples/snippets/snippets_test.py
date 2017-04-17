@@ -328,6 +328,9 @@ class TypeHintsTest(unittest.TestCase):
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
+    # For pickling
+    global Player  # pylint: disable=global-variable-not-assigned
+
     # [START type_hints_deterministic_key]
     class Player(object):
       def __init__(self, team, name):
@@ -466,8 +469,7 @@ class SnippetsTest(unittest.TestCase):
 
     if sorted_output:
       return sorted(s.rstrip('\n') for s in all_lines)
-    else:
-      return all_lines
+    return all_lines
 
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')

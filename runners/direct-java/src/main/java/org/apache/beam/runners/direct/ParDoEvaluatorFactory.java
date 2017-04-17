@@ -32,12 +32,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A {@link TransformEvaluatorFactory} for {@link ParDo.BoundMulti}. */
+/** A {@link TransformEvaluatorFactory} for {@link ParDo.MultiOutput}. */
 final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluatorFactory {
 
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
@@ -62,13 +62,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
 
     @SuppressWarnings("unchecked")
-    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>
+    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>
         parDoApplication =
             (AppliedPTransform<
-                    PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>)
+                    PCollection<InputT>, PCollectionTuple, ParDo.MultiOutput<InputT, OutputT>>)
                 application;
 
-    ParDo.BoundMulti<InputT, OutputT> transform = parDoApplication.getTransform();
+    ParDo.MultiOutput<InputT, OutputT> transform = parDoApplication.getTransform();
     final DoFn<InputT, OutputT> doFn = transform.getFn();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -80,7 +80,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 doFn,
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
-                transform.getSideOutputTags().getAll());
+                transform.getAdditionalOutputTags().getAll());
     return evaluator;
   }
 
@@ -103,7 +103,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> doFn,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags)
+      List<TupleTag<?>> additionalOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -119,7 +119,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             inputBundleKey,
             sideInputs,
             mainOutputTag,
-            sideOutputTags,
+            additionalOutputTags,
             stepContext,
             fnManager.<InputT, OutputT>get(),
             fnManager),
@@ -131,7 +131,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
@@ -141,13 +141,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           evaluationContext,
           stepContext,
           application,
-          ((PCollection<InputT>) Iterables.getOnlyElement(application.getInputs()).getValue())
+          ((PCollection<InputT>) Iterables.getOnlyElement(application.getInputs().values()))
               .getWindowingStrategy(),
           fn,
           key,
           sideInputs,
           mainOutputTag,
-          sideOutputTags,
+          additionalOutputTags,
           pcollections(application.getOutputs()));
     } catch (Exception e) {
       try {
@@ -162,10 +162,10 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     }
   }
 
-  private Map<TupleTag<?>, PCollection<?>> pcollections(List<TaggedPValue> outputs) {
+  private Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
     Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
-    for (TaggedPValue output : outputs) {
-      pcs.put(output.getTag(), (PCollection<?>) output.getValue());
+    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      pcs.put(output.getKey(), (PCollection<?>) output.getValue());
     }
     return pcs;
   }

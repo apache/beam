@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
@@ -324,9 +325,10 @@ public class DoFnTesterTest {
 
   @Test
   public void fnWithSideInputDefault() throws Exception {
+    PCollection<Integer> pCollection = p.apply(Create.empty(VarIntCoder.of()));
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.processElement(1);
@@ -339,9 +341,10 @@ public class DoFnTesterTest {
 
   @Test
   public void fnWithSideInputExplicit() throws Exception {
+    PCollection<Integer> pCollection = p.apply(Create.of(-2));
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.setSideInput(value, GlobalWindow.INSTANCE, -2);

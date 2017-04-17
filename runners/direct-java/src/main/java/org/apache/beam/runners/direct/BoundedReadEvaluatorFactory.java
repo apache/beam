@@ -117,7 +117,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         ExecutorService executor) {
       this.evaluationContext = evaluationContext;
       this.outputPCollection =
-          (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
+          (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
       this.resultBuilder = StepTransformResult.withoutHold(transform);
       this.minimumDynamicSplitSize = minimumDynamicSplitSize;
       this.produceSplitExecutor = executor;

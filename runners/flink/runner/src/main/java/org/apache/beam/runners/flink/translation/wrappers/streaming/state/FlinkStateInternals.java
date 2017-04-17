@@ -35,8 +35,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineContextFactory;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -142,23 +142,23 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT>
+      CombiningState<InputT, AccumT, OutputT>
       bindCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
-        return new FlinkAccumulatorCombiningState<>(
+        return new FlinkCombiningState<>(
             flinkStateBackend, address, combineFn, namespace, accumCoder);
       }
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-        return new FlinkKeyedAccumulatorCombiningState<>(
+        return new FlinkKeyedCombiningState<>(
             flinkStateBackend,
             address,
             combineFn,
@@ -169,12 +169,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           CombineWithContext.KeyedCombineFnWithContext<
               ? super K, InputT, AccumT, OutputT> combineFn) {
-        return new FlinkAccumulatorCombiningStateWithContext<>(
+        return new FlinkCombiningStateWithContext<>(
             flinkStateBackend,
             address,
             combineFn,
@@ -393,18 +393,18 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkAccumulatorCombiningState<K, InputT, AccumT, OutputT>
-      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+  private static class FlinkCombiningState<K, InputT, AccumT, OutputT>
+      implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
-    FlinkAccumulatorCombiningState(
+    FlinkCombiningState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder) {
@@ -420,7 +420,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public AccumulatorCombiningState<InputT, AccumT, OutputT> readLater() {
+    public CombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -546,8 +546,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         return false;
       }
 
-      FlinkAccumulatorCombiningState<?, ?, ?, ?> that =
-          (FlinkAccumulatorCombiningState<?, ?, ?, ?>) o;
+      FlinkCombiningState<?, ?, ?, ?> that =
+          (FlinkCombiningState<?, ?, ?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -561,19 +561,19 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkKeyedAccumulatorCombiningState<K, InputT, AccumT, OutputT>
-      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+  private static class FlinkKeyedCombiningState<K, InputT, AccumT, OutputT>
+      implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
 
-    FlinkKeyedAccumulatorCombiningState(
+    FlinkKeyedCombiningState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
@@ -591,7 +591,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public AccumulatorCombiningState<InputT, AccumT, OutputT> readLater() {
+    public CombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -721,8 +721,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         return false;
       }
 
-      FlinkKeyedAccumulatorCombiningState<?, ?, ?, ?> that =
-          (FlinkKeyedAccumulatorCombiningState<?, ?, ?, ?>) o;
+      FlinkKeyedCombiningState<?, ?, ?, ?> that =
+          (FlinkKeyedCombiningState<?, ?, ?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 
@@ -736,11 +736,11 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private static class FlinkAccumulatorCombiningStateWithContext<K, InputT, AccumT, OutputT>
-      implements AccumulatorCombiningState<InputT, AccumT, OutputT> {
+  private static class FlinkCombiningStateWithContext<K, InputT, AccumT, OutputT>
+      implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address;
+    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
     private final CombineWithContext.KeyedCombineFnWithContext<
         ? super K, InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
@@ -748,9 +748,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     private final FlinkStateInternals<K> flinkStateInternals;
     private final CombineWithContext.Context context;
 
-    FlinkAccumulatorCombiningStateWithContext(
+    FlinkCombiningStateWithContext(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         CombineWithContext.KeyedCombineFnWithContext<
             ? super K, InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -771,7 +771,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public AccumulatorCombiningState<InputT, AccumT, OutputT> readLater() {
+    public CombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -896,8 +896,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         return false;
       }
 
-      FlinkAccumulatorCombiningStateWithContext<?, ?, ?, ?> that =
-          (FlinkAccumulatorCombiningStateWithContext<?, ?, ?, ?>) o;
+      FlinkCombiningStateWithContext<?, ?, ?, ?> that =
+          (FlinkCombiningStateWithContext<?, ?, ?, ?>) o;
 
       return namespace.equals(that.namespace) && address.equals(that.address);
 

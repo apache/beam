@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,21 +39,21 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link ParDo.BoundMulti} is translated to {@link ApexParDoOperator} that wraps the {@link DoFn}.
+ * {@link ParDo.MultiOutput} is translated to {@link ApexParDoOperator} that wraps the {@link DoFn}.
  */
 class ParDoTranslator<InputT, OutputT>
-    implements TransformTranslator<ParDo.BoundMulti<InputT, OutputT>> {
+    implements TransformTranslator<ParDo.MultiOutput<InputT, OutputT>> {
   private static final long serialVersionUID = 1L;
   private static final Logger LOG = LoggerFactory.getLogger(ParDoTranslator.class);
 
   @Override
-  public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
+  public void translate(ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
@@ -81,7 +82,7 @@ class ParDoTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    List<TaggedPValue> outputs = context.getOutputs();
+    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     PCollection<InputT> input = (PCollection<InputT>) context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
@@ -89,34 +90,33 @@ class ParDoTranslator<InputT, OutputT>
         FullWindowedValueCoder.of(
             inputCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
 
-    ApexParDoOperator<InputT, OutputT> operator =
-        new ApexParDoOperator<>(
+    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
             context.getPipelineOptions(),
             doFn,
             transform.getMainOutputTag(),
-            transform.getSideOutputTags().getAll(),
-            ((PCollection<InputT>) context.getInput()).getWindowingStrategy(),
+            transform.getAdditionalOutputTags().getAll(),
+            input.getWindowingStrategy(),
             sideInputs,
             wvInputCoder,
-            context.<Void>stateInternalsFactory());
+            context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
-    for (TaggedPValue output : outputs) {
+    for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       checkArgument(
           output.getValue() instanceof PCollection,
           "%s %s outputs non-PCollection %s of type %s",
-          ParDo.BoundMulti.class.getSimpleName(),
+          ParDo.MultiOutput.class.getSimpleName(),
           context.getFullName(),
           output.getValue(),
           output.getValue().getClass().getSimpleName());
       PCollection<?> pc = (PCollection<?>) output.getValue();
-      if (output.getTag().equals(transform.getMainOutputTag())) {
+      if (output.getKey().equals(transform.getMainOutputTag())) {
         ports.put(pc, operator.output);
       } else {
         int portIndex = 0;
-        for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
-          if (tag.equals(output.getTag())) {
-            ports.put(pc, operator.sideOutputPorts[portIndex]);
+        for (TupleTag<?> tag : transform.getAdditionalOutputTags().getAll()) {
+          if (tag.equals(output.getKey())) {
+            ports.put(pc, operator.additionalOutputPorts[portIndex]);
             break;
           }
           portIndex++;
@@ -126,15 +126,15 @@ class ParDoTranslator<InputT, OutputT>
     context.addOperator(operator, ports);
     context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {
-      addSideInputs(operator, sideInputs, context);
+      addSideInputs(operator.sideInput1, sideInputs, context);
     }
   }
 
   static void addSideInputs(
-      ApexParDoOperator<?, ?> operator,
+      Operator.InputPort<?> sideInputPort,
       List<PCollectionView<?>> sideInputs,
       TranslationContext context) {
-    Operator.InputPort<?>[] sideInputPorts = {operator.sideInput1};
+    Operator.InputPort<?>[] sideInputPorts = {sideInputPort};
     if (sideInputs.size() > sideInputPorts.length) {
       PCollection<?> unionCollection = unionSideInputs(sideInputs, context);
       context.addStream(unionCollection, sideInputPorts[0]);

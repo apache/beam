@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.Arrays;
 import java.util.Collection;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
@@ -51,11 +50,6 @@ public abstract class PartitioningWindowFn<T, W extends BoundedWindow>
               "Attempted to get side input window for GlobalWindow from non-global WindowFn");
         }
         return assignWindow(mainWindow.maxTimestamp());
-      }
-
-      @Override
-      public Duration maximumLookback() {
-        return Duration.ZERO;
       }
     };
   }

@@ -97,7 +97,7 @@ public class GcsResourceId implements ResourceId {
 
   @Override
   public String toString() {
-    return String.format("GcsResourceId: [%s]", gcsPath);
+    return gcsPath.toString();
   }
 
   @Override

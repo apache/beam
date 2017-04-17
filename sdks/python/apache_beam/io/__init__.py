@@ -33,6 +33,7 @@ from apache_beam.io.range_trackers import *
 try:
   from apache_beam.io.gcp.bigquery import *
   from apache_beam.io.gcp.pubsub import *
+  from apache_beam.io.gcp import gcsio
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position

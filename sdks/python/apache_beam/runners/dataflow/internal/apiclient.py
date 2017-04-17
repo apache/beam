@@ -285,12 +285,25 @@ class Job(object):
         indent=2, sort_keys=True)
 
   @staticmethod
+  def _build_default_job_name(user_name):
+    """Generates a default name for a job.
+
+    user_name is lowercased, and any characters outside of [-a-z0-9]
+    are removed. If necessary, the user_name is truncated to shorten
+    the job name to 63 characters."""
+    user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
+    date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+    app_user_name = 'beamapp-{}'.format(user_name)
+    job_name = '{}-{}'.format(app_user_name, date_component)
+    if len(job_name) > 63:
+      job_name = '{}-{}'.format(app_user_name[:-(len(job_name) - 63)],
+                                date_component)
+    return job_name
+
+  @staticmethod
   def default_job_name(job_name):
     if job_name is None:
-      user_name = getpass.getuser().lower()
-      date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
-      app_name = 'beamapp'
-      job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
+      job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
   def __init__(self, options):
@@ -423,8 +436,10 @@ class DataflowApplicationClient(object):
 
     if not template_location:
       return self.submit_job_description(job)
-    else:
-      return None
+
+    logging.info('A template was just created at location %s',
+                 template_location)
+    return None
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
@@ -438,11 +453,12 @@ class DataflowApplicationClient(object):
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):
-    request = dataflow.DataflowProjectsJobsGetMetricsRequest()
+    request = dataflow.DataflowProjectsLocationsJobsGetMetricsRequest()
     request.jobId = job_id
+    request.location = self.google_cloud_options.region
     request.projectId = self.google_cloud_options.project
     try:
-      response = self._client.projects_jobs.GetMetrics(request)
+      response = self._client.projects_locations_jobs.GetMetrics(request)
     except exceptions.BadStatusCodeError as e:
       logging.error('HTTP status %d. Unable to query metrics',
                     e.response.status)
@@ -451,12 +467,13 @@ class DataflowApplicationClient(object):
 
   def submit_job_description(self, job):
     """Creates and excutes a job request."""
-    request = dataflow.DataflowProjectsJobsCreateRequest()
+    request = dataflow.DataflowProjectsLocationsJobsCreateRequest()
     request.projectId = self.google_cloud_options.project
+    request.location = self.google_cloud_options.region
     request.job = job.proto
 
     try:
-      response = self._client.projects_jobs.Create(request)
+      response = self._client.projects_locations_jobs.Create(request)
     except exceptions.BadStatusCodeError as e:
       logging.error('HTTP status %d trying to create job'
                     ' at dataflow service endpoint %s',
@@ -496,9 +513,10 @@ class DataflowApplicationClient(object):
       # Other states could only be set by the service.
       return False
 
-    request = dataflow.DataflowProjectsJobsUpdateRequest()
+    request = dataflow.DataflowProjectsLocationsJobsUpdateRequest()
     request.jobId = job_id
     request.projectId = self.google_cloud_options.project
+    request.location = self.google_cloud_options.region
     request.job = dataflow.Job(requestedState=new_state)
 
     self._client.projects_jobs.Update(request)
@@ -526,10 +544,11 @@ class DataflowApplicationClient(object):
         (e.g. '2015-03-10T00:01:53.074Z')
       currentStateTime: UTC time for the current state of the job.
     """
-    request = dataflow.DataflowProjectsJobsGetRequest()
+    request = dataflow.DataflowProjectsLocationsJobsGetRequest()
     request.jobId = job_id
     request.projectId = self.google_cloud_options.project
-    response = self._client.projects_jobs.Get(request)
+    request.location = self.google_cloud_options.region
+    response = self._client.projects_locations_jobs.Get(request)
     return response
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
@@ -575,8 +594,9 @@ class DataflowApplicationClient(object):
         JOB_MESSAGE_WARNING, JOB_MESSAGE_ERROR.
      messageText: A message string.
     """
-    request = dataflow.DataflowProjectsJobsMessagesListRequest(
-        jobId=job_id, projectId=self.google_cloud_options.project)
+    request = dataflow.DataflowProjectsLocationsJobsMessagesListRequest(
+        jobId=job_id, location=self.google_cloud_options.region,
+        projectId=self.google_cloud_options.project)
     if page_token is not None:
       request.pageToken = page_token
     if start_time is not None:
@@ -586,34 +606,34 @@ class DataflowApplicationClient(object):
     if minimum_importance is not None:
       if minimum_importance == 'JOB_MESSAGE_DEBUG':
         request.minimumImportance = (
-            dataflow.DataflowProjectsJobsMessagesListRequest
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
             .MinimumImportanceValueValuesEnum
             .JOB_MESSAGE_DEBUG)
       elif minimum_importance == 'JOB_MESSAGE_DETAILED':
         request.minimumImportance = (
-            dataflow.DataflowProjectsJobsMessagesListRequest
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
             .MinimumImportanceValueValuesEnum
             .JOB_MESSAGE_DETAILED)
       elif minimum_importance == 'JOB_MESSAGE_BASIC':
         request.minimumImportance = (
-            dataflow.DataflowProjectsJobsMessagesListRequest
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
             .MinimumImportanceValueValuesEnum
             .JOB_MESSAGE_BASIC)
       elif minimum_importance == 'JOB_MESSAGE_WARNING':
         request.minimumImportance = (
-            dataflow.DataflowProjectsJobsMessagesListRequest
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
             .MinimumImportanceValueValuesEnum
             .JOB_MESSAGE_WARNING)
       elif minimum_importance == 'JOB_MESSAGE_ERROR':
         request.minimumImportance = (
-            dataflow.DataflowProjectsJobsMessagesListRequest
+            dataflow.DataflowProjectsLocationsJobsMessagesListRequest
             .MinimumImportanceValueValuesEnum
             .JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
             'Unexpected value for minimum_importance argument: %r',
             minimum_importance)
-    response = self._client.projects_jobs_messages.List(request)
+    response = self._client.projects_locations_jobs_messages.List(request)
     return response.jobMessages, response.nextPageToken
 
 

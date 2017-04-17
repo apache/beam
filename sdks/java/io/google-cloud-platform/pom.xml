@@ -32,7 +32,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <bigtable.version>0.9.5.1</bigtable.version>
+    <bigtable.version>0.9.6</bigtable.version>
   </properties>
 
   <build>
@@ -54,50 +54,6 @@
           <execution>
             <id>bundle-and-repackage</id>
             <phase>none</phase>
-          </execution>
-        </executions>
-      </plugin>
-
-      <!-- Integration Tests -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <configuration>
-          <useManifestOnlyJar>false</useManifestOnlyJar>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>integration-test</goal>
-              <goal>verify</goal>
-            </goals>
-            <configuration>
-              <parallel>all</parallel>
-              <threadCount>4</threadCount>
-              <systemPropertyVariables>
-                <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
-              </systemPropertyVariables>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-dependency-plugin</artifactId>
-        <executions>
-          <execution>
-            <goals><goal>analyze-only</goal></goals>
-            <configuration>
-              <usedDependencies>
-                <!--
-                  BEAM-1632: Conflicting classes are brought in by bigtable-protos resulting in
-                  maven-dependency:analyze `unused dependency` error. Marking this as a
-                  `usedDependency` until the issue is resolved.
-                 -->
-                <usedDependency>com.google.api.grpc:grpc-google-common-protos</usedDependency>
-              </usedDependencies>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -128,6 +84,16 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-pubsub</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.api.grpc</groupId>
+      <artifactId>grpc-google-pubsub-v1</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
       <optional>true</optional>
@@ -149,13 +115,42 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-lite</artifactId>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-auth</artifactId>
     </dependency>
 
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-handler</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+
+    <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+     scope and depend on it at runtime. -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -228,7 +223,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
-      <version>1.1.33.Fork18</version>
+      <version>1.1.33.Fork26</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -254,13 +249,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 

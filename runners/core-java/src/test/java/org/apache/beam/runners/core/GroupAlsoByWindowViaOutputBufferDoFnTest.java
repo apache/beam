@@ -43,10 +43,10 @@ public class GroupAlsoByWindowViaOutputBufferDoFnTest {
 
     @Override
     public <W extends BoundedWindow>
-    GroupAlsoByWindowsDoFn<K, InputT, Iterable<InputT>, W> forStrategy(
+        GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, Iterable<InputT>, W> forStrategy(
             WindowingStrategy<?, W> windowingStrategy,
             StateInternalsFactory<K> stateInternalsFactory) {
-      return new GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, Iterable<InputT>, W>(
+      return new GroupAlsoByWindowViaOutputBufferDoFn<>(
           windowingStrategy,
           stateInternalsFactory,
           SystemReduceFn.<K, InputT, W>buffering(inputCoder));

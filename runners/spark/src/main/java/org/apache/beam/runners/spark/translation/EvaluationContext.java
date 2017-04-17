@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -37,7 +36,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -96,11 +95,11 @@ public class EvaluationContext {
 
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     @SuppressWarnings("unchecked")
-    T input = (T) Iterables.getOnlyElement(getInputs(transform)).getValue();
+    T input = (T) Iterables.getOnlyElement(getInputs(transform).values());
     return input;
   }
 
-  public <T> List<TaggedPValue> getInputs(PTransform<?, ?> transform) {
+  public <T> Map<TupleTag<?>, PValue> getInputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     return currentTransform.getInputs();
@@ -108,11 +107,11 @@ public class EvaluationContext {
 
   public <T extends PValue> T getOutput(PTransform<?, T> transform) {
     @SuppressWarnings("unchecked")
-    T output = (T) Iterables.getOnlyElement(getOutputs(transform)).getValue();
+    T output = (T) Iterables.getOnlyElement(getOutputs(transform).values());
     return output;
   }
 
-  public List<TaggedPValue> getOutputs(PTransform<?, ?> transform) {
+  public Map<TupleTag<?>, PValue> getOutputs(PTransform<?, ?> transform) {
     checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
         "can only be called with current transform");
     return currentTransform.getOutputs();

@@ -42,7 +42,7 @@
 
   <profiles>
     <profile>
-      <id>local-runnable-on-service-tests</id>
+      <id>local-validates-runner-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <properties>
         <skipIntegrationTests>false</skipIntegrationTests>
@@ -200,7 +200,7 @@
         </configuration>
         <executions>
           <execution>
-            <id>runnable-on-service-tests</id>
+            <id>validates-runner-tests</id>
             <phase>integration-test</phase>
             <goals>
               <goal>test</goal>
@@ -213,7 +213,8 @@
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo,
                 org.apache.beam.sdk.testing.UsesAttemptedMetrics,
-                org.apache.beam.sdk.testing.UsesCommittedMetrics
+                org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                org.apache.beam.sdk.testing.UsesTestStream
               </excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>

@@ -39,6 +39,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -90,7 +91,7 @@ import org.slf4j.LoggerFactory;
  * {@code
  * HDFSFileSource<K, V> source = HDFSFileSource.from(path, MyInputFormat.class,
  *   MyKey.class, MyValue.class);
- * PCollection<KV<MyKey, MyValue>> records = Read.from(mySource);
+ * PCollection<KV<MyKey, MyValue>> records = pipeline.apply(Read.from(mySource));
  * }
  * </pre>
  *
@@ -104,6 +105,7 @@ import org.slf4j.LoggerFactory;
  * @param <V> the type of values to be read from the source via {@link FileInputFormat}.
  */
 @AutoValue
+@Experimental
 public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
   private static final long serialVersionUID = 0L;
 

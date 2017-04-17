@@ -31,7 +31,6 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.transforms import core
-from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
@@ -50,11 +49,9 @@ class TransformEvaluatorRegistry(object):
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
-        core.Create: _CreateEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
-        sideinputs.CreatePCollectionView: _CreatePCollectionViewEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
     }
 
@@ -100,8 +97,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     return isinstance(applied_ptransform.transform,
-                      (core.GroupByKeyOnly, sideinputs.CreatePCollectionView,
-                       _NativeWrite))
+                      (core.GroupByKeyOnly, _NativeWrite))
 
 
 class _TransformEvaluator(object):
@@ -236,36 +232,6 @@ class _FlattenEvaluator(_TransformEvaluator):
         self._applied_ptransform, bundles, None, None, None, None)
 
 
-class _CreateEvaluator(_TransformEvaluator):
-  """TransformEvaluator for Create transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not input_committed_bundle
-    assert not side_inputs
-    super(_CreateEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
-  def start_bundle(self):
-    assert len(self._outputs) == 1
-    output_pcollection = list(self._outputs)[0]
-    self.bundle = self._evaluation_context.create_bundle(output_pcollection)
-
-  def finish_bundle(self):
-    bundles = []
-    transform = self._applied_ptransform.transform
-
-    assert transform.value is not None
-    create_result = [GlobalWindows.windowed_value(v) for v in transform.value]
-    for result in create_result:
-      self.bundle.output(result)
-    bundles.append(self.bundle)
-
-    return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
-
-
 class _TaggedReceivers(dict):
   """Received ParDo output and redirect to the associated output bundle."""
 
@@ -312,34 +278,16 @@ class _TaggedReceivers(dict):
 
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    super(_ParDoEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
   def start_bundle(self):
     transform = self._applied_ptransform.transform
 
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
-    if isinstance(self._applied_ptransform.parent.transform, core._MultiParDo):  # pylint: disable=protected-access
-      do_outputs_tuple = self._applied_ptransform.parent.outputs[0]
-      assert isinstance(do_outputs_tuple, pvalue.DoOutputsTuple)
-      main_output_pcollection = do_outputs_tuple[do_outputs_tuple._main_tag]  # pylint: disable=protected-access
-
-      for side_output_tag in transform.side_output_tags:
-        output_pcollection = do_outputs_tuple[side_output_tag]
-        self._tagged_receivers[side_output_tag] = (
-            self._evaluation_context.create_bundle(output_pcollection))
-        self._tagged_receivers[side_output_tag].tag = side_output_tag
-    else:
-      assert len(self._outputs) == 1
-      main_output_pcollection = list(self._outputs)[0]
-
-    self._tagged_receivers[None] = self._evaluation_context.create_bundle(
-        main_output_pcollection)
-    self._tagged_receivers[None].tag = None  # main_tag is None.
+    for side_output_tag in self._applied_ptransform.outputs:
+      output_pcollection = pvalue.PCollection(None, tag=side_output_tag)
+      output_pcollection.producer = self._applied_ptransform
+      self._tagged_receivers[side_output_tag] = (
+          self._evaluation_context.create_bundle(output_pcollection))
+      self._tagged_receivers[side_output_tag].tag = side_output_tag
 
     self._counter_factory = counters.CounterFactory()
 
@@ -445,52 +393,6 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
       self.state.completed = True
       state = self.state
-      hold = WatermarkManager.WATERMARK_POS_INF
-    else:
-      bundles = []
-      state = self.state
-      hold = WatermarkManager.WATERMARK_NEG_INF
-
-    return TransformResult(
-        self._applied_ptransform, bundles, state, None, None, hold)
-
-
-class _CreatePCollectionViewEvaluator(_TransformEvaluator):
-  """TransformEvaluator for CreatePCollectionView transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not side_inputs
-    super(_CreatePCollectionViewEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
-  @property
-  def _is_final_bundle(self):
-    return (self._execution_context.watermarks.input_watermark
-            == WatermarkManager.WATERMARK_POS_INF)
-
-  def start_bundle(self):
-    # state: [values]
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else [])
-
-    assert len(self._outputs) == 1
-    self.output_pcollection = list(self._outputs)[0]
-
-  def process_element(self, element):
-    self.state.append(element)
-
-  def finish_bundle(self):
-    if self._is_final_bundle:
-      bundle = self._evaluation_context.create_bundle(self.output_pcollection)
-
-      view_result = self.state
-      for result in view_result:
-        bundle.output(result)
-
-      bundles = [bundle]
-      state = None
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
       bundles = []

@@ -31,7 +31,6 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.transforms.display import DisplayDataItem
 
-MAX_BATCH_OPERATION_SIZE = 100
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
 
@@ -40,7 +39,7 @@ class ChannelFactory(object):
   @staticmethod
   def mkdir(path):
     bfs = get_filesystem(path)
-    bfs.mkdirs(path)
+    return bfs.mkdirs(path)
 
   @staticmethod
   def open(path,
@@ -59,14 +58,16 @@ class ChannelFactory(object):
 
   @staticmethod
   def rename(src, dest):
-    bfs = get_filesystem(path)
-    bfs.rename([src], [dest])
+    bfs = get_filesystem(src)
+    return bfs.rename([src], [dest])
 
   @staticmethod
   def rename_batch(src_dest_pairs):
     sources = [s for s, _ in src_dest_pairs]
     destinations = [d for _, d in src_dest_pairs]
-    bfs = get_filesystem()
+    if not sources:
+      return []
+    bfs = get_filesystem(sources[0])
     try:
       bfs.rename(sources, destinations)
       return []
@@ -75,23 +76,23 @@ class ChannelFactory(object):
 
   @staticmethod
   def copytree(src, dest):
-    bfs = get_filesystem()
-    bfs.copy([src], [dest])
+    bfs = get_filesystem(src)
+    return bfs.copy([src], [dest])
 
   @staticmethod
   def exists(path):
     bfs = get_filesystem(path)
-    bfs.exists(path)
+    return bfs.exists(path)
 
   @staticmethod
   def rmdir(path):
     bfs = get_filesystem(path)
-    bfs.delete([path])
+    return bfs.delete([path])
 
   @staticmethod
   def rm(path):
     bfs = get_filesystem(path)
-    bfs.delete([path])
+    return bfs.delete([path])
 
   @staticmethod
   def glob(path, limit=None):
@@ -102,13 +103,13 @@ class ChannelFactory(object):
   @staticmethod
   def size_in_bytes(path):
     bfs = get_filesystem(path)
-    match_result = bfs.match([path], [limit])[0]
+    match_result = bfs.match([path])[0]
     return [f.size_in_bytes for f in match_result.metadata_list][0]
 
   @staticmethod
   def size_of_files_in_glob(path, file_names=None):
     bfs = get_filesystem(path)
-    match_result = bfs.match([path], [limit])[0]
+    match_result = bfs.match([path])[0]
     part_files = {f.path:f.size_in_bytes for f in match_result.metadata_list}
 
     if file_names is not None:
@@ -118,7 +119,8 @@ class ChannelFactory(object):
         for metadata in match_result.metadata_list:
           specific_files[metadata.path] = metadata.size_in_bytes
 
-    return part_files.update(specific_files)
+      part_files.update(specific_files)
+    return part_files
 
 
 class FileSink(iobase.Sink):
@@ -163,7 +165,7 @@ class FileSink(iobase.Sink):
 
     if shard_name_template is None:
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
-    elif shard_name_template is '':
+    elif shard_name_template == '':
       num_shards = 1
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
@@ -241,6 +243,7 @@ class FileSink(iobase.Sink):
 
     source_files = []
     destination_files = []
+    chunk_size = self._file_system.CHUNK_SIZE
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           self.file_path_prefix, self.shard_name_format % dict(
@@ -249,12 +252,12 @@ class FileSink(iobase.Sink):
       source_files.append(shard)
       destination_files.append(final_name)
 
-    source_file_batch = [source_files[i:i + MAX_BATCH_OPERATION_SIZE]
+    source_file_batch = [source_files[i:i + chunk_size]
                          for i in xrange(0, len(source_files),
-                                         MAX_BATCH_OPERATION_SIZE)]
-    destination_file_batch = [destination_files[i:i + MAX_BATCH_OPERATION_SIZE]
+                                         chunk_size)]
+    destination_file_batch = [destination_files[i:i + chunk_size]
                               for i in xrange(0, len(destination_files),
-                                              MAX_BATCH_OPERATION_SIZE)]
+                                              chunk_size)]
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '
@@ -272,7 +275,7 @@ class FileSink(iobase.Sink):
         return exceptions
       except BeamIOError as exp:
         if exp.exception_details is None:
-          raise exp
+          raise
         for (src, dest), exception in exp.exception_details.iteritems():
           if exception:
             logging.warning('Rename not successful: %s -> %s, %s', src, dest,

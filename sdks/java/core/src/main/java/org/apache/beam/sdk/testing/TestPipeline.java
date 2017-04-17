@@ -106,7 +106,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     protected final Pipeline pipeline;
 
-    private boolean runInvoked;
+    protected boolean runAttempted;
 
     private PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
@@ -116,12 +116,14 @@ public class TestPipeline extends Pipeline implements TestRule {
       enableAutoRunIfMissing = enable;
     }
 
-    protected void afterPipelineExecution() {
-      runInvoked = true;
+    protected void beforePipelineExecution() {
+      runAttempted = true;
     }
 
-    protected void afterTestCompletion() {
-      if (!runInvoked && enableAutoRunIfMissing) {
+    protected void afterPipelineExecution() {}
+
+    protected void afterUserCodeFinished() {
+      if (!runAttempted && enableAutoRunIfMissing) {
         pipeline.run().waitUntilFinish();
       }
     }
@@ -174,25 +176,36 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     private void verifyPipelineExecution() {
-      final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
-      if (runVisitedNodes != null && !runVisitedNodes.equals(pipelineNodes)) {
-        final boolean hasDanglingPAssert =
-            FluentIterable.from(pipelineNodes)
-                .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                .anyMatch(isPAssertNode);
-        if (hasDanglingPAssert) {
-          throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
-        } else {
-          throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
-        }
-      } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        if (!isEmptyPipeline(pipeline)) {
+      if (!isEmptyPipeline(pipeline)) {
+        if (!runAttempted && !enableAutoRunIfMissing) {
           throw new PipelineRunMissingException(
               "The pipeline has not been run (runner: "
                   + pipeline.getOptions().getRunner().getSimpleName()
                   + ")");
+
+        } else {
+          final List<TransformHierarchy.Node> pipelineNodes = recordPipelineNodes(pipeline);
+          if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
+            final boolean hasDanglingPAssert =
+                FluentIterable.from(pipelineNodes)
+                              .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                              .anyMatch(isPAssertNode);
+            if (hasDanglingPAssert) {
+              throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
+            } else {
+              throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
+            }
+          }
         }
       }
+    }
+
+    private boolean visitedAll(final List<TransformHierarchy.Node> pipelineNodes) {
+      return runVisitedNodes.equals(pipelineNodes);
+    }
+
+    private boolean pipelineRunSucceeded() {
+      return runVisitedNodes != null;
     }
 
     @Override
@@ -202,8 +215,8 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
 
     @Override
-    protected void afterTestCompletion() {
-      super.afterTestCompletion();
+    protected void afterUserCodeFinished() {
+      super.afterUserCodeFinished();
       verifyPipelineExecution();
     }
   }
@@ -283,9 +296,19 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       @Override
       public void evaluate() throws Throwable {
+
         setDeducedEnforcementLevel();
+
+        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
+        // Exceptions thrown during the execution of the user's test code will propagate here,
+        // unless the user explicitly handles them with a "catch" clause in his code. If the
+        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // we move on to invoking the configured enforcements.
+        // If the user does not handle a thrown exception, it will propagate here and interrupt
+        // the flow, preventing the enforcement(s) from being activated.
+        // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.get().afterTestCompletion();
+        enforcement.get().afterUserCodeFinished();
       }
     };
   }
@@ -299,10 +322,12 @@ public class TestPipeline extends Pipeline implements TestRule {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-        + "@Rule public final transient TestPipeline pipeline = TestPipeline.Create();");
+        + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
+    final PipelineResult pipelineResult;
     try {
-      return super.run();
+      enforcement.get().beforePipelineExecution();
+      pipelineResult = super.run();
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -310,9 +335,12 @@ public class TestPipeline extends Pipeline implements TestRule {
       } else {
         throw exc;
       }
-    } finally {
-      enforcement.get().afterPipelineExecution();
     }
+
+    // If we reach this point, the pipeline has been run and no exceptions have been thrown during
+    // its execution.
+    enforcement.get().afterPipelineExecution();
+    return pipelineResult;
   }
 
   /**

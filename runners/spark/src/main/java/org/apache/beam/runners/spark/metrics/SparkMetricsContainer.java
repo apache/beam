@@ -82,7 +82,8 @@ public class SparkMetricsContainer implements Serializable {
     return getInstance().gauges.values();
   }
 
-  SparkMetricsContainer update(SparkMetricsContainer other) {
+  public SparkMetricsContainer update(SparkMetricsContainer other) {
+    other.materialize();
     this.updateCounters(other.counters.values());
     this.updateDistributions(other.distributions.values());
     this.updateGauges(other.gauges.values());
@@ -102,7 +103,12 @@ public class SparkMetricsContainer implements Serializable {
     out.defaultWriteObject();
   }
 
-  private void materialize() {
+  /**
+   * Materialize metrics. Must be called to enable this instance's data to be serialized correctly.
+   * This method is idempotent.
+   */
+  public void materialize() {
+    // Nullifying metricsContainers makes this method idempotent.
     if (metricsContainers != null) {
       for (MetricsContainer container : metricsContainers.asMap().values()) {
         MetricUpdates cumulative = container.getCumulative();
@@ -110,6 +116,7 @@ public class SparkMetricsContainer implements Serializable {
         this.updateDistributions(cumulative.distributionUpdates());
         this.updateGauges(cumulative.gaugeUpdates());
       }
+      metricsContainers = null;
     }
   }
 

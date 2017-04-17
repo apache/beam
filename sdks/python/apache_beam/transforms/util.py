@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+from apache_beam import pvalue
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import Create
@@ -219,6 +220,7 @@ def assert_that(actual, matcher, label='assert_that'):
   Returns:
     Ignored.
   """
+  assert isinstance(actual, pvalue.PCollection)
 
   class AssertThat(PTransform):
 

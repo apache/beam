@@ -347,7 +347,6 @@ public class TFIDF {
       // presented to each invocation of the DoFn.
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
           .apply("ComputeDocFrequencies", ParDo
-              .withSideInputs(totalDocuments)
               .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
                 private static final long serialVersionUID = 0;
 
@@ -361,7 +360,7 @@ public class TFIDF {
 
                   c.output(KV.of(word, documentFrequency));
                 }
-              }));
+              }).withSideInputs(totalDocuments));
 
       // Join the term frequency and document frequency
       // collections, each keyed on the word.

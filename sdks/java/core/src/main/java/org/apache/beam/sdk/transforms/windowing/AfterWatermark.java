@@ -33,18 +33,16 @@ import org.joda.time.Instant;
  * lower-bound, sometimes heuristically established, on event times that have been fully processed
  * by the pipeline.
  *
- * <p>For sources that provide non-heuristic watermarks (e.g.
- * {@link org.apache.beam.sdk.io.PubsubIO} when using arrival times as event times), the
- * watermark is a strict guarantee that no data with an event time earlier than
+ * <p>For sources that provide non-heuristic watermarks (e.g. PubsubIO when using arrival times as
+ * event times), the watermark is a strict guarantee that no data with an event time earlier than
  * that watermark will ever be observed in the pipeline. In this case, it's safe to assume that any
  * pane triggered by an {@code AfterWatermark} trigger with a reference point at or beyond the end
  * of the window will be the last pane ever for that window.
  *
- * <p>For sources that provide heuristic watermarks (e.g.
- * {@link org.apache.beam.sdk.io.PubsubIO} when using user-supplied event times), the
- * watermark itself becomes an <i>estimate</i> that no data with an event time earlier than that
- * watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics can
- * often be quite accurate, but the chance of seeing late data for any given window is non-zero.
+ * <p>For sources that provide heuristic watermarks (e.g. PubsubIO when using user-supplied event
+ * times), the watermark itself becomes an <i>estimate</i> that no data with an event time earlier
+ * than that watermark (i.e. "late data") will ever be observed in the pipeline. These heuristics
+ * can often be quite accurate, but the chance of seeing late data for any given window is non-zero.
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
  * using a trigger that accounts for late data. The default trigger,
  * {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires
@@ -55,7 +53,7 @@ import org.joda.time.Instant;
  *
  * <p>Additionaly firings before or after the watermark can be requested by calling
  * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
- * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
+ * {@code AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterWatermark {

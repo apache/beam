@@ -52,6 +52,7 @@ TODO(silviuc): Should we allow several setup packages?
 TODO(silviuc): We should allow customizing the exact command for setup build.
 """
 
+import functools
 import glob
 import logging
 import os
@@ -87,9 +88,24 @@ def _dependency_file_copy(from_path, to_path):
   """Copies a local file to a GCS file or vice versa."""
   logging.info('file copy from %s to %s.', from_path, to_path)
   if from_path.startswith('gs://') or to_path.startswith('gs://'):
-    command_args = ['gsutil', '-m', '-q', 'cp', from_path, to_path]
-    logging.info('Executing command: %s', command_args)
-    processes.check_call(command_args)
+    from apache_beam.io.gcp import gcsio
+    if from_path.startswith('gs://') and to_path.startswith('gs://'):
+      # Both files are GCS files so copy.
+      gcsio.GcsIO().copy(from_path, to_path)
+    elif to_path.startswith('gs://'):
+      # Only target is a GCS file, read local file and upload.
+      with open(from_path, 'rb') as f:
+        with gcsio.GcsIO().open(to_path, mode='wb') as g:
+          pfun = functools.partial(f.read, gcsio.WRITE_CHUNK_SIZE)
+          for chunk in iter(pfun, ''):
+            g.write(chunk)
+    else:
+      # Source is a GCS file but target is local file.
+      with gcsio.GcsIO().open(from_path, mode='rb') as g:
+        with open(to_path, 'wb') as f:
+          pfun = functools.partial(g.read, gcsio.DEFAULT_READ_BUFFER_SIZE)
+          for chunk in iter(pfun, ''):
+            f.write(chunk)
   else:
     # Branch used only for unit tests and integration tests.
     # In such environments GCS support is not available.
@@ -477,8 +493,7 @@ def get_sdk_name_and_version():
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return ('Apache Beam SDK for Python', beam_version.__version__)
-  else:
-    return ('Google Cloud Dataflow SDK for Python', container_version)
+  return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def get_sdk_package_name():
@@ -486,8 +501,7 @@ def get_sdk_package_name():
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME
-  else:
-    return GOOGLE_PACKAGE_NAME
+  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):

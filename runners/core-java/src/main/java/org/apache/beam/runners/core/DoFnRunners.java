@@ -59,7 +59,7 @@ public class DoFnRunners {
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -69,7 +69,7 @@ public class DoFnRunners {
         sideInputReader,
         outputManager,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         aggregatorFactory,
         windowingStrategy);
@@ -86,7 +86,7 @@ public class DoFnRunners {
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -96,7 +96,7 @@ public class DoFnRunners {
         sideInputReader,
         outputManager,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         aggregatorFactory,
         windowingStrategy);
@@ -105,7 +105,7 @@ public class DoFnRunners {
   /**
    * Returns an implementation of {@link DoFnRunner} that handles late data dropping.
    *
-   * <p>It drops elements from expired windows before they reach the underlying {@link OldDoFn}.
+   * <p>It drops elements from expired windows before they reach the underlying {@link DoFn}.
    */
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(

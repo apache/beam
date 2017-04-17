@@ -27,10 +27,11 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -58,23 +59,33 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
 
   /**
    * A test that demonstrates that the replacement transform has the Display Data of the
-   * {@link ParDo.Bound} it replaces.
+   * {@link ParDo.SingleOutput} it replaces.
    */
   @Test
   public void getReplacementTransformPopulateDisplayData() {
-    ParDo.Bound<Integer, Long> originalTransform = ParDo.of(new ToLongFn());
+    ParDo.SingleOutput<Integer, Long> originalTransform = ParDo.of(new ToLongFn());
     DisplayData originalDisplayData = DisplayData.from(originalTransform);
+    PCollection<? extends Integer> input = pipeline.apply(Create.of(1, 2, 3));
+    AppliedPTransform<
+        PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
+        application =
+        AppliedPTransform.of(
+            "original",
+            input.expand(),
+            input.apply(originalTransform).expand(),
+            originalTransform,
+            pipeline);
 
-    PTransform<PCollection<? extends Integer>, PCollection<Long>> replacement =
-        factory.getReplacementTransform(originalTransform);
-    DisplayData replacementDisplayData = DisplayData.from(replacement);
+    PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacement =
+        factory.getReplacementTransform(application);
+    DisplayData replacementDisplayData = DisplayData.from(replacement.getTransform());
 
     assertThat(replacementDisplayData, equalTo(originalDisplayData));
 
     DisplayData primitiveDisplayData =
         Iterables.getOnlyElement(
             DisplayDataEvaluator.create()
-                .displayDataForPrimitiveTransforms(replacement, VarIntCoder.of()));
+                .displayDataForPrimitiveTransforms(replacement.getTransform(), VarIntCoder.of()));
     assertThat(primitiveDisplayData, equalTo(replacementDisplayData));
   }
 
@@ -88,22 +99,46 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
         pipeline
             .apply("StringSideInputVals", Create.of("foo", "bar", "baz"))
             .apply("SideStringsView", View.<String>asList());
-    ParDo.Bound<Integer, Long> originalTransform =
+    ParDo.SingleOutput<Integer, Long> originalTransform =
         ParDo.of(new ToLongFn()).withSideInputs(sideLong, sideStrings);
 
-    PTransform<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
-        factory.getReplacementTransform(originalTransform);
-    ParDoSingle<Integer, Long> parDoSingle = (ParDoSingle<Integer, Long>) replacementTransform;
+    PCollection<? extends Integer> input = pipeline.apply(Create.of(1, 2, 3));
+    AppliedPTransform<
+        PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
+        application =
+        AppliedPTransform.of(
+            "original",
+            input.expand(),
+            input.apply(originalTransform).expand(),
+            originalTransform,
+            pipeline);
+
+    PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
+        factory.getReplacementTransform(application);
+    ParDoSingle<Integer, Long> parDoSingle =
+        (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
     assertThat(parDoSingle.getSideInputs(), containsInAnyOrder(sideStrings, sideLong));
   }
 
   @Test
   public void getReplacementTransformGetFn() {
     DoFn<Integer, Long> originalFn = new ToLongFn();
-    ParDo.Bound<Integer, Long> originalTransform = ParDo.of(originalFn);
-    PTransform<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
-        factory.getReplacementTransform(originalTransform);
-    ParDoSingle<Integer, Long> parDoSingle = (ParDoSingle<Integer, Long>) replacementTransform;
+    ParDo.SingleOutput<Integer, Long> originalTransform = ParDo.of(originalFn);
+    PCollection<? extends Integer> input = pipeline.apply(Create.of(1, 2, 3));
+    AppliedPTransform<
+            PCollection<? extends Integer>, PCollection<Long>, ParDo.SingleOutput<Integer, Long>>
+        application =
+            AppliedPTransform.of(
+                "original",
+                input.expand(),
+                input.apply(originalTransform).expand(),
+                originalTransform,
+                pipeline);
+
+    PTransformReplacement<PCollection<? extends Integer>, PCollection<Long>> replacementTransform =
+        factory.getReplacementTransform(application);
+    ParDoSingle<Integer, Long> parDoSingle =
+        (ParDoSingle<Integer, Long>) replacementTransform.getTransform();
 
     assertThat(parDoSingle.getFn(), equalTo(originalTransform.getFn()));
     assertThat(parDoSingle.getFn(), equalTo(originalFn));

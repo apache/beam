@@ -43,8 +43,8 @@ import scala.Tuple2;
 
 
 /**
- * DoFunctions ignore side outputs. MultiDoFunctions deal with side outputs by enriching the
- * underlying data with multiple TupleTags.
+ * DoFunctions ignore outputs that are not the main output. MultiDoFunctions deal with additional
+ * outputs by enriching the underlying data with multiple TupleTags.
  *
  * @param <InputT> Input type for DoFunction.
  * @param <OutputT> Output type for DoFunction.

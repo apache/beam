@@ -29,6 +29,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
@@ -207,7 +209,7 @@ public class MetricsTest implements Serializable {
             bundleDist.update(40L);
           }
         }))
-        .apply("MyStep2", ParDo.withOutputTags(output1, TupleTagList.of(output2))
+        .apply("MyStep2", ParDo
             .of(new DoFn<Integer, Integer>() {
               @SuppressWarnings("unused")
               @ProcessElement
@@ -219,12 +221,56 @@ public class MetricsTest implements Serializable {
                 values.update(element);
                 gauge.set(12L);
                 c.output(element);
-                c.sideOutput(output2, element);
+                c.output(output2, element);
               }
-            }));
+            })
+            .withOutputTags(output1, TupleTagList.of(output2)));
     PipelineResult result = pipeline.run();
 
     result.waitUntilFinish();
     return result;
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
+  public void testBoundedSourceMetrics() {
+    long numElements = 1000;
+
+    PCollection<Long> input = pipeline.apply(CountingInput.upTo(numElements));
+
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult("io", "elementsRead", "Read(BoundedCountingSource)", 1000L)));
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class})
+  public void testUnboundedSourceMetrics() {
+    long numElements = 1000;
+
+    PCollection<Long> input = pipeline
+        .apply((CountingInput.unbounded()).withMaxNumRecords(numElements));
+
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(MetricNameFilter.named("io", "elementsRead"))
+                    .build());
+
+    assertThat(metrics.counters(), hasItem(
+        attemptedMetricsResult("io", "elementsRead", "Read(UnboundedCountingSource)", 1000L)));
   }
 }

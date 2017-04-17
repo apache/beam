@@ -57,7 +57,7 @@
     <profile>
       <!-- This profile adds execution of ValidatesRunner integration tests
            against a local Spark endpoint. -->
-      <id>local-runnable-on-service-tests</id>
+      <id>local-validates-runner-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
@@ -66,7 +66,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <executions>
               <execution>
-                <id>runnable-on-service-tests</id>
+                <id>validates-runner-tests</id>
                 <phase>integration-test</phase>
                 <goals>
                   <goal>test</goal>
@@ -80,7 +80,8 @@
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
-                    org.apache.beam.sdk.testing.UsesCommittedMetrics
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
                   <parallel>none</parallel>
                   <forkCount>1</forkCount>
@@ -248,19 +249,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro-mapred</artifactId>
-      <version>${avro.version}</version>
-      <classifier>hadoop2</classifier>
-      <exclusions>
-        <!-- exclude old Jetty version of servlet API -->
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
       <version>${dropwizard.metrics.version}</version>
@@ -315,12 +303,6 @@
           <artifactId>slf4j-jdk14</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-io-hadoop-common</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <dependency>

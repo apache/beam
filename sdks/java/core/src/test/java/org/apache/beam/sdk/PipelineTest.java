@@ -19,6 +19,7 @@ package org.apache.beam.sdk;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
@@ -29,8 +30,10 @@ import static org.junit.Assert.fail;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.io.CountingInput;
@@ -51,6 +54,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -384,48 +388,114 @@ public class PipelineTest {
                 new UnboundedCountingInputOverride())));
   }
 
+  @Test
+  public void testReplacedNames() {
+    final PCollection<String> originalInput = pipeline.apply(Create.of("foo", "bar", "baz"));
+    class OriginalTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementTransform extends PTransform<PCollection<String>, PCollection<Long>> {
+      @Override
+      public PCollection<Long> expand(PCollection<String> input) {
+        return input.apply("custom_name", Count.<String>globally());
+      }
+    }
+    class ReplacementOverrideFactory
+        implements PTransformOverrideFactory<
+            PCollection<String>, PCollection<Long>, OriginalTransform> {
+      @Override
+      public PTransformReplacement<PCollection<String>, PCollection<Long>> getReplacementTransform(
+          AppliedPTransform<PCollection<String>, PCollection<Long>, OriginalTransform> transform) {
+        return PTransformReplacement.of(originalInput, new ReplacementTransform());
+      }
+
+      @Override
+      public Map<PValue, ReplacementOutput> mapOutputs(
+          Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+        return Collections.<PValue, ReplacementOutput>singletonMap(
+            newOutput,
+            ReplacementOutput.of(
+                TaggedPValue.ofExpandedValue(
+                    Iterables.getOnlyElement(outputs.values())),
+                    TaggedPValue.ofExpandedValue(newOutput)));
+      }
+    }
+
+    class OriginalMatcher implements PTransformMatcher {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        return application.getTransform() instanceof OriginalTransform;
+      }
+    }
+
+    originalInput.apply("original_application", new OriginalTransform());
+    pipeline.replaceAll(
+        Collections.singletonList(
+            PTransformOverride.of(new OriginalMatcher(), new ReplacementOverrideFactory())));
+    final Set<String> names = new HashSet<>();
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public void leaveCompositeTransform(Node node) {
+            if (!node.isRootNode()) {
+              names.add(node.getFullName());
+            }
+          }
+
+          @Override
+          public void visitPrimitiveTransform(Node node) {
+            names.add(node.getFullName());
+          }
+        });
+
+    assertThat(names, hasItem("original_application/custom_name"));
+    assertThat(names, not(hasItem("original_application/custom_name2")));
+  }
+
   static class BoundedCountingInputOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, BoundedCountingInput> {
     @Override
-    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
-        BoundedCountingInput transform) {
-      return Create.of(0L);
-    }
-
-    @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<Long>, BoundedCountingInput> transform) {
+      return PTransformReplacement.of(transform.getPipeline().begin(), Create.of(0L));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<Long> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.<PValue, ReplacementOutput>singletonMap(
           newOutput,
           ReplacementOutput.of(
-              Iterables.getOnlyElement(outputs), Iterables.getOnlyElement(newOutput.expand())));
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
   }
   static class UnboundedCountingInputOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, UnboundedCountingInput> {
-    @Override
-    public PTransform<PBegin, PCollection<Long>> getReplacementTransform(
-        UnboundedCountingInput transform) {
-      return CountingInput.upTo(100L);
-    }
 
     @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<Long>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<Long>, UnboundedCountingInput> transform) {
+      return PTransformReplacement.of(transform.getPipeline().begin(), CountingInput.upTo(100L));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<Long> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<Long> newOutput) {
+      Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
+      Map.Entry<TupleTag<?>, PValue> replacement =
+          Iterables.getOnlyElement(newOutput.expand().entrySet());
       return Collections.<PValue, ReplacementOutput>singletonMap(
           newOutput,
           ReplacementOutput.of(
-              Iterables.getOnlyElement(outputs), Iterables.getOnlyElement(newOutput.expand())));
+              TaggedPValue.of(original.getKey(), original.getValue()),
+              TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
   }
 }

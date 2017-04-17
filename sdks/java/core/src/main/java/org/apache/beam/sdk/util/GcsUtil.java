@@ -68,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -635,23 +636,27 @@ public class GcsUtil {
     return batches;
   }
 
-  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+  public void copy(Iterable<String> srcFilenames,
+                   Iterable<String> destFilenames) throws
+      IOException {
     executeBatches(makeCopyBatches(srcFilenames, destFilenames));
   }
 
-  List<BatchRequest> makeCopyBatches(List<String> srcFilenames, List<String> destFilenames)
+  List<BatchRequest> makeCopyBatches(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
+    List<String> srcList = Lists.newArrayList(srcFilenames);
+    List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
-        srcFilenames.size() == destFilenames.size(),
+        srcList.size() == destList.size(),
         "Number of source files %s must equal number of destination files %s",
-        srcFilenames.size(),
-        destFilenames.size());
+        srcList.size(),
+        destList.size());
 
     List<BatchRequest> batches = new LinkedList<>();
     BatchRequest batch = createBatchRequest();
-    for (int i = 0; i < srcFilenames.size(); i++) {
-      final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
-      final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
+    for (int i = 0; i < srcList.size(); i++) {
+      final GcsPath sourcePath = GcsPath.fromUri(srcList.get(i));
+      final GcsPath destPath = GcsPath.fromUri(destList.get(i));
       enqueueCopy(sourcePath, destPath, batch);
       if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
         batches.add(batch);
@@ -752,11 +757,6 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (errorExtractor.itemNotFound(e)) {
-          // Do nothing on item not found.
-          LOG.debug("{} does not exist, assuming this is a retry after deletion.", from);
-          return;
-        }
         throw new IOException(
             String.format("Error trying to copy %s to %s: %s", from, to, e));
       }
@@ -774,11 +774,6 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (errorExtractor.itemNotFound(e)) {
-          // Do nothing on item not found.
-          LOG.debug("{} does not exist.", file);
-          return;
-        }
         throw new IOException(String.format("Error trying to delete %s: %s", file, e));
       }
     });

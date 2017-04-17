@@ -146,7 +146,7 @@ public class XmlSink {
    * Returns an XmlSink that writes objects as XML entities.
    *
    * <p>Output files will have the name {@literal {baseOutputFilename}-0000i-of-0000n.xml} where n
-   * is the number of output bundles that the Dataflow service divides the output into.
+   * is the number of output bundles.
    *
    * @param klass the class of the elements to write.
    * @param rootElementName the enclosing root element.
@@ -176,14 +176,14 @@ public class XmlSink {
      * <p>The specified class must be able to be used to create a JAXB context.
      */
     public <T> Bound<T> ofRecordClass(Class<T> classToBind) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
+      return new Bound<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
     }
 
     /**
      * Returns an XmlSink that writes to files with the given prefix.
      *
      * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
-     * the number of output bundles that the Dataflow service divides the output into.
+     * the number of output bundles.
      */
     public Bound<T> toFilenamePrefix(String baseOutputFilename) {
       return new Bound<>(classToBind, rootElementName, baseOutputFilename);
@@ -194,7 +194,7 @@ public class XmlSink {
      * supplied name.
      */
     public Bound<T> withRootElement(String rootElementName) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
+      return new Bound<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
     }
 
     /**
@@ -205,7 +205,7 @@ public class XmlSink {
     public void validate(PipelineOptions options) {
       checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
       checkNotNull(rootElementName, "Missing a root element name.");
-      checkNotNull(baseOutputFilename, "Missing a filename to write to.");
+      checkNotNull(getBaseOutputFilenameProvider().get(), "Missing a filename to write to.");
       try {
         JAXBContext.newInstance(classToBind);
       } catch (JAXBException e) {

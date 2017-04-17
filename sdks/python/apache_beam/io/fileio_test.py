@@ -30,7 +30,6 @@ import hamcrest as hc
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
-from apache_beam.io.filesystem import CompressedFile
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
@@ -66,36 +65,6 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
         delete=False, prefix=name,
         dir=self._new_tempdir(), suffix=suffix).name
     return file_name
-
-
-class TestCompressedFile(_TestCaseWithTempDirCleanUp):
-
-  def test_seekable(self):
-    readable = CompressedFile(open(self._create_temp_file(), 'r'))
-    self.assertFalse(readable.seekable)
-
-    writeable = CompressedFile(open(self._create_temp_file(), 'w'))
-    self.assertFalse(writeable.seekable)
-
-  def test_tell(self):
-    lines = ['line%d\n' % i for i in range(10)]
-    tmpfile = self._create_temp_file()
-    writeable = CompressedFile(open(tmpfile, 'w'))
-    current_offset = 0
-    for line in lines:
-      writeable.write(line)
-      current_offset += len(line)
-      self.assertEqual(current_offset, writeable.tell())
-
-    writeable.close()
-    readable = CompressedFile(open(tmpfile))
-    current_offset = 0
-    while True:
-      line = readable.readline()
-      current_offset += len(line)
-      self.assertEqual(current_offset, readable.tell())
-      if not line:
-        break
 
 
 class MyFileSink(fileio.FileSink):

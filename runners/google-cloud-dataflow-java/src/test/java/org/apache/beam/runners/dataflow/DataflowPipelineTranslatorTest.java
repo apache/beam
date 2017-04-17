@@ -135,6 +135,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
      .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(p);
 
     return p;
   }
@@ -185,7 +187,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
 
-    Pipeline p = buildPipeline(options);
+    Pipeline p = Pipeline.create(options);
     p.traverseTopologically(new RecordingPipelineVisitor());
     Job job =
         DataflowPipelineTranslator.fromOptions(options)
@@ -769,70 +771,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         Collections.<DataflowPackage>emptyList());
   }
 
-  @Test
-  public void testToSingletonTranslation() throws Exception {
-    // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<T> does not change
-    // in bad ways during refactor
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(ImmutableList.of("disable_ism_side_input"));
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(1))
-        .apply(View.<Integer>asSingleton());
-    Job job =
-        translator
-            .translate(
-                pipeline,
-                DataflowRunner.fromOptions(options),
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(2, steps.size());
-
-    Step createStep = steps.get(0);
-    assertEquals("ParallelRead", createStep.getKind());
-
-    Step collectionToSingletonStep = steps.get(1);
-    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-  }
-
-  @Test
-  public void testToIterableTranslation() throws Exception {
-    // A "change detector" test that makes sure the translation
-    // of getting a PCollectionView<Iterable<T>> does not change
-    // in bad ways during refactor
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setExperiments(ImmutableList.of("disable_ism_side_input"));
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(Create.of(1, 2, 3))
-        .apply(View.<Integer>asIterable());
-    Job job =
-        translator
-            .translate(
-                pipeline,
-                DataflowRunner.fromOptions(options),
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(2, steps.size());
-
-    Step createStep = steps.get(0);
-    assertEquals("ParallelRead", createStep.getKind());
-
-    Step collectionToSingletonStep = steps.get(1);
-    assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-  }
-
   /**
    * Smoke test to fail fast if translation of a stateful ParDo
    * in batch breaks.
@@ -851,7 +789,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     pipeline
         .apply(Create.of(KV.of(1, 1)))
         .apply(
-            ParDo.withOutputTags(mainOutputTag, TupleTagList.empty()).of(
+            ParDo.of(
                 new DoFn<KV<Integer, Integer>, Integer>() {
                   @StateId("unused")
                   final StateSpec<Object, ValueState<Integer>> stateSpec =
@@ -861,7 +799,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                   public void process(ProcessContext c) {
                     // noop
                   }
-                }));
+                }).withOutputTags(mainOutputTag, TupleTagList.empty()));
 
     runner.replaceTransforms(pipeline);
 
@@ -1001,8 +939,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       }
     };
 
-    ParDo.Bound<Integer, Integer> parDo1 = ParDo.of(fn1);
-    ParDo.Bound<Integer, Integer> parDo2 = ParDo.of(fn2);
+    ParDo.SingleOutput<Integer, Integer> parDo1 = ParDo.of(fn1);
+    ParDo.SingleOutput<Integer, Integer> parDo2 = ParDo.of(fn2);
     pipeline
       .apply(Create.of(1, 2, 3))
       .apply(parDo1)

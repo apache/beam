@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
-import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -39,12 +37,18 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -72,10 +76,20 @@ public class SplittableParDoTest {
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
 
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
-  private static class SomeRestriction implements Serializable {}
+  private static class SomeRestriction
+      implements Serializable, HasDefaultTracker<SomeRestriction, SomeRestrictionTracker> {
+    @Override
+    public SomeRestrictionTracker newTracker() {
+      return new SomeRestrictionTracker(this);
+    }
+  }
 
   private static class SomeRestrictionTracker implements RestrictionTracker<SomeRestriction> {
-    private final SomeRestriction someRestriction = new SomeRestriction();
+    private final SomeRestriction someRestriction;
+
+    public SomeRestrictionTracker(SomeRestriction someRestriction) {
+      this.someRestriction = someRestriction;
+    }
 
     @Override
     public SomeRestriction currentRestriction() {
@@ -86,8 +100,12 @@ public class SplittableParDoTest {
     public SomeRestriction checkpoint() {
       return someRestriction;
     }
+
+    @Override
+    public void checkDone() {}
   }
 
+  @BoundedPerElement
   private static class BoundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
@@ -96,27 +114,15 @@ public class SplittableParDoTest {
     public SomeRestriction getInitialRestriction(Integer element) {
       return null;
     }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return null;
-    }
   }
 
+  @UnboundedPerElement
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
-    public ProcessContinuation processElement(
-        ProcessContext context, SomeRestrictionTracker tracker) {
-      return stop();
-    }
+    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
 
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
-      return null;
-    }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
       return null;
     }
   }
@@ -135,7 +141,7 @@ public class SplittableParDoTest {
 
   private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<String>() {};
 
-  private ParDo.BoundMulti<Integer, String> makeParDo(DoFn<Integer, String> fn) {
+  private ParDo.MultiOutput<Integer, String> makeParDo(DoFn<Integer, String> fn) {
     return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
   }
 
@@ -204,7 +210,7 @@ public class SplittableParDoTest {
     private Instant currentProcessingTime;
 
     private InMemoryTimerInternals timerInternals;
-    private InMemoryStateInternals<String> stateInternals;
+    private TestInMemoryStateInternals<String> stateInternals;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -219,7 +225,7 @@ public class SplittableParDoTest {
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
-      this.stateInternals = InMemoryStateInternals.forKey("dummy");
+      this.stateInternals = new TestInMemoryStateInternals<>("dummy");
       processFn.setStateInternalsFactory(
           new StateInternalsFactory<String>() {
             @Override
@@ -331,6 +337,9 @@ public class SplittableParDoTest {
       return tester.takeOutputElements();
     }
 
+    public Instant getWatermarkHold() {
+      return stateInternals.earliestWatermarkHold();
+    }
   }
 
   private static class OutputWindowedValueToDoFnTester<OutputT>
@@ -347,13 +356,13 @@ public class SplittableParDoTest {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      sideOutputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
+      outputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
     }
 
     @Override
-    public <SideOutputT> void sideOutputWindowedValue(
-        TupleTag<SideOutputT> tag,
-        SideOutputT output,
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
@@ -375,11 +384,6 @@ public class SplittableParDoTest {
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer elem) {
       return new SomeRestriction();
-    }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
     }
   }
 
@@ -426,168 +430,87 @@ public class SplittableParDoTest {
     }
   }
 
-  /** A simple splittable {@link DoFn} that outputs the given element every 5 seconds forever. */
-  private static class SelfInitiatedResumeFn extends DoFn<Integer, String> {
+  private static class WatermarkUpdateFn extends DoFn<Instant, String> {
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c, SomeRestrictionTracker tracker) {
-      c.output(c.element().toString());
-      return resume().withResumeDelay(Duration.standardSeconds(5)).withWatermark(c.timestamp());
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        c.updateWatermark(c.element().plus(Duration.standardSeconds(i)));
+        c.output(String.valueOf(i));
+      }
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer elem) {
-      return new SomeRestriction();
+    public OffsetRange getInitialRestriction(Instant elem) {
+      throw new IllegalStateException("Expected to be supplied explicitly in this test");
     }
 
     @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
+    public OffsetRangeTracker newTracker(OffsetRange range) {
+      return new OffsetRangeTracker(range);
     }
   }
 
   @Test
-  public void testResumeSetsTimer() throws Exception {
-    DoFn<Integer, String> fn = new SelfInitiatedResumeFn();
+  public void testUpdatesWatermark() throws Exception {
+    DoFn<Instant, String> fn = new WatermarkUpdateFn();
     Instant base = Instant.now();
-    ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
+
+    ProcessFnTester<Instant, String, OffsetRange, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class),
-            MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
+            base,
+            fn,
+            InstantCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            3,
+            MAX_BUNDLE_DURATION);
 
-    tester.startElement(42, new SomeRestriction());
-    assertThat(tester.takeOutputElements(), contains("42"));
+    tester.startElement(base, new OffsetRange(0, 8));
+    assertThat(tester.takeOutputElements(), hasItems("0", "1", "2"));
+    assertEquals(base.plus(Duration.standardSeconds(2)), tester.getWatermarkHold());
 
-    // Should resume after 5 seconds: advancing by 3 seconds should have no effect.
-    assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
-    assertTrue(tester.takeOutputElements().isEmpty());
+    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
+    assertThat(tester.takeOutputElements(), hasItems("3", "4", "5"));
+    assertEquals(base.plus(Duration.standardSeconds(5)), tester.getWatermarkHold());
 
-    // 6 seconds should be enough - should invoke the fn again.
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
-    assertThat(tester.takeOutputElements(), contains("42"));
-
-    // Should again resume after 5 seconds: advancing by 3 seconds should again have no effect.
-    assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
-    assertTrue(tester.takeOutputElements().isEmpty());
-
-    // 6 seconds should again be enough.
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(3)));
-    assertThat(tester.takeOutputElements(), contains("42"));
-  }
-
-  private static class SomeCheckpoint implements Serializable {
-    private int firstUnprocessedIndex;
-
-    private SomeCheckpoint(int firstUnprocessedIndex) {
-      this.firstUnprocessedIndex = firstUnprocessedIndex;
-    }
-  }
-
-  private static class SomeCheckpointTracker implements RestrictionTracker<SomeCheckpoint> {
-    private SomeCheckpoint current;
-    private boolean isActive = true;
-
-    private SomeCheckpointTracker(SomeCheckpoint current) {
-      this.current = current;
-    }
-
-    @Override
-    public SomeCheckpoint currentRestriction() {
-      return current;
-    }
-
-    public boolean tryUpdateCheckpoint(int firstUnprocessedIndex) {
-      if (!isActive) {
-        return false;
-      }
-      current = new SomeCheckpoint(firstUnprocessedIndex);
-      return true;
-    }
-
-    @Override
-    public SomeCheckpoint checkpoint() {
-      isActive = false;
-      return current;
-    }
+    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
+    assertThat(tester.takeOutputElements(), hasItems("6", "7"));
+    assertEquals(null, tester.getWatermarkHold());
   }
 
   /**
-   * A splittable {@link DoFn} that generates the sequence [init, init + total) in batches of given
-   * size.
+   * A splittable {@link DoFn} that generates the sequence [init, init + total).
    */
   private static class CounterFn extends DoFn<Integer, String> {
-    private final int numTotalOutputs;
-    private final int numOutputsPerCall;
-
-    private CounterFn(int numTotalOutputs, int numOutputsPerCall) {
-      this.numTotalOutputs = numTotalOutputs;
-      this.numOutputsPerCall = numOutputsPerCall;
-    }
-
     @ProcessElement
-    public ProcessContinuation process(ProcessContext c, SomeCheckpointTracker tracker) {
-      int start = tracker.currentRestriction().firstUnprocessedIndex;
-      for (int i = 0; i < numOutputsPerCall; ++i) {
-        int index = start + i;
-        if (!tracker.tryUpdateCheckpoint(index + 1)) {
-          return resume();
-        }
-        if (index >= numTotalOutputs) {
-          return stop();
-        }
-        c.output(String.valueOf(c.element() + index));
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom();
+          tracker.tryClaim(i); ++i) {
+        c.output(String.valueOf(c.element() + i));
       }
-      return resume();
     }
 
     @GetInitialRestriction
-    public SomeCheckpoint getInitialRestriction(Integer elem) {
+    public OffsetRange getInitialRestriction(Integer elem) {
       throw new UnsupportedOperationException("Expected to be supplied explicitly in this test");
     }
-
-    @NewTracker
-    public SomeCheckpointTracker newTracker(SomeCheckpoint restriction) {
-      return new SomeCheckpointTracker(restriction);
-    }
-  }
-
-  @Test
-  public void testResumeCarriesOverState() throws Exception {
-    DoFn<Integer, String> fn = new CounterFn(3, 1);
-    Instant base = Instant.now();
-    ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
-        new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
-            MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
-
-    tester.startElement(42, new SomeCheckpoint(0));
-    assertThat(tester.takeOutputElements(), contains("42"));
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
-    assertThat(tester.takeOutputElements(), contains("43"));
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
-    assertThat(tester.takeOutputElements(), contains("44"));
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
-    // After outputting all 3 items, should not output anything more.
-    assertEquals(0, tester.takeOutputElements().size());
-    // Should also not ask to resume.
-    assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
   }
 
   @Test
   public void testCheckpointsAfterNumOutputs() throws Exception {
     int max = 100;
-    // Create an fn that attempts to 2x output more than checkpointing allows.
-    DoFn<Integer, String> fn = new CounterFn(2 * max + max / 2, 2 * max);
+    DoFn<Integer, String> fn = new CounterFn();
     Instant base = Instant.now();
     int baseIndex = 42;
 
-    ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
+    ProcessFnTester<Integer, String, OffsetRange, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
             max, MAX_BUNDLE_DURATION);
 
     List<String> elements;
 
-    tester.startElement(baseIndex, new SomeCheckpoint(0));
+    // Create an fn that attempts to 2x output more than checkpointing allows.
+    tester.startElement(baseIndex, new OffsetRange(0, 2 * max + max / 2));
     elements = tester.takeOutputElements();
     assertEquals(max, elements.size());
     // Should output the range [0, max)
@@ -617,18 +540,18 @@ public class SplittableParDoTest {
     // But bound bundle duration - the bundle should terminate.
     Duration maxBundleDuration = Duration.standardSeconds(1);
     // Create an fn that attempts to 2x output more than checkpointing allows.
-    DoFn<Integer, String> fn = new CounterFn(max, max);
+    DoFn<Integer, String> fn = new CounterFn();
     Instant base = Instant.now();
     int baseIndex = 42;
 
-    ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
+    ProcessFnTester<Integer, String, OffsetRange, OffsetRangeTracker> tester =
         new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class),
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(OffsetRange.class),
             max, maxBundleDuration);
 
     List<String> elements;
 
-    tester.startElement(baseIndex, new SomeCheckpoint(0));
+    tester.startElement(baseIndex, new OffsetRange(0, Long.MAX_VALUE));
     // Bundle should terminate, and should do at least some processing.
     elements = tester.takeOutputElements();
     assertFalse(elements.isEmpty());
@@ -656,11 +579,6 @@ public class SplittableParDoTest {
     @GetInitialRestriction
     public SomeRestriction getInitialRestriction(Integer element) {
       return new SomeRestriction();
-    }
-
-    @NewTracker
-    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-      return new SomeRestrictionTracker();
     }
 
     @Setup

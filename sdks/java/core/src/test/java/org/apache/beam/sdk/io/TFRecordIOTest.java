@@ -59,6 +59,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -96,14 +97,16 @@ public class TFRecordIOTest {
 
   private static Path tempFolder;
 
-  @Rule
+
   public TestPipeline p = TestPipeline.create();
+
+  public ExpectedException expectedException = ExpectedException.none();
 
   @Rule
   public TestPipeline p2 = TestPipeline.create();
 
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
+  public RuleChain ruleChain = RuleChain.outerRule(expectedException).around(p);
 
   @BeforeClass
   public static void setupClass() throws IOException {

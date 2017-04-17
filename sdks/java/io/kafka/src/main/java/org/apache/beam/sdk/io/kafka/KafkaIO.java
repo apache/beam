@@ -52,6 +52,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -124,7 +125,7 @@ import org.slf4j.LoggerFactory;
  *  pipeline
  *    .apply(KafkaIO.<Long, String>read()
  *       .withBootstrapServers("broker_1:9092,broker_2:9092")
- *       .withTopics(ImmutableList.of("topic_a", "topic_b"))
+ *       .withTopic("my_topic")  // use withTopics(List<String>) to read from multiple topics.
  *       // set a Coder for Key and Value
  *       .withKeyCoder(BigEndianLongCoder.of())
  *       .withValueCoder(StringUtf8Coder.of())
@@ -151,8 +152,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Partition Assignment and Checkpointing</h3>
  * The Kafka partitions are evenly distributed among splits (workers).
- * Dataflow checkpointing is fully supported and
- * each split can resume from previous checkpoint. See
+ * Checkpointing is fully supported and each split can resume from previous checkpoint. See
  * {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for more details on
  * splits and checkpoint support.
  *
@@ -212,6 +212,7 @@ import org.slf4j.LoggerFactory;
  * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
  * otherwise it is set to processing time.
  */
+@Experimental
 public class KafkaIO {
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
@@ -255,7 +256,6 @@ public class KafkaIO {
   public static <K, V> Write<K, V> write() {
     return new AutoValue_KafkaIO_Write.Builder<K, V>()
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
-        .setValueOnly(false)
         .build();
   }
 
@@ -307,6 +307,15 @@ public class KafkaIO {
       return updateConsumerProperties(
           ImmutableMap.<String, Object>of(
               ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+    }
+
+    /**
+     * Returns a new {@link Read} that reads from the topic.
+     * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
+     * of how the partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopic(String topic) {
+      return withTopics(ImmutableList.of(topic));
     }
 
     /**
@@ -832,7 +841,6 @@ public class KafkaIO {
 
         checkState(checkpointMark.getPartitions().size() == partitions.size(),
             "checkPointMark and assignedPartitions should match");
-        // we could consider allowing a mismatch, though it is not expected in current Dataflow
 
         for (int i = 0; i < partitions.size(); i++) {
           PartitionMark ckptMark = checkpointMark.getPartitions().get(i);
@@ -1161,7 +1169,6 @@ public class KafkaIO {
     @Nullable abstract String getTopic();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
-    abstract boolean getValueOnly();
     abstract Map<String, Object> getProducerConfig();
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
@@ -1173,7 +1180,6 @@ public class KafkaIO {
       abstract Builder<K, V> setTopic(String topic);
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
-      abstract Builder<K, V> setValueOnly(boolean valueOnly);
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
@@ -1233,7 +1239,7 @@ public class KafkaIO {
      * collections of values rather thank {@link KV}s.
      */
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<>(toBuilder().setValueOnly(true).build());
+      return new KafkaValueWrite<>(withKeyCoder(new NullOnlyCoder<K>()).toBuilder().build());
     }
 
     @Override
@@ -1247,9 +1253,7 @@ public class KafkaIO {
       checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");
-      if (!getValueOnly()) {
-        checkNotNull(getKeyCoder(), "Key coder should be set");
-      }
+      checkNotNull(getKeyCoder(), "Key coder should be set");
       checkNotNull(getValueCoder(), "Value coder should be set");
     }
 
@@ -1257,11 +1261,12 @@ public class KafkaIO {
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
         ImmutableMap.<String, Object>of(
             ProducerConfig.RETRIES_CONFIG, 3,
+            // See comment about custom serializers in KafkaWriter constructor.
             ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, CoderBasedKafkaSerializer.class,
             ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, CoderBasedKafkaSerializer.class);
 
     /**
-     * A set of properties that are not required or don't make sense for our consumer.
+     * A set of properties that are not required or don't make sense for our producer.
      */
     private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Set keyCoder instead",
@@ -1375,11 +1380,13 @@ public class KafkaIO {
     KafkaWriter(Write<K, V> spec) {
       this.spec = spec;
 
-      // Set custom kafka serializers. We can not serialize user objects then pass the bytes to
-      // producer. The key and value objects are used in kafka Partitioner interface.
+      // Set custom kafka serializers. We do not want to serialize user objects then pass the bytes
+      // to producer since key and value objects are used in Kafka Partitioner interface.
       // This does not matter for default partitioner in Kafka as it uses just the serialized
-      // key bytes to pick a partition. But are making sure user's custom partitioner would work
-      // as expected.
+      // key bytes to pick a partition. But we don't want to limit use of custom partitions.
+      // We pass key and values objects the user writes directly Kafka and user supplied
+      // coders to serialize them are invoked inside CoderBasedKafkaSerializer.
+      // Use case : write all the events for a single session to same Kafka partition.
 
       this.producerConfig = new HashMap<>(spec.getProducerConfig());
       this.producerConfig.put(configForKeySerializer(), spec.getKeyCoder());

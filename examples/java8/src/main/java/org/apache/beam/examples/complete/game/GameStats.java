@@ -25,7 +25,7 @@ import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -125,7 +125,6 @@ public class GameStats extends LeaderBoard {
       PCollection<KV<String, Integer>> filtered = sumScores
           .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
-              .withSideInputs(globalMeanScore)
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
                 private final Aggregator<Long, Long> numSpammerUsers =
                   createAggregator("SpammerUsers", Sum.ofLongs());
@@ -140,7 +139,7 @@ public class GameStats extends LeaderBoard {
                     c.output(c.element());
                   }
                 }
-              }));
+              }).withSideInputs(globalMeanScore));
       return filtered;
     }
   }
@@ -261,9 +260,9 @@ public class GameStats extends LeaderBoard {
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
         rawEvents.apply("ExtractUserScore",
-          MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-            .withOutputType(
-                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
@@ -288,7 +287,6 @@ public class GameStats extends LeaderBoard {
           FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
       // Filter out the detected spammer users, using the side input derived above.
       .apply("FilterOutSpammers", ParDo
-              .withSideInputs(spammersView)
               .of(new DoFn<GameActionInfo, GameActionInfo>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
@@ -297,8 +295,8 @@ public class GameStats extends LeaderBoard {
                     c.output(c.element());
                   }
                 }
-              }))
-      // Extract and sum teamname/score pairs from the event data.
+              }).withSideInputs(spammersView))
+        // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       // [END DocInclude_FilterAndCalc]
       // Write the result to BigQuery

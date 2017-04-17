@@ -22,7 +22,7 @@ import com.datatorrent.api.Context.DAGContext;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +31,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.apex.api.EmbeddedAppLauncher;
@@ -40,6 +39,7 @@ import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -48,10 +48,9 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.Create;
@@ -70,8 +69,6 @@ import org.apache.hadoop.conf.Configuration;
  * A {@link PipelineRunner} that translates the
  * pipeline to an Apex DAG and executes it on an Apex cluster.
  *
- * <p>Currently execution is always in embedded mode,
- * launch on Hadoop cluster will be added in subsequent iteration.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
@@ -96,27 +93,30 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     return new ApexRunner(apexPipelineOptions);
   }
 
-  private Map<PTransformMatcher, PTransformOverrideFactory> getOverrides() {
-    return ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
-        .put(PTransformMatchers.classEqualTo(Create.Values.class), new PrimitiveCreate.Factory())
-        .put(
-            PTransformMatchers.classEqualTo(View.AsSingleton.class),
-            new StreamingViewAsSingleton.Factory())
-        .put(
-            PTransformMatchers.classEqualTo(View.AsIterable.class),
-            new StreamingViewAsIterable.Factory())
-        .put(
-            PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
-            new StreamingCombineGloballyAsSingletonView.Factory())
+  private List<PTransformOverride> getOverrides() {
+    return ImmutableList.<PTransformOverride>builder()
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Create.Values.class),
+                new PrimitiveCreate.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsSingleton.class),
+                new StreamingViewAsSingleton.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsIterable.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                new StreamingCombineGloballyAsSingletonView.Factory()))
         .build();
   }
 
   @Override
   public ApexRunnerResult run(final Pipeline pipeline) {
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
-        getOverrides().entrySet()) {
-      pipeline.replace(PTransformOverride.of(override.getKey(), override.getValue()));
-    }
+    pipeline.replaceAll(getOverrides());
 
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
     final AtomicReference<DAG> apexDAG = new AtomicReference<>();
@@ -242,7 +242,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
           .apply(Combine.globally(transform.getCombineFn())
               .withoutDefaults().withFanout(transform.getFanout()));
 
-      PCollectionView<OutputT> view = PCollectionViews.singletonView(combined.getPipeline(),
+      PCollectionView<OutputT> view = PCollectionViews.singletonView(combined,
           combined.getWindowingStrategy(), transform.getInsertDefault(),
           transform.getInsertDefault() ? transform.getCombineFn().defaultValue() : null,
               combined.getCoder());
@@ -260,9 +260,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
             PCollection<InputT>, PCollectionView<OutputT>,
             Combine.GloballyAsSingletonView<InputT, OutputT>> {
       @Override
-      public PTransform<PCollection<InputT>, PCollectionView<OutputT>> getReplacementTransform(
-          GloballyAsSingletonView<InputT, OutputT> transform) {
-        return new StreamingCombineGloballyAsSingletonView<>(transform);
+      public PTransformReplacement<PCollection<InputT>, PCollectionView<OutputT>>
+          getReplacementTransform(
+              AppliedPTransform<
+                      PCollection<InputT>, PCollectionView<OutputT>,
+                      GloballyAsSingletonView<InputT, OutputT>>
+                  transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingCombineGloballyAsSingletonView<>(transform.getTransform()));
       }
     }
   }
@@ -323,9 +329,11 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         extends SingleInputOutputOverrideFactory<
             PCollection<T>, PCollectionView<T>, View.AsSingleton<T>> {
       @Override
-      public PTransform<PCollection<T>, PCollectionView<T>> getReplacementTransform(
-          AsSingleton<T> transform) {
-        return new StreamingViewAsSingleton<>(transform);
+      public PTransformReplacement<PCollection<T>, PCollectionView<T>> getReplacementTransform(
+          AppliedPTransform<PCollection<T>, PCollectionView<T>, AsSingleton<T>> transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingViewAsSingleton<>(transform.getTransform()));
       }
     }
   }
@@ -338,8 +346,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     @Override
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
-      PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(input.getPipeline(),
-          input.getWindowingStrategy(), input.getCoder());
+      PCollectionView<Iterable<T>> view =
+          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
 
       return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
           .apply(CreateApexPCollectionView.<T, Iterable<T>> of(view));
@@ -354,9 +362,13 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         extends SingleInputOutputOverrideFactory<
             PCollection<T>, PCollectionView<Iterable<T>>, View.AsIterable<T>> {
       @Override
-      public PTransform<PCollection<T>, PCollectionView<Iterable<T>>> getReplacementTransform(
-          AsIterable<T> transform) {
-        return new StreamingViewAsIterable<>();
+      public PTransformReplacement<PCollection<T>, PCollectionView<Iterable<T>>>
+          getReplacementTransform(
+              AppliedPTransform<PCollection<T>, PCollectionView<Iterable<T>>, AsIterable<T>>
+                  transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingViewAsIterable<T>());
       }
     }
   }

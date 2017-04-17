@@ -20,28 +20,36 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.List;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.DisplayData;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from
- * {@link ParDo.Bound} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
+ * A {@link PTransformOverrideFactory} that produces {@link ParDoSingle} instances from {@link
+ * ParDo.SingleOutput} instances. {@link ParDoSingle} is a primitive {@link PTransform}, to ensure
  * that {@link DisplayData} appears on all {@link ParDo ParDos} in the {@link DataflowRunner}.
  */
 public class PrimitiveParDoSingleFactory<InputT, OutputT>
     extends SingleInputOutputOverrideFactory<
-        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.Bound<InputT, OutputT>> {
+        PCollection<? extends InputT>, PCollection<OutputT>, ParDo.SingleOutput<InputT, OutputT>> {
   @Override
-  public PTransform<PCollection<? extends InputT>, PCollection<OutputT>> getReplacementTransform(
-      ParDo.Bound<InputT, OutputT> transform) {
-    return new ParDoSingle<>(transform);
+  public PTransformReplacement<PCollection<? extends InputT>, PCollection<OutputT>>
+      getReplacementTransform(
+          AppliedPTransform<
+                  PCollection<? extends InputT>, PCollection<OutputT>,
+                  SingleOutput<InputT, OutputT>>
+              transform) {
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        new ParDoSingle<>(transform.getTransform()));
   }
 
   /**
@@ -49,9 +57,9 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
    */
   public static class ParDoSingle<InputT, OutputT>
       extends ForwardingPTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-    private final ParDo.Bound<InputT, OutputT> original;
+    private final ParDo.SingleOutput<InputT, OutputT> original;
 
-    private ParDoSingle(Bound<InputT, OutputT> original) {
+    private ParDoSingle(ParDo.SingleOutput<InputT, OutputT> original) {
       this.original = original;
     }
 

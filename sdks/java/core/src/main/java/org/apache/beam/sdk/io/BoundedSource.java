@@ -61,6 +61,9 @@ public abstract class BoundedSource<T> extends Source<T> {
    * An estimate of the total size (in bytes) of the data that would be read from this source.
    * This estimate is in terms of external storage size, before any decompression or other
    * processing done by the reader.
+   *
+   * <p>If there is no way to estimate the size of the source
+   * implementations MAY return 0L.
    */
   public abstract long getEstimatedSizeBytes(PipelineOptions options) throws Exception;
 
@@ -104,9 +107,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <p>Sources which support dynamic work rebalancing should use
    * {@link org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific)
-   * range of positions that is being split. If your source supports dynamic work rebalancing,
-   * please use that class to implement it if possible; if not possible, please contact the team
-   * at <i>dataflow-feedback@google.com</i>.
+   * range of positions that is being split.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {

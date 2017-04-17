@@ -19,24 +19,40 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 
 /**
  * A function that takes the windows of elements in a main input and maps them to the appropriate
  * window in a {@link PCollectionView} consumed as a
- * {@link BoundMulti#withSideInputs(PCollectionView[]) side input}.
+ * {@link MultiOutput#withSideInputs(PCollectionView[]) side input}.
  */
 public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> implements Serializable {
+  private final Duration maximumLookback;
+
+  /**
+   * Create a new {@link WindowMappingFn} with {@link Duration#ZERO zero} maximum lookback.
+   */
+  protected WindowMappingFn() {
+    this(Duration.ZERO);
+  }
+
+  /**
+   * Create a new {@link WindowMappingFn} with the specified maximum lookback.
+   */
+  protected WindowMappingFn(Duration maximumLookback) {
+    this.maximumLookback = maximumLookback;
+  }
+
   /**
    * Returns the window of the side input corresponding to the given window of the main input.
    */
   public abstract TargetWindowT getSideInputWindow(BoundedWindow mainWindow);
 
   /**
-   * The maximum distance between the end of any main input window {@code mainWindow}
-   * and the end of the side input window returned by {@link #getSideInputWindow(BoundedWindow)}
+   * The maximum distance between the end of any main input window {@code mainWindow} and the end of
+   * the side input window returned by {@link #getSideInputWindow(BoundedWindow)}
    *
    * <p>A side input window {@code w} becomes unreachable when the input watermarks for all
    * consumers surpasses the timestamp:
@@ -45,5 +61,7 @@ public abstract class WindowMappingFn<TargetWindowT extends BoundedWindow> imple
    *
    * <p>At this point, every main input window that could map to {@code w} is expired.
    */
-  public abstract Duration maximumLookback();
+  public final Duration maximumLookback() {
+    return maximumLookback;
+  }
 }
