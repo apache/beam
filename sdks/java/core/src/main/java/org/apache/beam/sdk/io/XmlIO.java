@@ -22,11 +22,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 
 /** Transforms for reading and writing XML files using JAXB mappers. */
 public class XmlIO {
@@ -98,6 +101,108 @@ public class XmlIO {
         .setMinBundleSize(Read.DEFAULT_MIN_BUNDLE_SIZE)
         .setCompressionType(Read.CompressionType.AUTO)
         .build();
+  }
+
+  // CHECKSTYLE.OFF: JavadocStyle
+  /**
+   * A {@link Sink} that outputs records as XML-formatted elements. Writes a {@link PCollection} of
+   * records from JAXB-annotated classes to a single file location.
+   *
+   * <p>Given a PCollection containing records of type T that can be marshalled to XML elements,
+   * this Sink will produce a single file consisting of a single root element that contains all of
+   * the elements in the PCollection.
+   *
+   * <p>XML Sinks are created with a base filename to write to, a root element name that will be
+   * used for the root element of the output files, and a class to bind to an XML element. This
+   * class will be used in the marshalling of records in an input PCollection to their XML
+   * representation and must be able to be bound using JAXB annotations (checked at pipeline
+   * construction time).
+   *
+   * <p>XML Sinks can be written to using the {@link Write} transform:
+   *
+   * <pre>{@code
+   * p.apply(XmlIO.<Type>write()
+   *      .withRecordClass(Type.class)
+   *      .withRootElement(root_element)
+   *      .toFilenamePrefix(output_filename));
+   * }</pre>
+   *
+   * <p>For example, consider the following class with JAXB annotations:
+   *
+   * <pre>
+   *  {@literal @}XmlRootElement(name = "word_count_result")
+   *  {@literal @}XmlType(propOrder = {"word", "frequency"})
+   *  public class WordFrequency {
+   *    private String word;
+   *    private long frequency;
+   *
+   *    public WordFrequency() { }
+   *
+   *    public WordFrequency(String word, long frequency) {
+   *      this.word = word;
+   *      this.frequency = frequency;
+   *    }
+   *
+   *    public void setWord(String word) {
+   *      this.word = word;
+   *    }
+   *
+   *    public void setFrequency(long frequency) {
+   *      this.frequency = frequency;
+   *    }
+   *
+   *    public long getFrequency() {
+   *      return frequency;
+   *    }
+   *
+   *    public String getWord() {
+   *      return word;
+   *    }
+   *  }
+   * </pre>
+   *
+   * <p>The following will produce XML output with a root element named "words" from a PCollection
+   * of WordFrequency objects:
+   *
+   * <pre>{@code
+   * p.apply(XmlIO.<WordFrequency>write()
+   *     .withRecordClass(WordFrequency.class)
+   *     .withRootElement("words")
+   *     .toFilenamePrefix(output_file));
+   * }</pre>
+   *
+   * <p>The output of which will look like:
+   *
+   * <pre>{@code
+   * <words>
+   *
+   *  <word_count_result>
+   *    <word>decreased</word>
+   *    <frequency>1</frequency>
+   *  </word_count_result>
+   *
+   *  <word_count_result>
+   *    <word>War</word>
+   *    <frequency>4</frequency>
+   *  </word_count_result>
+   *
+   *  <word_count_result>
+   *    <word>empress'</word>
+   *    <frequency>14</frequency>
+   *  </word_count_result>
+   *
+   *  <word_count_result>
+   *    <word>stoops</word>
+   *    <frequency>6</frequency>
+   *  </word_count_result>
+   *
+   *  ...
+   * </words>
+   * }</pre>
+   */
+  // CHECKSTYLE.ON: JavadocStyle
+  public static <T> Write<T> write() {
+    return new AutoValue_XmlIO_Write.Builder<T>().build();
   }
 
   /** Implementation of {@link #read}. */
@@ -282,6 +387,91 @@ public class XmlIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read.from(createSource()));
+    }
+  }
+
+  /** Implementation of {@link #write}. */
+  @AutoValue
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
+    abstract String getFilenamePrefix();
+
+    @Nullable
+    abstract Class<T> getRecordClass();
+
+    @Nullable
+    abstract String getRootElement();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setFilenamePrefix(String baseOutputFilename);
+
+      abstract Builder<T> setRecordClass(Class<T> recordClass);
+
+      abstract Builder<T> setRootElement(String rootElement);
+
+      abstract Write<T> build();
+    }
+
+
+    /**
+     * Writes to files with the given path prefix.
+     *
+     * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
+     * the number of output bundles.
+     */
+    public Write<T> toFilenamePrefix(String filenamePrefix) {
+      return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    }
+
+    /**
+     * Writes objects of the given class mapped to XML elements using JAXB.
+     *
+     * <p>The specified class must be able to be used to create a JAXB context.
+     */
+    public Write<T> withRecordClass(Class<T> recordClass) {
+      return toBuilder().setRecordClass(recordClass).build();
+    }
+
+    /**
+     * Sets the enclosing root element for the generated XML files.
+     */
+    public Write<T> withRootElement(String rootElement) {
+      return toBuilder().setRootElement(rootElement).build();
+    }
+
+    @Override
+    public void validate(PCollection<T> input) {
+      checkNotNull(getRecordClass(), "Missing a class to bind to a JAXB context.");
+      checkNotNull(getRootElement(), "Missing a root element name.");
+      checkNotNull(getFilenamePrefix(), "Missing a filename to write to.");
+      try {
+        JAXBContext.newInstance(getRecordClass());
+      } catch (JAXBException e) {
+        throw new RuntimeException("Error binding classes to a JAXB Context.", e);
+      }
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      return input.apply(org.apache.beam.sdk.io.Write.to(createSink()));
+    }
+
+    @VisibleForTesting
+    XmlSink<T> createSink() {
+      return new XmlSink<>(this);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      createSink().populateFileBasedDisplayData(builder);
+      builder
+          .addIfNotNull(DisplayData.item("rootElement", getRootElement())
+              .withLabel("XML Root Element"))
+          .addIfNotNull(DisplayData.item("recordClass", getRecordClass())
+              .withLabel("XML Record Class"));
     }
   }
 }
