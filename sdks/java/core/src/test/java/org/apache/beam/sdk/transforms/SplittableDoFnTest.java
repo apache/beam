@@ -33,6 +33,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
@@ -250,6 +251,46 @@ public class SplittableDoFnTest implements Serializable {
     PAssert.that(res).containsInAnyOrder(Arrays.asList("foo:0", "foo:1", "foo:2"));
 
     p.run();
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
+  public void testWindowedSideInput() throws Exception {
+    PCollection<Integer> mainInput =
+        p.apply("main",
+                Create.timestamped(
+                    TimestampedValue.of(0, new Instant(0)),
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(3)),
+                    TimestampedValue.of(4, new Instant(4)),
+                    TimestampedValue.of(5, new Instant(5)),
+                    TimestampedValue.of(6, new Instant(6)),
+                    TimestampedValue.of(7, new Instant(7))))
+            .apply("window 2", Window.<Integer>into(FixedWindows.of(Duration.millis(2))));
+
+    PCollectionView<String> sideInput =
+        p.apply("side",
+                Create.timestamped(
+                    TimestampedValue.of("a", new Instant(0)),
+                    TimestampedValue.of("b", new Instant(4))))
+            .apply("window 4", Window.<String>into(FixedWindows.of(Duration.millis(4))))
+            .apply("singleton", View.<String>asSingleton());
+
+    PCollection<String> res =
+        mainInput.apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
+
+    PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
+
+    p.run();
+
+    // TODO: also add test coverage when the SDF checkpoints - the resumed call should also
+    // properly access side inputs.
+    // TODO: also test coverage when some of the windows of the side input are not ready.
   }
 
   private static class SDFWithAdditionalOutput extends DoFn<Integer, String> {
