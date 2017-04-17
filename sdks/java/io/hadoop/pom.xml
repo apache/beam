@@ -35,7 +35,7 @@
   <profiles>
     <profile>
       <activation>
-        <jdk>1.8</jdk>
+        <jdk>[1.8,)</jdk>
       </activation>
       <modules>
         <module>jdk1.8-tests</module>
