@@ -187,7 +187,15 @@ class PipelineRunner(object):
           logging.error('Error while visiting %s', transform_node.full_label)
           raise
 
+    # Replace the element type for inputs to a GroupByKey operation with a
+    # KV type hint that would allow runners to choose a standard coder
+    # (TupleCoder) for these elements.
     pipeline.visit(group_by_key_input_visitor())
+
+    # Replace the element type of inputs to a Flatten operation with that of the
+    # output of Flatten.
+    # TODO: This is only needed for the Dataflow runner, fix once the new runner
+    # API is adopted.
     pipeline.visit(flatten_input_visitor())
     pipeline.visit(RunVisitor(self))
 
