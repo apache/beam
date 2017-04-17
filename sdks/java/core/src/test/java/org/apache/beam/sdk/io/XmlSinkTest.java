@@ -86,7 +86,7 @@ public class XmlSinkTest {
    */
   @Test
   public void testBuildXmlSink() {
-    XmlSink.Bound<Bird> sink =
+    XmlSink<Bird> sink =
         XmlSink.write()
             .toFilenamePrefix(testFilePrefix)
             .ofRecordClass(testClass)
@@ -101,7 +101,7 @@ public class XmlSinkTest {
    */
   @Test
   public void testBuildXmlSinkDirect() {
-    XmlSink.Bound<Bird> sink =
+    XmlSink<Bird> sink =
         XmlSink.writeOf(Bird.class, testRootElement, testFilePrefix);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
@@ -113,7 +113,7 @@ public class XmlSinkTest {
    */
   @Test
   public void testValidateXmlSinkMissingFields() {
-    XmlSink.Bound<Bird> sink;
+    XmlSink<Bird> sink;
     sink = XmlSink.writeOf(null, testRootElement, testFilePrefix);
     validateAndFailIfSucceeds(sink, NullPointerException.class);
     sink = XmlSink.writeOf(testClass, null, testFilePrefix);
@@ -126,7 +126,7 @@ public class XmlSinkTest {
    * Call validate and fail if validation does not throw the expected exception.
    */
   private <T> void validateAndFailIfSucceeds(
-      XmlSink.Bound<T> sink, Class<? extends Exception> expected) {
+      XmlSink<T> sink, Class<? extends Exception> expected) {
     thrown.expect(expected);
     PipelineOptions options = PipelineOptionsFactory.create();
     sink.validate(options);
@@ -138,7 +138,7 @@ public class XmlSinkTest {
   @Test
   public void testCreateWriteOperations() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    XmlSink.Bound<Bird> sink =
+    XmlSink<Bird> sink =
         XmlSink.writeOf(testClass, testRootElement, testFilePrefix);
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
     assertEquals(testClass, writeOp.getSink().classToBind);
@@ -173,7 +173,7 @@ public class XmlSinkTest {
 
   @Test
   public void testDisplayData() {
-    XmlSink.Bound<Integer> sink = XmlSink.write()
+    XmlSink<Integer> sink = XmlSink.write()
         .toFilenamePrefix("foobar")
         .withRootElement("bird")
         .ofRecordClass(Integer.class);

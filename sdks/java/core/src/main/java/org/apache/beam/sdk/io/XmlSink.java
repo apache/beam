@@ -26,8 +26,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -130,16 +128,19 @@ import org.apache.beam.sdk.values.PCollection;
  */
 // CHECKSTYLE.ON: JavadocStyle
 @SuppressWarnings("checkstyle:javadocstyle")
-public class XmlSink {
+public class XmlSink<T> extends FileBasedSink<T> {
   protected static final String XML_EXTENSION = "xml";
+
+  final Class<T> classToBind;
+  final String rootElementName;
 
   /**
    * Returns a builder for an XmlSink. You'll need to configure the class to bind, the root
-   * element name, and the output file prefix with {@link Bound#ofRecordClass}, {@link
-   * Bound#withRootElement}, and {@link Bound#toFilenamePrefix}, respectively.
+   * element name, and the output file prefix with {@link XmlSink#ofRecordClass}, {@link
+   * XmlSink#withRootElement}, and {@link XmlSink#toFilenamePrefix}, respectively.
    */
-  public static Bound<?> write() {
-    return new Bound<>(null, null, null);
+  public static XmlSink<?> write() {
+    return new XmlSink<>(null, null, null);
   }
 
   /**
@@ -152,91 +153,83 @@ public class XmlSink {
    * @param rootElementName the enclosing root element.
    * @param baseOutputFilename the output filename prefix.
    */
-  public static <T> Bound<T> writeOf(
+  public static <T> XmlSink<T> writeOf(
       Class<T> klass, String rootElementName, String baseOutputFilename) {
-    return new Bound<>(klass, rootElementName, baseOutputFilename);
+    return new XmlSink<>(klass, rootElementName, baseOutputFilename);
+  }
+
+  private XmlSink(Class<T> classToBind, String rootElementName, String baseOutputFilename) {
+    super(baseOutputFilename, XML_EXTENSION);
+    this.classToBind = classToBind;
+    this.rootElementName = rootElementName;
   }
 
   /**
-   * A {@link FileBasedSink} that writes objects as XML elements.
+   * Returns an XmlSink that writes objects of the class specified as XML elements.
+   *
+   * <p>The specified class must be able to be used to create a JAXB context.
    */
-  public static class Bound<T> extends FileBasedSink<T> {
-    final Class<T> classToBind;
-    final String rootElementName;
+  public <T> XmlSink<T> ofRecordClass(Class<T> classToBind) {
+    return new XmlSink<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
+  }
 
-    private Bound(Class<T> classToBind, String rootElementName, String baseOutputFilename) {
-      super(baseOutputFilename, XML_EXTENSION);
-      this.classToBind = classToBind;
-      this.rootElementName = rootElementName;
-    }
+  /**
+   * Returns an XmlSink that writes to files with the given prefix.
+   *
+   * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
+   * the number of output bundles.
+   */
+  public XmlSink<T> toFilenamePrefix(String baseOutputFilename) {
+    return new XmlSink<>(classToBind, rootElementName, baseOutputFilename);
+  }
 
-    /**
-     * Returns an XmlSink that writes objects of the class specified as XML elements.
-     *
-     * <p>The specified class must be able to be used to create a JAXB context.
-     */
-    public <T> Bound<T> ofRecordClass(Class<T> classToBind) {
-      return new Bound<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
-    }
+  /**
+   * Returns an XmlSink that writes XML files with an enclosing root element of the
+   * supplied name.
+   */
+  public XmlSink<T> withRootElement(String rootElementName) {
+    return new XmlSink<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
+  }
 
-    /**
-     * Returns an XmlSink that writes to files with the given prefix.
-     *
-     * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
-     * the number of output bundles.
-     */
-    public Bound<T> toFilenamePrefix(String baseOutputFilename) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename);
+  /**
+   * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
+   * been set and that the class can be bound in a JAXB context.
+   */
+  @Override
+  public void validate(PipelineOptions options) {
+    checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
+    checkNotNull(rootElementName, "Missing a root element name.");
+    checkNotNull(getBaseOutputFilenameProvider().get(), "Missing a filename to write to.");
+    try {
+      JAXBContext.newInstance(classToBind);
+    } catch (JAXBException e) {
+      throw new RuntimeException("Error binding classes to a JAXB Context.", e);
     }
+  }
 
-    /**
-     * Returns an XmlSink that writes XML files with an enclosing root element of the
-     * supplied name.
-     */
-    public Bound<T> withRootElement(String rootElementName) {
-      return new Bound<>(classToBind, rootElementName, getBaseOutputFilenameProvider().get());
-    }
+  /**
+   * Creates an {@link XmlWriteOperation}.
+   */
+  @Override
+  public XmlWriteOperation<T> createWriteOperation(PipelineOptions options) {
+    return new XmlWriteOperation<>(this);
+  }
 
-    /**
-     * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
-     * been set and that the class can be bound in a JAXB context.
-     */
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
-      checkNotNull(rootElementName, "Missing a root element name.");
-      checkNotNull(getBaseOutputFilenameProvider().get(), "Missing a filename to write to.");
-      try {
-        JAXBContext.newInstance(classToBind);
-      } catch (JAXBException e) {
-        throw new RuntimeException("Error binding classes to a JAXB Context.", e);
-      }
-    }
-
-    /**
-     * Creates an {@link XmlWriteOperation}.
-     */
-    @Override
-    public XmlWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new XmlWriteOperation<>(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("rootElement", rootElementName)
-            .withLabel("XML Root Element"))
-          .addIfNotNull(DisplayData.item("recordClass", classToBind)
-            .withLabel("XML Record Class"));
-    }
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder
+        .addIfNotNull(DisplayData.item("rootElement", rootElementName)
+          .withLabel("XML Root Element"))
+        .addIfNotNull(DisplayData.item("recordClass", classToBind)
+          .withLabel("XML Record Class"));
   }
 
   /**
    * {@link Sink.WriteOperation} for XML {@link Sink}s.
    */
   protected static final class XmlWriteOperation<T> extends FileBasedWriteOperation<T> {
-    public XmlWriteOperation(XmlSink.Bound<T> sink) {
+    public XmlWriteOperation(XmlSink<T> sink) {
       super(sink);
     }
 
@@ -259,8 +252,8 @@ public class XmlSink {
      * Return the XmlSink.Bound for this write operation.
      */
     @Override
-    public XmlSink.Bound<T> getSink() {
-      return (XmlSink.Bound<T>) super.getSink();
+    public XmlSink<T> getSink() {
+      return (XmlSink<T>) super.getSink();
     }
   }
 
