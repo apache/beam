@@ -79,18 +79,18 @@ import org.joda.time.format.DateTimeFormatter;
  *     PipelineOptionsFactory.as(DirectOptions.class);
  *
  * // To cast from one type to another using the as(Class) method:
- * DataflowPipelineOptions dataflowPipelineOptions =
- *     directPipelineOptions.as(DataflowPipelineOptions.class);
+ * ApplicationNameOptions applicationNameOptions =
+ *     directPipelineOptions.as(ApplicationNameOptions.class);
  *
  * // Options for the same property are shared between types
- * // The statement below will print out "true"
- * System.out.println(dataflowPipelineOptions.isStreaming());
+ * // The statement below will print out the name of the enclosing class by default
+ * System.out.println(applicationNameOptions.getApplicationName());
  *
  * // Prints out registered options.
  * PipelineOptionsFactory.printHelp(System.out);
  *
- * // Prints out options which are available to be set on DataflowPipelineOptions
- * PipelineOptionsFactory.printHelp(System.out, DataflowPipelineOptions.class);
+ * // Prints out options which are available to be set on ApplicationNameOptions
+ * PipelineOptionsFactory.printHelp(System.out, ApplicationNameOptions.class);
  * }</pre>
  *
  * <h2>Defining Your Own PipelineOptions</h2>
