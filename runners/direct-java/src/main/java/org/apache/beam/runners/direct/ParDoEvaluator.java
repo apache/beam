@@ -26,6 +26,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -85,7 +86,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
             aggregatorChanges,
             windowingStrategy);
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
-        PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
+        SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
 
     try {
       runner.startBundle();
