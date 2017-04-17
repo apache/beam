@@ -32,27 +32,31 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-/** Created by tgroh on 4/7/17. */
+/**
+ * Utilities for converting {@link PTransform PTransforms} to and from {@link RunnerApi Runner API
+ * protocol buffers}.
+ */
 public class PTransforms {
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS =
           ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder().build();
   // TODO: ParDoPayload, WindowIntoPayload, ReadPayload, CombinePayload
   // TODO: "Flatten Payload", etc?
+  // TODO: Load via service loader.
   private PTransforms() {}
 
   /**
    * Translates an {@link AppliedPTransform} into a runner API proto.
    *
-   * <p>Does not register {@code application} within the provided {@link SdkComponents}.
+   * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
    */
-  public static RunnerApi.PTransform toProto(
-      AppliedPTransform<?, ?, ?> application,
+  static RunnerApi.PTransform toProto(
+      AppliedPTransform<?, ?, ?> appliedPTransform,
       List<AppliedPTransform<?, ?, ?>> subtransforms,
       SdkComponents components)
       throws IOException {
     RunnerApi.PTransform.Builder transformBuilder = RunnerApi.PTransform.newBuilder();
-    for (Map.Entry<TupleTag<?>, PValue> taggedInput : application.getInputs().entrySet()) {
+    for (Map.Entry<TupleTag<?>, PValue> taggedInput : appliedPTransform.getInputs().entrySet()) {
       checkArgument(
           taggedInput.getValue() instanceof PCollection,
           "Unexpected input type %s",
@@ -61,7 +65,7 @@ public class PTransforms {
           toProto(taggedInput.getKey()),
           components.registerPCollection((PCollection<?>) taggedInput.getValue()));
     }
-    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : application.getOutputs().entrySet()) {
+    for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
       checkArgument(
           taggedOutput.getValue() instanceof PCollection,
           "Unexpected output type %s",
@@ -74,13 +78,15 @@ public class PTransforms {
       transformBuilder.addSubtransforms(components.registerPTransform(subtransform));
     }
 
-    transformBuilder.setUniqueName(application.getFullName());
+    transformBuilder.setUniqueName(appliedPTransform.getFullName());
     // TODO: Display Data
 
-    PTransform<?, ?> transform = application.getTransform();
+    PTransform<?, ?> transform = appliedPTransform.getTransform();
     if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
-          KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass()).translate(application, components);
+          KNOWN_PAYLOAD_TRANSLATORS
+              .get(transform.getClass())
+              .translate(appliedPTransform, components);
       transformBuilder.setSpec(payload);
     }
 

@@ -70,17 +70,17 @@ class SdkComponents {
    * unique ID for the {@link AppliedPTransform}. Multiple registrations of the same
    * {@link AppliedPTransform} will return the same unique ID.
    */
-  public String registerPTransform(
-      AppliedPTransform<?, ?, ?> pTransform, List<AppliedPTransform<?, ?, ?>> children)
+  String registerPTransform(
+      AppliedPTransform<?, ?, ?> appliedPTransform, List<AppliedPTransform<?, ?, ?>> children)
       throws IOException {
-    String name = registerPTransform(pTransform);
+    String name = registerPTransform(appliedPTransform);
     // If this transform is present in the components, nothing to do. return the existing name.
     // Otherwise the transform must be translated and added to the components.
     if (componentsBuilder.getTransformsOrDefault(name, null) != null) {
       return name;
     }
     checkNotNull(children, "child nodes may not be null");
-    componentsBuilder.putTransforms(name, PTransforms.toProto(pTransform, children, this));
+    componentsBuilder.putTransforms(name, PTransforms.toProto(appliedPTransform, children, this));
     return name;
   }
 
@@ -89,18 +89,18 @@ class SdkComponents {
    * will not be added to the components produced by this {@link SdkComponents} until it is
    * translated via {@link #registerPTransform(AppliedPTransform, List)}.
    */
-  public String registerPTransform(AppliedPTransform<?, ?, ?> pTransform) {
-    String existing = transformIds.get(pTransform);
+  String registerPTransform(AppliedPTransform<?, ?, ?> appliedPTransform) {
+    String existing = transformIds.get(appliedPTransform);
     if (existing != null) {
       return existing;
     }
 
-    String name = pTransform.getFullName();
+    String name = appliedPTransform.getFullName();
     if (name.isEmpty()) {
       name = "unnamed-ptransform";
     }
     name = uniqify(name, transformIds.values());
-    transformIds.put(pTransform, name);
+    transformIds.put(appliedPTransform, name);
     return name;
   }
 
