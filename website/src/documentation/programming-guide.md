@@ -465,8 +465,35 @@ tree, [2]
 
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to individual values) to a uni-map (unique keys to collections of values).
 
-> **A Note on Key/Value Pairs:** Beam represents key/value pairs slightly differently depending on the language and SDK you're using. In the Beam SDK for Java, you represent a key/value pair with an object of type `KV<K, V>`. In Python, you represent key/value pairs with 2-tuples.
+##### **Joins with CoGroupByKey**
 
+`CoGroupByKey` joins two or more key/value `PCollection`s that have the same key type, and then emits a collection of `KV<K, CoGbkResult>` pairs. [Design Your Pipeline]({{ site.baseurl }}/documentation/pipelines/design-your-pipeline/#multiple-sources) shows an example pipeline that uses a join. 
+
+Given the input collections below:
+```
+// collection 1
+user1, address1
+user2, address2
+user3, address3
+
+// collection 2
+user1, order1
+user1, order2
+user2, order3
+guest, order4
+...
+```
+
+`CoGroupByKey` gathers up the values with the same key from all `PCollection`s, and outputs a new pair consisting of the unique key and an object `CoGbkResult` containing all values that were associated with that key. If you apply `CoGroupByKey` to the input collections above, the output collection would look like this:
+```
+user1, [[address1], [order1, order2]]
+user2, [[address2], [order3]]
+user3, [[address3], []]
+guest, [[], [order4]]
+...
+````
+
+> **A Note on Key/Value Pairs:** Beam represents key/value pairs slightly differently depending on the language and SDK you're using. In the Beam SDK for Java, you represent a key/value pair with an object of type `KV<K, V>`. In Python, you represent key/value pairs with 2-tuples.
 
 #### <a name="transforms-combine"></a>Using Combine
 
