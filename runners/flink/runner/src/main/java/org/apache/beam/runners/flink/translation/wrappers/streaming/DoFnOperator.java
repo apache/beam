@@ -37,6 +37,7 @@ import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -119,6 +120,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected final OutputManagerFactory<OutputT> outputManagerFactory;
 
+  protected transient DoFnRunner<InputT, FnOutputT> doFnRunner;
   protected transient PushbackSideInputDoFnRunner<InputT, FnOutputT> pushbackDoFnRunner;
 
   protected transient SideInputHandler sideInputHandler;
@@ -269,7 +271,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     ExecutionContext.StepContext stepContext = createStepContext();
 
-    DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
+    doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
         doFn,
         sideInputReader,
@@ -320,7 +322,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     pushbackDoFnRunner =
-        PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
   }
 
   @Override
@@ -362,9 +364,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public final void processElement(
       StreamRecord<WindowedValue<InputT>> streamRecord) throws Exception {
-    pushbackDoFnRunner.startBundle();
-    pushbackDoFnRunner.processElement(streamRecord.getValue());
-    pushbackDoFnRunner.finishBundle();
+    doFnRunner.startBundle();
+    doFnRunner.processElement(streamRecord.getValue());
+    doFnRunner.finishBundle();
   }
 
   private void setPushedBackWatermark(long watermark) {
