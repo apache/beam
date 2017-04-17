@@ -651,6 +651,34 @@ tree, [2]
 
 <p>Thus, <code class="highlighter-rouge">GroupByKey</code> represents a transform from a multimap (multiple keys to individual values) to a uni-map (unique keys to collections of values).</p>
 
+<h5 id="joins-with-cogroupbykey"><strong>Joins with CoGroupByKey</strong></h5>
+
+<p><code class="highlighter-rouge">CoGroupByKey</code> joins two or more key/value <code class="highlighter-rouge">PCollection</code>s that have the same key type, and then emits a collection of <code class="highlighter-rouge">KV&lt;K, CoGbkResult&gt;</code> pairs. <a href="/documentation/pipelines/design-your-pipeline/#multiple-sources">Design Your Pipeline</a> shows an example pipeline that uses a join.</p>
+
+<p>Given the input collections below:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>// collection 1
+user1, address1
+user2, address2
+user3, address3
+
+// collection 2
+user1, order1
+user1, order2
+user2, order3
+guest, order4
+...
+</code></pre>
+</div>
+
+<p><code class="highlighter-rouge">CoGroupByKey</code> gathers up the values with the same key from all <code class="highlighter-rouge">PCollection</code>s, and outputs a new pair consisting of the unique key and an object <code class="highlighter-rouge">CoGbkResult</code> containing all values that were associated with that key. If you apply <code class="highlighter-rouge">CoGroupByKey</code> to the input collections above, the output collection would look like this:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>user1, [[address1], [order1, order2]]
+user2, [[address2], [order3]]
+user3, [[address3], []]
+guest, [[], [order4]]
+...
+</code></pre>
+</div>
+
 <blockquote>
   <p><strong>A Note on Key/Value Pairs:</strong> Beam represents key/value pairs slightly differently depending on the language and SDK you’re using. In the Beam SDK for Java, you represent a key/value pair with an object of type <code class="highlighter-rouge">KV&lt;K, V&gt;</code>. In Python, you represent key/value pairs with 2-tuples.</p>
 </blockquote>
