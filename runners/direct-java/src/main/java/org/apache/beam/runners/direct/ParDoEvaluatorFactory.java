@@ -126,7 +126,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
         fnManager);
   }
 
-  ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+  ParDoEvaluator<InputT> createParDoEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,

@@ -40,9 +40,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
-  public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
+  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
@@ -93,13 +93,11 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       throw UserCodeException.wrap(e);
     }
 
-    return new ParDoEvaluator<>(
-        evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
+    return new ParDoEvaluator<>(runner, application, aggregatorChanges, outputManager, stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final EvaluationContext evaluationContext;
   private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
   private final AppliedPTransform<?, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
@@ -109,13 +107,11 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
   private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
-      EvaluationContext evaluationContext,
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
       AppliedPTransform<?, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
       BundleOutputManager outputManager,
       DirectStepContext stepContext) {
-    this.evaluationContext = evaluationContext;
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.outputManager = outputManager;
@@ -153,11 +149,11 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
-    StepTransformResult.Builder resultBuilder;
+    StepTransformResult.Builder<InputT> resultBuilder;
     CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
     if (state != null) {
       resultBuilder =
-          StepTransformResult.withHold(transform, state.getEarliestWatermarkHold())
+          StepTransformResult.<InputT>withHold(transform, state.getEarliestWatermarkHold())
               .withState(state);
     } else {
       resultBuilder = StepTransformResult.withoutHold(transform);

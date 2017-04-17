@@ -98,7 +98,7 @@ public class ParDoEvaluatorTest {
     UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(output);
     when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
-    ParDoEvaluator<Integer, Integer> evaluator =
+    ParDoEvaluator<Integer> evaluator =
         createEvaluator(singletonView, fn, output);
 
     IntervalWindow nonGlobalWindow = new IntervalWindow(new Instant(0), new Instant(10_000L));
@@ -130,7 +130,7 @@ public class ParDoEvaluatorTest {
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
 
-  private ParDoEvaluator<Integer, Integer> createEvaluator(
+  private ParDoEvaluator<Integer> createEvaluator(
       PCollectionView<Integer> singletonView,
       RecorderFn fn,
       PCollection<Integer> output) {
