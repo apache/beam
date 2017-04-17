@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -241,7 +242,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      * window of the main input element.
      *
      * <p>See
-     * {@link org.apache.beam.sdk.transforms.windowing.WindowFn#getSideInputWindow}
+     * {@link WindowMappingFn#getSideInputWindow}
      * for how this corresponding window is determined.
      *
      * @throws IllegalArgumentException if this is not a side input
