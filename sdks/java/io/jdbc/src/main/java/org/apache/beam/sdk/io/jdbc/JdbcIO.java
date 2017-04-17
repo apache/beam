@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -55,15 +54,13 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * <p>JdbcIO source returns a bounded collection of {@code T} as a {@code PCollection<T>}. T is the
  * type returned by the provided {@link RowMapper}.
  *
- * <p>To configure the JDBC source, you have to provide a {@link DataSourceConfiguration} using
- * {@link DataSourceConfiguration#create(DataSource)} or
- * {@link DataSourceConfiguration#create(String, String)} with either a
- * {@link DataSource} (which must be {@link Serializable}) or the parameters needed to create it
- * (driver class name and url). Optionally, {@link DataSourceConfiguration#withUsername(String)} and
- * {@link DataSourceConfiguration#withPassword(String)} allows you to define DataSource username
- * and password.
- * For example:
+ * <p>To configure the JDBC source, you have to provide a {@link DataSourceConfiguration} using<br>
+ * 1. {@link DataSourceConfiguration#create(DataSource)}(which must be {@link Serializable});<br>
+ * 2. or {@link DataSourceConfiguration#create(String, String)}(driver class name and url).
+ * Optionally, {@link DataSourceConfiguration#withUsername(String)} and
+ * {@link DataSourceConfiguration#withPassword(String)} allows you to define username and password.
  *
+ * <p>For example:
  * <pre>{@code
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
@@ -245,11 +242,9 @@ public class JdbcIO {
       }
     }
 
-    Connection getConnection() throws Exception {
+    DataSource buildDatasource() throws Exception{
       if (getDataSource() != null) {
-        return (getUsername() != null)
-            ? getDataSource().getConnection(getUsername(), getPassword())
-            : getDataSource().getConnection();
+        return getDataSource();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName(getDriverClassName());
@@ -259,9 +254,10 @@ public class JdbcIO {
         if (getConnectionProperties() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties());
         }
-        return basicDataSource.getConnection();
+        return basicDataSource;
       }
     }
+
   }
 
   /**
@@ -368,6 +364,7 @@ public class JdbcIO {
     /** A {@link DoFn} executing the SQL query to read from the database. */
     static class ReadFn<T> extends DoFn<String, T> {
       private JdbcIO.Read<T> spec;
+      private DataSource dataSource;
       private Connection connection;
 
       private ReadFn(Read<T> spec) {
@@ -376,7 +373,8 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        connection = spec.getDataSourceConfiguration().getConnection();
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection = dataSource.getConnection();
       }
 
       @ProcessElement
@@ -396,8 +394,9 @@ public class JdbcIO {
 
       @Teardown
       public void teardown() throws Exception {
-        if (connection != null) {
-          connection.close();
+        connection.close();
+        if (dataSource instanceof AutoCloseable) {
+          ((AutoCloseable) dataSource).close();
         }
       }
     }
@@ -462,6 +461,7 @@ public class JdbcIO {
 
       private final Write<T> spec;
 
+      private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private int batchCount;
@@ -472,7 +472,8 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        connection = spec.getDataSourceConfiguration().getConnection();
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection = dataSource.getConnection();
         connection.setAutoCommit(false);
         preparedStatement = connection.prepareStatement(spec.getStatement());
       }
@@ -515,6 +516,9 @@ public class JdbcIO {
         } finally {
           if (connection != null) {
             connection.close();
+          }
+          if (dataSource instanceof AutoCloseable) {
+            ((AutoCloseable) dataSource).close();
           }
         }
       }
