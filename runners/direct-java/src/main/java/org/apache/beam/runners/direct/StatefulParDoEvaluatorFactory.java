@@ -65,7 +65,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
   StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext) {
-    this.delegateFactory = new ParDoEvaluatorFactory<>(evaluationContext);
+    this.delegateFactory =
+        new ParDoEvaluatorFactory<>(
+            evaluationContext, ParDoEvaluator.<KV<K, InputT>, OutputT>defaultRunnerFactory());
     this.cleanupRegistry =
         CacheBuilder.newBuilder()
             .weakValues()
