@@ -34,6 +34,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.CountingSource;
@@ -134,9 +135,16 @@ public class PTransformsTest {
     List<AppliedPTransform<?, ?, ?>> childTransforms = new ArrayList<>();
     for (ToAndFromProtoSpec child : spec.getChildren()) {
       childTransforms.add(child.getTransform());
+      System.out.println("Converting child " + child);
       convert(child, components);
+      // Sanity call
+      components.getExistingPTransformId(child.getTransform());
     }
-    return PTransforms.toProto(spec.getTransform(), childTransforms, components);
+    PTransform convert = PTransforms.toProto(spec.getTransform(), childTransforms, components);
+    // Make sure the converted transform is registered. Convert it independently, but if this is a
+    // child spec, the child must be in the components.
+    components.registerPTransform(spec.getTransform(), childTransforms);
+    return convert;
   }
 
   private static class TestDoFn extends DoFn<Long, KV<Long, String>> {
