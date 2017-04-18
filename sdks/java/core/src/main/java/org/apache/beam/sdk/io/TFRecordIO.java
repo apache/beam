@@ -75,7 +75,6 @@ public class TFRecordIO {
     return new AutoValue_TFRecordIO_Write.Builder()
         .setFilenameSuffix("")
         .setNumShards(0)
-        .setValidate(true)
         .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
         .setCompressionType(CompressionType.NONE)
         .build();
@@ -237,9 +236,6 @@ public class TFRecordIO {
     /** The shard template of each file written, combined with prefix and suffix. */
     abstract String getShardTemplate();
 
-    /** An option to indicate if output validation is desired. Default is true. */
-    abstract boolean getValidate();
-
     /** Option to indicate the output sink's compression type. Default is NONE. */
     abstract CompressionType getCompressionType();
 
@@ -254,8 +250,6 @@ public class TFRecordIO {
       abstract Builder setNumShards(int numShards);
 
       abstract Builder setShardTemplate(String shardTemplate);
-
-      abstract Builder setValidate(boolean validate);
 
       abstract Builder setCompressionType(CompressionType compressionType);
 
@@ -334,17 +328,6 @@ public class TFRecordIO {
     }
 
     /**
-     * Disables GCS output path validation on pipeline creation.
-     *
-     * <p>This can be useful in the case where the GCS output location does
-     * not exist at the pipeline creation time, but is expected to be
-     * available at execution time.
-     */
-    public Write withoutValidation() {
-      return toBuilder().setValidate(false).build();
-    }
-
-    /**
      * Writes to output files using the specified compression type.
      *
      * <p>If no compression type is specified, the default is
@@ -388,8 +371,6 @@ public class TFRecordIO {
           .addIfNotDefault(DisplayData.item("shardNameTemplate", getShardTemplate())
                   .withLabel("Output Shard Name Template"),
               DEFAULT_SHARD_TEMPLATE)
-          .addIfNotDefault(DisplayData.item("validation", getValidate())
-              .withLabel("Validation Enabled"), true)
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
               .withLabel("Maximum Output Shards"), 0)
           .add(DisplayData

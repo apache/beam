@@ -163,8 +163,7 @@ public class TFRecordIOTest {
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
-        .withCompressionType(GZIP)
-        .withoutValidation();
+        .withCompressionType(GZIP);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -173,7 +172,6 @@ public class TFRecordIOTest {
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("compressionType", GZIP.toString()));
-    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test
