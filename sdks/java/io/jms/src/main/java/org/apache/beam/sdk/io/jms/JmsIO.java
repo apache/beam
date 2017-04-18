@@ -340,7 +340,7 @@ public class JmsIO {
     }
 
     @Override
-    public List<UnboundedJmsSource> generateInitialSplits(
+    public List<UnboundedJmsSource> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
       if (spec.getTopic() != null) {

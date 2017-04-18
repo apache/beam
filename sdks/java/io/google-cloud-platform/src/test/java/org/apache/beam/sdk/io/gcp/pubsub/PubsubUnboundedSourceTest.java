@@ -324,7 +324,7 @@ public class PubsubUnboundedSourceTest {
   }
 
   @Test
-  public void noSubscriptionSplitIntoBundlesGeneratesSubscription() throws Exception {
+  public void noSubscriptionSplitGeneratesSubscription() throws Exception {
     TopicPath topicPath = PubsubClient.topicPathFromName("my_project", "my_topic");
     factory = PubsubTestClient.createFactoryForCreateSubscription();
     PubsubUnboundedSource<String> source =
@@ -343,7 +343,7 @@ public class PubsubUnboundedSourceTest {
 
     PipelineOptions options = PipelineOptionsFactory.create();
     List<PubsubSource<String>> splits =
-        (new PubsubSource<>(source)).generateInitialSplits(3, options);
+        (new PubsubSource<>(source)).split(3, options);
     // We have at least one returned split
     assertThat(splits, hasSize(greaterThan(0)));
     for (PubsubSource<String> split : splits) {

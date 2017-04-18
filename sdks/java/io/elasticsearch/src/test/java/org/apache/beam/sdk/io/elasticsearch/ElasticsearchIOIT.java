@@ -88,7 +88,7 @@ public class ElasticsearchIOIT {
     // as many bundles as ES shards and bundle size is shard size
     long desiredBundleSizeBytes = 0;
     List<? extends BoundedSource<String>> splits =
-        initialSource.splitIntoBundles(desiredBundleSizeBytes, options);
+        initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     //this is the number of ES shards
     // (By default, each index in Elasticsearch is allocated 5 primary shards)
