@@ -426,6 +426,18 @@ class FileSystem(object):
     return compression_type
 
   @abc.abstractmethod
+  def join(self, basepath, *paths):
+    """Join two or more pathname components for the filesystem
+
+    Args:
+      basepath: string path of the first component of the path
+      paths: path components to be added
+
+    Returns: full path after combining all the passed components
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
