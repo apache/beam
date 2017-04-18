@@ -58,7 +58,7 @@ public abstract class BoundedSource<T> extends Source<T> {
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
 
   /**
-   * {@link BoundedSource#split(long, PipelineOptions)} old method name to be used with Google Cloud Dataflow
+   * {@link BoundedSource#split(long, PipelineOptions)} old method name to be used with Dataflow.
    */
   @Deprecated
   public final List<? extends BoundedSource<T>> splitIntoBundles(
