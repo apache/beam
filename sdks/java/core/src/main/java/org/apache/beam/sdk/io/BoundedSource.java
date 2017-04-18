@@ -58,6 +58,15 @@ public abstract class BoundedSource<T> extends Source<T> {
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
 
   /**
+   * {@link BoundedSource#split(long, PipelineOptions)} old method name to be used with Google Cloud Dataflow
+   */
+  @Deprecated
+  public final List<? extends BoundedSource<T>> splitIntoBundles(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception{
+      return split(desiredBundleSizeBytes, options);
+  }
+
+  /**
    * An estimate of the total size (in bytes) of the data that would be read from this source.
    * This estimate is in terms of external storage size, before any decompression or other
    * processing done by the reader.
