@@ -15,55 +15,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.core;
 
-package org.apache.beam.runners.spark.translation;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
+import org.apache.beam.runners.core.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.spark.api.java.function.Function;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 
-
 /**
- * An implementation of {@link org.apache.beam.runners.core.AssignWindowsDoFn} for the Spark runner.
+ * {@link OldDoFn} that tags elements of a {@link PCollection} with windows, according to the
+ * provided {@link WindowFn}.
+ *
+ * @param <T> Type of elements being windowed
+ * @param <W> Window type
  */
-public class SparkAssignWindowFn<T, W extends BoundedWindow>
-    implements Function<WindowedValue<T>, WindowedValue<T>> {
-
+@SystemDoFnInternal
+public class AssignWindowsDoFn<T, W extends BoundedWindow> extends OldDoFn<T, T>
+    implements RequiresWindowAccess {
   private WindowFn<? super T, W> fn;
 
-  public SparkAssignWindowFn(WindowFn<? super T, W> fn) {
-    this.fn = fn;
+  public AssignWindowsDoFn(WindowFn<? super T, W> fn) {
+    this.fn =
+        checkNotNull(
+            fn,
+            "%s provided to %s cannot be null",
+            WindowFn.class.getSimpleName(),
+            AssignWindowsDoFn.class.getSimpleName());
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public WindowedValue<T> call(WindowedValue<T> windowedValue) throws Exception {
-    final BoundedWindow boundedWindow = Iterables.getOnlyElement(windowedValue.getWindows());
-    final T element = windowedValue.getValue();
-    final Instant timestamp = windowedValue.getTimestamp();
+  public void processElement(final ProcessContext c) throws Exception {
     Collection<W> windows =
         ((WindowFn<T, W>) fn).assignWindows(
             ((WindowFn<T, W>) fn).new AssignContext() {
                 @Override
                 public T element() {
-                  return element;
+                  return c.element();
                 }
 
                 @Override
                 public Instant timestamp() {
-                  return timestamp;
+                  return c.timestamp();
                 }
 
                 @Override
                 public BoundedWindow window() {
-                  return boundedWindow;
+                  return Iterables.getOnlyElement(c.windowingInternals().windows());
                 }
               });
-    return WindowedValue.of(element, timestamp, windows, PaneInfo.NO_FIRING);
+
+    c.windowingInternals()
+        .outputWindowedValue(c.element(), c.timestamp(), windows, PaneInfo.NO_FIRING);
   }
 }
