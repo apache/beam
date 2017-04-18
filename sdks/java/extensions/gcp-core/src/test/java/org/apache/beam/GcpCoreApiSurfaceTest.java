@@ -27,7 +27,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** API surface verification for {@link org.apache.beam}. */
+/** API surface verification for Google Cloud Platform core components. */
 @RunWith(JUnit4.class)
 public class GcpCoreApiSurfaceTest {
 

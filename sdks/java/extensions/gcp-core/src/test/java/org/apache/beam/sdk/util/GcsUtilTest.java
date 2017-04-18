@@ -62,9 +62,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -84,6 +87,8 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
@@ -270,6 +275,60 @@ public class GcsUtilTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unsupported wildcard usage");
     gcsUtil.expand(pattern);
+  }
+
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////
+  // Test "gs://" paths
+
+  private GcsUtil buildMockGcsUtil() throws IOException {
+    GcsUtil mockGcsUtil = Mockito.mock(GcsUtil.class);
+
+    // Any request to open gets a new bogus channel
+    Mockito
+        .when(mockGcsUtil.open(Mockito.any(GcsPath.class)))
+        .then(new Answer<SeekableByteChannel>() {
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
+
+    // Any request for expansion returns a list containing the original GcsPath
+    // This is required to pass validation that occurs in TextIO during apply()
+    Mockito
+        .when(mockGcsUtil.expand(Mockito.any(GcsPath.class)))
+        .then(new Answer<List<GcsPath>>() {
+          @Override
+          public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
+            return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
+          }
+        });
+
+    return mockGcsUtil;
+  }
+
+  /**
+   * This tests a few corner cases that should not crash.
+   */
+  @Test
+  public void testGoodWildcards() throws Exception {
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/*"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/?"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/[0-9]"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/*baz*"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/*baz?"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/[0-9]baz?"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/baz/*"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/baz/*wonka*"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo/*baz/wonka*"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo*/baz"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo?/baz"));
+    buildMockGcsUtil().expand(GcsPath.fromUri("gs://bucket/foo[0-9]/baz"));
   }
 
   // GCSUtil.expand() should fail when matching a single object when that object does not exist.

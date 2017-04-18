@@ -403,7 +403,7 @@ public class TextIOTest {
   }
 
   private static Predicate<List<String>> haveProperHeaderAndFooter(final String header,
-                                                                   final String footer) {
+      final String footer) {
     return new Predicate<List<String>>() {
       @Override
       public boolean apply(List<String> fileLines) {
@@ -564,6 +564,21 @@ public class TextIOTest {
     input.apply(TextIO.Write.to(filename));
   }
 
+  /**
+   * Recursive wildcards are not supported.
+   * This tests "**".
+   */
+  @Test
+  public void testBadWildcardRecursive() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
+    // Check that applying does fail.
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("wildcard");
+
+    p.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+  }
+
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
@@ -582,6 +597,28 @@ public class TextIOTest {
     p
         .apply(TextIO.Read.from(options.getInput()).withoutValidation())
         .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+  }
+
+  @Test
+  public void testReadWithoutValidationFlag() throws Exception {
+    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/foo*/baz");
+    assertTrue(read.needsValidation());
+    assertFalse(read.withoutValidation().needsValidation());
+  }
+
+  @Test
+  public void testWriteWithoutValidationFlag() throws Exception {
+    TextIO.Write.Bound write = TextIO.Write.to("gs://bucket/foo/baz");
+    assertTrue(write.needsValidation());
+    assertFalse(write.withoutValidation().needsValidation());
+  }
+
+  @Test
+  public void testCompressionTypeIsSet() throws Exception {
+    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/test");
+    assertEquals(AUTO, read.getCompressionType());
+    read = TextIO.Read.from("gs://bucket/test").withCompressionType(GZIP);
+    assertEquals(GZIP, read.getCompressionType());
   }
 
   /**
