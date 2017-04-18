@@ -50,7 +50,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.TestCredential;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -59,23 +58,21 @@ import org.junit.runners.model.Statement;
  * A creator of test pipelines that can be used inside of tests that can be configured to run
  * locally or against a remote pipeline runner.
  *
- * <p>It is recommended to tag hand-selected tests for this purpose using the {@link
- * ValidatesRunner} {@link Category} annotation, as each test run against a pipeline runner will
- * utilize resources of that pipeline runner.
+ * <p>By default, the pipeline will use options from {@link PipelineOptionsFactory#create} and use
+ * the direct runner. Options can be configured using the system property "beamTestPipelineOptions":
+ * it will be interpreted as a JSON delimited list of pipeline options. For example:
  *
- * <p>In order to run tests on a pipeline runner, the following conditions must be met:
- *
- * <ul>
- * <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
- *     options. For example:
- *     <pre>{@code [
+ *     <pre>{@code
+ *     [
  *     "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>
- *     Note that the set of pipeline options required is pipeline runner specific.
- * <li>Jars containing the SDK and test classes must be available on the classpath.
- * </ul>
+ *
+ * <p>Note that the set of pipeline options required is specific to the runner.
+ *
+ * <p>Jars containing the SDK, test and runner classes must be available on the classpath (e.g., by
+ * default, the direct runner must be available on the classpath).
  *
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
  * remote execution modes. For example:
@@ -85,7 +82,6 @@ import org.junit.runners.model.Statement;
  * public final transient TestPipeline p = TestPipeline.create();
  *
  * {@literal @Test}
- * {@literal @Category}(NeedsRunner.class)
  * public void myPipelineTest() throws Exception {
  *   final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
  *   PAssert.that(pCollection).containsInAnyOrder(...);
@@ -274,24 +270,16 @@ public class TestPipeline extends Pipeline implements TestRule {
       private void setDeducedEnforcementLevel() {
         // if the enforcement level has not been set by the user do auto-inference
         if (!enforcement.isPresent()) {
-
-          final boolean annotatedWithNeedsRunner =
-              FluentIterable.from(description.getAnnotations())
-                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
-                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
-
           final boolean crashingRunner =
               CrashingRunner.class.isAssignableFrom(getOptions().getRunner());
 
           checkState(
-              !(annotatedWithNeedsRunner && crashingRunner),
-              "The test was annotated with a [@%s] / [@%s] while the runner "
-                  + "was set to [%s]. Please re-check your configuration.",
-              NeedsRunner.class.getSimpleName(),
-              ValidatesRunner.class.getSimpleName(),
-              CrashingRunner.class.getSimpleName());
+              !crashingRunner,
+              "No runner available in TestPipeline - "
+                  + "make sure that either the direct runner is available in classpath, "
+                  + "or specify a different runner using the beamTestPipelineOptions property.");
 
-          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+          enableAbandonedNodeEnforcement(true);
         }
       }
 
