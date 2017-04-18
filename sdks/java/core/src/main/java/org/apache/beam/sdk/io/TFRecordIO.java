@@ -72,7 +72,13 @@ public class TFRecordIO {
    * element of the input collection encoded into its own record.
    */
   public static Write write() {
-    return new Write();
+    return new AutoValue_TFRecordIO_Write.Builder()
+        .setFilenameSuffix("")
+        .setNumShards(0)
+        .setValidate(true)
+        .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
+        .setCompressionType(CompressionType.NONE)
+        .build();
   }
 
   /** Implementation of {@link #read}. */
@@ -214,40 +220,46 @@ public class TFRecordIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /** Implementation of {@link #write}. */
-  public static class Write extends PTransform<PCollection<byte[]>, PDone> {
+  @AutoValue
+  public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
     private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
     /** The prefix of each file written, combined with suffix and shardTemplate. */
-    private final ValueProvider<String> filenamePrefix;
+    @Nullable
+    abstract ValueProvider<String> getFilenamePrefix();
+
     /** The suffix of each file written, combined with prefix and shardTemplate. */
-    private final String filenameSuffix;
+    abstract String getFilenameSuffix();
 
     /** Requested number of shards. 0 for automatic. */
-    private final int numShards;
+    abstract int getNumShards();
 
     /** The shard template of each file written, combined with prefix and suffix. */
-    private final String shardTemplate;
+    abstract String getShardTemplate();
 
     /** An option to indicate if output validation is desired. Default is true. */
-    private final boolean validate;
+    abstract boolean getValidate();
 
     /** Option to indicate the output sink's compression type. Default is NONE. */
-    private final TFRecordIO.CompressionType compressionType;
+    abstract CompressionType getCompressionType();
 
-    private Write() {
-      this(null, null, "", 0, DEFAULT_SHARD_TEMPLATE, true, TFRecordIO.CompressionType.NONE);
-    }
+    abstract Builder toBuilder();
 
-    private Write(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
-                 int numShards, String shardTemplate, boolean validate,
-                 CompressionType compressionType) {
-      super(name);
-      this.filenamePrefix = filenamePrefix;
-      this.filenameSuffix = filenameSuffix;
-      this.numShards = numShards;
-      this.shardTemplate = shardTemplate;
-      this.validate = validate;
-      this.compressionType = compressionType;
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFilenamePrefix(ValueProvider<String> filenamePrefix);
+
+      abstract Builder setFilenameSuffix(String filenameSuffix);
+
+      abstract Builder setNumShards(int numShards);
+
+      abstract Builder setShardTemplate(String shardTemplate);
+
+      abstract Builder setValidate(boolean validate);
+
+      abstract Builder setCompressionType(CompressionType compressionType);
+
+      abstract Write build();
     }
 
     /**
@@ -262,16 +274,14 @@ public class TFRecordIO {
      */
     public Write to(String filenamePrefix) {
       validateOutputComponent(filenamePrefix);
-      return new Write(name, StaticValueProvider.of(filenamePrefix), filenameSuffix, numShards,
-          shardTemplate, validate, compressionType);
+      return to(StaticValueProvider.of(filenamePrefix));
     }
 
     /**
      * Like {@link #to(String)}, but with a {@link ValueProvider}.
      */
     public Write to(ValueProvider<String> filenamePrefix) {
-      return new Write(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, validate,
-          compressionType);
+      return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
     /**
@@ -281,8 +291,7 @@ public class TFRecordIO {
      */
     public Write withSuffix(String nameExtension) {
       validateOutputComponent(nameExtension);
-      return new Write(name, filenamePrefix, nameExtension, numShards, shardTemplate, validate,
-          compressionType);
+      return toBuilder().setFilenameSuffix(nameExtension).build();
     }
 
     /**
@@ -298,8 +307,7 @@ public class TFRecordIO {
      */
     public Write withNumShards(int numShards) {
       checkArgument(numShards >= 0);
-      return new Write(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, validate,
-          compressionType);
+      return toBuilder().setNumShards(numShards).build();
     }
 
     /**
@@ -308,8 +316,7 @@ public class TFRecordIO {
      * @see ShardNameTemplate
      */
     public Write withShardNameTemplate(String shardTemplate) {
-      return new Write(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, validate,
-          compressionType);
+      return toBuilder().setShardTemplate(shardTemplate).build();
     }
 
     /**
@@ -323,8 +330,7 @@ public class TFRecordIO {
      * {@code .withNumShards(1).withShardNameTemplate("")}
      */
     public Write withoutSharding() {
-      return new Write(name, filenamePrefix, filenameSuffix, 1, "",
-          validate, compressionType);
+      return withNumShards(1).withShardNameTemplate("");
     }
 
     /**
@@ -335,8 +341,7 @@ public class TFRecordIO {
      * available at execution time.
      */
     public Write withoutValidation() {
-      return new Write(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, false,
-          compressionType);
+      return toBuilder().setValidate(false).build();
     }
 
     /**
@@ -347,19 +352,22 @@ public class TFRecordIO {
      * See {@link TFRecordIO.Read#withCompressionType} for more details.
      */
     public Write withCompressionType(CompressionType compressionType) {
-      return new Write(name, filenamePrefix, filenameSuffix, numShards, shardTemplate, validate,
-          compressionType);
+      return toBuilder().setCompressionType(compressionType).build();
     }
 
     @Override
     public PDone expand(PCollection<byte[]> input) {
-      if (filenamePrefix == null) {
+      if (getFilenamePrefix() == null) {
         throw new IllegalStateException(
             "need to set the filename prefix of a TFRecordIO.Write transform");
       }
       org.apache.beam.sdk.io.Write<byte[]> write =
           org.apache.beam.sdk.io.Write.to(
-              new TFRecordSink(filenamePrefix, filenameSuffix, shardTemplate, compressionType));
+              new TFRecordSink(
+                  getFilenamePrefix(),
+                  getFilenameSuffix(),
+                  getShardTemplate(),
+                  getCompressionType()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -370,55 +378,28 @@ public class TFRecordIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      String prefixString = filenamePrefix.isAccessible()
-          ? filenamePrefix.get() : filenamePrefix.toString();
+      String prefixString = getFilenamePrefix().isAccessible()
+          ? getFilenamePrefix().get() : getFilenamePrefix().toString();
       builder
           .addIfNotNull(DisplayData.item("filePrefix", prefixString)
               .withLabel("Output File Prefix"))
-          .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+          .addIfNotDefault(DisplayData.item("fileSuffix", getFilenameSuffix())
               .withLabel("Output File Suffix"), "")
-          .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+          .addIfNotDefault(DisplayData.item("shardNameTemplate", getShardTemplate())
                   .withLabel("Output Shard Name Template"),
               DEFAULT_SHARD_TEMPLATE)
-          .addIfNotDefault(DisplayData.item("validation", validate)
+          .addIfNotDefault(DisplayData.item("validation", getValidate())
               .withLabel("Validation Enabled"), true)
-          .addIfNotDefault(DisplayData.item("numShards", numShards)
+          .addIfNotDefault(DisplayData.item("numShards", getNumShards())
               .withLabel("Maximum Output Shards"), 0)
           .add(DisplayData
-              .item("compressionType", compressionType.toString())
+              .item("compressionType", getCompressionType().toString())
               .withLabel("Compression Type"));
-    }
-
-    /**
-     * Returns the current shard name template string.
-     */
-    public String getShardNameTemplate() {
-      return shardTemplate;
     }
 
     @Override
     protected Coder<Void> getDefaultOutputCoder() {
       return VoidCoder.of();
-    }
-
-    public String getFilenamePrefix() {
-      return filenamePrefix.get();
-    }
-
-    public String getShardTemplate() {
-      return shardTemplate;
-    }
-
-    public int getNumShards() {
-      return numShards;
-    }
-
-    public String getFilenameSuffix() {
-      return filenameSuffix;
-    }
-
-    public boolean needsValidation() {
-      return validate;
     }
   }
 
