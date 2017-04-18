@@ -36,7 +36,7 @@ class ExecutorService(object):
 
   class CallableTask(object):
 
-    def __call__(self):
+    def call(self):
       pass
 
     @property
@@ -83,7 +83,7 @@ class ExecutorService(object):
           try:
             if not self.shutdown_requested:
               self._update_name(task)
-              task()
+              task.call()
               self._update_name()
           finally:
             self.queue.task_done()
@@ -261,7 +261,7 @@ class TransformExecutor(ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
 
-  def __call__(self):
+  def call(self):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
     metrics_container = MetricsContainer(self._applied_transform.full_label)
@@ -449,7 +449,7 @@ class _ExecutorServiceParallelExecutor(object):
     def name(self):
       return 'monitor'
 
-    def __call__(self):
+    def call(self):
       try:
         update = self._executor.all_updates.poll()
         while update:
