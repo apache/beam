@@ -605,9 +605,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     else:
       self.query = self.source.query
 
-  def __enter__(self):
-    self.client = BigQueryWrapper(client=self.test_bigquery_client)
-
+  def _get_source_table_location(self):
     tr = self.source.table_reference
     if tr.projectId is None:
       source_project_id = self.executing_project
@@ -618,9 +616,12 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     source_table_id = tr.tableId
     source_location = self.client.get_table_location(
         source_project_id, source_dataset_id, source_table_id)
+    return source_location
 
+  def __enter__(self):
+    self.client = BigQueryWrapper(client=self.test_bigquery_client)
     self.client.create_temporary_dataset(
-        self.executing_project, location=source_location)
+        self.executing_project, location=self._get_source_table_location())
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
