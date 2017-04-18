@@ -165,6 +165,7 @@
           <li><a href="#gpg-key" id="markdown-toc-gpg-key">GPG Key</a></li>
           <li><a href="#access-to-apache-nexus-repository" id="markdown-toc-access-to-apache-nexus-repository">Access to Apache Nexus repository</a></li>
           <li><a href="#website-development-setup" id="markdown-toc-website-development-setup">Website development setup</a></li>
+          <li><a href="#register-to-pypi" id="markdown-toc-register-to-pypi">Register to PyPI</a></li>
         </ul>
       </li>
       <li><a href="#create-a-new-version-in-jira" id="markdown-toc-create-a-new-version-in-jira">Create a new version in JIRA</a></li>
@@ -173,6 +174,8 @@
       <li><a href="#verify-that-a-release-build-works" id="markdown-toc-verify-that-a-release-build-works">Verify that a Release Build Works</a></li>
       <li><a href="#update-and-verify-javadoc" id="markdown-toc-update-and-verify-javadoc">Update and Verify Javadoc</a></li>
       <li><a href="#create-a-release-branch" id="markdown-toc-create-a-release-branch">Create a release branch</a></li>
+      <li><a href="#update-the-python-sdk-version" id="markdown-toc-update-the-python-sdk-version">Update the Python SDK version</a></li>
+      <li><a href="#update-release-specific-configurations" id="markdown-toc-update-release-specific-configurations">Update release specific configurations</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1" id="markdown-toc-checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -196,7 +199,8 @@
     </ul>
   </li>
   <li><a href="#finalize-the-release" id="markdown-toc-finalize-the-release">Finalize the release</a>    <ul>
-      <li><a href="#deploy-artifacts-to-maven-central-repository" id="markdown-toc-deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a>        <ul>
+      <li><a href="#deploy-artifacts-to-maven-central-repository" id="markdown-toc-deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a></li>
+      <li><a href="#deploy-python-artifacts-to-pypi" id="markdown-toc-deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a>        <ul>
           <li><a href="#deploy-source-release-to-distapacheorg" id="markdown-toc-deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</a></li>
         </ul>
       </li>
@@ -291,7 +295,7 @@ sub   2048R/BA4D50BE 2016-02-23
 
 <p>Here, the key ID is the 8-digit hex string in the <code class="highlighter-rouge">pub</code> line: <code class="highlighter-rouge">845E6689</code>.</p>
 
-<p>Now, add your Apache GPG key to the Beam’s <code class="highlighter-rouge">KEYS</code> file both in <a href="https://dist.apache.org/repos/dist/dev/beam/KEYS"><code class="highlighter-rouge">dev</code></a> and <a href="https://dist.apache.org/repos/dist/release/beam/KEYS"><code class="highlighter-rouge">release</code></a> repositories at <code class="highlighter-rouge">dist.apache.org</code>. Follow the instructions listed at the top of these files.</p>
+<p>Now, add your Apache GPG key to the Beam’s <code class="highlighter-rouge">KEYS</code> file both in <a href="https://dist.apache.org/repos/dist/dev/beam/KEYS"><code class="highlighter-rouge">dev</code></a> and <a href="https://dist.apache.org/repos/dist/release/beam/KEYS"><code class="highlighter-rouge">release</code></a> repositories at <code class="highlighter-rouge">dist.apache.org</code>. Follow the instructions listed at the top of these files. (Note: Only PMC members have write access to the release repository. If you end up getting 403 errors ask on the mailing list for assistance.)</p>
 
 <p>Configure <code class="highlighter-rouge">git</code> to use this key when signing code by giving it your key ID, as follows:</p>
 
@@ -344,6 +348,10 @@ export GPG_AGENT_INFO
 
 <p>Get ready for updating the Beam website by following the <a href="/contribute/contribution-guide/#website">website development instructions</a>.</p>
 
+<h4 id="register-to-pypi">Register to PyPI</h4>
+
+<p>Release manager needs to have an account with PyPI. If you need one, <a href="https://pypi.python.org/pypi?%3Aaction=register_form">register</a> at PyPI. You also need to be a maintainer (or an owner) of the <a href="https://pypi.python.org/pypi/apache-beam">apache-beam</a> package in order to push a new release. Ask on the mailing list for assistance.</p>
+
 <h3 id="create-a-new-version-in-jira">Create a new version in JIRA</h3>
 
 <p>When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:</p>
@@ -384,7 +392,7 @@ export GPG_AGENT_INFO
 
 <h3 id="verify-that-a-release-build-works">Verify that a Release Build Works</h3>
 
-<p>Run <code class="highlighter-rouge">mvn -Prelease</code> to ensure that the build processes that are specific to that
+<p>Run <code class="highlighter-rouge">mvn -Prelease clean install</code> to ensure that the build processes that are specific to that
 profile are in good shape.</p>
 
 <h3 id="update-and-verify-javadoc">Update and Verify Javadoc</h3>
@@ -457,6 +465,21 @@ DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
 
 <p>The rest of this guide assumes that commands are run in the root of a repository on <code class="highlighter-rouge">${BRANCH_NAME}</code> with the above environment variables set.</p>
 
+<h3 id="update-the-python-sdk-version">Update the Python SDK version</h3>
+
+<p>In the master branch, update Python SDK <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/version.py">version</a> identifier to the next development version (e.g. <code class="highlighter-rouge">1.2.3.dev</code> to <code class="highlighter-rouge">1.3.0.dev</code>).</p>
+
+<p>In the release branch, update the Python SDK version to the release version (e.g. <code class="highlighter-rouge">1.2.3.dev</code> to <code class="highlighter-rouge">1.2.3</code>).</p>
+
+<h3 id="update-release-specific-configurations">Update release specific configurations</h3>
+
+<ol>
+  <li>Update archetypes:
+<a href="https://github.com/apache/beam/commit/d375cfa126fd7be9eeeec34f39c2b9b856f324bf">example</a></li>
+  <li>Update runner specific configurations:
+<a href="https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d">example</a></li>
+</ol>
+
 <h3 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</h3>
 
 <ol>
@@ -523,16 +546,28 @@ TAG="v${VERSION}-RC${RC_NUM}"
     <p>Make a directory for the new release:</p>
 
     <div class="highlighter-rouge"><pre class="highlight"><code> mkdir beam/${VERSION}
+ cd beam/${VERSION}
 </code></pre>
     </div>
   </li>
   <li>
     <p>Copy and rename the Beam source distribution, hashes, and GPG signature:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip beam/${VERSION}/apache-beam-${VERSION}-source-release.zip
- cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.asc beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.asc
- cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.md5 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.md5
- cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.sha1 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.sha1
+    <div class="highlighter-rouge"><pre class="highlight"><code> cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
+ cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
+ cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip
+ apache-beam-${VERSION}-python.zip
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Create hashes for source files and sign the python source file file</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> sha1sum apache-beam-${VERSION}.tar.gz &gt; apache-beam-${VERSION}.tar.gz.sha1
+ md5sum apache-beam-${VERSION}.tar.gz &gt; apache-beam-${VERSION}.tar.gz.md5
+ gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
+ sha1sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.sha1
+ md5sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.md5
 </code></pre>
     </div>
   </li>
@@ -552,7 +587,7 @@ TAG="v${VERSION}-RC${RC_NUM}"
 <h3 id="build-the-pydoc-api-reference">Build the Pydoc API reference</h3>
 
 <p>Create the Python SDK documentation using sphinx by running a helper script.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python &amp;&amp; ./generate_pydoc.sh
+<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python &amp;&amp; tox -e docs
 </code></pre>
 </div>
 <p>By default the Pydoc is generated in <code class="highlighter-rouge">sdks/python/target/docs/_build</code>. Let <code class="highlighter-rouge">${PYDOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">_build</code>.</p>
@@ -573,7 +608,7 @@ candidate into the source tree of the website.</p>
 
 <ul>
   <li>Unpack the Maven artifact <code class="highlighter-rouge">org.apache.beam:beam-sdks-java-javadoc</code> into some temporary location. Call this <code class="highlighter-rouge">${JAVADOC_TMP}</code>.</li>
-  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_TMP} documentation/sdks/javadoc/${VERSION}</code>.</li>
+  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_TMP} src/documentation/sdks/javadoc/${VERSION}</code>.</li>
   <li>Set up the necessary git commands to account for the new and deleted files from the javadoc.</li>
   <li>Update the Javadoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/javadoc/current.md</code>).</li>
 </ul>
@@ -582,7 +617,8 @@ candidate into the source tree of the website.</p>
 <p>Add the new Pydoc to <a href="/documentation/sdks/pydoc/">SDK API Reference page</a> page, as follows:</p>
 
 <ul>
-  <li>Copy the generated Pydoc into the website repository: <code class="highlighter-rouge">cp -r ${PYDOC_ROOT} documentation/sdks/pydoc/${VERSION}</code>.</li>
+  <li>Copy the generated Pydoc into the website repository: <code class="highlighter-rouge">cp -r ${PYDOC_ROOT} src/documentation/sdks/pydoc/${VERSION}</code>.</li>
+  <li>Remove <code class="highlighter-rouge">.doctrees</code> directory.</li>
   <li>Update the Pydoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/pydoc/current.md</code>).</li>
 </ul>
 
@@ -594,6 +630,15 @@ candidate into the source tree of the website.</p>
   <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a></li>
   <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
   <li>Website pull request proposed to list the <a href="/use/releases/">release</a>, publish the <a href="/documentation/sdks/javadoc/">Java API reference manual</a>, and publish the <a href="/documentation/sdks/pydoc/">Python API reference manual</a>.</li>
+</ol>
+
+<p>You can (optionally) also do additional verification by:</p>
+<ol>
+  <li>Check that Python zip file contains the <code class="highlighter-rouge">README.md</code>, <code class="highlighter-rouge">NOTICE</code>, and <code class="highlighter-rouge">LICENSE</code> files.</li>
+  <li>Check hashes (e.g. <code class="highlighter-rouge">md5sum -c *.md5</code> and <code class="highlighter-rouge">sha1sum -c *.sha1</code>)</li>
+  <li>Check signatures (e.g. <code class="highlighter-rouge">gpg --verify apache-beam-1.2.3-python.zip.asc apache-beam-1.2.3-python.zip</code>)</li>
+  <li><code class="highlighter-rouge">grep</code> for legal headers in each file.</li>
+  <li>Run all jenkins suites and include links to passing tests in the voting email. (Select “Run with parameters”)</li>
 </ol>
 
 <hr />
@@ -620,6 +665,7 @@ The complete staging area is available for your review, which includes:
 * all artifacts to be deployed to the Maven Central Repository [4],
 * source code tag "v1.2.3-RC3" [5],
 * website pull request listing the release and publishing the API reference manual [6].
+* Python artifacts are deployed along with the source release to the dist.apache.org [2]. 
 
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -689,6 +735,15 @@ Thanks everyone!
 
 <p>Use the Apache Nexus repository to release the staged binary artifacts to the Maven Central repository. In the <code class="highlighter-rouge">Staging Repositories</code> section, find the relevant release candidate <code class="highlighter-rouge">orgapachebeam-XXX</code> entry and click <code class="highlighter-rouge">Release</code>. Drop all other release candidates that are not being released.</p>
 
+<h3 id="deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</h3>
+
+<ol>
+  <li>Create a new release and upload the Python zip file for the new release using the [PyPI UI] (https://pypi.python.org/pypi/apache-beam)</li>
+  <li>Alternatively, use the command line tool to upload the new release <code class="highlighter-rouge">twine upload apache-beam-${VERSION}.zip</code></li>
+</ol>
+
+<p>Note: It is important to rename <code class="highlighter-rouge">apache-beam-${VERSION}-python.zip</code> to <code class="highlighter-rouge">apache-beam-${VERSION}.zip</code> before uploading, because PyPI expects a filename in the <code class="highlighter-rouge">&lt;package-name&gt;-&lt;package-version&gt;</code> format.</p>
+
 <h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</h4>
 
 <p>Copy the source release from the <code class="highlighter-rouge">dev</code> repository to the <code class="highlighter-rouge">release</code> repository at <code class="highlighter-rouge">dist.apache.org</code> using Subversion.</p>
@@ -714,9 +769,10 @@ Thanks everyone!
 <ul>
   <li>Maven artifacts released and indexed in the <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a></li>
   <li>Source distribution available in the release repository of <a href="https://dist.apache.org/repos/dist/release/beam/">dist.apache.org</a></li>
+  <li>Source distribution removed from the dev repository of <a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org</a></li>
   <li>Website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/documentation/sdks/javadoc/">API reference manual</a> merged</li>
   <li>Release tagged in the source code repository</li>
-  <li>Release version finalized in JIRA</li>
+  <li>Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)</li>
 </ul>
 
 <hr />
