@@ -26,7 +26,6 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.AppEngineEnvironment;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -121,10 +120,7 @@ public interface GcsOptions extends
     public ExecutorService create(PipelineOptions options) {
       ThreadFactoryBuilder threadFactoryBuilder = new ThreadFactoryBuilder();
       threadFactoryBuilder.setThreadFactory(MoreExecutors.platformThreadFactory());
-      if (!AppEngineEnvironment.IS_APP_ENGINE) {
-        // AppEngine doesn't allow modification of threads to be daemon threads.
-        threadFactoryBuilder.setDaemon(true);
-      }
+      threadFactoryBuilder.setDaemon(true);
       /* The SDK requires an unbounded thread pool because a step may create X writers
        * each requiring their own thread to perform the writes otherwise a writer may
        * block causing deadlock for the step because the writers buffer is full.
