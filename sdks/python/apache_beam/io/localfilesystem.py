@@ -34,6 +34,17 @@ class LocalFileSystem(FileSystem):
   """A Local ``FileSystem`` implementation for accessing files on disk.
   """
 
+  def join(self, basepath, *paths):
+    """Join two or more pathname components for the filesystem
+
+    Args:
+      basepath: string path of the first component of the path
+      paths: path components to be added
+
+    Returns: full path after combining all the passed components
+    """
+    return os.path.join(basepath, *paths)
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 

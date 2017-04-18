@@ -36,6 +36,15 @@ except ImportError:
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
 
+  def test_join(self):
+    file_system = gcsfilesystem.GCSFileSystem()
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path', 'to', 'file'))
+    self.assertEqual('gs://bucket/path/to/file',
+                     file_system.join('gs://bucket/path', 'to/file'))
+    self.assertEqual('gs://bucket/path//to/file',
+                     file_system.join('gs://bucket/path', '/to/file'))
+
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples(self, mock_gcsio):
     # Prepare mocks.
