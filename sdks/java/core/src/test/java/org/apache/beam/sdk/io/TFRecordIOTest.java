@@ -136,15 +136,15 @@ public class TFRecordIOTest {
 
     assertEquals(
         "TFRecordIO.Read/Read.out",
-        p.apply(TFRecordIO.Read.withoutValidation().from("foo.*")).getName());
+        p.apply(TFRecordIO.read().from("foo.*").withoutValidation()).getName());
     assertEquals(
         "MyRead/Read.out",
-        p.apply("MyRead", TFRecordIO.Read.withoutValidation().from("foo.*")).getName());
+        p.apply("MyRead", TFRecordIO.read().from("foo.*").withoutValidation()).getName());
   }
 
   @Test
   public void testReadDisplayData() {
-    TFRecordIO.Read.Bound read = TFRecordIO.Read
+    TFRecordIO.Read read = TFRecordIO.read()
         .from("foo.*")
         .withCompressionType(GZIP)
         .withoutValidation();
@@ -241,7 +241,7 @@ public class TFRecordIOTest {
     fos.write(data);
     fos.close();
 
-    TFRecordIO.Read.Bound read = TFRecordIO.Read.from(filename);
+    TFRecordIO.Read read = TFRecordIO.read().from(filename);
     PCollection<String> output = p.apply(read).apply(ParDo.of(new ByteArrayToString()));
 
     PAssert.that(output).containsInAnyOrder(expected);
@@ -338,7 +338,7 @@ public class TFRecordIOTest {
         .apply(write);
     p.run();
 
-    TFRecordIO.Read.Bound read = TFRecordIO.Read.from(baseFilename + "*")
+    TFRecordIO.Read read = TFRecordIO.read().from(baseFilename + "*")
         .withCompressionType(readCompressionType);
     PCollection<String> output = p2.apply(read).apply(ParDo.of(new ByteArrayToString()));
 
