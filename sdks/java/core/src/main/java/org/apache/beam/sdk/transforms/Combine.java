@@ -1775,7 +1775,7 @@ public class Combine {
    * PCollection<KV<String, Double>> salesRecords = ...;
    * PCollection<KV<String, Double>> totalSalesPerPerson =
    *     salesRecords.apply(Combine.<String, Double, Double>perKey(
-   *         new Sum.SumDoubleFn()));
+   *         Sum.ofDoubles()));
    * } </pre>
    *
    * <p>Each output element is in the window by which its corresponding input
