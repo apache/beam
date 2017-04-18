@@ -98,19 +98,6 @@ public class IOChannelUtils {
   }
 
   /**
-   * Registers standard factories globally.
-   *
-   * <p>{@link PipelineOptions} are required to provide dependencies and
-   * pipeline level configuration to the individual {@link IOChannelFactory IOChannelFactories}.
-   *
-   * @deprecated use {@link #registerIOFactories}.
-   */
-  @Deprecated
-  public static void registerStandardIOFactories(PipelineOptions options) {
-    registerIOFactoriesAllowOverride(options);
-  }
-
-  /**
    * Registers all {@link IOChannelFactory IOChannelFactories} from {@link ServiceLoader}.
    *
    * <p>{@link PipelineOptions} are required to provide dependencies and
