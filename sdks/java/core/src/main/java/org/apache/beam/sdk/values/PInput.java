@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 
 /**
@@ -43,5 +43,5 @@ public interface PInput {
    *
    * <p>Not intended to be invoked directly by user code.
    */
-  List<TaggedPValue> expand();
+  Map<TupleTag<?>, PValue> expand();
 }

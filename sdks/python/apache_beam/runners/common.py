@@ -414,10 +414,8 @@ def get_logging_context(maybe_logger, **kwargs):
     maybe_context = maybe_logger.PerThreadLoggingContext(**kwargs)
     if isinstance(maybe_context, LoggingContext):
       return maybe_context
-    else:
-      return _LoggingContextAdapter(maybe_context)
-  else:
-    return LoggingContext()
+    return _LoggingContextAdapter(maybe_context)
+  return LoggingContext()
 
 
 class _ReceiverAdapter(Receiver):
@@ -432,5 +430,4 @@ class _ReceiverAdapter(Receiver):
 def as_receiver(maybe_receiver):
   if isinstance(maybe_receiver, Receiver):
     return maybe_receiver
-  else:
-    return _ReceiverAdapter(maybe_receiver)
+  return _ReceiverAdapter(maybe_receiver)

@@ -52,6 +52,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -211,6 +212,7 @@ import org.slf4j.LoggerFactory;
  * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
  * otherwise it is set to processing time.
  */
+@Experimental
 public class KafkaIO {
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka

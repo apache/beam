@@ -31,6 +31,8 @@ class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
   """
 
+  CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
@@ -65,7 +67,7 @@ class GCSFileSystem(FileSystem):
       """
       if pattern.endswith('/'):
         pattern += '*'
-      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern)
+      file_sizes = gcsio.GcsIO().size_of_files_in_glob(pattern, limit)
       metadata_list = [FileMetadata(path, size)
                        for path, size in file_sizes.iteritems()]
       return MatchResult(pattern, metadata_list)
@@ -91,8 +93,7 @@ class GCSFileSystem(FileSystem):
     raw_file = gcsio.GcsIO().open(path, mode, mime_type=mime_type)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
-    else:
-      return CompressedFile(raw_file, compression_type=compression_type)
+    return CompressedFile(raw_file, compression_type=compression_type)
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):
@@ -174,7 +175,7 @@ class GCSFileSystem(FileSystem):
     gcs_current_batch = []
     for src, dest in zip(source_file_names, destination_file_names):
       gcs_current_batch.append((src, dest))
-      if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+      if len(gcs_current_batch) == self.CHUNK_SIZE:
         gcs_batches.append(gcs_current_batch)
         gcs_current_batch = []
     if gcs_current_batch:

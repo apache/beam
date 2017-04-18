@@ -181,12 +181,15 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # TODO(ccy): Currently, there are still instances of pickler.dumps() and
 # pickler.loads() being used for data, which results in an unnecessary base64
 # encoding.  This should be cleaned up.
-def dumps(o):
+def dumps(o, enable_trace=True):
   try:
     s = dill.dumps(o)
-  except Exception:          # pylint: disable=broad-except
-    dill.dill._trace(True)   # pylint: disable=protected-access
-    s = dill.dumps(o)
+  except Exception:      # pylint: disable=broad-except
+    if enable_trace:
+      dill.dill._trace(True)  # pylint: disable=protected-access
+      s = dill.dumps(o)
+    else:
+      raise
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 
@@ -199,7 +202,7 @@ def dumps(o):
   return base64.b64encode(c)
 
 
-def loads(encoded):
+def loads(encoded, enable_trace=True):
   c = base64.b64decode(encoded)
 
   s = zlib.decompress(c)
@@ -208,8 +211,11 @@ def loads(encoded):
   try:
     return dill.loads(s)
   except Exception:          # pylint: disable=broad-except
-    dill.dill._trace(True)   # pylint: disable=protected-access
-    return dill.loads(s)
+    if enable_trace:
+      dill.dill._trace(True)   # pylint: disable=protected-access
+      return dill.loads(s)
+    else:
+      raise
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 

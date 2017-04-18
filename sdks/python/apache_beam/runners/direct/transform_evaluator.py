@@ -49,7 +49,6 @@ class TransformEvaluatorRegistry(object):
     self._evaluation_context = evaluation_context
     self._evaluators = {
         io.Read: _BoundedReadEvaluator,
-        core.Create: _CreateEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
         core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
@@ -233,36 +232,6 @@ class _FlattenEvaluator(_TransformEvaluator):
         self._applied_ptransform, bundles, None, None, None, None)
 
 
-class _CreateEvaluator(_TransformEvaluator):
-  """TransformEvaluator for Create transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    assert not input_committed_bundle
-    assert not side_inputs
-    super(_CreateEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
-  def start_bundle(self):
-    assert len(self._outputs) == 1
-    output_pcollection = list(self._outputs)[0]
-    self.bundle = self._evaluation_context.create_bundle(output_pcollection)
-
-  def finish_bundle(self):
-    bundles = []
-    transform = self._applied_ptransform.transform
-
-    assert transform.value is not None
-    create_result = [GlobalWindows.windowed_value(v) for v in transform.value]
-    for result in create_result:
-      self.bundle.output(result)
-    bundles.append(self.bundle)
-
-    return TransformResult(
-        self._applied_ptransform, bundles, None, None, None, None)
-
-
 class _TaggedReceivers(dict):
   """Received ParDo output and redirect to the associated output bundle."""
 
@@ -309,13 +278,6 @@ class _TaggedReceivers(dict):
 
 class _ParDoEvaluator(_TransformEvaluator):
   """TransformEvaluator for ParDo transform."""
-
-  def __init__(self, evaluation_context, applied_ptransform,
-               input_committed_bundle, side_inputs, scoped_metrics_container):
-    super(_ParDoEvaluator, self).__init__(
-        evaluation_context, applied_ptransform, input_committed_bundle,
-        side_inputs, scoped_metrics_container)
-
   def start_bundle(self):
     transform = self._applied_ptransform.transform
 

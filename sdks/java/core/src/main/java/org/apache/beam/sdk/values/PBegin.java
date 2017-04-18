@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.transforms.Create;
@@ -64,9 +64,9 @@ public class PBegin implements PInput {
   }
 
   @Override
-  public List<TaggedPValue> expand() {
+  public Map<TupleTag<?>, PValue> expand() {
     // A PBegin contains no PValues.
-    return Collections.emptyList();
+    return Collections.emptyMap();
   }
 
   /////////////////////////////////////////////////////////////////////////////

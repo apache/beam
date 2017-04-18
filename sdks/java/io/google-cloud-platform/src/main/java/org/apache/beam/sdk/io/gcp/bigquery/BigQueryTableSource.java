@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
@@ -32,12 +33,15 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link BigQuerySourceBase} for reading BigQuery tables.
  */
 @VisibleForTesting
 class BigQueryTableSource extends BigQuerySourceBase {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryTableSource.class);
 
   static BigQueryTableSource create(
       ValueProvider<String> jobIdToken,
@@ -66,7 +70,31 @@ class BigQueryTableSource extends BigQuerySourceBase {
   @Override
   protected TableReference getTableToExtract(BigQueryOptions bqOptions) throws IOException {
     checkState(jsonTable.isAccessible());
-    return BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
+    TableReference tableReference =
+        BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class);
+    return setDefaultProjectIfAbsent(bqOptions, tableReference);
+  }
+
+  /**
+   * Sets the {@link TableReference#projectId} of the provided table reference to the id of the
+   * default project if the table reference does not have a project ID specified.
+   */
+  private TableReference setDefaultProjectIfAbsent(
+      BigQueryOptions bqOptions, TableReference tableReference) {
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      checkState(
+          !Strings.isNullOrEmpty(bqOptions.getProject()),
+          "No project ID set in %s or %s, cannot construct a complete %s",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName(),
+          TableReference.class.getSimpleName());
+      LOG.info(
+          "Project ID not set in {}. Using default project from {}.",
+          TableReference.class.getSimpleName(),
+          BigQueryOptions.class.getSimpleName());
+      tableReference.setProjectId(bqOptions.getProject());
+    }
+    return tableReference;
   }
 
   @Override

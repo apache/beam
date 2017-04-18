@@ -169,7 +169,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       if (0 <= partition && partition < numPartitions) {
         @SuppressWarnings("unchecked")
         TupleTag<X> typedTag = (TupleTag<X>) outputTags.get(partition);
-        c.sideOutput(typedTag, input);
+        c.output(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
             "Partition function returned out of bounds index: "

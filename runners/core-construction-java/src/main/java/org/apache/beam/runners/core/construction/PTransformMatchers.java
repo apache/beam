@@ -29,12 +29,14 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * A {@link PTransformMatcher} that matches {@link PTransform PTransforms} based on the class of the
@@ -50,8 +52,6 @@ public class PTransformMatchers {
   /**
    * Returns a {@link PTransformMatcher} that matches a {@link PTransform} if the class of the
    * {@link PTransform} is equal to the {@link Class} provided ot this matcher.
-   * @param clazz
-   * @return
    */
   public static PTransformMatcher classEqualTo(Class<? extends PTransform> clazz) {
     return new EqualClassPTransformMatcher(clazz);
@@ -203,6 +203,21 @@ public class PTransformMatchers {
     };
   }
 
+  public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
+    return new PTransformMatcher() {
+      @Override
+      public boolean matches(AppliedPTransform<?, ?, ?> application) {
+        if (!(application.getTransform() instanceof CreatePCollectionView)) {
+          return false;
+        }
+        CreatePCollectionView<?, ?> createView =
+            (CreatePCollectionView<?, ?>) application.getTransform();
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        return viewFn.getClass().equals(viewFnType);
+      }
+    };
+  }
+
   /**
    * A {@link PTransformMatcher} which matches a {@link Flatten.PCollections} which
    * consumes no input {@link PCollection PCollections}.
@@ -232,8 +247,8 @@ public class PTransformMatchers {
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof Flatten.PCollections) {
           Set<PValue> observed = new HashSet<>();
-          for (TaggedPValue pvalue : application.getInputs()) {
-            boolean firstInstance = observed.add(pvalue.getValue());
+          for (PValue pvalue : application.getInputs().values()) {
+            boolean firstInstance = observed.add(pvalue);
             if (!firstInstance) {
               return true;
             }
@@ -254,7 +269,8 @@ public class PTransformMatchers {
       @Override
       public boolean matches(AppliedPTransform<?, ?, ?> application) {
         if (application.getTransform() instanceof Write) {
-          return ((Write) application.getTransform()).getSharding() == null;
+          Write write = (Write) application.getTransform();
+          return write.getSharding() == null && write.getNumShards() == null;
         }
         return false;
       }

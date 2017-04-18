@@ -104,12 +104,16 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  empty_lines_filter = MetricsFilter().with_name('empty_lines')
-  query_result = result.metrics().query(empty_lines_filter)
-  if query_result['counters']:
-    empty_lines_counter = query_result['counters'][0]
-    logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
+
+  # Do not query metrics when creating a template which doesn't run
+  if (not hasattr(result, 'has_job')    # direct runner
+      or result.has_job):               # not just a template creation
+    empty_lines_filter = MetricsFilter().with_name('empty_lines')
+    query_result = result.metrics().query(empty_lines_filter)
+    if query_result['counters']:
+      empty_lines_counter = query_result['counters'][0]
+      logging.info('number of empty lines: %d', empty_lines_counter.committed)
+    # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

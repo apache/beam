@@ -151,8 +151,8 @@ public class StateSpecFunctions {
         long readDurationMillis = 0;
 
         try {
-          reader =
-              microbatchSource.createReader(runtimeContext.getPipelineOptions(), checkpointMark);
+          reader = microbatchSource.getOrCreateReader(runtimeContext.getPipelineOptions(),
+              checkpointMark);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -177,8 +177,6 @@ public class StateSpecFunctions {
           Instant sourceWatermark = ((MicrobatchSource.Reader) reader).getWatermark();
           highWatermark = sourceWatermark.isAfter(lowWatermark) ? sourceWatermark : lowWatermark;
 
-          // close and checkpoint reader.
-          reader.close();
           readDurationMillis = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
 
           LOG.info(

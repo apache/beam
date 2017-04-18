@@ -95,8 +95,7 @@ class MeanCombineFn(core.CombineFn):
       return cy_combiners.MeanInt64Fn()
     elif input_type is float:
       return cy_combiners.MeanFloatFn()
-    else:
-      return self
+    return self
 
 
 class Count(object):
@@ -310,23 +309,19 @@ class TopCombineFn(core.CombineFn):
     if len(buffer) < self._n:
       if not buffer:
         return element_key, [element]
-      else:
-        buffer.append(element)
-        if lt(element_key, threshold):  # element_key < threshold
-          return element_key, buffer
-        else:
-          return accumulator  # with mutated buffer
+      buffer.append(element)
+      if lt(element_key, threshold):  # element_key < threshold
+        return element_key, buffer
+      return accumulator  # with mutated buffer
     elif lt(threshold, element_key):  # threshold < element_key
       buffer.append(element)
       if len(buffer) < self._buffer_size:
         return accumulator
-      else:
-        self._sort_buffer(buffer, lt)
-        min_element = buffer[-self._n]
-        threshold = self._key_fn(min_element) if self._key_fn else min_element
-        return threshold, buffer[-self._n:]
-    else:
-      return accumulator
+      self._sort_buffer(buffer, lt)
+      min_element = buffer[-self._n]
+      threshold = self._key_fn(min_element) if self._key_fn else min_element
+      return threshold, buffer[-self._n:]
+    return accumulator
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
     accumulators = list(accumulators)
@@ -357,10 +352,6 @@ class TopCombineFn(core.CombineFn):
 
 
 class Largest(TopCombineFn):
-
-  def __init__(self, n):
-    super(Largest, self).__init__(n)
-
   def default_label(self):
     return 'Largest(%s)' % self._n
 
@@ -472,7 +463,7 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
 class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
-  def __init__(self, label='ToList'):
+  def __init__(self, label='ToList'):  # pylint: disable=useless-super-delegation
     super(ToList, self).__init__(label)
 
   def expand(self, pcoll):
@@ -506,7 +497,7 @@ class ToDict(ptransform.PTransform):
   will be present in the resulting dict.
   """
 
-  def __init__(self, label='ToDict'):
+  def __init__(self, label='ToDict'):  # pylint: disable=useless-super-delegation
     super(ToDict, self).__init__(label)
 
   def expand(self, pcoll):
@@ -540,27 +531,26 @@ def curry_combine_fn(fn, args, kwargs):
   if not args and not kwargs:
     return fn
 
-  else:
+  # Create CurriedFn class for the combiner
+  class CurriedFn(core.CombineFn):
+    """CombineFn that applies extra arguments."""
 
-    class CurriedFn(core.CombineFn):
-      """CombineFn that applies extra arguments."""
+    def create_accumulator(self):
+      return fn.create_accumulator(*args, **kwargs)
 
-      def create_accumulator(self):
-        return fn.create_accumulator(*args, **kwargs)
+    def add_input(self, accumulator, element):
+      return fn.add_input(accumulator, element, *args, **kwargs)
 
-      def add_input(self, accumulator, element):
-        return fn.add_input(accumulator, element, *args, **kwargs)
+    def merge_accumulators(self, accumulators):
+      return fn.merge_accumulators(accumulators, *args, **kwargs)
 
-      def merge_accumulators(self, accumulators):
-        return fn.merge_accumulators(accumulators, *args, **kwargs)
+    def extract_output(self, accumulator):
+      return fn.extract_output(accumulator, *args, **kwargs)
 
-      def extract_output(self, accumulator):
-        return fn.extract_output(accumulator, *args, **kwargs)
+    def apply(self, elements):
+      return fn.apply(elements, *args, **kwargs)
 
-      def apply(self, elements):
-        return fn.apply(elements, *args, **kwargs)
-
-    return CurriedFn()
+  return CurriedFn()
 
 
 class PhasedCombineFnExecutor(object):

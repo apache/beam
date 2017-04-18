@@ -32,6 +32,7 @@ from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.transforms.display import DisplayDataItem
+
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
 

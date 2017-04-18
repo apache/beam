@@ -41,6 +41,7 @@ import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
@@ -79,6 +80,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -173,9 +175,7 @@ public class ResumeFromCheckpointStreamingTest {
     //--- between executions:
 
     //- clear state.
-    AggregatorsAccumulator.clear();
-    MetricsAccumulator.clear();
-    GlobalWatermarkHolder.clear();
+    clean();
 
     //- write a bit more.
     produce(ImmutableMap.of(
@@ -270,6 +270,14 @@ public class ResumeFromCheckpointStreamingTest {
     grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 
     return (SparkPipelineResult) p.run();
+  }
+
+  @After
+  public void clean() {
+    AggregatorsAccumulator.clear();
+    MetricsAccumulator.clear();
+    GlobalWatermarkHolder.clear();
+    MicrobatchSource.clearCache();
   }
 
   @AfterClass

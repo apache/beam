@@ -33,6 +33,8 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
@@ -119,6 +121,11 @@ public class WriteSinkITCase extends JavaProgramTestBase {
       }
 
       @Override
+      public void setWindowedWrites(boolean windowedWrites) {
+
+      }
+
+      @Override
       public void finalize(Iterable<String> writerResults, PipelineOptions options)
           throws Exception {
 
@@ -142,10 +149,24 @@ public class WriteSinkITCase extends JavaProgramTestBase {
         private PrintWriter internalWriter;
 
         @Override
-        public void open(String uId) throws Exception {
+        public final void openWindowed(String uId,
+                                       BoundedWindow window,
+                                       PaneInfo paneInfo,
+                                       int shard,
+                                       int numShards) throws Exception {
+          throw new UnsupportedOperationException("Windowed writes not supported.");
+        }
+
+        @Override
+        public final void openUnwindowed(String uId, int shard, int numShards) throws Exception {
           Path path = new Path(resultPath + "/" + uId);
           FileSystem.get(new URI("file:///")).create(path, false);
           internalWriter = new PrintWriter(new File(path.toUri()));
+        }
+
+        @Override
+        public void cleanup() throws Exception {
+
         }
 
         @Override

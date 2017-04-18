@@ -315,9 +315,16 @@ class Pipeline(object):
           Visitor.ok = False
         try:
           # Transforms must be picklable.
-          pickler.loads(pickler.dumps(transform_node.transform))
+          pickler.loads(pickler.dumps(transform_node.transform,
+                                      enable_trace=False),
+                        enable_trace=False)
         except Exception:
           Visitor.ok = False
+
+      def visit_value(self, value, _):
+        if isinstance(value, pvalue.PDone):
+          Visitor.ok = False
+
     self.visit(Visitor())
     return Visitor.ok
 
@@ -508,7 +515,7 @@ class AppliedPTransform(object):
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
-        spec=beam_runner_api_pb2.UrnWithParameter(
+        spec=beam_runner_api_pb2.FunctionSpec(
             urn=urns.PICKLED_TRANSFORM,
             parameter=proto_utils.pack_Any(
                 wrappers_pb2.BytesValue(value=pickler.dumps(self.transform)))),
@@ -541,4 +548,5 @@ class AppliedPTransform(object):
         if pc not in result.inputs:
           pc.producer = result
           pc.tag = tag
+    result.update_input_refcounts()
     return result

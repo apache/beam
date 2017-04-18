@@ -20,18 +20,18 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that provides an empty {@link Create} to replace a {@link
@@ -50,25 +50,20 @@ public class EmptyFlattenAsCreateFactory<T>
   private EmptyFlattenAsCreateFactory() {}
 
   @Override
-  public PTransform<PCollectionList<T>, PCollection<T>> getReplacementTransform(
-      Flatten.PCollections<T> transform) {
-    return new CreateEmptyFromList<>();
-  }
-
-  @Override
-  public PCollectionList<T> getInput(
-      List<TaggedPValue> inputs, Pipeline p) {
+  public PTransformReplacement<PCollectionList<T>, PCollection<T>> getReplacementTransform(
+      AppliedPTransform<PCollectionList<T>, PCollection<T>, PCollections<T>> transform) {
     checkArgument(
-        inputs.isEmpty(),
+        transform.getInputs().isEmpty(),
         "Unexpected nonempty input %s for %s",
-        inputs,
+        transform.getInputs(),
         getClass().getSimpleName());
-    return PCollectionList.empty(p);
+    return PTransformReplacement.of(
+        PCollectionList.<T>empty(transform.getPipeline()), new CreateEmptyFromList<T>());
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PCollection<T> newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
     return ReplacementOutputs.singleton(outputs, newOutput);
   }
 

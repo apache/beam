@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -71,10 +71,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
       PCollectionView<?>,
       StateTag<
           Object,
-          AccumulatorCombiningState<
-              BoundedWindow,
-              Set<BoundedWindow>,
-              Set<BoundedWindow>>>> availableWindowsTags;
+          CombiningState<
+                        BoundedWindow,
+                        Set<BoundedWindow>,
+                        Set<BoundedWindow>>>> availableWindowsTags;
 
   /**
    * State tag for the actual contents of each side input per window.
@@ -106,10 +106,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
       StateTag<
           Object,
-          AccumulatorCombiningState<
-              BoundedWindow,
-              Set<BoundedWindow>,
-              Set<BoundedWindow>>> availableTag = StateTags.combiningValue(
+          CombiningState<
+                        BoundedWindow,
+                        Set<BoundedWindow>,
+                        Set<BoundedWindow>>> availableTag = StateTags.combiningValue(
           "side-input-available-windows-" + sideInput.getTagInternal().getId(),
           SetCoder.of(windowCoder),
           new WindowSetCombineFn());

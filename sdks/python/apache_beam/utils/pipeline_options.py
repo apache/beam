@@ -286,13 +286,6 @@ class GoogleCloudOptions(PipelineOptions):
                         default='us-central1',
                         help='The Google Compute Engine region for creating '
                         'Dataflow job.')
-    parser.add_argument('--service_account_name',
-                        default=None,
-                        help='Name of the service account for Google APIs.')
-    parser.add_argument('--service_account_key_file',
-                        default=None,
-                        help='Path to a file containing the P12 service '
-                        'credentials.')
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
@@ -482,11 +475,11 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=
-        ('Override the default GitHub location from where Dataflow SDK is '
-         'downloaded. It can be an URL, a GCS path, or a local path to an '
-         'SDK tarball. Workflow submissions will download or copy an SDK '
-         'tarball from here. If the string "default", '
-         'a standard SDK location is used. If empty, no SDK is copied.'))
+        ('Override the default location from where the Beam SDK is downloaded. '
+         'It can be a URL, a GCS path, or a local path to an SDK tarball. '
+         'Workflow submissions will download or copy an SDK tarball from here. '
+         'If set to the string "default", a standard SDK location is used. If '
+         'empty, no SDK is copied.'))
     parser.add_argument(
         '--extra_package', '--extra_packages',
         dest='extra_packages',

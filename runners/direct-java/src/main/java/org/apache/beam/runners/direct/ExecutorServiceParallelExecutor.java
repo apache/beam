@@ -534,8 +534,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
                   .createKeyedBundle(
                       transformTimers.getKey(),
                       (PCollection)
-                          Iterables.getOnlyElement(transformTimers.getTransform().getInputs())
-                              .getValue())
+                          Iterables.getOnlyElement(
+                              transformTimers.getTransform().getInputs().values()))
                   .add(WindowedValue.valueInGlobalWindow(work))
                   .commit(evaluationContext.now());
           scheduleConsumption(

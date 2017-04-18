@@ -56,7 +56,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   @Experimental
   @Nullable
   List<String> getExperiments();
-  void setExperiments(List<String> value);
+  void setExperiments(@Nullable List<String> value);
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value

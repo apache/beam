@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.CoderAdapterStreamCodec;
-import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -85,20 +85,20 @@ class TranslationContext {
     return getCurrentTransform().getFullName();
   }
 
-  public List<TaggedPValue> getInputs() {
+  public Map<TupleTag<?>, PValue> getInputs() {
     return getCurrentTransform().getInputs();
   }
 
-  public PValue getInput() {
-    return Iterables.getOnlyElement(getCurrentTransform().getInputs()).getValue();
+  public <InputT extends PValue> InputT getInput() {
+    return (InputT) Iterables.getOnlyElement(getCurrentTransform().getInputs().values());
   }
 
-  public List<TaggedPValue> getOutputs() {
+  public Map<TupleTag<?>, PValue> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 
-  public PValue getOutput() {
-    return Iterables.getOnlyElement(getCurrentTransform().getOutputs()).getValue();
+  public <OutputT extends PValue> OutputT getOutput() {
+    return (OutputT) Iterables.getOnlyElement(getCurrentTransform().getOutputs().values());
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {
@@ -192,10 +192,10 @@ class TranslationContext {
   }
 
   /**
-   * Return the {@link StateInternalsFactory} for the pipeline translation.
+   * Return the state backend for the pipeline translation.
    * @return
    */
-  public <K> StateInternalsFactory<K> stateInternalsFactory() {
-    return new ApexStateInternals.ApexStateInternalsFactory();
+  public ApexStateBackend getStateBackend() {
+    return new ApexStateInternals.ApexStateBackend();
   }
 }

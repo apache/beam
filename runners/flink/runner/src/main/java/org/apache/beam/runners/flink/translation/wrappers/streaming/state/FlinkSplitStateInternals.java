@@ -28,8 +28,8 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.SetState;
@@ -116,9 +116,9 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <InputT, AccumT, OutputT>
-      AccumulatorCombiningState<InputT, AccumT, OutputT>
+      CombiningState<InputT, AccumT, OutputT>
       bindCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
         throw new UnsupportedOperationException("bindCombiningValue is not supported.");
@@ -126,8 +126,8 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <InputT, AccumT, OutputT>
-      AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
         throw new UnsupportedOperationException("bindKeyedCombiningValue is not supported.");
@@ -136,8 +136,8 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
 
       @Override
       public <InputT, AccumT, OutputT>
-      AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
           Coder<AccumT> accumCoder,
           CombineWithContext.KeyedCombineFnWithContext<
               ? super K, InputT, AccumT, OutputT> combineFn) {
@@ -150,7 +150,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
           StateTag<? super K, WatermarkHoldState<W>> address,
           OutputTimeFn<? super W> outputTimeFn) {
         throw new UnsupportedOperationException(
-            String.format("%s is not supported", AccumulatorCombiningState.class.getSimpleName()));
+            String.format("%s is not supported", CombiningState.class.getSimpleName()));
       }
     });
   }

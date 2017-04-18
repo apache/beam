@@ -18,15 +18,14 @@
 
 package org.apache.beam.runners.direct;
 
-import com.google.common.collect.Iterables;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Values;
@@ -35,7 +34,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for the {@link CreatePCollectionView}
@@ -44,20 +43,20 @@ import org.apache.beam.sdk.values.TaggedPValue;
 class ViewOverrideFactory<ElemT, ViewT>
     implements PTransformOverrideFactory<
         PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
-  @Override
-  public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
-      CreatePCollectionView<ElemT, ViewT> transform) {
-    return new GroupAndWriteView<>(transform);
-  }
 
   @Override
-  public PCollection<ElemT> getInput(List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<ElemT>) Iterables.getOnlyElement(inputs).getValue();
+  public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
+      AppliedPTransform<
+              PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
+          transform) {
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        new GroupAndWriteView<>(transform.getTransform()));
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      List<TaggedPValue> outputs, PCollectionView<ViewT> newOutput) {
+      Map<TupleTag<?>, PValue> outputs, PCollectionView<ViewT> newOutput) {
     return Collections.emptyMap();
   }
 

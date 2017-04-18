@@ -72,7 +72,8 @@ import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -618,7 +619,6 @@ public class DataflowPipelineJobTest {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("not used in this pipeline");
-
     job.getAggregatorValues(aggregator);
   }
 
@@ -656,7 +656,6 @@ public class DataflowPipelineJobTest {
     thrown.expectCause(is(cause));
     thrown.expectMessage(aggregator.toString());
     thrown.expectMessage("when retrieving Aggregator values for");
-
     job.getAggregatorValues(aggregator);
   }
 
@@ -691,8 +690,8 @@ public class DataflowPipelineJobTest {
     when(input.getPipeline()).thenReturn(p);
     return AppliedPTransform.of(
         fullName,
-        Collections.<TaggedPValue>emptyList(),
-        Collections.<TaggedPValue>emptyList(),
+        Collections.<TupleTag<?>, PValue>emptyMap(),
+        Collections.<TupleTag<?>, PValue>emptyMap(),
         transform,
         p);
   }
@@ -750,7 +749,7 @@ public class DataflowPipelineJobTest {
         Dataflow.Projects.Locations.Jobs.Update.class);
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
-    when(update.execute()).thenThrow(new IOException());
+    when(update.execute()).thenThrow(new IOException("Some random IOException"));
 
     DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
@@ -758,13 +757,34 @@ public class DataflowPipelineJobTest {
     thrown.expectMessage("Failed to cancel job in state RUNNING, "
         + "please go to the Developers Console to cancel it manually:");
     job.cancel();
+  }
 
-    Job content = new Job();
-    content.setProjectId(PROJECT_ID);
-    content.setId(JOB_ID);
-    content.setRequestedState("JOB_STATE_CANCELLED");
-    verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
-    verify(mockJobs).get(PROJECT_ID, REGION_ID, JOB_ID);
+  /**
+   * Test that {@link DataflowPipelineJob#cancel} doesn't throw if the Dataflow service returns
+   * non-terminal state even though the cancel API call failed, which can happen in practice.
+   *
+   * <p>TODO: delete this code if the API calls become consistent.
+   */
+  @Test
+  public void testCancelTerminatedJobWithStaleState() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Locations.Jobs.Update update = mock(
+        Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenThrow(new IOException("Job has terminated in state SUCCESS"));
+
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+    State returned = job.cancel();
+    assertThat(returned, equalTo(State.RUNNING));
+    expectedLogs.verifyWarn("Cancel failed because job is already terminated.");
   }
 
   @Test
