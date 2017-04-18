@@ -1119,7 +1119,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
 
     @Override
-    public List<PubsubSource<T>> generateInitialSplits(
+    public List<PubsubSource<T>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<PubsubSource<T>> result = new ArrayList<>(desiredNumSplits);
       PubsubSource<T> splitSource = this;
@@ -1142,8 +1142,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       SubscriptionPath subscription = subscriptionPath;
       if (subscription == null) {
         if (checkpoint == null) {
-          // This reader has never been started and there was no call to #splitIntoBundles; create
-          // a single random subscription, which will be kept in the checkpoint.
+          // This reader has never been started and there was no call to #split;
+          // create a single random subscription, which will be kept in the checkpoint.
           subscription = outer.createRandomSubscription(options);
         } else {
           subscription = checkpoint.getSubscription();

@@ -159,7 +159,7 @@ public class HDFSFileSourceTest {
 
     // Split with a small bundle size (has to be at least size of sync interval)
     List<? extends BoundedSource<KV<IntWritable, Text>>> splits = source
-        .splitIntoBundles(SequenceFile.SYNC_INTERVAL, options);
+        .split(SequenceFile.SYNC_INTERVAL, options);
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     int nonEmptySplits = 0;
@@ -184,7 +184,7 @@ public class HDFSFileSourceTest {
 
     long originalSize = source.getEstimatedSizeBytes(options);
     long splitTotalSize = 0;
-    List<? extends BoundedSource<KV<IntWritable, Text>>> splits = source.splitIntoBundles(
+    List<? extends BoundedSource<KV<IntWritable, Text>>> splits = source.split(
         SequenceFile.SYNC_INTERVAL, options
     );
     for (BoundedSource<KV<IntWritable, Text>> splitSource : splits) {

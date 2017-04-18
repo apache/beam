@@ -326,7 +326,7 @@ public class CountingSource {
      * {@code [2, 8, 14, ...)}, and {@code [4, 10, 16, ...)}.
      */
     @Override
-    public List<? extends UnboundedSource<Long, CountingSource.CounterMark>> generateInitialSplits(
+    public List<? extends UnboundedSource<Long, CountingSource.CounterMark>> split(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       // Using Javadoc example, stride 2 with 3 splits becomes stride 6.
       long newStride = stride * desiredNumSplits;
