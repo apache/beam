@@ -103,8 +103,8 @@ public class CountingSource {
    * Create a new {@link UnboundedCountingSource}.
    */
   // package-private to return a typed UnboundedCountingSource rather than the UnboundedSource type.
-  static UnboundedCountingSource createUnbounded() {
-    return new UnboundedCountingSource(0, 1, 1L, Duration.ZERO, new NowTimestampFn());
+  static UnboundedCountingSource createUnboundedFrom(long start) {
+    return new UnboundedCountingSource(start, 1, 1L, Duration.ZERO, new NowTimestampFn());
   }
 
   /**
