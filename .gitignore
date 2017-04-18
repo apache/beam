@@ -23,6 +23,9 @@ sdks/python/**/*.c
 sdks/python/**/*.so
 sdks/python/**/*.egg
 
+# Ignore output directory of Flink runner build
+runners/flink/examples/bin/
+
 # Ignore IntelliJ files.
 .idea/
 *.iml
