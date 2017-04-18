@@ -80,13 +80,14 @@ from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
-empty_line_counter = Metrics.counter('main', 'empty_lines')
-word_length_counter = Metrics.counter('main', 'word_lengths')
-word_counter = Metrics.counter('main', 'total_words')
-
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
+  def __init__(self):
+    self.empty_line_counter = Metrics.counter('main', 'empty_lines')
+    self.word_length_counter = Metrics.counter('main', 'word_lengths')
+    self.word_counter = Metrics.counter('main', 'total_words')
 
   def process(self, element):
     """Returns an iterator over words in contents of Cloud Datastore entity.
@@ -102,11 +103,11 @@ class WordExtractingDoFn(beam.DoFn):
       text_line = content_value.string_value
 
     if not text_line:
-      empty_line_counter.inc()
+      self.empty_line_counter.inc()
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
-      word_length_counter.inc(len(w))
-      word_counter.inc()
+      self.word_length_counter.inc(len(w))
+      self.word_counter.inc()
     return words
 
 
