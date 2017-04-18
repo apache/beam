@@ -29,10 +29,10 @@ import org.junit.runners.JUnit4;
 
 /** API surface verification for {@link org.apache.beam}. */
 @RunWith(JUnit4.class)
-public class SdkCoreApiSurfaceTest {
+public class GcpCoreApiSurfaceTest {
 
   @Test
-  public void testSdkApiSurface() throws Exception {
+  public void testApiSurface() throws Exception {
 
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
@@ -40,6 +40,8 @@ public class SdkCoreApiSurfaceTest {
             "org.apache.beam",
             "com.google.api.client",
             "com.google.api.services.bigquery",
+            "com.google.api.services.cloudresourcemanager",
+            "com.google.api.services.pubsub",
             "com.google.api.services.storage",
             "com.google.auth",
             "com.google.protobuf",

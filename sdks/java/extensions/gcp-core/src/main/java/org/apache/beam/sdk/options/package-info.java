@@ -15,23 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.options;
-
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-
 /**
- * A registrar containing the default SDK options.
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
+ * configuring pipeline execution for Google Cloud Platform components.
  */
-@AutoService(PipelineOptionsRegistrar.class)
-public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
-  @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(PipelineOptions.class)
-        .add(ApplicationNameOptions.class)
-        .add(StreamingOptions.class)
-        .build();
-  }
-}
+package org.apache.beam.sdk.options;

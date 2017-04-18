@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -41,11 +40,11 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    * @return The newly created runner.
    */
   public static PipelineRunner<? extends PipelineResult> fromOptions(PipelineOptions options) {
-    GcsOptions gcsOptions = PipelineOptionsValidator.validate(GcsOptions.class, options);
     checkNotNull(options);
+    PipelineOptionsValidator.validate(PipelineOptions.class, options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerIOFactoriesAllowOverride(gcsOptions);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
 
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =
