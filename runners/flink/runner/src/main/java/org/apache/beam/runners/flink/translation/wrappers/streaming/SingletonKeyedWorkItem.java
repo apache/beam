@@ -24,8 +24,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Singleton keyed word item.
- * @param <K>
- * @param <ElemT>
  */
 public class SingletonKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
 

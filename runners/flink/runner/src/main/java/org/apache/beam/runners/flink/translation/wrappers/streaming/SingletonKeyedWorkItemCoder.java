@@ -37,8 +37,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Singleton keyed work item coder.
- * @param <K>
- * @param <ElemT>
  */
 public class SingletonKeyedWorkItemCoder<K, ElemT>
     extends StandardCoder<SingletonKeyedWorkItem<K, ElemT>> {
