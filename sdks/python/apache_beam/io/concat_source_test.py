@@ -214,7 +214,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(100, 1000),
                           ])
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(source)
+    pcoll = pipeline | beam.io.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 
     pipeline.run()

@@ -1364,13 +1364,14 @@ class Create(PTransform):
     return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
 
   def expand(self, pbegin):
+    from apache_beam.io import iobase
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     ouput_type = (self.get_type_hints().simple_output_type(self.label) or
                   self.infer_output_type(None))
     coder = typecoders.registry.get_coder(ouput_type)
     source = self._create_source_from_iterable(self.value, coder)
-    return pbegin.pipeline | Read(source).with_output_types(ouput_type)
+    return pbegin.pipeline | iobase.Read(source).with_output_types(ouput_type)
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
@@ -1458,13 +1459,3 @@ class Create(PTransform):
         return self._total_size
 
     return _CreateSource(serialized_values, coder)
-
-
-def Read(*args, **kwargs):
-  from apache_beam import io
-  return io.Read(*args, **kwargs)
-
-
-def Write(*args, **kwargs):
-  from apache_beam import io
-  return io.Write(*args, **kwargs)
