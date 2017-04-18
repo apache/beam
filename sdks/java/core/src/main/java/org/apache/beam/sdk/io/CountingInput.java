@@ -247,7 +247,7 @@ public class CountingInput {
     public PCollection<Long> expand(PBegin begin) {
       Unbounded<Long> read =
           Read.from(
-              CountingSource.createUnbounded()
+              CountingSource.createUnboundedFrom(0)
                   .withTimestampFn(timestampFn)
                   .withRate(elementsPerPeriod, period));
       if (!maxNumRecords.isPresent() && !maxReadTime.isPresent()) {
