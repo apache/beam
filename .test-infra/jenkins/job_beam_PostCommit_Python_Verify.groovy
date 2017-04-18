@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+evaluate(new File("./common_job_properties.groovy"))
 
 // This job defines the Python postcommit tests.
 job('beam_PostCommit_Python_Verify') {

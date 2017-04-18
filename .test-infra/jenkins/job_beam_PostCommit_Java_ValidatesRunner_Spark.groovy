@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+evaluate(new File("./common_job_properties.groovy"))
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
 mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+evaluate(new File("./common_job_properties.groovy"))
 
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.

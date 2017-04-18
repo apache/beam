@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+evaluate(new File("./common_job_properties.groovy"))
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('beam_SeedJob') {

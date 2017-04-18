@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import common_job_properties
+evaluate(new File("./common_job_properties.groovy"))
 
 // This job runs the Java postcommit tests, including the suite of integration
 // tests.
