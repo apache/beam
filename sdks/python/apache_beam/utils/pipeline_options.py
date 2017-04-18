@@ -56,9 +56,6 @@ class BeamArgumentParser(argparse.ArgumentParser):
         parser.add_argument('--non-vp-arg')
 
   """
-  def __init__(self, *args, **kwargs):
-    super(BeamArgumentParser, self).__init__(*args, **kwargs)
-
   def add_value_provider_argument(self, *args, **kwargs):
     """ValueProvider arguments can be either of type keyword or positional.
     At runtime, even positional arguments will need to be supplied in the

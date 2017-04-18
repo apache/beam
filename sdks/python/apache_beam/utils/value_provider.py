@@ -21,14 +21,7 @@ and dynamically provided values.
 
 from functools import wraps
 
-
-class RuntimeValueProviderError(RuntimeError):
-  def __init__(self, msg):
-    """Class representing the errors thrown during runtime by the valueprovider
-    Args:
-      msg: Message string for the exception thrown
-    """
-    super(RuntimeValueProviderError, self).__init__(msg)
+from apache_beam import error
 
 
 class ValueProvider(object):
@@ -71,7 +64,7 @@ class RuntimeValueProvider(ValueProvider):
 
   def get(self):
     if RuntimeValueProvider.runtime_options is None:
-      raise RuntimeValueProviderError(
+      raise error.RuntimeValueProviderError(
           '%s.get() not called from a runtime context' % self)
 
     candidate = RuntimeValueProvider.runtime_options.get(self.option_name)
@@ -104,7 +97,7 @@ def check_accessible(value_provider_list):
     def _f(self, *args, **kwargs):
       for obj in [getattr(self, vp) for vp in value_provider_list]:
         if not obj.is_accessible():
-          raise RuntimeValueProviderError('%s not accessible' % obj)
+          raise error.RuntimeValueProviderError('%s not accessible' % obj)
       return fnc(self, *args, **kwargs)
     return _f
   return _check_accessible
