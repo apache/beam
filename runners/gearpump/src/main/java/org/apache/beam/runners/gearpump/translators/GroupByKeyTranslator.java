@@ -83,7 +83,10 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     context.setOutputStream(context.getOutput(), outputStream);
   }
 
-  private static class GearpumpWindowFn<T, W extends BoundedWindow>
+  /**
+   * A transform used internally to translate Beam's Window to Gearpump's Window.
+   */
+  protected static class GearpumpWindowFn<T, W extends BoundedWindow>
       implements WindowFunction<WindowedValue<T>>, Serializable {
 
     private final boolean isNonMerging;
@@ -115,7 +118,10 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
   }
 
-  private static class GroupByFn<K, V> extends
+  /**
+   * A transform used internally to group KV message by its key.
+   */
+  protected static class GroupByFn<K, V> extends
       GroupByFunction<WindowedValue<KV<K, V>>, ByteBuffer> {
 
     private static final long serialVersionUID = -807905402490735530L;
@@ -135,7 +141,10 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
   }
 
-  private static class KeyedByTimestamp<K, V>
+  /**
+   * A transform used internally to transform WindowedValue to KV.
+   */
+  protected static class KeyedByTimestamp<K, V>
       extends MapFunction<WindowedValue<KV<K, V>>,
       KV<Instant, WindowedValue<KV<K, V>>>> {
 
@@ -154,7 +163,10 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
   }
 
-  private static class Merge<K, V> extends
+  /**
+   * A transform used internally by Gearpump which encapsulates the merge logic.
+   */
+  protected static class Merge<K, V> extends
       FoldFunction<KV<Instant, WindowedValue<KV<K, V>>>,
       KV<Instant, WindowedValue<KV<K, List<V>>>>> {
 

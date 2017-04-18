@@ -57,7 +57,10 @@ public class WindowAssignTranslator<T> implements TransformTranslator<Window.Ass
     context.setOutputStream(output, outputStream);
   }
 
-  private static class AssignWindows<T> extends
+  /**
+   * A Function used internally by Gearpump to wrap the actual Beam's WindowFn.
+   */
+  protected static class AssignWindows<T> extends
       FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
     private static final long serialVersionUID = 7284565861938681360L;

@@ -41,18 +41,16 @@ import org.apache.gearpump.util.Constants;
 import org.junit.Assert;
 import org.junit.Test;
 
-/**
- * Tests for {@link ValuesSource}.
- */
+/** Tests for {@link ValuesSource}. */
 public class ValueSoureTest {
 
   @Test
   public void testValueSource() {
-    GearpumpPipelineOptions options = PipelineOptionsFactory.create()
-      .as(GearpumpPipelineOptions.class);
+    GearpumpPipelineOptions options =
+        PipelineOptionsFactory.create().as(GearpumpPipelineOptions.class);
     Config config = ClusterConfig.master(null);
-    config = config.withValue(Constants.APPLICATION_TOTAL_RETRIES(),
-      ConfigValueFactory.fromAnyRef(0));
+    config =
+        config.withValue(Constants.APPLICATION_TOTAL_RETRIES(), ConfigValueFactory.fromAnyRef(0));
     EmbeddedCluster cluster = new EmbeddedCluster(config);
     cluster.start();
 
@@ -62,8 +60,7 @@ public class ValueSoureTest {
     Pipeline p = Pipeline.create(options);
     List<String> values = Lists.newArrayList("1", "2", "3", "4", "5");
     ValuesSource<String> source = new ValuesSource<>(values, StringUtf8Coder.of());
-    p.apply(Read.from(source))
-      .apply(ParDo.of(new ResultCollector()));
+    p.apply(Read.from(source)).apply(ParDo.of(new ResultCollector()));
 
     p.run().waitUntilFinish();
     cluster.stop();
