@@ -160,12 +160,6 @@
       <version>${flink.version}</version>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.flink</groupId>
-      <artifactId>flink-annotations</artifactId>
-      <version>${flink.version}</version>
-    </dependency>
-
     <!-- For testing -->
     <dependency>
       <groupId>org.apache.flink</groupId>
