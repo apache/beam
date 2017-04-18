@@ -61,7 +61,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    * {@link BoundedSource#split(long, PipelineOptions)} old method name to be used with Dataflow.
    */
   @Deprecated
-  public final List<? extends BoundedSource<T>> splitIntoBundles(
+  public List<? extends BoundedSource<T>> splitIntoBundles(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception{
       return split(desiredBundleSizeBytes, options);
   }
