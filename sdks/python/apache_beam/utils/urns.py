@@ -25,3 +25,4 @@ PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
 FLATTEN_TRANSFORM = "beam:ptransform:flatten:v0.1"
+WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
