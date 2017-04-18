@@ -614,7 +614,7 @@ class ParDo(PTransformWithSideInputs):
             'fn_dd': self.fn}
 
   def expand(self, pcoll):
-    self.side_output_tags = set()
+    self.output_tags = set()
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
     return pvalue.PCollection(pcoll.pipeline)
@@ -1154,7 +1154,7 @@ class Partition(PTransformWithSideInputs):
         raise ValueError(
             'PartitionFn specified out-of-bounds partition index: '
             '%d not in [0, %d)' % (partition, n))
-      # Each input is directed into the side output that corresponds to the
+      # Each input is directed into the output that corresponds to the
       # selected partition.
       yield pvalue.OutputValue(str(partition), element)
 

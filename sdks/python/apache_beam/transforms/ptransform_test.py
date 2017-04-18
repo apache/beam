@@ -159,7 +159,7 @@ class PTransformTest(unittest.TestCase):
                              'is discouraged.')
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
-  def test_do_with_side_outputs_maintains_unique_name(self):
+  def test_do_with_multiple_outputs_maintains_unique_name(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
     r1 = pcoll | 'A' >> beam.FlatMap(lambda x: [x + 1]).with_outputs(main='m')
@@ -206,7 +206,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_undeclared_side_outputs(self):
+  def test_undeclared_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(
@@ -219,7 +219,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_empty_side_outputs(self):
+  def test_multiple_empty_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(

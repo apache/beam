@@ -373,7 +373,7 @@ class DataflowRunner(PipelineRunner):
         transform_node.full_label + (
             '/Do' if transform_node.side_inputs else ''),
         transform_node,
-        transform_node.transform.side_output_tags)
+        transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
@@ -384,7 +384,7 @@ class DataflowRunner(PipelineRunner):
     # Add side inputs if any.
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
-    # Generate description for main output and side outputs. The output names
+    # Generate description for the outputs. The output names
     # will be 'out' for main output and 'out_<tag>' for a tagged output.
     # Using 'out' as a tag will not clash with the name for main since it will
     # be transformed into 'out_out' internally.
@@ -397,8 +397,8 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.side_output_tags:
-      # The assumption here is that side outputs will have the same typehint
+    for side_tag in transform.output_tags:
+      # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
       outputs.append(
