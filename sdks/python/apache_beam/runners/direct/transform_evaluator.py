@@ -248,13 +248,13 @@ class _TaggedReceivers(dict):
     return self._undeclared_in_memory_tag_values
 
   class NullReceiver(object):
-    """Ignores undeclared side outputs, default execution mode."""
+    """Ignores undeclared outputs, default execution mode."""
 
     def output(self, element):
       pass
 
   class InMemoryReceiver(object):
-    """Buffers undeclared side outputs to the given dictionary."""
+    """Buffers undeclared outputs to the given dictionary."""
 
     def __init__(self, target, tag):
       self._target = target
@@ -282,12 +282,12 @@ class _ParDoEvaluator(_TransformEvaluator):
     transform = self._applied_ptransform.transform
 
     self._tagged_receivers = _TaggedReceivers(self._evaluation_context)
-    for side_output_tag in self._applied_ptransform.outputs:
-      output_pcollection = pvalue.PCollection(None, tag=side_output_tag)
+    for output_tag in self._applied_ptransform.outputs:
+      output_pcollection = pvalue.PCollection(None, tag=output_tag)
       output_pcollection.producer = self._applied_ptransform
-      self._tagged_receivers[side_output_tag] = (
+      self._tagged_receivers[output_tag] = (
           self._evaluation_context.create_bundle(output_pcollection))
-      self._tagged_receivers[side_output_tag].tag = side_output_tag
+      self._tagged_receivers[output_tag].tag = output_tag
 
     self._counter_factory = counters.CounterFactory()
 
