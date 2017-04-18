@@ -590,6 +590,9 @@ class ParDo(PTransformWithSideInputs):
 
   def __init__(self, fn, *args, **kwargs):
     super(ParDo, self).__init__(fn, *args, **kwargs)
+    # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
+    self.dofn = self.fn
+    self.output_tags = set()
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -615,9 +618,6 @@ class ParDo(PTransformWithSideInputs):
             'fn_dd': self.fn}
 
   def expand(self, pcoll):
-    self.output_tags = set()
-    # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
-    self.dofn = self.fn
     return pvalue.PCollection(pcoll.pipeline)
 
   def with_outputs(self, *tags, **main_kw):
@@ -1268,7 +1268,7 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, windowfn, *args, **kwargs):
+  def __init__(self, windowfn, **kwargs):
     """Initializes a WindowInto transform.
 
     Args:
@@ -1279,8 +1279,7 @@ class WindowInto(ParDo):
     output_time_fn = kwargs.pop('output_time_fn', None)
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
-    dofn = self.WindowIntoFn(self.windowing)
-    super(WindowInto, self).__init__(dofn)
+    super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
     return self.windowing
@@ -1296,6 +1295,30 @@ class WindowInto(ParDo):
       self.with_input_types(input_type)
       self.with_output_types(output_type)
     return super(WindowInto, self).expand(pcoll)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.WINDOW_INTO_TRANSFORM,
+        self.windowing.to_runner_api(context))
+
+  @staticmethod
+  def from_runner_api_parameter(proto, context):
+    windowing = Windowing.from_runner_api(proto, context)
+    return WindowInto(
+        windowing.windowfn,
+        trigger=windowing.triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        output_time_fn=windowing.output_time_fn)
+
+
+PTransform.register_urn(
+    urns.WINDOW_INTO_TRANSFORM,
+    # TODO(robertwb): Update WindowIntoPayload to include the full strategy.
+    # (Right now only WindowFn is used, but we need this to reconstitute the
+    # WindowInto transform, and in the future will need it at runtime to
+    # support meta-data driven triggers.)
+    beam_runner_api_pb2.WindowingStrategy,
+    WindowInto.from_runner_api_parameter)
 
 
 # Python's pickling is broken for nested classes.
