@@ -230,19 +230,19 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class SideOutputValue(object):
+class OutputValue(object):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
   are distinguished by string tags. The DoFn will return plain values
-  if it wants to emit on the main output and SideOutputValue objects
+  if it wants to emit on the main output and OutputValue objects
   if it wants to emit a value on a specific tagged output.
   """
 
   def __init__(self, tag, value):
     if not isinstance(tag, basestring):
       raise TypeError(
-          'Attempting to create a SideOutputValue with non-string tag %s' % tag)
+          'Attempting to create a OutputValue with non-string tag %s' % tag)
     self.tag = tag
     self.value = value
 
