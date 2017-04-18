@@ -146,8 +146,7 @@ def flatten_input_visitor():
       # Imported here to avoid circular dependencies.
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import Flatten
-      from apache_beam import typehints
-      if (isinstance(transform_node.transform, Flatten)):
+      if isinstance(transform_node.transform, Flatten):
         output_pcoll = transform_node.outputs[None]
         for input_pcoll in transform_node.inputs:
           input_pcoll.element_type = output_pcoll.element_type

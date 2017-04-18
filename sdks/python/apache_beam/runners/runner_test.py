@@ -180,7 +180,7 @@ class RunnerTest(unittest.TestCase):
     flatten = AppliedPTransform(None, beam.Flatten(), "label", inputs)
     flatten.add_output(output_pcoll, None)
     runner.flatten_input_visitor().visit_transform(flatten)
-    for i in range(num_inputs):
+    for _ in range(num_inputs):
       self.assertEqual(inputs[0].element_type, output_type)
 
 if __name__ == '__main__':
