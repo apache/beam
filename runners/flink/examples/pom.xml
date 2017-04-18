@@ -65,6 +65,10 @@
   </profiles>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>

@@ -15,27 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.runners;
 
-import static org.junit.Assert.assertTrue;
+package org.apache.beam.sdk.options;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.CrashingRunner;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 
 /**
- * Tests for {@link PipelineRunner}.
+ * A registrar containing the default GCP options.
  */
-@RunWith(JUnit4.class)
-public class PipelineRunnerTest {
-  @Test
-  public void testInstantiation() {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.setRunner(CrashingRunner.class);
-    PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
-    assertTrue(runner instanceof CrashingRunner);
+@AutoService(PipelineOptionsRegistrar.class)
+public class GcpPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
+  @Override
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.<Class<? extends PipelineOptions>>builder()
+        .add(BigQueryOptions.class)
+        .add(GcpOptions.class)
+        .add(GcsOptions.class)
+        .add(GoogleApiDebugOptions.class)
+        .add(PubsubOptions.class)
+        .build();
   }
 }
