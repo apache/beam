@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -32,9 +30,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -62,7 +58,20 @@ public class TFRecordIO {
    * files matching a pattern) and returns a {@link PCollection} containing
    * the decoding of each of the records of the TFRecord file(s) as a byte array.
    */
-  public static class Read {
+  public static Read read() {
+    return new Read();
+  }
+
+  /** Implementation of {@link #read}. */
+  public static class Read extends PTransform<PBegin, PCollection<byte[]>> {
+    /** The filepattern to read from. */
+    @Nullable private final ValueProvider<String> filepattern;
+
+    /** An option to indicate if input validation is desired. Default is true. */
+    private final boolean validate;
+
+    /** Option to indicate the input source's compression type. Default is AUTO. */
+    private final TFRecordIO.CompressionType compressionType;
 
     /**
      * Returns a transform for reading TFRecord files that reads from the file(s)
@@ -72,16 +81,17 @@ public class TFRecordIO {
      * execution). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
      * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
-    public static Bound from(String filepattern) {
-      return new Bound().from(filepattern);
+    public Read from(String filepattern) {
+      return new Read().from(filepattern);
     }
 
     /**
      * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
      */
-    public static Bound from(ValueProvider<String> filepattern) {
-      return new Bound().from(filepattern);
+    public Read from(ValueProvider<String> filepattern) {
+      return new Read().from(filepattern);
     }
+
     /**
      * Returns a transform for reading TFRecord files that has GCS path validation on
      * pipeline creation disabled.
@@ -90,8 +100,8 @@ public class TFRecordIO {
      * exist at the pipeline creation time, but is expected to be
      * available at execution time.
      */
-    public static Bound withoutValidation() {
-      return new Bound().withoutValidation();
+    public Read withoutValidation() {
+      return new Read().withoutValidation();
     }
 
     /**
@@ -104,170 +114,103 @@ public class TFRecordIO {
      * (e.g., {@code *.gz} is gzipped, {@code *.zlib} is zlib compressed, and all other
      * extensions are uncompressed).
      */
-    public static Bound withCompressionType(TFRecordIO.CompressionType compressionType) {
-      return new Bound().withCompressionType(compressionType);
+    public Read withCompressionType(TFRecordIO.CompressionType compressionType) {
+      return new Read().withCompressionType(compressionType);
     }
 
-    /**
-     * A {@link PTransform} that reads from one or more TFRecord files and returns a bounded
-     * {@link PCollection} containing one element for each record of the input files.
-     */
-    public static class Bound extends PTransform<PBegin, PCollection<byte[]>> {
-      /** The filepattern to read from. */
-      @Nullable private final ValueProvider<String> filepattern;
+    private Read() {
+      this(null, null, true, TFRecordIO.CompressionType.AUTO);
+    }
 
-      /** An option to indicate if input validation is desired. Default is true. */
-      private final boolean validate;
+    private Read(
+        @Nullable String name,
+        @Nullable ValueProvider<String> filepattern,
+        boolean validate,
+        TFRecordIO.CompressionType compressionType) {
+      super(name);
+      this.filepattern = filepattern;
+      this.validate = validate;
+      this.compressionType = compressionType;
+    }
 
-      /** Option to indicate the input source's compression type. Default is AUTO. */
-      private final TFRecordIO.CompressionType compressionType;
-
-      private Bound() {
-        this(null, null, true, TFRecordIO.CompressionType.AUTO);
+    @Override
+    public PCollection<byte[]> expand(PBegin input) {
+      if (filepattern == null) {
+        throw new IllegalStateException(
+            "Need to set the filepattern of a TFRecordIO.Read transform");
       }
 
-      private Bound(
-          @Nullable String name,
-          @Nullable ValueProvider<String> filepattern,
-          boolean validate,
-          TFRecordIO.CompressionType compressionType) {
-        super(name);
-        this.filepattern = filepattern;
-        this.validate = validate;
-        this.compressionType = compressionType;
-      }
-
-      /**
-       * Returns a new transform for reading from TFRecord files that's like this one but that
-       * reads from the file(s) with the given name or pattern. See {@link TFRecordIO.Read#from}
-       * for a description of filepatterns.
-       *
-       * <p>Does not modify this object.
-
-       */
-      public Bound from(String filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, StaticValueProvider.of(filepattern), validate, compressionType);
-      }
-
-      /**
-       * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
-       */
-      public Bound from(ValueProvider<String> filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, filepattern, validate, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from TFRecord files that's like this one but
-       * that has GCS path validation on pipeline creation disabled.
-       *
-       * <p>This can be useful in the case where the GCS input does not
-       * exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withoutValidation() {
-        return new Bound(name, filepattern, false, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from TFRecord files that's like this one but
-       * reads from input sources using the specified compression type.
-       *
-       * <p>If no compression type is specified, the default is
-       * {@link TFRecordIO.CompressionType#AUTO}.
-       * See {@link TFRecordIO.Read#withCompressionType} for more details.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withCompressionType(TFRecordIO.CompressionType compressionType) {
-        return new Bound(name, filepattern, validate, compressionType);
-      }
-
-      @Override
-      public PCollection<byte[]> expand(PBegin input) {
-        if (filepattern == null) {
+      if (validate) {
+        checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
+        try {
+          checkState(
+              !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
+              "Unable to find any files matching %s",
+              filepattern);
+        } catch (IOException e) {
           throw new IllegalStateException(
-              "Need to set the filepattern of a TFRecordIO.Read transform");
-        }
-
-        if (validate) {
-          checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
-          try {
-            checkState(
-                !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
-                "Unable to find any files matching %s",
-                filepattern);
-          } catch (IOException e) {
-            throw new IllegalStateException(
-                String.format("Failed to validate %s", filepattern.get()), e);
-          }
-        }
-
-        final Bounded<byte[]> read = org.apache.beam.sdk.io.Read.from(getSource());
-        PCollection<byte[]> pcol = input.getPipeline().apply("Read", read);
-        // Honor the default output coder that would have been used by this PTransform.
-        pcol.setCoder(getDefaultOutputCoder());
-        return pcol;
-      }
-
-      // Helper to create a source specific to the requested compression type.
-      protected FileBasedSource<byte[]> getSource() {
-        switch (compressionType) {
-          case NONE:
-            return new TFRecordSource(filepattern);
-          case AUTO:
-            return CompressedSource.from(new TFRecordSource(filepattern));
-          case GZIP:
-            return
-                CompressedSource.from(new TFRecordSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.GZIP);
-          case ZLIB:
-            return
-                CompressedSource.from(new TFRecordSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.DEFLATE);
-          default:
-            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+              String.format("Failed to validate %s", filepattern.get()), e);
         }
       }
 
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
+      final Bounded<byte[]> read = org.apache.beam.sdk.io.Read.from(getSource());
+      PCollection<byte[]> pcol = input.getPipeline().apply("Read", read);
+      // Honor the default output coder that would have been used by this PTransform.
+      pcol.setCoder(getDefaultOutputCoder());
+      return pcol;
+    }
 
-        String filepatternDisplay = filepattern.isAccessible()
-            ? filepattern.get() : filepattern.toString();
-        builder
-            .add(DisplayData.item("compressionType", compressionType.toString())
-                .withLabel("Compression Type"))
-            .addIfNotDefault(DisplayData.item("validation", validate)
-                .withLabel("Validation Enabled"), true)
-            .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
-                .withLabel("File Pattern"));
-      }
-
-      @Override
-      protected Coder<byte[]> getDefaultOutputCoder() {
-        return DEFAULT_BYTE_ARRAY_CODER;
-      }
-
-      public String getFilepattern() {
-        return filepattern.get();
-      }
-
-      public boolean needsValidation() {
-        return validate;
-      }
-
-      public TFRecordIO.CompressionType getCompressionType() {
-        return compressionType;
+    // Helper to create a source specific to the requested compression type.
+    protected FileBasedSource<byte[]> getSource() {
+      switch (compressionType) {
+        case NONE:
+          return new TFRecordSource(filepattern);
+        case AUTO:
+          return CompressedSource.from(new TFRecordSource(filepattern));
+        case GZIP:
+          return
+              CompressedSource.from(new TFRecordSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.GZIP);
+        case ZLIB:
+          return
+              CompressedSource.from(new TFRecordSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.DEFLATE);
+        default:
+          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
       }
     }
 
-    /** Disallow construction of utility classes. */
-    private Read() {}
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      String filepatternDisplay = filepattern.isAccessible()
+          ? filepattern.get() : filepattern.toString();
+      builder
+          .add(DisplayData.item("compressionType", compressionType.toString())
+              .withLabel("Compression Type"))
+          .addIfNotDefault(DisplayData.item("validation", validate)
+              .withLabel("Validation Enabled"), true)
+          .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
+              .withLabel("File Pattern"));
+    }
+
+    @Override
+    protected Coder<byte[]> getDefaultOutputCoder() {
+      return DEFAULT_BYTE_ARRAY_CODER;
+    }
+
+    public String getFilepattern() {
+      return filepattern.get();
+    }
+
+    public boolean needsValidation() {
+      return validate;
+    }
+
+    public TFRecordIO.CompressionType getCompressionType() {
+      return compressionType;
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
