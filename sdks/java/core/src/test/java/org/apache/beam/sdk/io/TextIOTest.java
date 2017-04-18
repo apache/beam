@@ -564,21 +564,6 @@ public class TextIOTest {
     input.apply(TextIO.Write.to(filename));
   }
 
-  /**
-   * Recursive wildcards are not supported.
-   * This tests "**".
-   */
-  @Test
-  public void testBadWildcardRecursive() throws Exception {
-    p.enableAbandonedNodeEnforcement(false);
-
-    // Check that applying does fail.
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("wildcard");
-
-    p.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
-  }
-
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
@@ -1174,3 +1159,4 @@ public class TextIOTest {
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 }
+
