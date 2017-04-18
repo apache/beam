@@ -889,16 +889,16 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 ```
 
 ```py
-# To emit elements to a side output PCollection, invoke with_outputs() on the ParDo, optionally specifying the expected tags for the output.
+# To emit elements to multiple output PCollections, invoke with_outputs() on the ParDo, and specify the expected tags for the outputs.
 # with_outputs() returns a DoOutputsTuple object. Tags specified in with_outputs are attributes on the returned DoOutputsTuple object.
 # The tags give access to the corresponding output PCollections.
 
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_side_outputs
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_tagged_outputs
 %}
 
 # The result is also iterable, ordered in the same order that the tags were passed to with_outputs(), the main tag (if specified) first.
 
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_side_outputs_iter
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_tagged_outputs_iter
 %}```
 
 ##### Emitting to multiple outputs in your DoFn:
@@ -928,17 +928,17 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 ```
 
 ```py
-# Inside your ParDo's DoFn, you can emit an element to a side output by wrapping the value and the output tag (str).
-# using the pvalue.SideOutputValue wrapper class.
-# Based on the previous example, this shows the DoFn emitting to the main and side outputs.
+# Inside your ParDo's DoFn, you can emit an element to a specific output by wrapping the value and the output tag (str).
+# using the pvalue.OutputValue wrapper class.
+# Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_emitting_values_on_side_outputs
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_emitting_values_on_tagged_outputs
 %}
 
-# Side outputs are also available in Map and FlatMap.
+# Producing multiple outputs is also available in Map and FlatMap.
 # Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.
 
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_side_outputs_undeclared
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_with_undeclared_outputs
 %}```
 
 ## <a name="transforms-composite"></a>Composite Transforms
