@@ -30,7 +30,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -187,8 +186,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <a href="https://github.com/FasterXML/jackson-annotations">annotations</a> to aid in
  * serialization of custom types. We point you to the public
  * <a href="https://github.com/FasterXML/jackson">Jackson documentation</a> when attempting
- * to add serialization support for your custom types. See {@link GoogleApiTracer} for an
- * example using the Jackson annotations to serialize and deserialize a custom type.
+ * to add serialization support for your custom types.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only
  * some of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a
