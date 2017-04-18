@@ -383,12 +383,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       AggregatorContainer aggregators = evaluationContext.getAggregatorContainer();
       Collection<PTransform<?, ?>> steps = aggregatorSteps.get(aggregator);
       final Map<String, T> stepValues = new HashMap<>();
-      for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
-        if (steps.contains(transform.getTransform())) {
-          T aggregate = aggregators.getAggregate(
-              evaluationContext.getStepName(transform), aggregator.getName());
-          if (aggregate != null) {
-            stepValues.put(transform.getFullName(), aggregate);
+      if (steps != null) {
+        for (AppliedPTransform<?, ?, ?> transform : evaluationContext.getSteps()) {
+          if (steps.contains(transform.getTransform())) {
+            T aggregate = aggregators
+                .getAggregate(evaluationContext.getStepName(transform), aggregator.getName());
+            if (aggregate != null) {
+              stepValues.put(transform.getFullName(), aggregate);
+            }
           }
         }
       }
