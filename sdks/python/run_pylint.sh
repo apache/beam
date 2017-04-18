@@ -40,15 +40,15 @@ EXCLUDED_GENERATED_FILES=(
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   if test -z "$FILES_TO_IGNORE"
-  then FILES_TO_IGNORE="$(basename $file)"
-  else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
+    then FILES_TO_IGNORE="$(basename $file)"
+    else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 if test $# -gt 0
-then MODULE="$@"
-else MODULE=apache_beam
+  then MODULE="$@"
+  else MODULE=apache_beam
 fi
 
 echo "Running pylint for module $MODULE:"
