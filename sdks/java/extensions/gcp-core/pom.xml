@@ -28,7 +28,8 @@
 
   <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core</name>
-  <description>Common components used to support multiple Google Cloud Platform specific maven modules.</description>
+  <description>Common components used to support multiple
+  Google Cloud Platform specific maven modules.</description>
 
   <packaging>jar</packaging>
 
