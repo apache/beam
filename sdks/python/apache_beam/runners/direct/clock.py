@@ -24,8 +24,7 @@ import time
 
 class Clock(object):
 
-  @property
-  def now(self):
+  def time(self):
     """Returns the number of milliseconds since epoch."""
     return int(time.time() * 1000)
 
@@ -36,12 +35,10 @@ class MockClock(Clock):
   def __init__(self, now_in_ms):
     self._now_in_ms = now_in_ms
 
-  @property
-  def now(self):
+  def time(self):
     return self._now_in_ms
 
-  @now.setter
-  def now(self, value_in_ms):
+  def set_time(self, value_in_ms):
     assert value_in_ms >= self._now_in_ms
     self._now_in_ms = value_in_ms
 
