@@ -52,6 +52,9 @@ import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.options.ValueProviders;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -164,7 +167,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Read read() {
-    return new Read(null, "", ByteKeyRange.ALL_KEYS, null, null);
+    return new Read(null, null, StaticValueProvider.of(ByteKeyRange.ALL_KEYS), null, null, null, null);
   }
 
   /**
@@ -176,7 +179,7 @@ public class BigtableIO {
    */
   @Experimental
   public static Write write() {
-    return new Write(null, "", null);
+    return new Write(null, null, null, null, null);
   }
 
   /**
@@ -217,7 +220,7 @@ public class BigtableIO {
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
 
-      return new Read(optionsWithAgent, tableId, keyRange, filter, bigtableService);
+      return new Read(optionsWithAgent, tableId, keyRange, filter, null, null,  bigtableService);
     }
 
     /**
@@ -228,7 +231,7 @@ public class BigtableIO {
      */
     public Read withRowFilter(RowFilter filter) {
       checkNotNull(filter, "filter");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, keyRange, StaticValueProvider.of(filter), null, null, bigtableService);
     }
 
     /**
@@ -238,7 +241,7 @@ public class BigtableIO {
      */
     public Read withKeyRange(ByteKeyRange keyRange) {
       checkNotNull(keyRange, "keyRange");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, StaticValueProvider.of(keyRange), filter, null, null, bigtableService);
     }
 
     /**
@@ -248,7 +251,7 @@ public class BigtableIO {
      */
     public Read withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, StaticValueProvider.of(tableId), keyRange, filter,null, null, bigtableService);
     }
 
     /**
@@ -263,14 +266,14 @@ public class BigtableIO {
      * {@link ByteKeyRange#ALL_KEYS} to scan the entire table.
      */
     public ByteKeyRange getKeyRange() {
-      return keyRange;
+      return ValueProviders.getValueOrNull(keyRange);
     }
 
     /**
      * Returns the table being read from.
      */
     public String getTableId() {
-      return tableId;
+      return tableId.get();
     }
 
     @Override
@@ -288,14 +291,22 @@ public class BigtableIO {
     @Override
     public void validate(PBegin input) {
       checkArgument(options != null, "BigtableOptions not specified");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
-      try {
-        checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
-            "Table %s does not exist",
-            tableId);
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+
+      if (tableId == null) {
+        throw new IllegalArgumentException("tableId not specified");
+      } else if (!tableId.isAccessible()) {
+        LOG.warn("Skipping validation for tableId");
+      } else if (tableId.get().isEmpty()) {
+        throw new IllegalArgumentException("tableId not specified");
+      } else {
+        try {
+          checkArgument(
+                  getBigtableService(input.getPipeline().getOptions()).tableExists(tableId.get()),
+                  "Table %s does not exist",
+                  tableId);
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", tableId.get(), e);
+        }
       }
     }
 
@@ -337,21 +348,27 @@ public class BigtableIO {
      * source is being built.
      */
     @Nullable private final BigtableOptions options;
-    private final String tableId;
-    private final ByteKeyRange keyRange;
-    @Nullable private final RowFilter filter;
+    @Nullable private final ValueProvider<String> tableId;
+    private final ValueProvider<ByteKeyRange> keyRange;
+    @Nullable private final ValueProvider<RowFilter> filter;
+    @Nullable private final ValueProvider<String> projectId;
+    @Nullable private final ValueProvider<String> instanceId;
     @Nullable private final BigtableService bigtableService;
 
     private Read(
         @Nullable BigtableOptions options,
-        String tableId,
-        ByteKeyRange keyRange,
-        @Nullable RowFilter filter,
+        @Nullable ValueProvider<String> tableId,
+        ValueProvider<ByteKeyRange> keyRange,
+        @Nullable ValueProvider<RowFilter> filter,
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> instanceId,
         @Nullable BigtableService bigtableService) {
       this.options = options;
-      this.tableId = checkNotNull(tableId, "tableId");
-      this.keyRange = checkNotNull(keyRange, "keyRange");
+      this.tableId = tableId;
+      this.keyRange = keyRange;
       this.filter = filter;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
       this.bigtableService = bigtableService;
     }
 
@@ -365,7 +382,7 @@ public class BigtableIO {
      */
     Read withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
-      return new Read(options, tableId, keyRange, filter, bigtableService);
+      return new Read(options, tableId, keyRange, filter, null, null, bigtableService);
     }
 
     /**
@@ -382,6 +399,14 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
+      // Override the projectId in the options with the runtime-provided  projectId.
+      if(projectId != null) {
+        clonedOptions.setProjectId(projectId.get());
+      }
+      // Override the instanceId in the options with the runtime-provided  projectId.
+      if(instanceId != null) {
+        clonedOptions.setInstanceId(instanceId.get());
+      }
       if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
@@ -406,15 +431,21 @@ public class BigtableIO {
      * source is being built.
      */
     @Nullable private final BigtableOptions options;
-    private final String tableId;
+    @Nullable private final ValueProvider<String> tableId;
+    @Nullable ValueProvider<String> projectId;
+    @Nullable ValueProvider<String> instanceId;
     @Nullable private final BigtableService bigtableService;
 
     private Write(
         @Nullable BigtableOptions options,
-        String tableId,
+        @Nullable ValueProvider<String> tableId,
+        @Nullable ValueProvider<String> projectId,
+        @Nullable ValueProvider<String> instanceId,
         @Nullable BigtableService bigtableService) {
       this.options = options;
-      this.tableId = checkNotNull(tableId, "tableId");
+      this.tableId = tableId;
+      this.projectId = projectId;
+      this.instanceId = instanceId;
       this.bigtableService = bigtableService;
     }
 
@@ -452,7 +483,7 @@ public class BigtableIO {
           .setUseCachedDataPool(true);
       BigtableOptions optionsWithAgent =
           clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
-      return new Write(optionsWithAgent, tableId, bigtableService);
+      return new Write(optionsWithAgent, tableId, null, null, bigtableService);
     }
 
     /**
@@ -462,7 +493,7 @@ public class BigtableIO {
      */
     public Write withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
-      return new Write(options, tableId, bigtableService);
+      return new Write(options, ValueProvider.StaticValueProvider.of(tableId), null, null, bigtableService);
     }
 
     /**
@@ -476,12 +507,12 @@ public class BigtableIO {
      * Returns the table being written to.
      */
     public String getTableId() {
-      return tableId;
+      return tableId.get();
     }
 
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      input.apply(ParDo.of(new BigtableWriterFn(tableId,
+      input.apply(ParDo.of(new BigtableWriterFn(tableId.get(),
           new SerializableFunction<PipelineOptions, BigtableService>() {
         @Override
         public BigtableService apply(PipelineOptions options) {
@@ -494,14 +525,15 @@ public class BigtableIO {
     @Override
     public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       checkArgument(options != null, "BigtableOptions not specified");
-      checkArgument(!tableId.isEmpty(), "Table ID not specified");
+      if(tableId == null) throw new IllegalArgumentException("Table ID not specified");
+      checkArgument(!tableId.get().isEmpty(), "Table ID not specified");
       try {
         checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
+            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId.get()),
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        LOG.warn("Error checking whether table {} exists; proceeding.", ValueProvider.StaticValueProvider.of(tableId), e);
       }
     }
 
@@ -515,7 +547,7 @@ public class BigtableIO {
      */
     Write withBigtableService(BigtableService bigtableService) {
       checkNotNull(bigtableService, "bigtableService");
-      return new Write(options, tableId, bigtableService);
+      return new Write(options, tableId, null, null, bigtableService);
     }
 
     @Override
@@ -553,6 +585,14 @@ public class BigtableIO {
         return bigtableService;
       }
       BigtableOptions.Builder clonedOptions = options.toBuilder();
+      // Override the projectId in the options with the runtime-provided  projectId.
+      if(projectId != null) {
+        clonedOptions.setProjectId(projectId.get());
+      }
+      // Override the instanceId in the options with the runtime-provided  projectId.
+      if(instanceId != null) {
+        clonedOptions.setInstanceId(instanceId.get());
+      }
       if (options.getCredentialOptions().getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
             CredentialOptions.credential(
@@ -667,9 +707,9 @@ public class BigtableIO {
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
         SerializableFunction<PipelineOptions, BigtableService> serviceFactory,
-        String tableId,
-        @Nullable RowFilter filter,
-        ByteKeyRange range,
+        ValueProvider<String> tableId,
+        @Nullable ValueProvider<RowFilter> filter,
+        ValueProvider<ByteKeyRange> range,
         @Nullable Long estimatedSizeBytes) {
       this.serviceFactory = serviceFactory;
       this.tableId = tableId;
@@ -690,22 +730,34 @@ public class BigtableIO {
 
     ////// Private state and internal implementation details //////
     private final SerializableFunction<PipelineOptions, BigtableService> serviceFactory;
-    private final String tableId;
-    @Nullable private final RowFilter filter;
-    private final ByteKeyRange range;
+    private final ValueProvider<String> tableId;
+    @Nullable private final ValueProvider<RowFilter> filter;
+    private final ValueProvider<ByteKeyRange> range;
     @Nullable private Long estimatedSizeBytes;
     @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
 
-    protected BigtableSource withStartKey(ByteKey startKey) {
+    protected BigtableSource withStartKey(final ByteKey startKey) {
       checkNotNull(startKey, "startKey");
       return new BigtableSource(
-          serviceFactory, tableId, filter, range.withStartKey(startKey), estimatedSizeBytes);
+          serviceFactory, tableId, filter, ValueProvider.NestedValueProvider.of(range,
+              new SerializableFunction<ByteKeyRange, ByteKeyRange>() {
+                  @Override
+                  public ByteKeyRange apply(ByteKeyRange input) {
+                      return input.withStartKey(startKey);
+                  }
+              }), estimatedSizeBytes);
     }
 
-    protected BigtableSource withEndKey(ByteKey endKey) {
+    protected BigtableSource withEndKey(final ByteKey endKey) {
       checkNotNull(endKey, "endKey");
       return new BigtableSource(
-          serviceFactory, tableId, filter, range.withEndKey(endKey), estimatedSizeBytes);
+          serviceFactory, tableId, filter, ValueProvider.NestedValueProvider.of(range,
+              new SerializableFunction<ByteKeyRange, ByteKeyRange>() {
+                  @Override
+                  public ByteKeyRange apply(ByteKeyRange input) {
+                      return input.withEndKey(endKey);
+                  }
+              }), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
@@ -767,7 +819,7 @@ public class BigtableIO {
             responseOffset,
             lastOffset);
 
-        if (!range.overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
+        if (!range.get().overlaps(ByteKeyRange.of(lastEndKey, responseEndKey))) {
           // This region does not overlap the scan, so skip it.
           lastOffset = responseOffset;
           lastEndKey = responseEndKey;
@@ -777,15 +829,15 @@ public class BigtableIO {
         // Calculate the beginning of the split as the larger of startKey and the end of the last
         // split. Unspecified start is smallest key so is correctly treated as earliest key.
         ByteKey splitStartKey = lastEndKey;
-        if (splitStartKey.compareTo(range.getStartKey()) < 0) {
-          splitStartKey = range.getStartKey();
+        if (splitStartKey.compareTo(range.get().getStartKey()) < 0) {
+          splitStartKey = range.get().getStartKey();
         }
 
         // Calculate the end of the split as the smaller of endKey and the end of this sample. Note
         // that range.containsKey handles the case when range.getEndKey() is empty.
         ByteKey splitEndKey = responseEndKey;
-        if (!range.containsKey(splitEndKey)) {
-          splitEndKey = range.getEndKey();
+        if (!range.get().containsKey(splitEndKey)) {
+          splitEndKey = range.get().getEndKey();
         }
 
         // We know this region overlaps the desired key range, and we know a rough estimate of its
@@ -807,8 +859,8 @@ public class BigtableIO {
       //  1. we did not scan to the end yet (lastEndKey is concrete, not 0-length).
       //  2. we want to scan to the end (endKey is empty) or farther (lastEndKey < endKey).
       if (!lastEndKey.isEmpty()
-          && (range.getEndKey().isEmpty() || lastEndKey.compareTo(range.getEndKey()) < 0)) {
-        splits.add(this.withStartKey(lastEndKey).withEndKey(range.getEndKey()));
+          && (range.get().getEndKey().isEmpty() || lastEndKey.compareTo(range.get().getEndKey()) < 0)) {
+        splits.add(this.withStartKey(lastEndKey).withEndKey(range.get().getEndKey()));
       }
 
       List<BigtableSource> ret = splits.build();
@@ -843,7 +895,7 @@ public class BigtableIO {
           // Skip an empty region.
           lastOffset = currentOffset;
           continue;
-        } else if (range.overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
+        } else if (range.get().overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
           estimatedSizeBytes += currentOffset - lastOffset;
         }
         currentStartKey = currentEndKey;
@@ -859,7 +911,13 @@ public class BigtableIO {
 
     @Override
     public void validate() {
-      checkArgument(!tableId.isEmpty(), "tableId cannot be empty");
+        if (tableId == null) {
+            throw new IllegalArgumentException("tableId not specified");
+        } else if (!tableId.isAccessible()) {
+            LOG.warn("Skipping validation for tableId");
+        } else if (tableId.get().isEmpty()) {
+            throw new IllegalArgumentException("tableId not specified");
+        }
     }
 
     @Override
@@ -917,16 +975,19 @@ public class BigtableIO {
       return splits.build();
     }
 
+    @Nullable
     public ByteKeyRange getRange() {
-      return range;
+        return ValueProviders.getValueOrNull(range);
     }
 
+    @Nullable
     public RowFilter getRowFilter() {
-      return filter;
+        return ValueProviders.getValueOrNull(filter);
     }
 
+    @Nullable
     public String getTableId() {
-      return tableId;
+      return ValueProviders.getValueOrNull(tableId);
     }
   }
 
