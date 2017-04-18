@@ -214,7 +214,14 @@
         <plugin>
           <groupId>com.mycila</groupId>
           <artifactId>license-maven-plugin</artifactId>
-          <version>3.0</version>
+          <version>${license-maven-plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.mycila</groupId>
+              <artifactId>license-maven-plugin-git</artifactId>
+              <version>${license-maven-plugin.version}</version>
+            </dependency>
+          </dependencies>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -385,7 +392,10 @@
               </properties>
               <excludes>
                 <exclue>cd/**</exclue>
+                <exclude>**/.idea/**</exclude>
                 <exclude>**/README</exclude>
+                <exclude>**/NOTICE</exclude>
+                <exclude>**/LICENSE</exclude>
                 <exclude>src/test/resources/**</exclude>
                 <exclude>src/main/resources/**</exclude>
               </excludes>
@@ -573,6 +583,7 @@
   <properties>
     <flink.version>1.2.0</flink.version>
     <spark.version>2.1.0</spark.version>
+    <license-maven-plugin.version>3.0</license-maven-plugin.version>
   </properties>
 
 </project>
