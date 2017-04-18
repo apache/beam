@@ -153,7 +153,7 @@
       <div class="row">
         <h1 id="apache-beam-overview">Apache Beam Overview</h1>
 
-<p>Apache Beam is an open source, unified programming model that you can use to create a data processing <strong>pipeline</strong>. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://apex.apache.org">Apache Apex</a>, <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
+<p>Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://apex.apache.org">Apache Apex</a>, <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
 
 <p>Beam is particularly useful for <a href="http://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel</a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.</p>
 
@@ -163,24 +163,10 @@
 
 <p>Beam currently supports the following language-specific SDKs:</p>
 
-<table class="table table-condensed">
-<tr>
-  <th>Language</th>
-  <th>SDK Status</th>
-</tr>
-<tr>
-  <td>Java</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Python</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Other</td>
-  <td>TBD</td>
-</tr>
-</table>
+<ul>
+  <li>Java <img src="/images/logos/sdks/java.png" alt="Java SDK" /></li>
+  <li>Python <img src="/images/logos/sdks/python.png" alt="Python SDK " /></li>
+</ul>
 
 <h2 id="apache-beam-pipeline-runners">Apache Beam Pipeline Runners</h2>
 
@@ -188,32 +174,16 @@
 
 <p>Beam currently supports Runners that work with the following distributed processing back-ends:</p>
 
-<table class="table table-condensed">
-<tr>
-  <th>Runner</th>
-  <th>Status</th>
-</tr>
-<tr>
-  <td>Apache Apex</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Apache Flink</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Apache Spark</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Google Cloud Dataflow</td>
-  <td>Active Development</td>
-</tr>
-</table>
+<ul>
+  <li>Apache Apex <img src="/images/logos/runners/apex.png" alt="Apache Apex" /></li>
+  <li>Apache Flink <img src="/images/logos/runners/flink.png" alt="Apache Flink" /></li>
+  <li>Apache Spark <img src="/images/logos/runners/spark.png" alt="Apache Spark" /></li>
+  <li>Google Cloud Dataflow <img src="/images/logos/runners/dataflow.png" alt="Google Cloud Dataflow" /></li>
+</ul>
 
 <p><strong>Note:</strong> You can always execute your pipeline locally for testing and debugging purposes.</p>
 
-<h2 id="getting-started-with-apache-beam">Getting Started with Apache Beam</h2>
+<h2 id="get-started">Get Started</h2>
 
 <p>Get started using Beam for your data processing tasks.</p>
 
@@ -224,7 +194,14 @@
   <li>
     <p>See the <a href="/get-started/wordcount-example">WordCount Examples Walkthrough</a> for examples that introduce various features of the SDKs.</p>
   </li>
+  <li>
+    <p>Dive into the <a href="/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.</p>
+  </li>
 </ol>
+
+<h2 id="contribute">Contribute</h2>
+
+<p>Beam is an <a href="http://www.apache.org">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.</p>
 
       </div>
 
