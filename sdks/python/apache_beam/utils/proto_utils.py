@@ -49,5 +49,5 @@ def pack_Struct(**kwargs):
   """
   msg = struct_pb2.Struct()
   for key, value in kwargs.items():
-    msg[key] = value  # pylint: disable=unsubscriptable-object
+    msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
