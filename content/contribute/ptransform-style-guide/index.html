@@ -393,7 +393,7 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
       <li>Third-party APIs failing</li>
       <li>Third-party APIs providing wildly inaccurate information</li>
       <li>Leaks of <code class="highlighter-rouge">Closeable</code>/<code class="highlighter-rouge">AutoCloseable</code> resources in failure cases</li>
-      <li>Common corner cases when developing sources: complicated arithmetic in <code class="highlighter-rouge">BoundedSource.splitIntoBundles</code> (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.</li>
+      <li>Common corner cases when developing sources: complicated arithmetic in <code class="highlighter-rouge">BoundedSource.split</code> (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.</li>
     </ul>
   </li>
   <li>Mock out the interactions with third-party systems, or better, use <a href="http://martinfowler.com/articles/mocksArentStubs.html">“fake”</a> implementations when available. Make sure that the mocked-out interactions are representative of all interesting cases of the actual behavior of these systems.</li>
