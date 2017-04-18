@@ -158,7 +158,7 @@ public class TFRecordIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    TFRecordIO.Write.Bound write = TFRecordIO.Write
+    TFRecordIO.Write write = TFRecordIO.write()
         .to("foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
@@ -255,7 +255,7 @@ public class TFRecordIOTest {
     PCollection<byte[]> input = p.apply(Create.of(Arrays.asList(elems)))
         .apply(ParDo.of(new StringToByteArray()));
 
-    TFRecordIO.Write.Bound write = TFRecordIO.Write.to(filename).withoutSharding();
+    TFRecordIO.Write write = TFRecordIO.write().to(filename).withoutSharding();
     input.apply(write);
 
     p.run();
@@ -329,7 +329,7 @@ public class TFRecordIOTest {
     Path baseDir = Files.createTempDirectory(tempFolder, "test-rt");
     String baseFilename = baseDir.resolve(outputName).toString();
 
-    TFRecordIO.Write.Bound write = TFRecordIO.Write.to(baseFilename)
+    TFRecordIO.Write write = TFRecordIO.write().to(baseFilename)
         .withNumShards(numShards)
         .withSuffix(suffix)
         .withCompressionType(writeCompressionType);
