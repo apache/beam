@@ -48,6 +48,7 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.utils import urns
 from apache_beam.utils.pipeline_options import TypeOptions
 
 
@@ -1339,6 +1340,17 @@ class Flatten(PTransform):
       # TODO(robertwb): Return something compatible with every windowing?
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
+
+  def to_runner_api_parameter(self, context):
+    return urns.FLATTEN_TRANSFORM, None
+
+  @staticmethod
+  def from_runner_api_parameter(unused_parameter, unused_context):
+    return Flatten()
+
+
+PTransform.register_urn(
+    urns.FLATTEN_TRANSFORM, None, Flatten.from_runner_api_parameter)
 
 
 class Create(PTransform):
