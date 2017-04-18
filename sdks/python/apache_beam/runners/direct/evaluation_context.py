@@ -199,20 +199,21 @@ class EvaluationContext(object):
       the committed bundles contained within the handled result.
     """
     with self._lock:
-      committed_bundles = self._commit_bundles(result.output_bundles)
+      committed_bundles = self._commit_bundles(
+          result.uncommitted_output_bundles)
       self._watermark_manager.update_watermarks(
           completed_bundle, result.transform, completed_timers,
           committed_bundles, result.watermark_hold)
 
       self._metrics.commit_logical(completed_bundle,
-                                   result.logical_metric_updates())
+                                   result.logical_metric_updates)
 
       # If the result is for a view, update side inputs container.
-      if (result.output_bundles
-          and result.output_bundles[0].pcollection
+      if (result.uncommitted_output_bundles
+          and result.uncommitted_output_bundles[0].pcollection
           in self._pcollection_to_views):
         for view in self._pcollection_to_views[
-            result.output_bundles[0].pcollection]:
+            result.uncommitted_output_bundles[0].pcollection]:
           for committed_bundle in committed_bundles:
             # side_input must be materialized.
             self._side_inputs_container.add_values(

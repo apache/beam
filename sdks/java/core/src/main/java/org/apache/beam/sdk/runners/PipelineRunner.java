@@ -21,8 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
@@ -45,6 +45,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    FileSystems.setDefaultConfigInWorkers(options);
 
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =

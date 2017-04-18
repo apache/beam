@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.AtomicType;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -36,43 +35,36 @@ public class EncodedValueTypeInformation
   private static final long serialVersionUID = 1L;
 
   @Override
-  @PublicEvolving
   public boolean isBasicType() {
     return false;
   }
 
   @Override
-  @PublicEvolving
   public boolean isTupleType() {
     return false;
   }
 
   @Override
-  @PublicEvolving
   public int getArity() {
     return 0;
   }
 
   @Override
-  @PublicEvolving
   public int getTotalFields() {
     return 0;
   }
 
   @Override
-  @PublicEvolving
   public Class<byte[]> getTypeClass() {
     return byte[].class;
   }
 
   @Override
-  @PublicEvolving
   public boolean isKeyType() {
     return true;
   }
 
   @Override
-  @PublicEvolving
   public TypeSerializer<byte[]> createSerializer(ExecutionConfig executionConfig) {
     return new EncodedValueSerializer();
   }
@@ -98,7 +90,6 @@ public class EncodedValueTypeInformation
   }
 
   @Override
-  @PublicEvolving
   public TypeComparator<byte[]> createComparator(
       boolean sortOrderAscending,
       ExecutionConfig executionConfig) {

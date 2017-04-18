@@ -44,9 +44,6 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 
 /**
  * Flink operator for executing window {@link DoFn DoFns}.
- *
- * @param <InputT>
- * @param <OutputT>
  */
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {

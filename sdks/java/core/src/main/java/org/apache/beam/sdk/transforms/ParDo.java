@@ -664,7 +664,7 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
       }
       return additionalInputs.build();
     }
@@ -809,7 +809,7 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput);
+        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
       }
       return additionalInputs.build();
     }
