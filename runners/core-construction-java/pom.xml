@@ -29,7 +29,7 @@
   </parent>
 
   <artifactId>beam-runners-core-construction-java</artifactId>
-  <name>Apache Beam :: Runners :: Core Java Construction</name>
+  <name>Apache Beam :: Runners :: Core Construction Java</name>
   <description>Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
     prior to execution.
   </description>
