@@ -23,7 +23,7 @@
 #
 # The exit-code of the script indicates success or a failure.
 
-set -e
+set -o errexit
 set -o pipefail
 
 # Following generated files are excluded from lint checks.
@@ -39,14 +39,19 @@ EXCLUDED_GENERATED_FILES=(
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
-  if [[ $FILES_TO_IGNORE ]]; then
-    FILES_TO_IGNORE="$FILES_TO_IGNORE, "
+  if test -z "$FILES_TO_IGNORE"
+  then FILES_TO_IGNORE="$(basename $file)"
+  else FILES_TO_IGNORE="$FILES_TO_IGNORE, $(basename $file)"
   fi
-  FILES_TO_IGNORE="$FILES_TO_IGNORE$(basename $file)"
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-echo "Running pylint:"
-pylint apache_beam --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pep8:"
-pep8 apache_beam --exclude="$FILES_TO_IGNORE"
+if test $# -gt 0
+then MODULE="$@"
+else MODULE=apache_beam
+fi
+
+echo "Running pylint for module $MODULE:"
+pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
+echo "Running pep8 for module $MODULE:"
+pep8 $MODULE --exclude="$FILES_TO_IGNORE"
