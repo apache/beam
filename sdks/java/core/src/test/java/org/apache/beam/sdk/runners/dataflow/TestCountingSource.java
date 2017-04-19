@@ -50,6 +50,8 @@ public class TestCountingSource
 
   private static List<Integer> finalizeTracker;
   private final int numMessagesPerShard;
+  // If non-negative, this is the number of splits returned by generateInitialSplits.
+  private final int numSplits;
   private final int shardNumber;
   private final boolean dedup;
   private final boolean throwOnFirstSnapshot;
@@ -67,36 +69,42 @@ public class TestCountingSource
   }
 
   public TestCountingSource(int numMessagesPerShard) {
-    this(numMessagesPerShard, 0, false, false, true);
+    this(numMessagesPerShard, 0, false, false, true, -1);
   }
 
   public TestCountingSource withDedup() {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, true, throwOnFirstSnapshot, true, numSplits);
   }
 
   private TestCountingSource withShardNumber(int shardNumber) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true, numSplits);
   }
 
   public TestCountingSource withThrowOnFirstSnapshot(boolean throwOnFirstSnapshot) {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true, numSplits);
   }
 
   public TestCountingSource withoutSplitting() {
     return new TestCountingSource(
-        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false);
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, false, -1);
+  }
+
+  public TestCountingSource withNumSplits(int numSplits) {
+    return new TestCountingSource(
+        numMessagesPerShard, shardNumber, dedup, throwOnFirstSnapshot, true, numSplits);
   }
 
   private TestCountingSource(int numMessagesPerShard, int shardNumber, boolean dedup,
-      boolean throwOnFirstSnapshot, boolean allowSplitting) {
+      boolean throwOnFirstSnapshot, boolean allowSplitting, int numSplits) {
     this.numMessagesPerShard = numMessagesPerShard;
     this.shardNumber = shardNumber;
     this.dedup = dedup;
     this.throwOnFirstSnapshot = throwOnFirstSnapshot;
     this.allowSplitting = allowSplitting;
+    this.numSplits = numSplits;
   }
 
   public int getShardNumber() {
@@ -107,8 +115,15 @@ public class TestCountingSource
   public List<TestCountingSource> split(
       int desiredNumSplits, PipelineOptions options) {
     List<TestCountingSource> splits = new ArrayList<>();
-    int numSplits = allowSplitting ? desiredNumSplits : 1;
-    for (int i = 0; i < numSplits; i++) {
+    int actualNumSplits;
+    if (!allowSplitting) {
+      actualNumSplits = 1;
+    } else if (numSplits >= 0) {
+      actualNumSplits = numSplits;
+    } else {
+      actualNumSplits = desiredNumSplits;
+    }
+    for (int i = 0; i < actualNumSplits; i++) {
       splits.add(withShardNumber(i));
     }
     return splits;
