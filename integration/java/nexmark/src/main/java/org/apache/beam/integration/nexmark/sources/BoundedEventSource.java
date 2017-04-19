@@ -156,7 +156,7 @@ public class BoundedEventSource extends BoundedSource<Event> {
   }
 
   @Override
-  public List<BoundedEventSource> splitIntoBundles(
+  public List<BoundedEventSource> split(
       long desiredBundleSizeBytes, PipelineOptions options) {
     NexmarkUtils.info("slitting bounded source %s into %d sub-sources", config, numEventGenerators);
     List<BoundedEventSource> results = new ArrayList<>();

@@ -289,7 +289,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
   }
 
   @Override
-  public List<UnboundedEventSource> generateInitialSplits(
+  public List<UnboundedEventSource> split(
       int desiredNumSplits, PipelineOptions options) {
     LOG.trace("splitting unbounded source into {} sub-sources", numEventGenerators);
     List<UnboundedEventSource> results = new ArrayList<>();

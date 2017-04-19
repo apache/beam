@@ -130,7 +130,9 @@ class NexmarkGoogleRunner extends NexmarkRunner<NexmarkGoogleDriver.NexmarkGoogl
           NexmarkUtils.console("%s publisher (%d events)", state, numEvents);
           return;
         case RUNNING:
-          numEvents = getLong(job, publisherMonitor.getElementCounter());
+          //TODO Ismael Validate that this counter is ok
+          numEvents =
+            getCounterMetric(job, publisherMonitor.name, publisherMonitor.prefix + ".elements", -1);
           if (startMsSinceEpoch < 0 && numEvents > 0) {
             startMsSinceEpoch = System.currentTimeMillis();
             endMsSinceEpoch = startMsSinceEpoch

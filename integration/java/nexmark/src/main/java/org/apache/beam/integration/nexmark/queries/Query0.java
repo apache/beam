@@ -28,10 +28,10 @@ import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -49,15 +49,15 @@ public class Query0 extends NexmarkQuery {
         // Force round trip through coder.
         .apply(name + ".Serialize",
             ParDo.of(new DoFn<Event, Event>() {
-                  private final Aggregator<Long, Long> bytes =
-                      createAggregator("bytes", Sum.ofLongs());
+                  private final Counter bytesMetric =
+                    Metrics.counter(name , "bytes");
 
                   @ProcessElement
                   public void processElement(ProcessContext c) throws CoderException, IOException {
                     ByteArrayOutputStream outStream = new ByteArrayOutputStream();
                     coder.encode(c.element(), outStream, Coder.Context.OUTER);
                     byte[] byteArray = outStream.toByteArray();
-                    bytes.addValue((long) byteArray.length);
+                    bytesMetric.inc((long) byteArray.length);
                     ByteArrayInputStream inStream = new ByteArrayInputStream(byteArray);
                     Event event = coder.decode(inStream, Coder.Context.OUTER);
                     c.output(event);

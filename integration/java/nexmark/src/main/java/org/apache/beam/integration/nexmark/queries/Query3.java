@@ -20,7 +20,6 @@ package org.apache.beam.integration.nexmark.queries;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.NexmarkQuery;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
@@ -30,12 +29,12 @@ import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.integration.nexmark.model.NameCityStateId;
 import org.apache.beam.integration.nexmark.model.Person;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -81,14 +80,7 @@ public class Query3 extends NexmarkQuery {
 
   public Query3(NexmarkConfiguration configuration) {
     super(configuration, "Query3");
-    joinDoFn = new JoinDoFn(configuration.maxAuctionsWaitingTime);
-
-  }
-
-  @Override
-  @Nullable
-  public Aggregator<Long, Long> getFatalCount() {
-    return joinDoFn.fatalCounter;
+    joinDoFn = new JoinDoFn(name, configuration.maxAuctionsWaitingTime);
   }
 
   private PCollection<NameCityStateId> applyTyped(PCollection<Event> events) {
@@ -195,8 +187,6 @@ public class Query3 extends NexmarkQuery {
 
     private static final String PERSON_STATE_EXPIRING = "personStateExpiring";
 
-    public final Aggregator<Long, Long> fatalCounter = createAggregator("fatal", Sum.ofLongs());
-
     @StateId(AUCTIONS)
     private final StateSpec<Object, ValueState<List<Auction>>> auctionsSpec =
         StateSpecs.value(ListCoder.of(Auction.CODER));
@@ -204,19 +194,25 @@ public class Query3 extends NexmarkQuery {
     @TimerId(PERSON_STATE_EXPIRING)
     private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-    private final Aggregator<Long, Long> newAuctionCounter =
-        createAggregator("newAuction", Sum.ofLongs());
-    private final Aggregator<Long, Long> newPersonCounter =
-        createAggregator("newPerson", Sum.ofLongs());
-    private final Aggregator<Long, Long> newNewOutputCounter =
-        createAggregator("newNewOutput", Sum.ofLongs());
-    private final Aggregator<Long, Long> newOldOutputCounter =
-        createAggregator("newOldOutput", Sum.ofLongs());
-    private final Aggregator<Long, Long> oldNewOutputCounter =
-        createAggregator("oldNewOutput", Sum.ofLongs());
+    // Used to refer the metrics namespace
+    private final String name;
 
-    private JoinDoFn(int maxAuctionsWaitingTime) {
+    private final Counter newAuctionCounter;
+    private final Counter newPersonCounter;
+    private final Counter newNewOutputCounter;
+    private final Counter newOldOutputCounter;
+    private final Counter oldNewOutputCounter;
+    private final Counter fatalCounter;
+
+    private JoinDoFn(String name, int maxAuctionsWaitingTime) {
+      this.name = name;
       this.maxAuctionsWaitingTime = maxAuctionsWaitingTime;
+      newAuctionCounter = Metrics.counter(name, "newAuction");
+      newPersonCounter = Metrics.counter(name, "newPerson");
+      newNewOutputCounter = Metrics.counter(name, "newNewOutput");
+      newOldOutputCounter = Metrics.counter(name, "newOldOutput");
+      oldNewOutputCounter = Metrics.counter(name, "oldNewOutput");
+      fatalCounter = Metrics.counter(name , "fatal");
     }
 
     @ProcessElement
@@ -232,14 +228,13 @@ public class Query3 extends NexmarkQuery {
       // we need to wait for the pending ReduceFn API.
 
       Person existingPerson = personState.read();
-
       if (existingPerson != null) {
         // We've already seen the new person event for this person id.
         // We can join with any new auctions on-the-fly without needing any
         // additional persistent state.
         for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
-          newAuctionCounter.addValue(1L);
-          newOldOutputCounter.addValue(1L);
+          newAuctionCounter.inc();
+          newOldOutputCounter.inc();
           c.output(KV.of(newAuction, existingPerson));
         }
         return;
@@ -255,24 +250,24 @@ public class Query3 extends NexmarkQuery {
           } else {
             LOG.error("**** conflicting persons {} and {} ****", theNewPerson, newPerson);
           }
-          fatalCounter.addValue(1L);
+          fatalCounter.inc();
           continue;
         }
-        newPersonCounter.addValue(1L);
+        newPersonCounter.inc();
         // We've now seen the person for this person id so can flush any
         // pending auctions for the same seller id (an auction is done by only one seller).
         List<Auction> pendingAuctions = auctionsState.read();
         if (pendingAuctions != null) {
           for (Auction pendingAuction : pendingAuctions) {
-            oldNewOutputCounter.addValue(1L);
+            oldNewOutputCounter.inc();
             c.output(KV.of(pendingAuction, newPerson));
           }
           auctionsState.clear();
         }
         // Also deal with any new auctions.
         for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
-          newAuctionCounter.addValue(1L);
-          newNewOutputCounter.addValue(1L);
+          newAuctionCounter.inc();
+          newNewOutputCounter.inc();
           c.output(KV.of(newAuction, newPerson));
         }
         // Remember this person for any future auctions.
@@ -293,17 +288,17 @@ public class Query3 extends NexmarkQuery {
         pendingAuctions = new ArrayList<>();
       }
       for (Auction newAuction : c.element().getValue().getAll(AUCTION_TAG)) {
-        newAuctionCounter.addValue(1L);
+        newAuctionCounter.inc();
         pendingAuctions.add(newAuction);
       }
       auctionsState.write(pendingAuctions);
     }
-  @OnTimer(PERSON_STATE_EXPIRING)
-  public void onTimerCallback(
-      OnTimerContext context,
-      @StateId(PERSON) ValueState<Person> personState) {
-      personState.clear();
-  }
 
+    @OnTimer(PERSON_STATE_EXPIRING)
+    public void onTimerCallback(
+        OnTimerContext context,
+        @StateId(PERSON) ValueState<Person> personState) {
+        personState.clear();
+    }
   }
 }

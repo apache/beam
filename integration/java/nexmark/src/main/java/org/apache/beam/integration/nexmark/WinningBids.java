@@ -40,11 +40,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -323,56 +323,52 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     // Find the highest price valid bid for each closed auction.
     return
-        // Join auctions and bids.
-        KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
-            .and(NexmarkQuery.BID_TAG, bidsByAuctionId)
-            .apply(CoGroupByKey.<Long>create())
+      // Join auctions and bids.
+      KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
+        .and(NexmarkQuery.BID_TAG, bidsByAuctionId)
+        .apply(CoGroupByKey.<Long>create())
+        // Filter and select.
+        .apply(name + ".Join",
+          ParDo.of(new DoFn<KV<Long, CoGbkResult>, AuctionBid>() {
+            private final Counter noAuctionCounter = Metrics.counter(name, "noAuction");
+            private final Counter underReserveCounter = Metrics.counter(name, "underReserve");
+            private final Counter noValidBidsCounter = Metrics.counter(name, "noValidBids");
 
-            // Filter and select.
-            .apply(name + ".Join",
-                ParDo.of(new DoFn<KV<Long, CoGbkResult>, AuctionBid>() {
-                      final Aggregator<Long, Long> noAuctionCounter =
-                          createAggregator("noAuction", Sum.ofLongs());
-                      final Aggregator<Long, Long> underReserveCounter =
-                          createAggregator("underReserve", Sum.ofLongs());
-                      final Aggregator<Long, Long> noValidBidsCounter =
-                          createAggregator("noValidBids", Sum.ofLongs());
+            @ProcessElement
+            public void processElement(ProcessContext c) {
+              Auction auction =
+                  c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
+              if (auction == null) {
+                // We have bids without a matching auction. Give up.
+                noAuctionCounter.inc();
+                return;
+              }
+              // Find the current winning bid for auction.
+              // The earliest bid with the maximum price above the reserve wins.
+              Bid bestBid = null;
+              for (Bid bid : c.element().getValue().getAll(NexmarkQuery.BID_TAG)) {
+                // Bids too late for their auction will have been
+                // filtered out by the window merge function.
+                checkState(bid.dateTime < auction.expires);
+                if (bid.price < auction.reserve) {
+                  // Bid price is below auction reserve.
+                  underReserveCounter.inc();
+                  continue;
+                }
 
-
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        Auction auction =
-                            c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
-                        if (auction == null) {
-                          // We have bids without a matching auction. Give up.
-                          noAuctionCounter.addValue(1L);
-                          return;
-                        }
-                        // Find the current winning bid for auction.
-                        // The earliest bid with the maximum price above the reserve wins.
-                        Bid bestBid = null;
-                        for (Bid bid : c.element().getValue().getAll(NexmarkQuery.BID_TAG)) {
-                          // Bids too late for their auction will have been
-                          // filtered out by the window merge function.
-                          checkState(bid.dateTime < auction.expires);
-                          if (bid.price < auction.reserve) {
-                            // Bid price is below auction reserve.
-                            underReserveCounter.addValue(1L);
-                            continue;
-                          }
-
-                          if (bestBid == null
-                              || Bid.PRICE_THEN_DESCENDING_TIME.compare(bid, bestBid) > 0) {
-                            bestBid = bid;
-                          }
-                        }
-                        if (bestBid == null) {
-                          // We don't have any valid bids for auction.
-                          noValidBidsCounter.addValue(1L);
-                          return;
-                        }
-                        c.output(new AuctionBid(auction, bestBid));
-                      }
-                    }));
+                if (bestBid == null
+                    || Bid.PRICE_THEN_DESCENDING_TIME.compare(bid, bestBid) > 0) {
+                  bestBid = bid;
+                }
+              }
+              if (bestBid == null) {
+                // We don't have any valid bids for auction.
+                noValidBidsCounter.inc();
+                return;
+              }
+              c.output(new AuctionBid(auction, bestBid));
+            }
+          }
+        ));
   }
 }

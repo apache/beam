@@ -34,12 +34,12 @@ import org.apache.beam.integration.nexmark.model.Done;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterEach;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -184,196 +184,189 @@ public class Query10 extends NexmarkQuery {
   private PCollection<Done> applyTyped(PCollection<Event> events) {
     final int numLogShards = maxNumWorkers * NUM_SHARDS_PER_WORKER;
 
-    return events.apply(name + ".ShardEvents",
-            ParDo.of(new DoFn<Event, KV<String, Event>>() {
-                      final Aggregator<Long, Long> lateCounter =
-                          createAggregator("actuallyLateEvent", Sum.ofLongs());
-                      final Aggregator<Long, Long> onTimeCounter =
-                          createAggregator("actuallyOnTimeEvent", Sum.ofLongs());
+    return events
+      .apply(name + ".ShardEvents",
+        ParDo.of(new DoFn<Event, KV<String, Event>>() {
+          private final Counter lateCounter = Metrics.counter(name , "actuallyLateEvent");
+          private final Counter onTimeCounter = Metrics.counter(name , "onTimeCounter");
 
-                      @ProcessElement
-                      public void processElement(ProcessContext c) {
-                        if (c.element().hasAnnotation("LATE")) {
-                          lateCounter.addValue(1L);
-                          LOG.error("Observed late: %s", c.element());
-                        } else {
-                          onTimeCounter.addValue(1L);
-                        }
-                        int shardNum = (int) Math.abs((long) c.element().hashCode() % numLogShards);
-                        String shard = String.format("shard-%05d-of-%05d", shardNum, numLogShards);
-                        c.output(KV.of(shard, c.element()));
-                      }
-                    }))
-        .apply(name + ".WindowEvents",
-                Window.<KV<String, Event>>into(
-            FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
-            .triggering(AfterEach.inOrder(
-                Repeatedly
-                    .forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents))
-                    .orFinally(AfterWatermark.pastEndOfWindow()),
-                Repeatedly.forever(
-                    AfterFirst.of(AfterPane.elementCountAtLeast(configuration.maxLogEvents),
-                        AfterProcessingTime.pastFirstElementInPane()
-                                           .plusDelayOf(LATE_BATCHING_PERIOD)))))
-            .discardingFiredPanes()
-            // Use a 1 day allowed lateness so that any forgotten hold will stall the
-            // pipeline for that period and be very noticeable.
-            .withAllowedLateness(Duration.standardDays(1)))
-        .apply(name + ".GroupByKey", GroupByKey.<String, Event>create())
-        .apply(name + ".CheckForLateEvents",
-            ParDo.of(new DoFn<KV<String, Iterable<Event>>,
-                     KV<String, Iterable<Event>>>() {
-                   final Aggregator<Long, Long> earlyCounter =
-                       createAggregator("earlyShard", Sum.ofLongs());
-                   final Aggregator<Long, Long> onTimeCounter =
-                       createAggregator("onTimeShard", Sum.ofLongs());
-                   final Aggregator<Long, Long> lateCounter =
-                       createAggregator("lateShard", Sum.ofLongs());
-                   final Aggregator<Long, Long> unexpectedLatePaneCounter =
-                       createAggregator("ERROR_unexpectedLatePane", Sum.ofLongs());
-                   final Aggregator<Long, Long> unexpectedOnTimeElementCounter =
-                       createAggregator("ERROR_unexpectedOnTimeElement", Sum.ofLongs());
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            if (c.element().hasAnnotation("LATE")) {
+              lateCounter.inc();
+              LOG.error("Observed late: %s", c.element());
+            } else {
+              onTimeCounter.inc();
+            }
+            int shardNum = (int) Math.abs((long) c.element().hashCode() % numLogShards);
+            String shard = String.format("shard-%05d-of-%05d", shardNum, numLogShards);
+            c.output(KV.of(shard, c.element()));
+          }
+        }))
+      .apply(name + ".WindowEvents",
+        Window.<KV<String, Event>>into(
+          FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
+          .triggering(AfterEach.inOrder(
+              Repeatedly
+                  .forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents))
+                  .orFinally(AfterWatermark.pastEndOfWindow()),
+              Repeatedly.forever(
+                  AfterFirst.of(AfterPane.elementCountAtLeast(configuration.maxLogEvents),
+                      AfterProcessingTime.pastFirstElementInPane()
+                                         .plusDelayOf(LATE_BATCHING_PERIOD)))))
+          .discardingFiredPanes()
+          // Use a 1 day allowed lateness so that any forgotten hold will stall the
+          // pipeline for that period and be very noticeable.
+          .withAllowedLateness(Duration.standardDays(1)))
+      .apply(name + ".GroupByKey", GroupByKey.<String, Event>create())
+      .apply(name + ".CheckForLateEvents",
+        ParDo.of(new DoFn<KV<String, Iterable<Event>>,
+                 KV<String, Iterable<Event>>>() {
+          private final Counter earlyCounter = Metrics.counter(name , "earlyShard");
+          private final Counter onTimeCounter = Metrics.counter(name , "onTimeShard");
+          private final Counter lateCounter = Metrics.counter(name , "lateShard");
+          private final Counter unexpectedLatePaneCounter =
+            Metrics.counter(name , "ERROR_unexpectedLatePane");
+          private final Counter unexpectedOnTimeElementCounter =
+            Metrics.counter(name , "ERROR_unexpectedOnTimeElement");
 
-                   @ProcessElement
-                   public void processElement(ProcessContext c, BoundedWindow window) {
-                     int numLate = 0;
-                     int numOnTime = 0;
-                     for (Event event : c.element().getValue()) {
-                       if (event.hasAnnotation("LATE")) {
-                         numLate++;
-                       } else {
-                         numOnTime++;
-                       }
-                     }
-                     String shard = c.element().getKey();
-                     LOG.error(
-                         "%s with timestamp %s has %d actually late and %d on-time "
-                             + "elements in pane %s for window %s",
-                         shard, c.timestamp(), numLate, numOnTime, c.pane(),
-                         window.maxTimestamp());
-                     if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
-                       if (numLate == 0) {
-                         LOG.error(
-                             "ERROR! No late events in late pane for %s", shard);
-                         unexpectedLatePaneCounter.addValue(1L);
-                       }
-                       if (numOnTime > 0) {
-                         LOG.error(
-                             "ERROR! Have %d on-time events in late pane for %s",
-                             numOnTime, shard);
-                         unexpectedOnTimeElementCounter.addValue(1L);
-                       }
-                       lateCounter.addValue(1L);
-                     } else if (c.pane().getTiming() == PaneInfo.Timing.EARLY) {
-                       if (numOnTime + numLate < configuration.maxLogEvents) {
-                         LOG.error(
-                             "ERROR! Only have %d events in early pane for %s",
-                             numOnTime + numLate, shard);
-                       }
-                       earlyCounter.addValue(1L);
-                     } else {
-                       onTimeCounter.addValue(1L);
-                     }
-                     c.output(c.element());
-                   }
-                 }))
-        .apply(name + ".UploadEvents",
-            ParDo.of(new DoFn<KV<String, Iterable<Event>>,
-                     KV<Void, OutputFile>>() {
-                   final Aggregator<Long, Long> savedFileCounter =
-                       createAggregator("savedFile", Sum.ofLongs());
-                   final Aggregator<Long, Long> writtenRecordsCounter =
-                       createAggregator("writtenRecords", Sum.ofLongs());
+          @ProcessElement
+          public void processElement(ProcessContext c, BoundedWindow window) {
+            int numLate = 0;
+            int numOnTime = 0;
+            for (Event event : c.element().getValue()) {
+              if (event.hasAnnotation("LATE")) {
+                numLate++;
+              } else {
+                numOnTime++;
+              }
+            }
+            String shard = c.element().getKey();
+            LOG.error(
+                "%s with timestamp %s has %d actually late and %d on-time "
+                    + "elements in pane %s for window %s",
+                shard, c.timestamp(), numLate, numOnTime, c.pane(),
+                window.maxTimestamp());
+            if (c.pane().getTiming() == PaneInfo.Timing.LATE) {
+              if (numLate == 0) {
+                LOG.error(
+                    "ERROR! No late events in late pane for %s", shard);
+                unexpectedLatePaneCounter.inc();
+              }
+              if (numOnTime > 0) {
+                LOG.error(
+                    "ERROR! Have %d on-time events in late pane for %s",
+                    numOnTime, shard);
+                unexpectedOnTimeElementCounter.inc();
+              }
+              lateCounter.inc();
+            } else if (c.pane().getTiming() == PaneInfo.Timing.EARLY) {
+              if (numOnTime + numLate < configuration.maxLogEvents) {
+                LOG.error(
+                    "ERROR! Only have %d events in early pane for %s",
+                    numOnTime + numLate, shard);
+              }
+              earlyCounter.inc();
+            } else {
+              onTimeCounter.inc();
+            }
+            c.output(c.element());
+          }
+        }))
+      .apply(name + ".UploadEvents",
+        ParDo.of(new DoFn<KV<String, Iterable<Event>>,
+                 KV<Void, OutputFile>>() {
+          private final Counter savedFileCounter = Metrics.counter(name , "savedFile");
+          private final Counter writtenRecordsCounter = Metrics.counter(name , "writtenRecords");
 
-                   @ProcessElement
-                   public void processElement(ProcessContext c, BoundedWindow window)
-                           throws IOException {
-                     String shard = c.element().getKey();
-                     GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
-                     OutputFile outputFile = outputFileFor(window, shard, c.pane());
-                     LOG.error(
-                         "Writing %s with record timestamp %s, window timestamp %s, pane %s",
-                         shard, c.timestamp(), window.maxTimestamp(), c.pane());
-                     if (outputFile.filename != null) {
-                       LOG.error("Beginning write to '%s'", outputFile.filename);
-                       int n = 0;
-                       try (OutputStream output =
-                                Channels.newOutputStream(openWritableGcsFile(options, outputFile
-                                    .filename))) {
-                         for (Event event : c.element().getValue()) {
-                           Event.CODER.encode(event, output, Coder.Context.OUTER);
-                           writtenRecordsCounter.addValue(1L);
-                           if (++n % 10000 == 0) {
-                             LOG.error("So far written %d records to '%s'", n,
-                                 outputFile.filename);
-                           }
-                         }
-                       }
-                       LOG.error("Written all %d records to '%s'", n, outputFile.filename);
-                     }
-                     savedFileCounter.addValue(1L);
-                     c.output(KV.<Void, OutputFile>of(null, outputFile));
-                   }
-                 }))
-        // Clear fancy triggering from above.
-        .apply(name + ".WindowLogFiles", Window.<KV<Void, OutputFile>>into(
-            FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
-            .triggering(AfterWatermark.pastEndOfWindow())
-            // We expect no late data here, but we'll assume the worst so we can detect any.
-            .withAllowedLateness(Duration.standardDays(1))
-            .discardingFiredPanes())
+            @ProcessElement
+            public void processElement(ProcessContext c, BoundedWindow window)
+                    throws IOException {
+              String shard = c.element().getKey();
+              GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
+              OutputFile outputFile = outputFileFor(window, shard, c.pane());
+              LOG.error(
+                  "Writing %s with record timestamp %s, window timestamp %s, pane %s",
+                  shard, c.timestamp(), window.maxTimestamp(), c.pane());
+              if (outputFile.filename != null) {
+                LOG.error("Beginning write to '%s'", outputFile.filename);
+                int n = 0;
+                try (OutputStream output =
+                         Channels.newOutputStream(openWritableGcsFile(options, outputFile
+                             .filename))) {
+                  for (Event event : c.element().getValue()) {
+                    Event.CODER.encode(event, output, Coder.Context.OUTER);
+                    writtenRecordsCounter.inc();
+                    if (++n % 10000 == 0) {
+                      LOG.error("So far written %d records to '%s'", n,
+                          outputFile.filename);
+                    }
+                  }
+                }
+                LOG.error("Written all %d records to '%s'", n, outputFile.filename);
+              }
+              savedFileCounter.inc();
+              c.output(KV.<Void, OutputFile>of(null, outputFile));
+            }
+          }))
+      // Clear fancy triggering from above.
+      .apply(name + ".WindowLogFiles", Window.<KV<Void, OutputFile>>into(
+        FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec)))
+        .triggering(AfterWatermark.pastEndOfWindow())
+        // We expect no late data here, but we'll assume the worst so we can detect any.
+        .withAllowedLateness(Duration.standardDays(1))
+        .discardingFiredPanes())
       // this GroupByKey allows to have one file per window
       .apply(name + ".GroupByKey2", GroupByKey.<Void, OutputFile>create())
-        .apply(name + ".Index",
-            ParDo.of(new DoFn<KV<Void, Iterable<OutputFile>>, Done>() {
-                   final Aggregator<Long, Long> unexpectedLateCounter =
-                       createAggregator("ERROR_unexpectedLate", Sum.ofLongs());
-                   final Aggregator<Long, Long> unexpectedEarlyCounter =
-                       createAggregator("ERROR_unexpectedEarly", Sum.ofLongs());
-                   final Aggregator<Long, Long> unexpectedIndexCounter =
-                       createAggregator("ERROR_unexpectedIndex", Sum.ofLongs());
-                   final Aggregator<Long, Long> finalizedCounter =
-                       createAggregator("indexed", Sum.ofLongs());
+      .apply(name + ".Index",
+        ParDo.of(new DoFn<KV<Void, Iterable<OutputFile>>, Done>() {
+          private final Counter unexpectedLateCounter =
+            Metrics.counter(name , "ERROR_unexpectedLate");
+          private final Counter unexpectedEarlyCounter =
+              Metrics.counter(name , "ERROR_unexpectedEarly");
+          private final Counter unexpectedIndexCounter =
+              Metrics.counter(name , "ERROR_unexpectedIndex");
+          private final Counter finalizedCounter = Metrics.counter(name , "indexed");
 
-                   @ProcessElement
-                   public void processElement(ProcessContext c, BoundedWindow window)
-                           throws IOException {
-                     if (c.pane().getTiming() == Timing.LATE) {
-                       unexpectedLateCounter.addValue(1L);
-                       LOG.error("ERROR! Unexpected LATE pane: %s", c.pane());
-                     } else if (c.pane().getTiming() == Timing.EARLY) {
-                       unexpectedEarlyCounter.addValue(1L);
-                       LOG.error("ERROR! Unexpected EARLY pane: %s", c.pane());
-                     } else if (c.pane().getTiming() == Timing.ON_TIME
-                         && c.pane().getIndex() != 0) {
-                       unexpectedIndexCounter.addValue(1L);
-                       LOG.error("ERROR! Unexpected ON_TIME pane index: %s", c.pane());
-                     } else {
-                       GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
-                       LOG.error(
-                           "Index with record timestamp %s, window timestamp %s, pane %s",
-                           c.timestamp(), window.maxTimestamp(), c.pane());
+          @ProcessElement
+          public void processElement(ProcessContext c, BoundedWindow window)
+                  throws IOException {
+            if (c.pane().getTiming() == Timing.LATE) {
+              unexpectedLateCounter.inc();
+              LOG.error("ERROR! Unexpected LATE pane: %s", c.pane());
+            } else if (c.pane().getTiming() == Timing.EARLY) {
+              unexpectedEarlyCounter.inc();
+              LOG.error("ERROR! Unexpected EARLY pane: %s", c.pane());
+            } else if (c.pane().getTiming() == Timing.ON_TIME
+                && c.pane().getIndex() != 0) {
+              unexpectedIndexCounter.inc();
+              LOG.error("ERROR! Unexpected ON_TIME pane index: %s", c.pane());
+            } else {
+              GcsOptions options = c.getPipelineOptions().as(GcsOptions.class);
+              LOG.error(
+                  "Index with record timestamp %s, window timestamp %s, pane %s",
+                  c.timestamp(), window.maxTimestamp(), c.pane());
 
-                       @Nullable String filename = indexPathFor(window);
-                       if (filename != null) {
-                         LOG.error("Beginning write to '%s'", filename);
-                         int n = 0;
-                         try (OutputStream output =
-                                  Channels.newOutputStream(
-                                      openWritableGcsFile(options, filename))) {
-                           for (OutputFile outputFile : c.element().getValue()) {
-                             output.write(outputFile.toString().getBytes());
-                             n++;
-                           }
-                         }
-                         LOG.error("Written all %d lines to '%s'", n, filename);
-                       }
-                       c.output(
-                           new Done("written for timestamp " + window.maxTimestamp()));
-                       finalizedCounter.addValue(1L);
-                     }
-                   }
-                 }));
+              @Nullable String filename = indexPathFor(window);
+              if (filename != null) {
+                LOG.error("Beginning write to '%s'", filename);
+                int n = 0;
+                try (OutputStream output =
+                         Channels.newOutputStream(
+                             openWritableGcsFile(options, filename))) {
+                  for (OutputFile outputFile : c.element().getValue()) {
+                    output.write(outputFile.toString().getBytes());
+                    n++;
+                  }
+                }
+                LOG.error("Written all %d lines to '%s'", n, filename);
+              }
+              c.output(
+                  new Done("written for timestamp " + window.maxTimestamp()));
+              finalizedCounter.inc();
+            }
+          }
+        }));
   }
 
   @Override
