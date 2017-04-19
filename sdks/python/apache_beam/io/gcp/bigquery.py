@@ -607,6 +607,10 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def _get_source_table_location(self):
     tr = self.source.table_reference
+    if tr is None:
+      # TODO: implement location retrieval for query sources
+      return
+
     if tr.projectId is None:
       source_project_id = self.executing_project
     else:
