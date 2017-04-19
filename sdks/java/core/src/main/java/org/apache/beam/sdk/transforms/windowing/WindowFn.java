@@ -124,19 +124,6 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract Coder<W> windowCoder();
 
   /**
-   * Returns the window of the side input corresponding to the given window of
-   * the main input. If not overridden, will use the window returned by calling
-   * {@link WindowMappingFn#getSideInputWindow(BoundedWindow)} on the result of
-   * {@link #getDefaultWindowMappingFn()}.
-   *
-   * @deprecated see {@link #getDefaultWindowMappingFn()}
-   */
-  @Deprecated
-  public W getSideInputWindow(BoundedWindow window) {
-    return getDefaultWindowMappingFn().getSideInputWindow(window);
-  }
-
-  /**
    * Returns the default {@link WindowMappingFn} to use to map main input windows to side input
    * windows. This should accept arbitrary main input windows, and produce a {@link BoundedWindow}
    * that can be produced by this {@link WindowFn}.

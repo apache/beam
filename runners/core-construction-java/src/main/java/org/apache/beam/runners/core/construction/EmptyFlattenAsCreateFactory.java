@@ -21,11 +21,12 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -49,20 +50,15 @@ public class EmptyFlattenAsCreateFactory<T>
   private EmptyFlattenAsCreateFactory() {}
 
   @Override
-  public PTransform<PCollectionList<T>, PCollection<T>> getReplacementTransform(
-      Flatten.PCollections<T> transform) {
-    return new CreateEmptyFromList<>();
-  }
-
-  @Override
-  public PCollectionList<T> getInput(
-      Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+  public PTransformReplacement<PCollectionList<T>, PCollection<T>> getReplacementTransform(
+      AppliedPTransform<PCollectionList<T>, PCollection<T>, PCollections<T>> transform) {
     checkArgument(
-        inputs.isEmpty(),
+        transform.getInputs().isEmpty(),
         "Unexpected nonempty input %s for %s",
-        inputs,
+        transform.getInputs(),
         getClass().getSimpleName());
-    return PCollectionList.empty(p);
+    return PTransformReplacement.of(
+        PCollectionList.<T>empty(transform.getPipeline()), new CreateEmptyFromList<T>());
   }
 
   @Override

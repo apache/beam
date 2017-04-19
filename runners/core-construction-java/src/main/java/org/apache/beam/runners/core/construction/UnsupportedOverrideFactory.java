@@ -19,8 +19,8 @@
 package org.apache.beam.runners.core.construction;
 
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -29,8 +29,8 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} that throws an exception when a call to
- * {@link #getReplacementTransform(PTransform)} is made. This is for {@link PTransform PTransforms}
- * which are not supported by a runner.
+ * {@link #getReplacementTransform(AppliedPTransform)} is made. This is for
+ * {@link PTransform PTransforms} which are not supported by a runner.
  */
 public final class UnsupportedOverrideFactory<
         InputT extends PInput,
@@ -54,12 +54,8 @@ public final class UnsupportedOverrideFactory<
   }
 
   @Override
-  public PTransform<InputT, OutputT> getReplacementTransform(TransformT transform) {
-    throw new UnsupportedOperationException(message);
-  }
-
-  @Override
-  public InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
+  public PTransformReplacement<InputT, OutputT> getReplacementTransform(
+      AppliedPTransform<InputT, OutputT, TransformT> transform) {
     throw new UnsupportedOperationException(message);
   }
 

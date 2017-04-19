@@ -805,8 +805,7 @@ class Read(ptransform.PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    else:
-      return self.source.coder
+    return self.source.coder
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
@@ -945,8 +944,8 @@ class _WriteKeyedBundleDoFn(core.DoFn):
   def process(self, element, init_result):
     bundle = element
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
-    for element in bundle[1]:  # values
-      writer.write(element)
+    for e in bundle[1]:  # values
+      writer.write(e)
     return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 

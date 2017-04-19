@@ -78,7 +78,15 @@ def create_runner(runner_name):
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
-    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    try:
+      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    except ImportError:
+      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+        raise ImportError(
+            'Google Cloud Dataflow runner not available, '
+            'please install apache_beam[gcp]')
+      else:
+        raise
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
@@ -103,8 +111,7 @@ def group_by_key_input_visitor():
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam import GroupByKey, GroupByKeyOnly
       from apache_beam import typehints
-      if (isinstance(transform_node.transform, GroupByKey) or
-          isinstance(transform_node.transform, GroupByKeyOnly)):
+      if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
         pcoll = transform_node.inputs[0]
         input_type = pcoll.element_type
         # If input_type is not specified, then treat it as `Any`.
@@ -318,8 +325,8 @@ class PValueCache(object):
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
-        # This is an undeclared, empty side output of a DoFn executed
-        # in the local runner before this side output referenced.
+        # This is an undeclared, empty output of a DoFn executed
+        # in the local runner before this output was referenced.
         return []
       else:
         raise

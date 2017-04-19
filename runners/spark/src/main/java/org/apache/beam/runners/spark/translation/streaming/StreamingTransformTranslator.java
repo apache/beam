@@ -385,7 +385,7 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         final String stepName = context.getCurrentTransform().getFullName();
-        if (transform.getSideOutputTags().size() == 0) {
+        if (transform.getAdditionalOutputTags().size() == 0) {
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
               dStream.transformToPair(
                   new Function<

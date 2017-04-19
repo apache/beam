@@ -35,7 +35,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
@@ -90,12 +89,11 @@ public class TestPipelineTest implements Serializable {
       String stringOptions =
           mapper.writeValueAsString(
               new String[] {
-                "--runner=org.apache.beam.sdk.testing.CrashingRunner", "--project=testProject"
+                "--runner=org.apache.beam.sdk.testing.CrashingRunner"
               });
       System.getProperties().put("beamTestPipelineOptions", stringOptions);
-      GcpOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+      PipelineOptions options = TestPipeline.testingPipelineOptions();
       assertEquals(CrashingRunner.class, options.getRunner());
-      assertEquals(options.getProject(), "testProject");
     }
 
     @Test

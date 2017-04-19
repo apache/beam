@@ -46,6 +46,7 @@ import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.ValueWithRecordId;
@@ -244,14 +245,11 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         implements PTransformOverrideFactory<
             PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
       @Override
-      public PTransform<PBegin, PCollection<T>> getReplacementTransform(
-          BoundedReadFromUnboundedSource<T> transform) {
-        return new AdaptedBoundedAsUnbounded<>(transform);
-      }
-
-      @Override
-      public PBegin getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-        return p.begin();
+      public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+          AppliedPTransform<PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> transform) {
+        return PTransformReplacement.of(
+            transform.getPipeline().begin(),
+            new AdaptedBoundedAsUnbounded<T>(transform.getTransform()));
       }
 
       @Override

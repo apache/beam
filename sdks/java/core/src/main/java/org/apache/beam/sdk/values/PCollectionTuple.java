@@ -37,8 +37,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * {@link PTransform} taking
  * or producing multiple PCollection inputs or outputs that can be of
  * different types, for instance a
- * {@link ParDo} with side
- * outputs.
+ * {@link ParDo} with multiple outputs.
  *
  * <p>A {@link PCollectionTuple} can be created and accessed like follows:
  * <pre> {@code

@@ -184,12 +184,12 @@ logging.getLogger('dill').setLevel(logging.WARN)
 def dumps(o, enable_trace=True):
   try:
     s = dill.dumps(o)
-  except Exception as e:      # pylint: disable=broad-except
+  except Exception:      # pylint: disable=broad-except
     if enable_trace:
       dill.dill._trace(True)  # pylint: disable=protected-access
       s = dill.dumps(o)
     else:
-      raise e
+      raise
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 
@@ -210,12 +210,12 @@ def loads(encoded, enable_trace=True):
 
   try:
     return dill.loads(s)
-  except Exception as e:          # pylint: disable=broad-except
+  except Exception:          # pylint: disable=broad-except
     if enable_trace:
       dill.dill._trace(True)   # pylint: disable=protected-access
       return dill.loads(s)
     else:
-      raise e
+      raise
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 

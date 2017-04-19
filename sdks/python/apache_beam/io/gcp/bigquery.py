@@ -367,6 +367,15 @@ class BigQuerySource(dataflow_io.NativeSource):
       (3) both a table and a query is specified.
     """
 
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     if table is not None and query is not None:
       raise ValueError('Both a BigQuery table and a query were specified.'
                        ' Please specify only one of these.')
@@ -467,6 +476,16 @@ class BigQuerySink(dataflow_io.NativeSink):
       ValueError: if the table reference as a string does not match the expected
       format.
     """
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     self.table_reference = _parse_table_reference(table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
     if isinstance(schema, basestring):
@@ -948,13 +967,12 @@ class BigQueryWrapper(object):
           % (project_id, dataset_id, table_id))
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
-    else:
-      # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
-      # the table before this point.
-      return self._create_table(project_id=project_id,
-                                dataset_id=dataset_id,
-                                table_id=table_id,
-                                schema=schema or found_table.schema)
+    # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
+    # the table before this point.
+    return self._create_table(project_id=project_id,
+                              dataset_id=dataset_id,
+                              table_id=table_id,
+                              schema=schema or found_table.schema)
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):

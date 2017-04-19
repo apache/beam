@@ -265,7 +265,7 @@ public class BoundedReadEvaluatorFactoryTest {
   public void boundedSourceInMemoryTransformEvaluatorShardsOfSource() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Long>> splits =
-        source.splitIntoBundles(source.getEstimatedSizeBytes(options) / 2, options);
+        source.split(source.getEstimatedSizeBytes(options) / 2, options);
 
     UncommittedBundle<BoundedSourceShard<Long>> rootBundle = bundleFactory.createRootBundle();
     for (BoundedSource<Long> split : splits) {
@@ -365,7 +365,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public List<? extends OffsetBasedSource<T>> splitIntoBundles(
+    public List<? extends OffsetBasedSource<T>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       return ImmutableList.of(this);
     }

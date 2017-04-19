@@ -429,6 +429,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   /**
    * A Primitive {@link PTransform} that assigns windows to elements based on a {@link WindowFn}.
+   * Pipeline authors should use {@link Window} directly instead.
    */
   public static class Assign<T> extends PTransform<PCollection<T>, PCollection<T>> {
     private final Window<T> original;

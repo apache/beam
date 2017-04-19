@@ -102,6 +102,7 @@
                     <spark.ui.enabled>false</spark.ui.enabled>
                     <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
                   </systemPropertyVariables>
+                  <threadCount>4</threadCount>
                 </configuration>
               </execution>
             </executions>
@@ -196,7 +197,6 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
-      <version>1.9</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

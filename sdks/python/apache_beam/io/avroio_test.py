@@ -142,10 +142,10 @@ class TestAvro(unittest.TestCase):
           (split.source, split.start_position, split.stop_position)
           for split in splits
       ]
-      source_test_utils.assertSourcesEqualReferenceSource((source, None, None),
-                                                          sources_info)
+      source_test_utils.assert_sources_equal_reference_source(
+          (source, None, None), sources_info)
     else:
-      read_records = source_test_utils.readFromSource(source, None, None)
+      read_records = source_test_utils.read_from_source(source, None, None)
       self.assertItemsEqual(expected_result, read_records)
 
   def test_read_without_splitting(self):
@@ -228,7 +228,7 @@ class TestAvro(unittest.TestCase):
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
     source = AvroSource(file_name)
-    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reantrant_with_splitting(self):
     file_name = self._write_data()
@@ -236,7 +236,7 @@ class TestAvro(unittest.TestCase):
     splits = [
         split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
-    source_test_utils.assertReentrantReadsSucceed(
+    source_test_utils.assert_reentrant_reads_succeed(
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_read_without_splitting_multiple_blocks(self):
@@ -322,7 +322,7 @@ class TestAvro(unittest.TestCase):
       splits = [split
                 for split in source.split(desired_bundle_size=float('inf'))]
       assert len(splits) == 1
-      source_test_utils.assertSplitAtFractionExhaustive(splits[0].source)
+      source_test_utils.assert_split_at_fraction_exhaustive(splits[0].source)
     finally:
       avro.datafile.SYNC_INTERVAL = old_sync_interval
 
@@ -343,7 +343,7 @@ class TestAvro(unittest.TestCase):
 
     source = AvroSource(corrupted_file_name)
     with self.assertRaises(ValueError) as exn:
-      source_test_utils.readFromSource(source, None, None)
+      source_test_utils.read_from_source(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
 
   def test_source_transform(self):

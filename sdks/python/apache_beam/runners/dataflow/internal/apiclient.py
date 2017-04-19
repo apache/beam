@@ -233,6 +233,7 @@ class Environment(object):
       options_dict = {k: v
                       for k, v in sdk_pipeline_options.iteritems()
                       if v is not None}
+      options_dict['_options_id'] = 0  # TODO(BEAM-1999): Remove.
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -436,10 +437,10 @@ class DataflowApplicationClient(object):
 
     if not template_location:
       return self.submit_job_description(job)
-    else:
-      logging.info('A template was just created at location %s',
-                   template_location)
-      return None
+
+    logging.info('A template was just created at location %s',
+                 template_location)
+    return None
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""

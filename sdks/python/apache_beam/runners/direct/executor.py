@@ -36,7 +36,7 @@ class ExecutorService(object):
 
   class CallableTask(object):
 
-    def __call__(self):
+    def call(self):
       pass
 
     @property
@@ -83,7 +83,7 @@ class ExecutorService(object):
           try:
             if not self.shutdown_requested:
               self._update_name(task)
-              task()
+              task.call()
               self._update_name()
           finally:
             self.queue.task_done()
@@ -240,13 +240,6 @@ class _CompletionCallback(object):
         _ExecutorServiceParallelExecutor.ExecutorUpdate(None, exception))
 
 
-class _TimerCompletionCallback(_CompletionCallback):
-
-  def __init__(self, evaluation_context, all_updates, timers):
-    super(_TimerCompletionCallback, self).__init__(
-        evaluation_context, all_updates, timers)
-
-
 class TransformExecutor(ExecutorService.CallableTask):
   """TransformExecutor will evaluate a bundle using an applied ptransform.
 
@@ -268,7 +261,7 @@ class TransformExecutor(ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
 
-  def __call__(self):
+  def call(self):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
     metrics_container = MetricsContainer(self._applied_transform.full_label)
@@ -299,10 +292,10 @@ class TransformExecutor(ExecutorService.CallableTask):
 
       with scoped_metrics_container:
         result = evaluator.finish_bundle()
-        result.metric_updates = metrics_container.get_cumulative()
+        result.logical_metric_updates = metrics_container.get_cumulative()
 
       if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.output_bundles:
+        for uncommitted_bundle in result.uncommitted_output_bundles:
           self._evaluation_context.append_to_cache(
               self._applied_transform, uncommitted_bundle.tag,
               uncommitted_bundle.get_elements_iterable())
@@ -456,7 +449,7 @@ class _ExecutorServiceParallelExecutor(object):
     def name(self):
       return 'monitor'
 
-    def __call__(self):
+    def call(self):
       try:
         update = self._executor.all_updates.poll()
         while update:
@@ -529,7 +522,7 @@ class _ExecutorServiceParallelExecutor(object):
         empty_bundle = (
             self._executor.evaluation_context.create_empty_committed_bundle(
                 applied_ptransform.inputs[0]))
-        timer_completion_callback = _TimerCompletionCallback(
+        timer_completion_callback = _CompletionCallback(
             self._executor.evaluation_context, self._executor.all_updates,
             applied_ptransform)
 

@@ -39,7 +39,7 @@ public class UnboundedTextSource extends UnboundedSource<String, UnboundedSource
   private static final long serialVersionUID = 1L;
 
   @Override
-  public List<? extends UnboundedSource<String, CheckpointMark>> generateInitialSplits(
+  public List<? extends UnboundedSource<String, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.<UnboundedSource<String, CheckpointMark>>singletonList(this);
   }

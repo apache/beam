@@ -47,7 +47,7 @@ public class CollectionSource<T> extends UnboundedSource<T, UnboundedSource.Chec
   }
 
   @Override
-  public List<? extends UnboundedSource<T, CheckpointMark>> generateInitialSplits(
+  public List<? extends UnboundedSource<T, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.singletonList(this);
   }

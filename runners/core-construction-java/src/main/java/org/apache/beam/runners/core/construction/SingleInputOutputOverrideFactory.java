@@ -18,9 +18,7 @@
 
 package org.apache.beam.runners.core.construction;
 
-import com.google.common.collect.Iterables;
 import java.util.Map;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
@@ -28,7 +26,7 @@ import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A {@link PTransformOverrideFactory} which consumes from a {@link PValue} and produces a
- * {@link PValue}. {@link #getInput(Map, Pipeline)} and {@link #mapOutputs(Map, PValue)} are
+ * {@link PValue}. {@link #mapOutputs(Map, PValue)} is
  * implemented.
  */
 public abstract class SingleInputOutputOverrideFactory<
@@ -36,11 +34,6 @@ public abstract class SingleInputOutputOverrideFactory<
         OutputT extends PValue,
         TransformT extends PTransform<InputT, OutputT>>
     implements PTransformOverrideFactory<InputT, OutputT, TransformT> {
-  @Override
-  public final InputT getInput(Map<TupleTag<?>, PValue> inputs, Pipeline p) {
-    return (InputT) Iterables.getOnlyElement(inputs.values());
-  }
-
   @Override
   public final Map<PValue, ReplacementOutput> mapOutputs(
       Map<TupleTag<?>, PValue> outputs, OutputT newOutput) {

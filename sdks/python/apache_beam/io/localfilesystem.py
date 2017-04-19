@@ -93,8 +93,7 @@ class LocalFileSystem(FileSystem):
     raw_file = open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
-    else:
-      return CompressedFile(raw_file, compression_type=compression_type)
+    return CompressedFile(raw_file, compression_type=compression_type)
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):

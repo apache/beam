@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
+import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
 import org.apache.beam.runners.core.StatefulDoFnRunner.CleanupTimer;
 import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,10 +28,12 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -59,7 +63,7 @@ public class DoFnRunners {
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -69,7 +73,7 @@ public class DoFnRunners {
         sideInputReader,
         outputManager,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         aggregatorFactory,
         windowingStrategy);
@@ -86,7 +90,7 @@ public class DoFnRunners {
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
@@ -96,7 +100,7 @@ public class DoFnRunners {
         sideInputReader,
         outputManager,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         stepContext,
         aggregatorFactory,
         windowingStrategy);
@@ -145,5 +149,33 @@ public class DoFnRunners {
         cleanupTimer,
         stateCleaner,
         droppedDueToLateness);
+  }
+
+  public static <InputT, OutputT, RestrictionT>
+  ProcessFnRunner<InputT, OutputT, RestrictionT>
+  newProcessFnRunner(
+      ProcessFn<InputT, OutputT, RestrictionT, ?> fn,
+      PipelineOptions options,
+      Collection<PCollectionView<?>> views,
+      ReadyCheckingSideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      StepContext stepContext,
+      AggregatorFactory aggregatorFactory,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return new ProcessFnRunner<>(
+        simpleRunner(
+            options,
+            fn,
+            sideInputReader,
+            outputManager,
+            mainOutputTag,
+            additionalOutputTags,
+            stepContext,
+            aggregatorFactory,
+            windowingStrategy),
+        views,
+        sideInputReader);
   }
 }

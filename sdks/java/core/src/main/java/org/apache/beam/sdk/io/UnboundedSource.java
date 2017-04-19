@@ -65,7 +65,7 @@ public abstract class UnboundedSource<
    * as possible, but does not have to match exactly.  A low number of splits
    * will limit the amount of parallelism in the source.
    */
-  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> generateInitialSplits(
+  public abstract List<? extends UnboundedSource<OutputT, CheckpointMarkT>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception;
 
   /**
@@ -219,6 +219,19 @@ public abstract class UnboundedSource<
 
     /**
      * Returns a {@link CheckpointMark} representing the progress of this {@code UnboundedReader}.
+     *
+     * <p>If this {@code UnboundedReader} does not support checkpoints, it may return a
+     * CheckpointMark which does nothing, like:
+     *
+     * <pre>{@code
+     * public UnboundedSource.CheckpointMark getCheckpointMark() {
+     *   return new UnboundedSource.CheckpointMark() {
+     *     public void finalizeCheckpoint() throws IOException {
+     *       // nothing to do
+     *     }
+     *   };
+     * }
+     * }</pre>
      *
      * <p>All elements read up until this method is called will be processed together as a bundle.
      * (An element is considered 'read' if it could be returned by a call to {@link #getCurrent}.)

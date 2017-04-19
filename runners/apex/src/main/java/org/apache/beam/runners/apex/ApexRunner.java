@@ -39,6 +39,7 @@ import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.Create;
@@ -258,9 +260,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
             PCollection<InputT>, PCollectionView<OutputT>,
             Combine.GloballyAsSingletonView<InputT, OutputT>> {
       @Override
-      public PTransform<PCollection<InputT>, PCollectionView<OutputT>> getReplacementTransform(
-          GloballyAsSingletonView<InputT, OutputT> transform) {
-        return new StreamingCombineGloballyAsSingletonView<>(transform);
+      public PTransformReplacement<PCollection<InputT>, PCollectionView<OutputT>>
+          getReplacementTransform(
+              AppliedPTransform<
+                      PCollection<InputT>, PCollectionView<OutputT>,
+                      GloballyAsSingletonView<InputT, OutputT>>
+                  transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingCombineGloballyAsSingletonView<>(transform.getTransform()));
       }
     }
   }
@@ -321,9 +329,11 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         extends SingleInputOutputOverrideFactory<
             PCollection<T>, PCollectionView<T>, View.AsSingleton<T>> {
       @Override
-      public PTransform<PCollection<T>, PCollectionView<T>> getReplacementTransform(
-          AsSingleton<T> transform) {
-        return new StreamingViewAsSingleton<>(transform);
+      public PTransformReplacement<PCollection<T>, PCollectionView<T>> getReplacementTransform(
+          AppliedPTransform<PCollection<T>, PCollectionView<T>, AsSingleton<T>> transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingViewAsSingleton<>(transform.getTransform()));
       }
     }
   }
@@ -352,9 +362,13 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         extends SingleInputOutputOverrideFactory<
             PCollection<T>, PCollectionView<Iterable<T>>, View.AsIterable<T>> {
       @Override
-      public PTransform<PCollection<T>, PCollectionView<Iterable<T>>> getReplacementTransform(
-          AsIterable<T> transform) {
-        return new StreamingViewAsIterable<>();
+      public PTransformReplacement<PCollection<T>, PCollectionView<Iterable<T>>>
+          getReplacementTransform(
+              AppliedPTransform<PCollection<T>, PCollectionView<Iterable<T>>, AsIterable<T>>
+                  transform) {
+        return PTransformReplacement.of(
+            PTransformReplacements.getSingletonMainInput(transform),
+            new StreamingViewAsIterable<T>());
       }
     }
   }

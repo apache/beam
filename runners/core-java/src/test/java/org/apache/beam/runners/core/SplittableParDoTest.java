@@ -30,6 +30,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
@@ -51,11 +52,13 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -192,11 +195,6 @@ public class SplittableParDoTest {
 
   // ------------------------------- Tests for ProcessFn ---------------------------------
 
-  enum WindowExplosion {
-    EXPLODE_WINDOWS,
-    DO_NOT_EXPLODE_WINDOWS
-  }
-
   /**
    * A helper for testing {@link SplittableParDo.ProcessFn} on 1 element (but possibly over multiple
    * {@link DoFn.ProcessElement} calls).
@@ -220,9 +218,13 @@ public class SplittableParDoTest {
         int maxOutputsPerBundle,
         Duration maxBundleDuration)
         throws Exception {
+      // The exact windowing strategy doesn't matter in this test, but it should be able to
+      // encode IntervalWindow's because that's what all tests here use.
+      WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
+          (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
       final SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
           new SplittableParDo.ProcessFn<>(
-              fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
+              fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
@@ -287,24 +289,13 @@ public class SplittableParDoTest {
               ElementAndRestriction.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING),
-          WindowExplosion.DO_NOT_EXPLODE_WINDOWS);
+              PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
 
-    void startElement(
-        WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue,
-        WindowExplosion explosion)
+    void startElement(WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue)
         throws Exception {
-      switch (explosion) {
-        case EXPLODE_WINDOWS:
-          tester.processElement(
-              KeyedWorkItems.elementsWorkItem("key", windowedValue.explodeWindows()));
-          break;
-        case DO_NOT_EXPLODE_WINDOWS:
-          tester.processElement(
-              KeyedWorkItems.elementsWorkItem("key", Arrays.asList(windowedValue)));
-          break;
-      }
+      tester.processElement(
+          KeyedWorkItems.elementsWorkItem("key", Collections.singletonList(windowedValue)));
     }
 
     /**
@@ -356,13 +347,13 @@ public class SplittableParDoTest {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      sideOutputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
+      outputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
     }
 
     @Override
-    public <SideOutputT> void sideOutputWindowedValue(
-        TupleTag<SideOutputT> tag,
-        SideOutputT output,
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
@@ -388,46 +379,39 @@ public class SplittableParDoTest {
   }
 
   @Test
-  public void testTrivialProcessFnPropagatesOutputsWindowsAndTimestamp() throws Exception {
-    // Tests that ProcessFn correctly propagates windows and timestamp of the element
+  public void testTrivialProcessFnPropagatesOutputWindowAndTimestamp() throws Exception {
+    // Tests that ProcessFn correctly propagates the window and timestamp of the element
     // inside the KeyedWorkItem.
     // The underlying DoFn is actually monolithic, so this doesn't test splitting.
     DoFn<Integer, String> fn = new ToStringFn();
 
     Instant base = Instant.now();
 
-    IntervalWindow w1 =
+    IntervalWindow w =
         new IntervalWindow(
             base.minus(Duration.standardMinutes(1)), base.plus(Duration.standardMinutes(1)));
-    IntervalWindow w2 =
-        new IntervalWindow(
-            base.minus(Duration.standardMinutes(2)), base.plus(Duration.standardMinutes(2)));
-    IntervalWindow w3 =
-        new IntervalWindow(
-            base.minus(Duration.standardMinutes(3)), base.plus(Duration.standardMinutes(3)));
 
-    for (WindowExplosion explosion : WindowExplosion.values()) {
-      ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
-          new ProcessFnTester<>(
-              base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class),
-              MAX_OUTPUTS_PER_BUNDLE, MAX_BUNDLE_DURATION);
-      tester.startElement(
-          WindowedValue.of(
-              ElementAndRestriction.of(42, new SomeRestriction()),
-              base,
-              Arrays.asList(w1, w2, w3),
-              PaneInfo.ON_TIME_AND_ONLY_FIRING),
-          explosion);
+    ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(SomeRestriction.class),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION);
+    tester.startElement(
+        WindowedValue.of(
+            ElementAndRestriction.of(42, new SomeRestriction()),
+            base,
+            Collections.singletonList(w),
+            PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
-      for (IntervalWindow w : new IntervalWindow[] {w1, w2, w3}) {
-        assertEquals(
-            Arrays.asList(
-                TimestampedValue.of("42a", base),
-                TimestampedValue.of("42b", base),
-                TimestampedValue.of("42c", base)),
-            tester.peekOutputElementsInWindow(w));
-      }
-    }
+    assertEquals(
+        Arrays.asList(
+            TimestampedValue.of("42a", base),
+            TimestampedValue.of("42b", base),
+            TimestampedValue.of("42c", base)),
+        tester.peekOutputElementsInWindow(w));
   }
 
   private static class WatermarkUpdateFn extends DoFn<Instant, String> {

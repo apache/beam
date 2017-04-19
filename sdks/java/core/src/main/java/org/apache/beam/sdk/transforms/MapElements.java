@@ -95,8 +95,8 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    *
    * <pre>{@code
    * PCollection<Integer> wordLengths = words.apply(
-   *     MapElements.via((String word) -> word.length())
-   *         .withOutputType(new TypeDescriptor<Integer>() {});
+   *     MapElements.into(TypeDescriptors.integers())
+   *                .via((String word) -> word.length()));
    * }</pre>
    *
    * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type

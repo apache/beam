@@ -120,13 +120,6 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
-    <Method name="reset" />
-    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
-    <!-- Explicitly handled in implementation. -->
-  </Match>
-
-  <Match>
     <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
     <Method name="readAll" />
     <Bug pattern="EI_EXPOSE_REP"/>

@@ -103,8 +103,8 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    * <p>Example of use in Java 8:
    * <pre>{@code
    * PCollection<String> words = lines.apply(
-   *     FlatMapElements.via((String line) -> Arrays.asList(line.split(" ")))
-   *         .withOutputType(new TypeDescriptor<String>(){});
+   *     FlatMapElements.into(TypeDescriptors.strings())
+   *                    .via((String line) -> Arrays.asList(line.split(" ")))
    * }</pre>
    *
    * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type

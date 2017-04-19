@@ -40,7 +40,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -91,8 +90,8 @@ import org.apache.beam.sdk.values.PDone;
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}). {@link AvroIO.Write#to(FilenamePolicy)} can also be used
- * to specify a custom file naming policy.
+ * {@code "gs://<bucket>/<filepath>"}). {@link AvroIO.Write#to(FileBasedSink.FilenamePolicy)}
+ * can also be used to specify a custom file naming policy.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
@@ -384,7 +383,7 @@ public class AvroIO {
      * Returns a {@link PTransform} that writes to the file(s) specified by the provided
      * {@link FileBasedSink.FilenamePolicy}.
      */
-    public static Bound<GenericRecord> to(FilenamePolicy filenamePolicy) {
+    public static Bound<GenericRecord> to(FileBasedSink.FilenamePolicy filenamePolicy) {
       return new Bound<>(GenericRecord.class).to(filenamePolicy);
     }
 
@@ -517,7 +516,7 @@ public class AvroIO {
       /** An option to indicate if output validation is desired. Default is true. */
       final boolean validate;
       final boolean windowedWrites;
-      FilenamePolicy filenamePolicy;
+      FileBasedSink.FilenamePolicy filenamePolicy;
 
       /**
        * The codec used to encode the blocks in the Avro file. String value drawn from those in
@@ -555,7 +554,7 @@ public class AvroIO {
           SerializableAvroCodecFactory codec,
           Map<String, Object> metadata,
           boolean windowedWrites,
-          FilenamePolicy filenamePolicy) {
+          FileBasedSink.FilenamePolicy filenamePolicy) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -607,7 +606,7 @@ public class AvroIO {
             filenamePolicy);
       }
 
-      public Bound<T> to(FilenamePolicy filenamePolicy) {
+      public Bound<T> to(FileBasedSink.FilenamePolicy filenamePolicy) {
         return new Bound<>(
             name,
             filenamePrefix,

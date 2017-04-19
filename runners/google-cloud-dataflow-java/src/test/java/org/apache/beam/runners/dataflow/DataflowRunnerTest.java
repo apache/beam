@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -57,6 +58,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -65,11 +67,13 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -329,6 +333,26 @@ public class DataflowRunnerTest {
     p
         .apply(TextIO.Read.from(options.getInput()).withoutValidation())
         .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+  }
+
+  /**
+   * Tests that all reads are consumed by at least one {@link PTransform}.
+   */
+  @Test
+  public void testUnconsumedReads() throws IOException {
+    DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
+    RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
+    Pipeline p = buildDataflowPipeline(dataflowOptions);
+    PCollection<String> unconsumed = p.apply(Read.from(options.getInput()).withoutValidation());
+    DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
+    final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
+    p.traverseTopologically(new PipelineVisitor.Defaults() {
+      @Override
+      public void visitPrimitiveTransform(Node node) {
+        unconsumedSeenAsInput.set(true);
+      }
+    });
+    assertThat(unconsumedSeenAsInput.get(), is(true));
   }
 
   @Test

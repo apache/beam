@@ -96,10 +96,6 @@ class PCollection(PValue):
   pipelines.
   """
 
-  def __init__(self, pipeline, **kwargs):
-    """Initializes a PCollection. Do not call directly."""
-    super(PCollection, self).__init__(pipeline, **kwargs)
-
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
@@ -210,14 +206,14 @@ class DoOutputsTuple(object):
     elif self._tags and tag not in self._tags:
       raise ValueError(
           "Tag '%s' is neither the main tag '%s' "
-          "nor any of the side tags %s" % (
+          "nor any of the tags %s" % (
               tag, self._main_tag, self._tags))
     # Check if we accessed this tag before.
     if tag in self._pcolls:
       return self._pcolls[tag]
 
     if tag is not None:
-      self._transform.side_output_tags.add(tag)
+      self._transform.output_tags.add(tag)
       pcoll = PCollection(self._pipeline, tag=tag)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
@@ -234,19 +230,19 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class SideOutputValue(object):
+class OutputValue(object):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
   are distinguished by string tags. The DoFn will return plain values
-  if it wants to emit on the main output and SideOutputValue objects
+  if it wants to emit on the main output and OutputValue objects
   if it wants to emit a value on a specific tagged output.
   """
 
   def __init__(self, tag, value):
     if not isinstance(tag, basestring):
       raise TypeError(
-          'Attempting to create a SideOutputValue with non-string tag %s' % tag)
+          'Attempting to create a OutputValue with non-string tag %s' % tag)
     self.tag = tag
     self.value = value
 
@@ -312,20 +308,18 @@ class AsSingleton(AsSideInput):
     base = super(AsSingleton, self)._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
-    else:
-      return base
+    return base
 
   @staticmethod
   def _from_runtime_iterable(it, options):
     head = list(itertools.islice(it, 2))
-    if len(head) == 0:
+    if not head:
       return options.get('default', EmptySideInput())
     elif len(head) == 1:
       return head[0]
-    else:
-      raise ValueError(
-          'PCollection with more than one element accessed as '
-          'a singleton view.')
+    raise ValueError(
+        'PCollection with more than one element accessed as '
+        'a singleton view.')
 
   @property
   def element_type(self):

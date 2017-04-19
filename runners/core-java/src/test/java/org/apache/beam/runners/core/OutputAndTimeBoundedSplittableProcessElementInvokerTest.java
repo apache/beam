@@ -80,9 +80,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
                   PaneInfo pane) {}
 
               @Override
-              public <SideOutputT> void sideOutputWindowedValue(
-                  TupleTag<SideOutputT> tag,
-                  SideOutputT output,
+              public <AdditionalOutputT> void outputWindowedValue(
+                  TupleTag<AdditionalOutputT> tag,
+                  AdditionalOutputT output,
                   Instant timestamp,
                   Collection<? extends BoundedWindow> windows,
                   PaneInfo pane) {}

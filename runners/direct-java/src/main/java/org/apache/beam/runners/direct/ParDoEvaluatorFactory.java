@@ -43,9 +43,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<DoFn<?, ?>, DoFnLifecycleManager> fnClones;
   private final EvaluationContext evaluationContext;
+  private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
-  ParDoEvaluatorFactory(EvaluationContext evaluationContext) {
+  ParDoEvaluatorFactory(
+      EvaluationContext evaluationContext,
+      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
     this.evaluationContext = evaluationContext;
+    this.runnerFactory = runnerFactory;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
@@ -80,7 +84,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 doFn,
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
-                transform.getSideOutputTags().getAll());
+                transform.getAdditionalOutputTags().getAll());
     return evaluator;
   }
 
@@ -103,7 +107,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       DoFn<InputT, OutputT> doFn,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags)
+      List<TupleTag<?>> additionalOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -119,19 +123,19 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             inputBundleKey,
             sideInputs,
             mainOutputTag,
-            sideOutputTags,
+            additionalOutputTags,
             stepContext,
             fnManager.<InputT, OutputT>get(),
             fnManager),
         fnManager);
   }
 
-  ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+  ParDoEvaluator<InputT> createParDoEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       DirectStepContext stepContext,
       DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
@@ -147,8 +151,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           key,
           sideInputs,
           mainOutputTag,
-          sideOutputTags,
-          pcollections(application.getOutputs()));
+          additionalOutputTags,
+          pcollections(application.getOutputs()),
+          runnerFactory);
     } catch (Exception e) {
       try {
         fnManager.remove();
@@ -162,7 +167,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     }
   }
 
-  private Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
+  static Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
     Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       pcs.put(output.getKey(), (PCollection<?>) output.getValue());

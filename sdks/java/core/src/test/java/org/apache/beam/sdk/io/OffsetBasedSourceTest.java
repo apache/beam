@@ -147,7 +147,7 @@ public class OffsetBasedSourceTest {
     CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {0, 150, 300, 450, 600, 750, 900, 1000};
     assertSplitsAre(
-        testSource.splitIntoBundles(150 * testSource.getBytesPerOffset(), null),
+        testSource.split(150 * testSource.getBytesPerOffset(), null),
         boundaries);
   }
 
@@ -159,7 +159,7 @@ public class OffsetBasedSourceTest {
     CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {300, 450, 600, 750, 900, 1000};
     assertSplitsAre(
-        testSource.splitIntoBundles(150 * testSource.getBytesPerOffset(), null),
+        testSource.split(150 * testSource.getBytesPerOffset(), null),
         boundaries);
   }
 
@@ -182,7 +182,7 @@ public class OffsetBasedSourceTest {
     CoarseRangeSource testSource = new CoarseRangeSource(start, end, minBundleSize, 1);
     long[] boundaries = {300, 450, 600, 750, 1000};
     assertSplitsAre(
-        testSource.splitIntoBundles(100 * testSource.getBytesPerOffset(), null),
+        testSource.split(100 * testSource.getBytesPerOffset(), null),
         boundaries);
   }
 
@@ -195,7 +195,7 @@ public class OffsetBasedSourceTest {
     // Last 10 bytes should collapse to the previous bundle.
     long[] boundaries = {0, 110, 220, 330, 440, 550, 660, 770, 880, 1000};
     assertSplitsAre(
-        testSource.splitIntoBundles(110 * testSource.getBytesPerOffset(), null),
+        testSource.split(110 * testSource.getBytesPerOffset(), null),
         boundaries);
   }
 

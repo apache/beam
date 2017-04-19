@@ -102,12 +102,11 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   @Override
-  public List<? extends BoundedSource<T>>
-      splitIntoBundles(long desiredBundleSizeBytes,
+  public List<? extends BoundedSource<T>> split(long desiredBundleSizeBytes,
                        PipelineOptions options) throws Exception {
     List<MicrobatchSource<T, CheckpointMarkT>> result = new ArrayList<>();
     List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
-        source.generateInitialSplits(numInitialSplits, options);
+        source.split(numInitialSplits, options);
     int numSplits = splits.size();
     long[] numRecords = splitNumRecords(maxNumRecords, numSplits);
     for (int i = 0; i < numSplits; i++) {
@@ -141,7 +140,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     }
   }
 
-  private synchronized void initReaderCache(long readerCacheInterval) {
+  private static synchronized void initReaderCache(long readerCacheInterval) {
     if (readerCache == null) {
       LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
       readerCache =

@@ -92,8 +92,8 @@ message Pipeline {
   // this pipeline.
   Components components = 1;
 
-  // (Required) The id of the PTransform that is the root of the pipeline
-  string root_transform_id = 2;
+  // (Required) The ids of all PTransforms that are not contained within another PTransform
+  repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
   // it may be omitted.

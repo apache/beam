@@ -296,8 +296,6 @@ public class ApexYarnLauncher {
 
   /**
    * Transfer the properties to the configuration object.
-   * @param conf
-   * @param props
    */
   public static void addProperties(Configuration conf, Properties props) {
     for (final String propertyName : props.stringPropertyNames()) {

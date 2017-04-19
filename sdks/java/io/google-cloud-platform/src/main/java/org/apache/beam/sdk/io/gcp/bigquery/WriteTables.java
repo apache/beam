@@ -39,8 +39,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
@@ -56,67 +56,71 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Writes partitions to BigQuery tables.
+ *
+ * <p>The input is a list of files corresponding to each partition of a table. These files are
+ * load into a temporary table (or into the final table if there is only one partition). The output
+ * is a {@link KV} mapping each final table to a list of the temporary tables containing its data.
+ *
+ * <p>In the case where all the data in the files fit into a single load job, this transform loads
+ * the data directly into the final table, skipping temporary tables. In this case, the output
+ * {@link KV} maps the final table to itself.
  */
-class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
+class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
+    KV<TableDestination, String>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
   private final String tempFilePrefix;
-  private final ValueProvider<String> jsonTableRef;
-  private final ValueProvider<String> jsonSchema;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  @Nullable
-  private final String tableDescription;
+  private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
 
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       String tempFilePrefix,
-      ValueProvider<String> jsonTableRef,
-      ValueProvider<String> jsonSchema,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      @Nullable String tableDescription) {
+      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.tempFilePrefix = tempFilePrefix;
-    this.jsonTableRef = jsonTableRef;
-    this.jsonSchema = jsonSchema;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
-    this.tableDescription = tableDescription;
+    this.schemaFunction = schemaFunction;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
-    String jobIdPrefix = String.format(
-        c.sideInput(jobIdToken) + "_%05d", c.element().getKey());
-    TableReference ref = BigQueryHelpers.fromJsonString(jsonTableRef.get(),
-        TableReference.class);
+    TableDestination tableDestination = c.element().getKey().getKey();
+    Integer partition = c.element().getKey().getShardNumber();
+    List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
+    String jobIdPrefix = BigQueryHelpers.createJobId(
+        c.sideInput(jobIdToken), tableDestination, partition);
+
+    TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {
       ref.setTableId(jobIdPrefix);
     }
 
+    TableSchema schema = (schemaFunction != null) ? schemaFunction.apply(tableDestination) : null;
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
         jobIdPrefix,
         ref,
-        BigQueryHelpers.fromJsonString(
-            jsonSchema == null ? null : jsonSchema.get(), TableSchema.class),
-        partition,
+        schema,
+        partitionFiles,
         writeDisposition,
         createDisposition,
-        tableDescription);
-    c.output(BigQueryHelpers.toJsonString(ref));
+        tableDestination.getTableDescription());
+    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(ref)));
 
-    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partition);
+    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partitionFiles);
   }
 
   private void load(
@@ -202,12 +206,6 @@ class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
 
     builder
         .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
-            .withLabel("Temporary File Prefix"))
-        .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
-            .withLabel("Table Reference"))
-        .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
-            .withLabel("Table Schema"))
-        .addIfNotNull(DisplayData.item("tableDescription", tableDescription)
-            .withLabel("Table Description"));
+            .withLabel("Temporary File Prefix"));
   }
 }
