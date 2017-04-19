@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -30,7 +29,6 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
@@ -383,13 +381,7 @@ public class Pipeline {
    * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
   public void traverseTopologically(PipelineVisitor visitor) {
-    // Ensure all nodes are fully specified before visiting the pipeline
-    Set<PValue> visitedValues =
-        // Visit all the transforms, which should implicitly visit all the values.
-        transforms.visit(visitor);
-    checkState(
-        visitedValues.containsAll(values),
-        "internal error: should have visited all the values after visiting all the transforms");
+    transforms.visit(visitor);
   }
 
   /**
@@ -424,17 +416,8 @@ public class Pipeline {
   private final PipelineRunner<?> runner;
   private final PipelineOptions options;
   private final TransformHierarchy transforms = new TransformHierarchy(this);
-  private Collection<PValue> values = new ArrayList<>();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
-
-  /**
-   * @deprecated replaced by {@link #Pipeline(PipelineRunner, PipelineOptions)}
-   */
-  @Deprecated
-  protected Pipeline(PipelineRunner<?> runner) {
-    this(runner, PipelineOptionsFactory.create());
-  }
 
   protected Pipeline(PipelineRunner<?> runner, PipelineOptions options) {
     this.runner = runner;
