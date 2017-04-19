@@ -28,44 +28,56 @@ cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
 
 
-cdef class Method(object):
+cdef class DoFnMethodWrapper(object):
   cdef public object args
   cdef public object defaults
   cdef object _method_value
 
+  cpdef call(self, list args, dict kwargs)
+
 
 cdef class DoFnSignature(object):
-  cdef public Method process_method
-  cdef public Method start_bundle_method
-  cdef public Method finish_bundle_method
+  cdef public DoFnMethodWrapper process_method
+  cdef public DoFnMethodWrapper start_bundle_method
+  cdef public DoFnMethodWrapper finish_bundle_method
   cdef public object do_fn
 
 
 cdef class DoFnInvoker(object):
+
+  cdef DoFnSignature signature
+
   cpdef invoke_process(self, WindowedValue element, process_output_fn)
   cpdef invoke_start_bundle(self, process_output_fn)
   cpdef invoke_finish_bundle(self, process_output_fn)
 
+  # TODO(chamikara) define static method create_invoker() here.
+
+
+cdef class SimpleInvoker(DoFnInvoker):
+  pass
+
+
+cdef class PerWindowInvoker(DoFnInvoker):
+
+  cdef list side_inputs
+  cdef DoFnContext context
+  cdef list args
+  cdef dict kwargs
+  cdef list placeholders
+  cdef bint has_windowed_inputs
+
 
 cdef class DoFnRunner(Receiver):
 
-  cdef object dofn
-  cdef object dofn_process
   cdef object window_fn
   cdef DoFnContext context
   cdef object tagged_receivers
   cdef LoggingContext logging_context
   cdef object step_name
-  cdef list args
-  cdef dict kwargs
   cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
-  cdef bint has_windowed_inputs
-  cdef list placeholders
-  cdef bint use_simple_invoker
-
   cdef Receiver main_receivers
-
   cdef DoFnInvoker do_fn_invoker
 
   cpdef process(self, WindowedValue element)

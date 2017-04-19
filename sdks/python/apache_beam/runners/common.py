@@ -51,16 +51,36 @@ class Receiver(object):
     raise NotImplementedError
 
 
-class Method(object):
+class DoFnMethodWrapper(object):
   """Represents a method of a DoFn object."""
 
   def __init__(self, method_value, args, defaults):
+    """
+    Initiates a ``DoFnMethodWrapper``.
+
+    Args:
+      method_value: Python method represented by this object.
+      args: a list that gives the arguments of the given method.
+      defaults: a list that gives the default values of arguments mentioned
+        above. If len(defaults) > len(args) default values are for the last
+        len(defaults) arguments in args.
+    """
     self.args = args
     self.defaults = defaults
     self._method_value = method_value
 
-  def __call__(self, *args, **kwargs):
-    return self._method_value(*args, **kwargs)
+  def call(self, input_args, input_kwargs):
+    """Invokes the method represented by this object.
+
+    Args:
+      input_args: a list of arguments to be passed when invoking the method.
+      input_kwargs: a dictionary of keyword arguments to be passed when invoking
+                    the method.
+
+    Using a regular method call here instead of __call__ to reduce per-element
+    overhead.
+    """
+    return self._method_value(*input_args, **input_kwargs)
 
 
 class DoFnSignature(object):
@@ -75,32 +95,43 @@ class DoFnSignature(object):
   feature set offered by it.
   """
 
-  def __init__(self):
+  def __init__(self, do_fn):
     # We add a property here for all methods defined by Beam DoFn features.
     self.process_method = None
     self.start_bundle_method = None
     self.finish_bundle_method = None
-    self.do_fn = None
 
-  @staticmethod
-  def create_signature(do_fn):
-    """Creates the signature fo a given DoFn object."""
     assert isinstance(do_fn, core.DoFn)
-    signature = DoFnSignature()
+    self.do_fn = do_fn
 
     def _create_do_fn_method(do_fn, method_name):
       arguments, _, _, defaults = do_fn.get_function_arguments(method_name)
       defaults = defaults if defaults else []
       method_value = getattr(do_fn, method_name)
-      return Method(method_value, arguments, defaults)
+      return DoFnMethodWrapper(method_value, arguments, defaults)
 
-    signature.do_fn = do_fn
-    signature.process_method = _create_do_fn_method(do_fn, 'process')
-    signature.start_bundle_method = _create_do_fn_method(do_fn, 'start_bundle')
-    signature.finish_bundle_method = _create_do_fn_method(
-        do_fn, 'finish_bundle')
+    self.process_method = _create_do_fn_method(do_fn, 'process')
+    self.start_bundle_method = _create_do_fn_method(do_fn, 'start_bundle')
+    self.finish_bundle_method = _create_do_fn_method(do_fn, 'finish_bundle')
+    self._validate()
 
-    return signature
+  def _validate(self):
+    # start_bundle and finish_bundle methods should only have ContextParam as a
+    # default argument.
+    self._validate_start_bundle()
+    self._validate_finish_bundle()
+
+  def _validate_start_bundle(self):
+    self._validate_bundle_method()
+
+  def _validate_finish_bundle(self):
+    self._validate_bundle_method()
+
+  def _validate_bundle_method(self):
+    assert core.DoFn.ElementParam not in self.start_bundle_method.defaults
+    assert core.DoFn.SideInputParam not in self.start_bundle_method.defaults
+    assert core.DoFn.TimestampParam not in self.start_bundle_method.defaults
+    assert core.DoFn.WindowParam not in self.start_bundle_method.defaults
 
 
 class DoFnInvoker(object):
@@ -114,8 +145,21 @@ class DoFnInvoker(object):
 
   @staticmethod
   def create_invoker(
-      signature, use_simple_invoker, context, side_inputs, input_args,
+      signature, context, side_inputs, input_args,
       input_kwargs):
+    """ Creates a new DoFnInvoker based on given arguments.
+
+    Args:
+        signature: A DoFnSignature for the DoFn being invoked.
+        context: Context to be used when invoking the DoFn (deprecated).
+        side_inputs: side inputs to be used when invoking th process method.
+        input_args: arguments to be used when invoking the process method
+        input_kwargs: kwargs to be used when invoking the process method.
+    """
+    default_arg_values = signature.process_method.defaults
+    use_simple_invoker = (
+        not side_inputs and not input_args and not input_kwargs and
+        not default_arg_values)
     if use_simple_invoker:
       return SimpleInvoker(signature)
     else:
@@ -127,24 +171,23 @@ class DoFnInvoker(object):
 
   def invoke_start_bundle(self, process_output_fn):
     defaults = self.signature.start_bundle_method.defaults
-    defaults = defaults if defaults else []
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    process_output_fn(None, self.signature.start_bundle_method(*args))
+    process_output_fn(None, self.signature.start_bundle_method.call(args, {}))
 
   def invoke_finish_bundle(self, process_output_fn):
-    defaults = self.signature.start_bundle_method.defaults
-    defaults = defaults if defaults else []
+    defaults = self.signature.finish_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    process_output_fn(None, self.signature.finish_bundle_method(*args))
+    process_output_fn(None, self.signature.finish_bundle_method.call(args, {}))
 
 
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
   def invoke_process(self, element, process_output_fn):
-    process_output_fn(element, self.signature.process_method(element.value))
+    process_output_fn(element, self.signature.process_method.call(
+        [element.value], {}))
 
 
 class PerWindowInvoker(DoFnInvoker):
@@ -154,11 +197,10 @@ class PerWindowInvoker(DoFnInvoker):
     super(PerWindowInvoker, self).__init__(signature)
     self.side_inputs = side_inputs
     self.context = context
-    self.has_windowed_inputs = not all(
-        si.is_globally_windowed() for si in side_inputs)
     default_arg_values = signature.process_method.defaults
-    self.has_windowed_inputs = (self.has_windowed_inputs or
-                                core.DoFn.WindowParam in default_arg_values)
+    self.has_windowed_inputs = (
+        not all(si.is_globally_windowed() for si in side_inputs) or
+        (core.DoFn.WindowParam in default_arg_values))
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -168,11 +210,11 @@ class PerWindowInvoker(DoFnInvoker):
 
     global_window = GlobalWindow()
 
-    self.args = input_args if input_args else []
-    self.kwargs = input_kwargs if input_kwargs else {}
+    args = input_args if input_args else []
+    kwargs = input_kwargs if input_kwargs else {}
 
     if not self.has_windowed_inputs:
-      self.args, self.kwargs = util.insert_values_in_args(
+      args, kwargs = util.insert_values_in_args(
           input_args, input_kwargs, [si[global_window] for si in side_inputs])
 
     arguments = signature.process_method.args
@@ -188,13 +230,13 @@ class PerWindowInvoker(DoFnInvoker):
     if core.DoFn.ElementParam not in default_arg_values:
       args_to_pick = len(arguments) - len(default_arg_values) - 1 - self_in_args
       final_args = (
-          [ArgPlaceholder(core.DoFn.ElementParam)] + self.args[:args_to_pick])
+          [ArgPlaceholder(core.DoFn.ElementParam)] + args[:args_to_pick])
     else:
       args_to_pick = len(arguments) - len(defaults) - self_in_args
-      final_args = self.args[:args_to_pick]
+      final_args = args[:args_to_pick]
 
     # Fill the OtherPlaceholders for context, window or timestamp
-    input_args = iter(self.args[args_to_pick:])
+    input_args = iter(args[args_to_pick:])
     for a, d in zip(arguments[-len(defaults):], defaults):
       if d == core.DoFn.ElementParam:
         final_args.append(ArgPlaceholder(d))
@@ -209,7 +251,7 @@ class PerWindowInvoker(DoFnInvoker):
         try:
           final_args.append(input_args.next())
         except StopIteration:
-          if a not in self.kwargs:
+          if a not in kwargs:
             raise ValueError("Value for sideinput %s not provided" % a)
       else:
         # If no more args are present then the value must be passed via kwarg
@@ -218,11 +260,13 @@ class PerWindowInvoker(DoFnInvoker):
         except StopIteration:
           pass
     final_args.extend(list(input_args))
-    self.args = final_args
 
     # Stash the list of placeholder positions for performance
-    self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(self.args)
+    self.placeholders = [(i, x.placeholder) for (i, x) in enumerate(final_args)
                          if isinstance(x, ArgPlaceholder)]
+
+    self.args = final_args
+    self.kwargs = kwargs
 
   def invoke_process(self, element, process_output_fn):
     self.context.set_element(element)
@@ -256,10 +300,10 @@ class PerWindowInvoker(DoFnInvoker):
         args[i] = element.timestamp
 
     if not kwargs:
-      process_output_fn(element, self.signature.process_method(*args))
+      process_output_fn(element, self.signature.process_method.call(args, {}))
     else:
-      process_output_fn(element, self.signature.process_method(
-          *args, **kwargs))
+      process_output_fn(element, self.signature.process_method.call(
+          args, kwargs))
 
 
 class DoFnRunner(Receiver):
@@ -326,22 +370,25 @@ class DoFnRunner(Receiver):
 
     self.context = context
 
-    do_fn_signature = DoFnSignature.create_signature(fn)
-
-    default_arg_values = do_fn_signature.process_method.defaults
-    use_simple_invoker = (
-        not side_inputs and not args and not kwargs and not default_arg_values)
-
+    do_fn_signature = DoFnSignature(fn)
     self.window_fn = windowing.windowfn
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
-        do_fn_signature, use_simple_invoker, context, side_inputs, args, kwargs)
+        do_fn_signature, context, side_inputs, args, kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
   def process(self, windowed_value):
-    self._invoke_process_method(windowed_value)
+    try:
+      self.logging_context.enter()
+      self.scoped_metrics_container.enter()
+      self.do_fn_invoker.invoke_process(windowed_value, self._process_outputs)
+    except BaseException as exn:
+      self._reraise_augmented(exn)
+    finally:
+      self.scoped_metrics_container.exit()
+      self.logging_context.exit()
 
   def _invoke_bundle_method(self, bundle_method):
     try:
@@ -360,17 +407,6 @@ class DoFnRunner(Receiver):
 
   def finish(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
-
-  def _invoke_process_method(self, element):
-    try:
-      self.logging_context.enter()
-      self.scoped_metrics_container.enter()
-      self.do_fn_invoker.invoke_process(element, self._process_outputs)
-    except BaseException as exn:
-      self._reraise_augmented(exn)
-    finally:
-      self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
