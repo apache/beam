@@ -52,13 +52,17 @@ public class UnconsumedReads {
             }
           }
         });
+    int i = 0;
     for (PCollection<?> unconsumedPCollection : unconsumed) {
-      consume(unconsumedPCollection);
+      consume(unconsumedPCollection, i);
+      i++;
     }
   }
 
-  private static <T> void consume(PCollection<T> unconsumedPCollection) {
-    unconsumedPCollection.apply(ParDo.of(new NoOpDoFn<T>()));
+  private static <T> void consume(PCollection<T> unconsumedPCollection, int uniq) {
+    // Multiple applications should never break due to stable unique names.
+    String uniqueName = "DropInputs" + (uniq == 0 ? "" : uniq);
+    unconsumedPCollection.apply(uniqueName, ParDo.of(new NoOpDoFn<T>()));
   }
 
   private static class NoOpDoFn<T> extends DoFn<T, T> {
