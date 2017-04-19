@@ -39,5 +39,5 @@ But perhaps most importantly, we’re committed to building an involved, welcomi
 * Had multiple talks on Beam at venues including ApacheCon, Hadoop Summit, Kafka Summit, JBCN Barcelona, and Strata.
 * Presented at multiple existing meetups and are starting to organize some of our own.
 
-While it’s nice to reflect back on all we’ve done, we’re working full _stream_ ahead towards a stable release and graduation from incubator. And we’d love your help -- join the [mailing lists]({{ site.baseurl }}/use/mailing-lists/), check out the [contribution guide]({{ site.baseurl }}/contribute/contribution-guide/), and grab a [starter task](https://issues.apache.org/jira/browse/BEAM-520?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20in%20(newbie%2C%20starter)) from Jira!
+While it’s nice to reflect back on all we’ve done, we’re working full _stream_ ahead towards a stable release and graduation from incubator. And we’d love your help -- join the [mailing lists]({{ site.baseurl }}/get-started/support/), check out the [contribution guide]({{ site.baseurl }}/contribute/contribution-guide/), and grab a [starter task](https://issues.apache.org/jira/browse/BEAM-520?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20in%20(newbie%2C%20starter)) from Jira!
 
