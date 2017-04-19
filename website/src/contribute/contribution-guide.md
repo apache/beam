@@ -18,7 +18,7 @@ We use a review-then-commit workflow in Beam for all contributions.
 
 **For larger contributions or those that affect multiple components:**
 
-1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list]({{ site.baseurl }}/use/mailing-lists/) to identify good areas for contribution.
+1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list]({{ site.baseurl }}/get-started/support/) to identify good areas for contribution.
 1. **Design:** More complicated contributions will likely benefit from some early discussion in order to scope and design them well.
 
 **For all contributions:**
@@ -34,7 +34,7 @@ We look forward to working with you!
 ### Mailing list(s)
 We discuss design and implementation issues on the dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
 
-If interested, you can also join the other [mailing lists]({{ site.baseurl }}/use/mailing-lists/).
+If interested, you can also join the other [mailing lists]({{ site.baseurl }}/get-started/support/).
 
 ### JIRA issue tracker
 We use the Apache Software Foundation's [JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.
@@ -380,7 +380,7 @@ Some larger features are developed on a feature branch before being merged into 
 To contribute code on a feature branch, use the same process as above, but replace `master` with the [name of the branch]({{ site.baseurl }}/contribute/work-in-progress/#feature-branches).
 
 Since feature branches are often used for new components, you may find that
-there is no [committer]({{ site.baseurl }}/project/team/) familiar with all the details of the
+there is no [committer]({{ site.baseurl }}/contribute/team/) familiar with all the details of the
 new language or runner. In that case, consider asking someone else familiar
 with the technology to do an initial review before looping in a committer for a
 final review and merge.
@@ -407,7 +407,7 @@ A new runner should:
 
 1. Be able to handle a subset of the model that address a significant set of use cases (aka. ‘traditional batch’ or ‘processing time streaming’)
 1. Update the capability matrix with the current status
-1. Add a webpage under `learn/runners`
+1. Add a webpage under `documentation/runners`
 
 A new SDK should:
 
@@ -415,7 +415,7 @@ A new SDK should:
 1. Begin fleshing out the common composite transforms (Count, Join, etc) and IO connectors (Text, Kafka, etc)
 1. Have at least one runner that can execute the complete model (may be a direct runner)
 1. Provide integration tests for executing against current and future runners
-1. Add a webpage under `learn/sdks`
+1. Add a webpage under `documentation/sdks`
 
 
 ### Website
