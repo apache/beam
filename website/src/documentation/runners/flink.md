@@ -6,6 +6,14 @@ redirect_from: /learn/runners/flink/
 ---
 # Using the Apache Flink Runner
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 The Apache Flink Runner can be used to execute Beam pipelines using [Apache Flink](https://flink.apache.org). When using the Flink Runner you will create a jar file containing your job that can be executed on a regular Flink cluster. It's also possible to execute a Beam pipeline using Flink's local execution mode without setting up a cluster. This is helpful for development and debugging of your pipeline.
 
 The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:
@@ -38,8 +46,7 @@ For more information, the [Flink Documentation](https://ci.apache.org/projects/f
 
 ### Specify your dependency
 
-You must specify your dependency on the Flink Runner.
-
+<span class="language-java">When using Java, you must specify your dependency on the Flink Runner in your `pom.xml`.</span>
 ```java
 <dependency>
   <groupId>org.apache.beam</groupId>
@@ -48,6 +55,8 @@ You must specify your dependency on the Flink Runner.
   <scope>runtime</scope>
 </dependency>
 ```
+
+<span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
 
 ## Executing a pipeline on a Flink cluster
 
@@ -129,7 +138,7 @@ When executing your pipeline with the Flink Runner, you can set these pipeline o
 </tr>
 </table>
 
-See the reference documentation for the  <span class="language-java">[FlinkPipelineOptions]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)</span><span class="language-python">[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/pipeline_options.py)</span> interface (and its subinterfaces) for the complete list of pipeline configuration options.
+See the reference documentation for the  <span class="language-java">[FlinkPipelineOptions]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)</span><span class="language-py">[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/pipeline_options.py)</span> interface (and its subinterfaces) for the complete list of pipeline configuration options.
 
 ## Additional information and caveats
 
