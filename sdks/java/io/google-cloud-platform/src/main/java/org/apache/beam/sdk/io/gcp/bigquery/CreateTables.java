@@ -22,8 +22,11 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,9 +35,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
@@ -45,7 +49,7 @@ public class CreateTables
         PCollection<KV<TableDestination, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
-  private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
+  private final SchemaFunction schemaFunction;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -55,16 +59,14 @@ public class CreateTables
   private static Set<String> createdTables =
       Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
 
-  public CreateTables(
-      CreateDisposition createDisposition,
-      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+  public CreateTables(CreateDisposition createDisposition, SchemaFunction schemaFunction) {
     this(createDisposition, new BigQueryServicesImpl(), schemaFunction);
   }
 
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
-      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+      SchemaFunction schemaFunction) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.schemaFunction = schemaFunction;
@@ -77,20 +79,38 @@ public class CreateTables
   @Override
   public PCollection<KV<TableDestination, TableRow>> expand(
       PCollection<KV<TableDestination, TableRow>> input) {
+    List<PCollectionView<Map<String, String>>> sideInputs = Lists.newArrayList();
+    if (schemaFunction.getSideInput() != null) {
+      sideInputs.add(schemaFunction.getSideInput());
+    }
     return input.apply(
         ParDo.of(
             new DoFn<KV<TableDestination, TableRow>, KV<TableDestination, TableRow>>() {
+              SchemaFunction schemaFunctionCopy;
+
+              @StartBundle
+              public void startBundle(Context c) {
+                this.schemaFunctionCopy = SerializableUtils.clone(schemaFunction);
+              }
+
               @ProcessElement
               public void processElement(ProcessContext context)
                   throws InterruptedException, IOException {
+                if (schemaFunctionCopy.getSideInput() != null) {
+                  schemaFunctionCopy.setSideInputValue(
+                      context.sideInput(schemaFunctionCopy.getSideInput()));
+                }
+
                 BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-                possibleCreateTable(options, context.element().getKey());
+                possibleCreateTable(options, context.element().getKey(), schemaFunctionCopy);
                 context.output(context.element());
               }
-            }));
+            })
+        .withSideInputs(sideInputs));
   }
 
-  private void possibleCreateTable(BigQueryOptions options, TableDestination tableDestination)
+  private void possibleCreateTable(BigQueryOptions options, TableDestination tableDestination,
+                                   SchemaFunction schemaFunction)
       throws InterruptedException, IOException {
     String tableSpec = tableDestination.getTableSpec();
     TableReference tableReference = tableDestination.getTableReference();

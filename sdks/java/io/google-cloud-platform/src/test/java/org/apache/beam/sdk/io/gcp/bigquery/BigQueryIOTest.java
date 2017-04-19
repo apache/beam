@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -77,6 +78,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.ConstantSchemaFunction;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
@@ -204,7 +206,11 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(project, write.getTable().get().getProjectId());
     assertEquals(dataset, write.getTable().get().getDatasetId());
     assertEquals(table, write.getTable().get().getTableId());
-    assertEquals(schema, write.getSchema());
+    if (schema == null) {
+      assertNull(write.getSchemaFunction());
+    } else {
+      assertEquals(schema, write.getSchemaFunction().apply(null));
+    }
     assertEquals(createDisposition, write.getCreateDisposition());
     assertEquals(writeDisposition, write.getWriteDisposition());
     assertEquals(tableDescription, write.getTableDescription());
@@ -569,8 +575,6 @@ public class BigQueryIOTest implements Serializable {
       return GlobalWindow.INSTANCE.maxTimestamp();
     }
 
-    // The following methods are only needed due to BEAM-1022. Once this issue is fixed, we will
-    // no longer need these.
     @Override
     public boolean equals(Object other) {
       if (other instanceof PartitionedGlobalWindow) {
@@ -633,7 +637,7 @@ public class BigQueryIOTest implements Serializable {
 
     // Create a windowing strategy that puts the input into five different windows depending on
     // record value.
-    WindowFn<Integer, PartitionedGlobalWindow> window = new PartitionedGlobalWindows(
+    WindowFn<Integer, PartitionedGlobalWindow> windowFn = new PartitionedGlobalWindows(
         new SerializableFunction<Integer, String>() {
           @Override
           public String apply(Integer i) {
@@ -642,24 +646,44 @@ public class BigQueryIOTest implements Serializable {
         }
     );
 
+    final Map<Integer, TableDestination> targetTables = Maps.newHashMap();
+    Map<String, String> schemas = Maps.newHashMap();
+    for (int i = 0; i < 5; i++) {
+      TableDestination destination = new TableDestination("project-id:dataset-id"
+          + ".table-id-" + i, "");
+      targetTables.put(i, destination);
+      // Make sure each target table has its own custom table.
+      schemas.put(destination.getTableSpec(),
+          BigQueryHelpers.toJsonString(new TableSchema().setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("name").setType("STRING"),
+                  new TableFieldSchema().setName("number").setType("INTEGER"),
+                  new TableFieldSchema().setName("custom_" + i).setType("STRING")))));
+    }
+
     SerializableFunction<ValueInSingleWindow<Integer>, TableDestination> tableFunction =
         new SerializableFunction<ValueInSingleWindow<Integer>, TableDestination>() {
           @Override
           public TableDestination apply(ValueInSingleWindow<Integer> input) {
             PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
-            // Check that we can access the element as well here.
+            // Check that we can access the element as well here and that it matches the window.
             checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
                 "Incorrect element");
-            return new TableDestination("project-id:dataset-id.table-id-" + window.value, "");
+            return targetTables.get(input.getValue() % 5);
           }
     };
 
     Pipeline p = TestPipeline.create(bqOptions);
-    PCollection<Integer> input = p.apply(Create.of(inserts));
+    PCollection<Integer> input = p.apply("CreateSource", Create.of(inserts));
     if (streaming) {
       input = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
-    input.apply(Window.<Integer>into(window))
+
+    PCollectionView<Map<String, String>> schemasView =
+        p.apply("CreateSchemaMap", Create.of(schemas))
+        .apply("ViewSchemaAsMap", View.<String, String>asMap());
+
+    input.apply(Window.<Integer>into(windowFn))
         .apply(BigQueryIO.<Integer>write()
             .to(tableFunction)
             .withFormatFunction(new SerializableFunction<Integer, TableRow>() {
@@ -668,35 +692,27 @@ public class BigQueryIOTest implements Serializable {
                 return new TableRow().set("name", "number" + i).set("number", i);
               }})
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-            .withSchema(new TableSchema().setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withSchemaFromView(schemasView)
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
 
+    for (int i = 0; i < 5; ++i) {
+      String tableId = String.format("table-id-%d", i);
+      String tableSpec = String.format("project-id:dataset-id.%s", tableId);
 
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-0"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number0").set("number", 0),
-            new TableRow().set("name", "number5").set("number", 5)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-1"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number1").set("number", 1),
-            new TableRow().set("name", "number6").set("number", 6)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-2"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number2").set("number", 2),
-            new TableRow().set("name", "number7").set("number", 7)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-3"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number3").set("number", 3),
-            new TableRow().set("name", "number8").set("number", 8)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-4"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number4").set("number", 4),
-            new TableRow().set("name", "number9").set("number", 9)));
+      // Verify that table was created with the correct schema.
+      assertThat(BigQueryHelpers.toJsonString(
+          datasetService.getTable(new TableReference().setProjectId("project-id")
+              .setDatasetId("dataset-id").setTableId(tableId)).getSchema()),
+          equalTo(schemas.get(tableSpec)));
+
+      // Verify that the table has the expected contents.
+      assertThat(datasetService.getAllRows("project-id", "dataset-id", tableId),
+          containsInAnyOrder(
+              new TableRow().set("name", String.format("number%d", i)).set("number", i),
+              new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
+    }
   }
 
   @Test
@@ -1741,7 +1757,7 @@ public class BigQueryIOTest implements Serializable {
         tempFilePrefix,
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
-        null);
+        ConstantSchemaFunction.fromJsonSchema(null));
 
     DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);

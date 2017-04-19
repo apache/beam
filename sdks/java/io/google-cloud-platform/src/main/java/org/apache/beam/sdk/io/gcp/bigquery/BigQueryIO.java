@@ -30,12 +30,14 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
@@ -69,6 +71,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +184,20 @@ import org.slf4j.LoggerFactory;
  * {@link BigQueryIO.Write#withFormatFunction} to convert each element into a {@link TableRow}
  * object.
  *
- * <p>Per-value tables currently do not perform well in batch mode.
+ * <p>Each table can be given it's own schema using  {@link BigQueryIO.Write#withSchemaFunction}.
+ * {@link SchemaFunction} is a user-defined function that maps a destination table to a BigQuery
+ * schema. Note that this function must return a valid schema for all tables (unless the create
+ * disposition is CREATE_NEVER), otherwise the pipeline will fail to create tables.
+ *
+ * <p>Per-table schemas can also be provided using {@link BigQueryIO.Write#withSchemaFromView}.
+ * This allows you the schemas to be calculated based on a previous pipeline stage or statically
+ * via a {@link org.apache.beam.sdk.transforms.Create} transform. This method expects to receive a
+ * map-valued {@link PCollectionView}, mapping table specifications (project:dataset.table-id),
+ * to JSON formatted {@link TableSchema} objects. All destination tables must be present in this
+ * map, or the pipeline will fail to create tables. Care should be taken if the map value is based
+ * on a triggered aggregation over and unbounded {@link PCollection}. This method can also be useful
+ * when writing to a single table, as it allows a previous stage to calculate the schema (possibly
+ * based on the full collection of records being written to BigQuery).
  *
  * <h3>Permissions</h3>
  *
@@ -686,7 +702,7 @@ public class BigQueryIO {
       getTableFunction();
     @Nullable abstract SerializableFunction<T, TableRow> getFormatFunction();
     /** Table schema. The schema is required only if the table does not exist. */
-    @Nullable abstract ValueProvider<String> getJsonSchema();
+    @Nullable abstract SchemaFunction getSchemaFunction();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
@@ -704,7 +720,7 @@ public class BigQueryIO {
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
       abstract Builder<T> setFormatFunction(
           SerializableFunction<T, TableRow> formatFunction);
-      abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+      abstract Builder<T> setSchemaFunction(SchemaFunction schemaFunction);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
       abstract Builder<T> setTableDescription(String tableDescription);
@@ -825,16 +841,6 @@ public class BigQueryIO {
     }
 
     /**
-     * Like {@link BigQueryIO.Write#to(SerializableFunction)}, but the function returns a
-     * {@link TableReference} instead of a string table specification.
-     */
-    private Write<T> toTableReference(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
-      ensureToNotCalledYet();
-      return toBuilder().setTableFunction(tableFunction).build();
-    }
-
-    /**
      * Formats the user's type into a {@link TableRow} to be written to BigQuery.
      */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
@@ -858,6 +864,41 @@ public class BigQueryIO {
     }
 
     /**
+     * A function that returns the same schema for every table.
+     */
+    static class ConstantSchemaFunction extends SchemaFunction {
+      private final @Nullable ValueProvider<String> jsonSchema;
+
+      private  ConstantSchemaFunction(@Nullable ValueProvider<String> jsonSchema) {
+        this.jsonSchema = jsonSchema;
+      }
+
+      public static ConstantSchemaFunction fromTableSchema(ValueProvider<TableSchema> tableSchema) {
+        if (tableSchema.isAccessible()) {
+          // TableSchema isn't Serializable, so convert to JSON.
+          return new ConstantSchemaFunction(StaticValueProvider.of(
+              BigQueryHelpers.toJsonString(tableSchema.get())));
+        } else {
+          return new ConstantSchemaFunction(
+              NestedValueProvider.of(tableSchema, new TableSchemaToJsonSchema()));
+        }
+      }
+
+      public static ConstantSchemaFunction fromJsonSchema(ValueProvider<String> jsonSchema) {
+        return new ConstantSchemaFunction(jsonSchema);
+      }
+
+      @Override
+      public TableSchema apply(TableDestination table) {
+        if (jsonSchema == null) {
+          return  null;
+        } else {
+          return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
+        }
+      }
+    }
+
+    /**
      * Uses the specified schema for rows to be written.
      *
      * <p>The schema is <i>required</i> only if writing to a table that does not already
@@ -865,18 +906,59 @@ public class BigQueryIO {
      * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
     public Write<T> withSchema(TableSchema schema) {
+      return withSchemaFunction(ConstantSchemaFunction.fromTableSchema(
+          StaticValueProvider.of(schema)));
+    }
+
+    /**
+     * Same as {@link #withSchema(TableSchema)} but using a deferred {@link ValueProvider}.
+     */
+    public Write<T> withSchema(ValueProvider<TableSchema> schema) {
+      return withSchemaFunction(ConstantSchemaFunction.fromTableSchema(schema));
+    }
+
+    /**
+     * Similar to {@link #withSchema(TableSchema)} but takes in a JSON-serialized
+     * {@link TableSchema}.
+     */
+    public Write<T> withJsonSchema(String jsonSchema) {
+      return withSchemaFunction(ConstantSchemaFunction.fromJsonSchema(
+          StaticValueProvider.of(jsonSchema)));
+    }
+
+    /**
+     * Same as {@link #withSchema(String)} but using a deferred {@link ValueProvider}.
+     */
+    public Write<T> withJsonSchema(ValueProvider<String> jsonSchema) {
+      return withSchemaFunction(ConstantSchemaFunction.fromJsonSchema(jsonSchema));
+    }
+
+    /**
+     * Use the specified {@link SchemaFunction} to assign schemas for tables.
+     *
+     * <p>This function is ignored if the create disposition is set to
+     * {@link CreateDisposition#CREATE_NEVER}.
+     */
+    public Write<T> withSchemaFunction(SchemaFunction schemaFunction) {
       return toBuilder()
-          .setJsonSchema(StaticValueProvider.of(BigQueryHelpers.toJsonString(schema)))
+          .setSchemaFunction(schemaFunction)
           .build();
     }
 
     /**
-     * Use the specified schema for rows to be written.
+     * Allows the schemas for each table to be computed within the pipeline itself.
+     *
+     * <p>The input is a map-valued {@link PCollectionView} mapping string tablespecs to
+     * JSON-formatted {@link TableSchema}s.
      */
-    public Write<T> withSchema(ValueProvider<TableSchema> schema) {
-      return toBuilder()
-          .setJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()))
-          .build();
+    public Write<T> withSchemaFromView(PCollectionView<Map<String, String>> view) {
+      return withSchemaFunction(new SchemaFunction() {
+        @Override
+        public TableSchema apply(TableDestination input) {
+          return BigQueryHelpers.fromJsonString(getSideInputValue().get(input.getTableSpec()),
+              TableSchema.class);
+        }
+      }.withSideInput(view));
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -918,7 +1000,8 @@ public class BigQueryIO {
 
       // Require a schema if creating one or more tables.
       checkArgument(
-          getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED || getJsonSchema() != null,
+          getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
+              || getSchemaFunction() != null,
           "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
       // The user specified a table.
@@ -951,6 +1034,9 @@ public class BigQueryIO {
               getTableFunction(), getFormatFunction()))
               .setCoder(KvCoder.of(TableDestinationCoder.of(), TableRowJsonCoder.of()));
 
+      // The transforms always expect to get a non-null schema function.
+      SchemaFunction schemaFunction = MoreObjects.firstNonNull(
+          this.getSchemaFunction(), schemaFunction = ConstantSchemaFunction.fromJsonSchema(null));
 
       // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
       // StreamingInserts and BigQuery's streaming import API.
@@ -959,10 +1045,12 @@ public class BigQueryIO {
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
-
-        return rowsWithDestination.apply(new StreamingInserts(this));
+        return rowsWithDestination.apply(new StreamingInserts(
+            getCreateDisposition(), schemaFunction).withTestServices(getBigQueryServices()));
       } else {
-        return rowsWithDestination.apply(new BatchLoads(this));
+        return rowsWithDestination.apply(new BatchLoads(getWriteDisposition(),
+            getCreateDisposition(), getJsonTableRef(), getTableDescription(), schemaFunction)
+            .withTestServices(getBigQueryServices()));
       }
     }
 
@@ -977,9 +1065,14 @@ public class BigQueryIO {
 
       builder
           .addIfNotNull(DisplayData.item("table", getJsonTableRef())
-            .withLabel("Table Reference"))
-          .addIfNotNull(DisplayData.item("schema", getJsonSchema())
-            .withLabel("Table Schema"));
+            .withLabel("Table Reference"));
+      if (getSchemaFunction() instanceof ConstantSchemaFunction) {
+        ValueProvider<String> jsonSchema = ((ConstantSchemaFunction) getSchemaFunction())
+            .jsonSchema;
+        builder.addIfNotNull(DisplayData.item("schema", jsonSchema).withLabel("Table Schema"));
+      } else {
+        builder.add(DisplayData.item("schema", "Custom Schema Function").withLabel("Table Schema"));
+      }
 
       if (getTableFunction() != null) {
         builder.add(DisplayData.item("tableFn", getTableFunction().getClass())
@@ -995,12 +1088,6 @@ public class BigQueryIO {
             .withLabel("Validation Enabled"), true)
           .addIfNotDefault(DisplayData.item("tableDescription", getTableDescription())
             .withLabel("Table Description"), "");
-    }
-
-    /** Returns the table schema. */
-    public TableSchema getSchema() {
-      return BigQueryHelpers.fromJsonString(
-          getJsonSchema() == null ? null : getJsonSchema().get(), TableSchema.class);
     }
 
     /**

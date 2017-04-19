@@ -23,10 +23,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -40,7 +40,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
@@ -59,26 +58,28 @@ import org.apache.beam.sdk.values.TupleTagList;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
-  BigQueryIO.Write<?> write;
+  private BigQueryServices bigQueryServices;
+  private final WriteDisposition writeDisposition;
+  private final CreateDisposition createDisposition;
+  private final ValueProvider<String> singletonJsonTableRef;
+  private final String singletonTableDescription;
+  private final SchemaFunction schemaFunction;
 
-  private static class ConstantSchemaFunction
-      implements SerializableFunction<TableDestination, TableSchema> {
-    private final @Nullable ValueProvider<String> jsonSchema;
-
-    ConstantSchemaFunction(ValueProvider<String> jsonSchema) {
-      this.jsonSchema = jsonSchema;
-    }
-
-    @Override
-    @Nullable
-    public TableSchema apply(TableDestination table) {
-      return BigQueryHelpers.fromJsonString(
-          jsonSchema == null ? null : jsonSchema.get(), TableSchema.class);
-    }
+  BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
+             ValueProvider<String> singletonJsonTableRef,
+             String singletonTableDescription,
+             SchemaFunction schemaFunction) {
+    bigQueryServices = new BigQueryServicesImpl();
+    this.writeDisposition = writeDisposition;
+    this.createDisposition = createDisposition;
+    this.singletonJsonTableRef  = singletonJsonTableRef;
+    this.singletonTableDescription = singletonTableDescription;
+    this.schemaFunction = schemaFunction;
   }
 
-  BatchLoads(BigQueryIO.Write<?> write) {
-    this.write = write;
+  BatchLoads withTestServices(BigQueryServices bigQueryServices) {
+    this.bigQueryServices = bigQueryServices;
+    return this;
   }
 
   @Override
@@ -167,19 +168,19 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
             "WritePartition",
             ParDo.of(
                     new WritePartition(
-                        write.getJsonTableRef(),
-                        write.getTableDescription(),
+                        singletonJsonTableRef,
+                        singletonTableDescription,
                         resultsView,
                         multiPartitionsTag,
                         singlePartitionTag))
                 .withSideInputs(resultsView)
                 .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
 
-    // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
-    // schema function here. If no schema is specified, this function will return null.
-    // TODO: Turn this into a side-input instead.
-    SerializableFunction<TableDestination, TableSchema> schemaFunction =
-        new ConstantSchemaFunction(write.getJsonSchema());
+    List<PCollectionView<?>> writeTablesSideInputs = Lists.newArrayList();
+    writeTablesSideInputs.add(jobIdTokenView);
+    if (schemaFunction.getSideInput() != null) {
+      writeTablesSideInputs.add(schemaFunction.getSideInput());
+    }
 
     Coder<KV<ShardedKey<TableDestination>, List<String>>> partitionsCoder =
         KvCoder.of(
@@ -201,13 +202,13 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
                 ParDo.of(
                         new WriteTables(
                             false,
-                            write.getBigQueryServices(),
+                            bigQueryServices,
                             jobIdTokenView,
                             tempFilePrefix,
                             WriteDisposition.WRITE_EMPTY,
                             CreateDisposition.CREATE_IF_NEEDED,
                             schemaFunction))
-                    .withSideInputs(jobIdTokenView));
+                    .withSideInputs(writeTablesSideInputs));
 
     // This view maps each final table destination to the set of temporary partitioned tables
     // the PCollection was loaded into.
@@ -218,10 +219,10 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
         "WriteRename",
         ParDo.of(
                 new WriteRename(
-                    write.getBigQueryServices(),
+                    bigQueryServices,
                     jobIdTokenView,
-                    write.getWriteDisposition(),
-                    write.getCreateDisposition(),
+                    writeDisposition,
+                    createDisposition,
                     tempTablesView))
             .withSideInputs(tempTablesView, jobIdTokenView));
 
@@ -238,13 +239,13 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
             ParDo.of(
                     new WriteTables(
                         true,
-                        write.getBigQueryServices(),
+                        bigQueryServices,
                         jobIdTokenView,
                         tempFilePrefix,
-                        write.getWriteDisposition(),
-                        write.getCreateDisposition(),
+                        writeDisposition,
+                        createDisposition,
                         schemaFunction))
-                .withSideInputs(jobIdTokenView));
+                .withSideInputs(writeTablesSideInputs));
 
     return WriteResult.in(input.getPipeline());
   }
