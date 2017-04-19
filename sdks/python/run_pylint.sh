@@ -26,6 +26,17 @@
 set -o errexit
 set -o pipefail
 
+MODULE=apache_beam
+
+usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
+
+if test $# -gt 0; then
+  case "$@" in
+    --help) usage; exit 1;;
+	 *)      MODULE="$@";;
+  esac
+fi
+
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/bigquery/bigquery_v2_client.py"
@@ -45,11 +56,6 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   fi
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
-
-if test $# -gt 0
-  then MODULE="$@"
-  else MODULE=apache_beam
-fi
 
 echo "Running pylint for module $MODULE:"
 pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
