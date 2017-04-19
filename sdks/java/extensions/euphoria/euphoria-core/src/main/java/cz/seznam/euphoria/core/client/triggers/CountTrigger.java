@@ -40,7 +40,6 @@ public class CountTrigger<W extends Window> implements Trigger<W> {
     count.set(count.get() + 1L);
 
     if (count.get() >= maxCount) {
-      count.clear();
       return TriggerResult.FLUSH_AND_PURGE;
     }
     return TriggerResult.NOOP;
