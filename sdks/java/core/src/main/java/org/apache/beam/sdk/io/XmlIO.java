@@ -89,7 +89,7 @@ public class XmlIO {
    *
    * <h3>Permissions</h3>
    *
-   * Permission requirements depend on the {@link org.apache.beam.sdk.runners.PipelineRunner
+   * <p>Permission requirements depend on the {@link org.apache.beam.sdk.runners.PipelineRunner
    * PipelineRunner} that is used to execute the Beam pipeline. Please refer to the documentation of
    * corresponding {@link PipelineRunner PipelineRunners} for more details.
    *
