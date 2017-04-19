@@ -113,8 +113,6 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // ~ reduce the data now
     Operator<BatchElement<Window, Pair>, ?> reduced =
             tuples.groupBy(new RBKKeySelector())
-                    .combineGroup(new RBKReducer(reducer))
-                    .groupBy(new RBKKeySelector())
                     .reduceGroup(new RBKReducer(reducer))
                     .setParallelism(operator.getParallelism())
                     .name(operator.getName() + "::reduce");
@@ -190,13 +188,11 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       // Tuple2[Window, Key] => Reduced Value
       Map<Tuple2, BatchElement<Window, Pair>> reducedValues = new HashMap<>();
 
-      Tuple2 kw = new Tuple2();
       for (BatchElement<Window, Pair> batchElement : values) {
         Object key = batchElement.getElement().getFirst();
         Window window = batchElement.getWindow();
 
-        kw.f0 = window;
-        kw.f1 = key;
+        Tuple2 kw = new Tuple2<>(window, key);
         BatchElement<Window, Pair> val = reducedValues.get(kw);
         if (val == null) {
           reducedValues.put(kw, batchElement);
