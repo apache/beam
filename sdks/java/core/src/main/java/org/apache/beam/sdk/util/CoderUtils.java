@@ -247,12 +247,6 @@ public final class CoderUtils {
             TypeFactory.defaultInstance());
       }
 
-      @Deprecated
-      @Override
-      public JavaType typeFromId(String id) {
-        return typeFromId(null, id);
-      }
-
       @Override
       public JavaType typeFromId(DatabindContext context, String id) {
         Class<?> clazz = getClassForId(id);
