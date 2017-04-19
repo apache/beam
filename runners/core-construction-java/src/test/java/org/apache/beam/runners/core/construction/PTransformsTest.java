@@ -35,9 +35,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.PTransform;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -75,7 +74,7 @@ public class PTransformsTest {
     TestPipeline compositeReadPipeline = TestPipeline.create();
     ToAndFromProtoSpec compositeRead =
         ToAndFromProtoSpec.composite(
-            countingInput(compositeReadPipeline),
+            generateSequence(compositeReadPipeline),
             ToAndFromProtoSpec.leaf(read(compositeReadPipeline)));
     return ImmutableList.<ToAndFromProtoSpec>builder()
         .add(readLeaf)
@@ -152,11 +151,11 @@ public class PTransformsTest {
     @ProcessElement public void process(ProcessContext context) {}
   }
 
-  private static AppliedPTransform<?, ?, ?> countingInput(Pipeline pipeline) {
-    UnboundedCountingInput input = CountingInput.unbounded();
-    PCollection<Long> pcollection = pipeline.apply(input);
-    return AppliedPTransform.<PBegin, PCollection<Long>, UnboundedCountingInput>of(
-        "Count", pipeline.begin().expand(), pcollection.expand(), input, pipeline);
+  private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {
+    GenerateSequence sequence = GenerateSequence.from(0);
+    PCollection<Long> pcollection = pipeline.apply(sequence);
+    return AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
+        "Count", pipeline.begin().expand(), pcollection.expand(), sequence, pipeline);
   }
 
   private static AppliedPTransform<?, ?, ?> read(Pipeline pipeline) {
@@ -169,7 +168,7 @@ public class PTransformsTest {
   private static AppliedPTransform<?, ?, ?> multiMultiParDo(Pipeline pipeline) {
     PCollectionView<String> view =
         pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
-    PCollection<Long> input = pipeline.apply(CountingInput.unbounded());
+    PCollection<Long> input = pipeline.apply(GenerateSequence.from(0));
     ParDo.MultiOutput<Long, KV<Long, String>> parDo =
         ParDo.of(new TestDoFn())
             .withSideInputs(view)

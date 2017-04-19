@@ -43,7 +43,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -106,7 +106,7 @@ public class BigtableWriteIT implements Serializable {
     createEmptyTable(instanceName, tableId);
 
     Pipeline p = Pipeline.create(options);
-    p.apply(CountingInput.upTo(numRows))
+    p.apply(GenerateSequence.fromTo(0, numRows))
         .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
           @ProcessElement
           public void processElement(ProcessContext c) {

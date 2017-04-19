@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.base.Joiner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -58,7 +58,7 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
     p
-      .apply(CountingInput.upTo(10))
+      .apply(GenerateSequence.fromTo(0, 10))
       .apply(ParDo.of(new DoFn<Long, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

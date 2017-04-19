@@ -52,8 +52,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -246,7 +246,7 @@ public class DirectRunnerTest implements Serializable {
     opts.setRunner(DirectRunner.class);
 
     final Pipeline p = Pipeline.create(opts);
-    p.apply(CountingInput.unbounded().withRate(1L, Duration.standardSeconds(1)));
+    p.apply(GenerateSequence.from(0).withRate(1L, Duration.standardSeconds(1)));
 
     final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
     Runnable cancelRunnable = new Runnable() {
@@ -513,8 +513,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromBoundedRead() throws Exception {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.upTo(10)).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.fromTo(0, 10)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
@@ -524,8 +523,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromUnboundedRead() {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.unbounded()).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");

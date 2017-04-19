@@ -20,7 +20,7 @@ package org.apache.beam.sdk.values;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.Create;
@@ -39,9 +39,10 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * be passed as the inputs of other PTransforms.
  *
  * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones. For example, {@link CountingInput#upTo} produces a fixed set of integers,
- * so it produces a bounded {@link PCollection}. {@link CountingInput#unbounded} produces all
- * integers as an infinite stream, so it produces an unbounded {@link PCollection}.
+ * produce unbounded ones. For example, {@link GenerateSequence#fromTo} produces a fixed set of
+ * integers, so it produces a bounded {@link PCollection}. {@link GenerateSequence#from} without
+ * a {@link GenerateSequence#to} produces all integers as an infinite stream, so it produces an
+ * unbounded {@link PCollection}.
  *
  * <p>Each element in a {@link PCollection} has an associated timestamp. Readers assign timestamps
  * to elements when they create {@link PCollection PCollections}, and other

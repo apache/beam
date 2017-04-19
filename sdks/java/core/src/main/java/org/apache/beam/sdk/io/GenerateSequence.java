@@ -109,6 +109,11 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
         .build();
   }
 
+  /** Specifies to generate the range [from, to). */
+  public static GenerateSequence fromTo(long from, long to) {
+    return from(from).to(to);
+  }
+
   /** Specifies the maximum number to generate (exclusive). */
   public GenerateSequence to(long to) {
     checkArgument(
