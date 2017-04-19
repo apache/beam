@@ -800,7 +800,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * does not interfere with the output of other Writers, as a bundle may be executed many
      * times for fault tolerance.
      *
-     * <p></p>The window and paneInfo arguments are populated when windowed writes are requested.
+     * <p>The window and paneInfo arguments are populated when windowed writes are requested.
      * shard and numShards are populated for the case of static sharding. In cases where the
      * runner is dynamically picking sharding, shard and numShards might both be set to -1.
      */
