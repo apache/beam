@@ -27,6 +27,13 @@ import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam import coders
+from apache_beam.metrics import Metrics
+from apache_beam.io.iobase import BoundedSource
+from apache_beam.io.iobase import Read
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.test_pipeline import TestPipeline
 import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
@@ -167,6 +174,60 @@ class PTransformTest(unittest.TestCase):
     assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
     pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_read_from_text_metrics(self):
+    class CountingSource(BoundedSource):
+
+      def __init__(self, count):
+        self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+        self._count = count
+
+      def estimate_size(self):
+        return self._count
+
+      def get_range_tracker(self, start_position, stop_position):
+        if start_position is None:
+          start_position = 0
+          if stop_position is None:
+            stop_position = self._count
+
+            return OffsetRangeTracker(start_position, stop_position)
+
+      def read(self, range_tracker):
+        for i in range(self._count):
+          if not range_tracker.try_claim(i):
+            return
+          self.records_read.inc()
+          yield i
+
+    def split(self, desired_bundle_size, start_position=None,
+              stop_position=None):
+      if start_position is None:
+        start_position = 0
+      if stop_position is None:
+        stop_position = self._count
+
+      bundle_start = start_position
+      while bundle_start < self._count:
+        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                  source=self,
+                                  start_position=bundle_start,
+                                  stop_position=bundle_stop)
+        bundle_start = bundle_stop
+
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | Read(CountingSource(100))
+    res = pipeline.run()
+    res.wait_until_finish()
+    metric_results = res.metrics().query()
+    outputs_counter = metric_results['counters'][0]
+    self.assertEqual(outputs_counter.key.step, 'Read')
+    self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
+    self.assertEqual(outputs_counter.committed, 100)
+
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
