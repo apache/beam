@@ -67,6 +67,9 @@ public class GcsPathValidator implements PathValidator {
   public String verifyPath(String path) {
     GcsPath gcsPath = getGcsPath(path);
     checkArgument(gcsPath.isAbsolute(), "Must provide absolute paths for Dataflow");
+    checkArgument(!gcsPath.getObject().isEmpty(),
+        "Missing object or bucket in path: '%s', did you mean: 'gs://some-bucket/%s'?",
+        gcsPath, gcsPath.getBucket());
     checkArgument(!gcsPath.getObject().contains("//"),
         "Dataflow Service does not allow objects with consecutive slashes");
     return gcsPath.toResourceName();
