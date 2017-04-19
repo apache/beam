@@ -27,12 +27,9 @@ import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam import coders
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.io.iobase import Read
-from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.test_pipeline import TestPipeline
 import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
@@ -191,8 +188,7 @@ class PTransformTest(unittest.TestCase):
         if start_position is None:
           start_position = 0
         if stop_position is None:
-            stop_position = self._count
-
+          stop_position = self._count
         return OffsetRangeTracker(start_position, stop_position)
 
       def read(self, range_tracker):
