@@ -69,6 +69,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected final BigQueryServices bqServices;
   protected final ValueProvider<String> executingProject;
 
+  private List<BoundedSource<TableRow>> cachedSplitResult;
+
   BigQuerySourceBase(
       ValueProvider<String> jobIdToken,
       String extractDestinationDir,
@@ -83,17 +85,24 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   @Override
   public List<BoundedSource<TableRow>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    TableReference tableToExtract = getTableToExtract(bqOptions);
-    JobService jobService = bqServices.getJobService(bqOptions);
-    String extractJobId = BigQueryIO.getExtractJobId(jobIdToken);
-    List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
+    // split() can be called multiple times, e.g. Dataflow runner may call it multiple times
+    // with different desiredBundleSizeBytes in case the split() call produces too many sources.
+    // We ignore desiredBundleSizeBytes anyway, however in any case, we should not initiate
+    // another BigQuery extract job for the repeated split() calls.
+    if (cachedSplitResult == null) {
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+      TableReference tableToExtract = getTableToExtract(bqOptions);
+      JobService jobService = bqServices.getJobService(bqOptions);
+      String extractJobId = BigQueryIO.getExtractJobId(jobIdToken);
+      List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
 
-    TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
-        .getTable(tableToExtract).getSchema();
+      TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
+          .getTable(tableToExtract).getSchema();
 
-    cleanupTempResource(bqOptions);
-    return createSources(tempFiles, tableSchema);
+      cleanupTempResource(bqOptions);
+      cachedSplitResult = checkNotNull(createSources(tempFiles, tableSchema));
+    }
+    return cachedSplitResult;
   }
 
   protected abstract TableReference getTableToExtract(BigQueryOptions bqOptions) throws Exception;
