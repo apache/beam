@@ -11,7 +11,7 @@ The Java SDK for Apache Beam provides a simple, powerful API for building both b
 
 ## Get Started with the Java SDK
 
-Get started with the [Beam Programming Model]({{ site.baseurl }}/learn/programming-guide/) to learn the basic concepts that apply to all SDKs in Beam.
+Get started with the [Beam Programming Model]({{ site.baseurl }}/documentation/programming-guide/) to learn the basic concepts that apply to all SDKs in Beam.
 
 See the [Java API Reference]({{ site.baseurl }}/documentation/sdks/javadoc/) for more information on individual APIs.
 

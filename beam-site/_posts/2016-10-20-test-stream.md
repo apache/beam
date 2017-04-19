@@ -306,4 +306,4 @@ The addition of TestStream alongside window and pane-specific matchers in PAsser
 has enabled the testing of Pipelines which produce speculative and late panes.
 This permits tests for all styles of pipeline to be expressed directly within the
 Java SDK. If you have questions or comments, we’d love to hear them on the
-[mailing lists]({{ site.baseurl }}/use/mailing-lists/).
+[mailing lists]({{ site.baseurl }}/get-started/support/).

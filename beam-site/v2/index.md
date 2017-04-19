@@ -12,7 +12,7 @@ layout: v2home
 
 </div>
 </div>
-<p><a class="btn btn-large btn-success" href="{{ site.baseurl }}/get-started/releases/">Download</a></p>
+<p><a class="btn btn-large btn-success" href="{{ site.baseurl }}/get-started/downloads/">Download</a></p>
 </div>
 </div>
 </div>

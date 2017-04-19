@@ -20,6 +20,6 @@ Learn about the best practices for developing new PTransforms.
 #### Resources
 Resources for contributing to Beam, including mailing lists, the main GitHub repo, and the issues tracker.
 
-* [Mailing Lists]({{ site.baseurl }}/use/mailing-lists/)
+* [Mailing Lists]({{ site.baseurl }}/get-started/support/)
 * [Source Repository]({{ site.baseurl }}/contribute/source-repository)
-* [Issue Tracking]({{ site.baseurl }}/use/issue-tracking/)
+* [Issue Tracking]({{ site.baseurl }}/get-started/support/)
