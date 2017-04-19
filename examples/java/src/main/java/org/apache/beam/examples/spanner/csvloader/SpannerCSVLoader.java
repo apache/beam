@@ -1,3 +1,4 @@
+package org.apache.beam.examples.spanner.csvloader;
 package com.disney.dtss.desa.tools;
 
 import com.google.cloud.spanner.Mutation;
@@ -46,30 +47,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Generalized bulk loader for importing BigQuery tables as Datastore kinds.
- *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and the Datastore info for the output, with the form
- * <pre>{@code
- *   --dataset=DATASET_ID
- *   --key=Key specification for the kind.   
- * }</pre>
- *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowPipelineRunner
- * }
- * </pre>
- * and the BigQuery table reference for input
- * <pre>{@code
- *   --input=<project_id>:<dataset_id>.<table_id>
- * }</pre>
+ * Generalized bulk loader for importing CSV files into Spanner
  *
  */
 public class SpannerCSVLoader {
@@ -125,7 +103,7 @@ public class SpannerCSVLoader {
 
 
   /**
-   * A DoFn that creates a Spanner Mutation for each BigQuery row.
+   * A DoFn that creates a Spanner Mutation for each CSV line.
    */
   static class ParseLineFn extends DoFn<String, Mutation> {
     private final TableInfo tableInfo;
