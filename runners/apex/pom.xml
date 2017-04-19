@@ -229,6 +229,7 @@
                 </beamTestPipelineOptions>
               </systemPropertyVariables>
               <skipTests>${skipIntegrationTests}</skipTests>
+              <threadCount>4</threadCount>
             </configuration>
           </execution>
         </executions>
