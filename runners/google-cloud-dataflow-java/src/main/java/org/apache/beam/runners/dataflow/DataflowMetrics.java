@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
+
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -169,7 +172,9 @@ class DataflowMetrics extends MetricResults {
       LOG.warn("Unable to query job metrics.\n");
       return DataflowMetricQueryResults.create(counters, distributions, gauges);
     }
-    metricUpdates = jobMetrics.getMetrics();
+    metricUpdates = firstNonNull(
+        jobMetrics.getMetrics(),
+        Collections.<com.google.api.services.dataflow.model.MetricUpdate>emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
   }
 
