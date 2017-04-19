@@ -98,7 +98,7 @@ public class DataflowMetricsTest {
     job.jobId = JOB_ID;
 
     JobMetrics jobMetrics = new JobMetrics();
-    jobMetrics.setMetrics(ImmutableList.<MetricUpdate>of());
+    jobMetrics.setMetrics(null /* this is how the APIs represent empty metrics */);
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
