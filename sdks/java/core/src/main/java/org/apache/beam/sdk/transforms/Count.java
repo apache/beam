@@ -57,6 +57,9 @@ public class Count {
   /**
    * Returns a {@link PTransform} that counts the number of elements in
    * its input {@link PCollection}.
+   *
+   * <p>Note, for {@code none-GlobalWindow} use
+   * {@code Combine.globally(Count.<T>combineFn()).withoutDefaults()} instead.
    */
   public static <T> PTransform<PCollection<T>, PCollection<Long>> globally() {
     return Combine.globally(new CountFn<T>());
