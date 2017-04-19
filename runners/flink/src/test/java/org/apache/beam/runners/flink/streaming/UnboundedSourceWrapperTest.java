@@ -37,6 +37,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.state.ListState;
@@ -116,7 +117,7 @@ public class UnboundedSourceWrapperTest {
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
       StreamSource<WindowedValue<
-          KV<Integer, Integer>>,
+          ValueWithRecordId<KV<Integer, Integer>>>,
           UnboundedSourceWrapper<
               KV<Integer, Integer>,
               TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
@@ -126,7 +127,7 @@ public class UnboundedSourceWrapperTest {
       try {
         sourceOperator.open();
         sourceOperator.run(checkpointLock,
-            new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
+            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
@@ -138,8 +139,8 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void collect(
-                  StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
+              public void collect(StreamRecord<WindowedValue<
+                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
 
                 count++;
                 if (count >= numElements) {
@@ -184,7 +185,7 @@ public class UnboundedSourceWrapperTest {
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
       StreamSource<
-          WindowedValue<KV<Integer, Integer>>,
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
           UnboundedSourceWrapper<
               KV<Integer, Integer>,
               TestCountingSource.CounterMark>> sourceOperator = new StreamSource<>(flinkWrapper);
@@ -214,7 +215,7 @@ public class UnboundedSourceWrapperTest {
       try {
         sourceOperator.open();
         sourceOperator.run(checkpointLock,
-            new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
+            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
@@ -226,10 +227,10 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void collect(
-                  StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
+              public void collect(StreamRecord<WindowedValue<
+                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
 
-                emittedElements.add(windowedValueStreamRecord.getValue().getValue());
+                emittedElements.add(windowedValueStreamRecord.getValue().getValue().getValue());
                 count++;
                 if (count >= numElements / 2) {
                   throw new SuccessException();
@@ -275,7 +276,7 @@ public class UnboundedSourceWrapperTest {
       assertEquals(numSplits, restoredFlinkWrapper.getSplitSources().size());
 
       StreamSource<
-          WindowedValue<KV<Integer, Integer>>,
+          WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>,
           UnboundedSourceWrapper<
               KV<Integer, Integer>,
               TestCountingSource.CounterMark>> restoredSourceOperator =
@@ -292,7 +293,7 @@ public class UnboundedSourceWrapperTest {
       try {
         restoredSourceOperator.open();
         restoredSourceOperator.run(checkpointLock,
-            new Output<StreamRecord<WindowedValue<KV<Integer, Integer>>>>() {
+            new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
               private int count = 0;
 
               @Override
@@ -304,9 +305,9 @@ public class UnboundedSourceWrapperTest {
               }
 
               @Override
-              public void collect(
-                  StreamRecord<WindowedValue<KV<Integer, Integer>>> windowedValueStreamRecord) {
-                emittedElements.add(windowedValueStreamRecord.getValue().getValue());
+              public void collect(StreamRecord<WindowedValue<
+                  ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
+                emittedElements.add(windowedValueStreamRecord.getValue().getValue().getValue());
                 count++;
                 if (count >= numElements / 2) {
                   throw new SuccessException();
