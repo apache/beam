@@ -29,7 +29,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
@@ -37,10 +37,10 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -236,7 +236,7 @@ public class MetricsTest implements Serializable {
   public void testBoundedSourceMetrics() {
     long numElements = 1000;
 
-    PCollection<Long> input = pipeline.apply(CountingInput.upTo(numElements));
+    pipeline.apply(GenerateSequence.fromTo(0, numElements));
 
     PipelineResult pipelineResult = pipeline.run();
 
@@ -257,8 +257,10 @@ public class MetricsTest implements Serializable {
   public void testUnboundedSourceMetrics() {
     long numElements = 1000;
 
-    PCollection<Long> input = pipeline
-        .apply((CountingInput.unbounded()).withMaxNumRecords(numElements));
+
+    // Use withMaxReadTime to force unbounded mode.
+    pipeline.apply(
+        GenerateSequence.fromTo(0, numElements).withMaxReadTime(Duration.standardDays(1)));
 
     PipelineResult pipelineResult = pipeline.run();
 

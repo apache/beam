@@ -34,7 +34,7 @@ import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -106,7 +106,7 @@ public class SdkComponentsTest {
   @Test
   public void registerTransformAfterChildren() throws IOException {
     Create.Values<Long> create = Create.of(1L, 2L, 3L);
-    CountingInput.UnboundedCountingInput createChild = CountingInput.unbounded();
+    GenerateSequence createChild = GenerateSequence.from(0);
 
     PCollection<Long> pt = pipeline.apply(create);
     String userName = "my_transform";
@@ -115,7 +115,7 @@ public class SdkComponentsTest {
         AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
-        AppliedPTransform.<PBegin, PCollection<Long>, CountingInput.UnboundedCountingInput>of(
+        AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
             childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
 
     String childId = components.registerPTransform(childTransform,
@@ -159,7 +159,7 @@ public class SdkComponentsTest {
   @Test
   public void registerTransformWithUnregisteredChildren() throws IOException {
     Create.Values<Long> create = Create.of(1L, 2L, 3L);
-    CountingInput.UnboundedCountingInput createChild = CountingInput.unbounded();
+    GenerateSequence createChild = GenerateSequence.from(0);
 
     PCollection<Long> pt = pipeline.apply(create);
     String userName = "my_transform";
@@ -168,7 +168,7 @@ public class SdkComponentsTest {
         AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
-        AppliedPTransform.<PBegin, PCollection<Long>, CountingInput.UnboundedCountingInput>of(
+        AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
             childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
 
     thrown.expect(IllegalArgumentException.class);
@@ -179,7 +179,7 @@ public class SdkComponentsTest {
 
   @Test
   public void registerPCollection() throws IOException {
-    PCollection<Long> pCollection = pipeline.apply(CountingInput.unbounded()).setName("foo");
+    PCollection<Long> pCollection = pipeline.apply(GenerateSequence.from(0)).setName("foo");
     String id = components.registerPCollection(pCollection);
     assertThat(id, equalTo("foo"));
     components.toComponents().getPcollectionsOrThrow(id);
@@ -188,10 +188,10 @@ public class SdkComponentsTest {
   @Test
   public void registerPCollectionExistingNameCollision() throws IOException {
     PCollection<Long> pCollection =
-        pipeline.apply("FirstCount", CountingInput.unbounded()).setName("foo");
+        pipeline.apply("FirstCount", GenerateSequence.from(0)).setName("foo");
     String firstId = components.registerPCollection(pCollection);
     PCollection<Long> duplicate =
-        pipeline.apply("SecondCount", CountingInput.unbounded()).setName("foo");
+        pipeline.apply("SecondCount", GenerateSequence.from(0)).setName("foo");
     String secondId = components.registerPCollection(duplicate);
     assertThat(firstId, equalTo("foo"));
     assertThat(secondId, containsString("foo"));

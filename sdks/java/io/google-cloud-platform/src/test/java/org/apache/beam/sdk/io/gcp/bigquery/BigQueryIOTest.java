@@ -77,8 +77,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -1042,7 +1042,7 @@ public class BigQueryIOTest implements Serializable {
     PCollection<TableRow> tableRows;
     if (unbounded) {
       tableRows =
-          p.apply(CountingInput.unbounded())
+          p.apply(GenerateSequence.from(0))
               .apply(
                   MapElements.via(
                       new SimpleFunction<Long, TableRow>() {
@@ -1092,7 +1092,7 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows =
-        p.apply(CountingInput.unbounded())
+        p.apply(GenerateSequence.from(0))
         .apply(
             MapElements.via(
                 new SimpleFunction<Long, TableRow>() {

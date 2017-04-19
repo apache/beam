@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -108,7 +108,7 @@ public final class PCollectionTupleTest implements Serializable {
   public void testEquals() {
     TestPipeline p = TestPipeline.create();
     TupleTag<Long> longTag = new TupleTag<>();
-    PCollection<Long> longs = p.apply(CountingInput.unbounded());
+    PCollection<Long> longs = p.apply(GenerateSequence.from(0));
     TupleTag<String> strTag = new TupleTag<>();
     PCollection<String> strs = p.apply(Create.of("foo", "bar"));
 
@@ -135,7 +135,7 @@ public final class PCollectionTupleTest implements Serializable {
     TupleTag<Long> longTag = new TupleTag<>();
 
     Pipeline p = TestPipeline.create();
-    PCollection<Long> longs = p.apply(CountingInput.upTo(100L));
+    PCollection<Long> longs = p.apply(GenerateSequence.fromTo(0, 100));
     PCollection<String> strs = p.apply(Create.of("foo", "bar", "baz"));
     PCollection<Integer> ints = longs.apply(MapElements.via(new SimpleFunction<Long, Integer>() {
       @Override

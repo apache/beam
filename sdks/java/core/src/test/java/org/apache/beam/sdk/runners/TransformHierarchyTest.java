@@ -32,9 +32,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
-import org.apache.beam.sdk.io.CountingInput;
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
@@ -254,7 +253,7 @@ public class TransformHierarchyTest implements Serializable {
               }
             });
 
-    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    GenerateSequence genUpstream = GenerateSequence.from(0);
     PCollection<Long> upstream = pipeline.apply(genUpstream);
     PCollection<Long> output = upstream.apply("Original", originalParDo);
     hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);
@@ -417,7 +416,7 @@ public class TransformHierarchyTest implements Serializable {
               }
             });
 
-    UnboundedCountingInput genUpstream = CountingInput.unbounded();
+    GenerateSequence genUpstream = GenerateSequence.from(0);
     PCollection<Long> upstream = pipeline.apply(genUpstream);
     PCollection<Long> output = upstream.apply("Original", originalParDo);
     Node upstreamNode = hierarchy.pushNode("Upstream", pipeline.begin(), genUpstream);

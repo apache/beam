@@ -64,7 +64,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -889,7 +889,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testMultiOutputAppliedMultipleTimesDifferentOutputs() {
     pipeline.enableAbandonedNodeEnforcement(false);
-    PCollection<Long> longs = pipeline.apply(CountingInput.unbounded());
+    PCollection<Long> longs = pipeline.apply(GenerateSequence.from(0));
 
     TupleTag<Long> mainOut = new TupleTag<>();
     final TupleTag<String> valueAsString = new TupleTag<>();
