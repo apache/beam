@@ -197,7 +197,7 @@ public class HBaseIOTest {
         HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
         HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
         List<? extends BoundedSource<Result>> splits =
-                source.splitIntoBundles(numRows * bytesPerRow / numRegions,
+                source.split(numRows * bytesPerRow / numRegions,
                         null /* options */);
 
         // Test num splits and split equality.

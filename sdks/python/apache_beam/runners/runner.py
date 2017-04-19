@@ -325,8 +325,8 @@ class PValueCache(object):
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
-        # This is an undeclared, empty side output of a DoFn executed
-        # in the local runner before this side output referenced.
+        # This is an undeclared, empty output of a DoFn executed
+        # in the local runner before this output was referenced.
         return []
       else:
         raise

@@ -168,7 +168,7 @@ public class AvroSourceTest {
 
     AvroSource<FixedRecord> source = AvroSource.from(filename).withSchema(FixedRecord.class);
     List<? extends BoundedSource<FixedRecord>> splits =
-        source.splitIntoBundles(file.length() / 3, null);
+        source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       int items = SourceTestUtils.readFromSource(subSource, null).size();
       // Shouldn't split while unstarted.
@@ -201,7 +201,7 @@ public class AvroSourceTest {
     }
 
     List<? extends BoundedSource<FixedRecord>> splits =
-        source.splitIntoBundles(file.length() / 3, null);
+        source.split(file.length() / 3, null);
     for (BoundedSource<FixedRecord> subSource : splits) {
       try (BoundedSource.BoundedReader<FixedRecord> reader = subSource.createReader(null)) {
         assertEquals(Double.valueOf(0.0), reader.getFractionConsumed());
@@ -339,7 +339,7 @@ public class AvroSourceTest {
     int nonEmptySplits;
 
     // Split with the minimum bundle size
-    splits = source.splitIntoBundles(100L, options);
+    splits = source.split(100L, options);
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
@@ -351,7 +351,7 @@ public class AvroSourceTest {
     assertTrue(nonEmptySplits > 2);
 
     // Split with larger bundle size
-    splits = source.splitIntoBundles(file.length() / 4, options);
+    splits = source.split(file.length() / 4, options);
     assertTrue(splits.size() > 2);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
     nonEmptySplits = 0;
@@ -363,7 +363,7 @@ public class AvroSourceTest {
     assertTrue(nonEmptySplits > 2);
 
     // Split with the file length
-    splits = source.splitIntoBundles(file.length(), options);
+    splits = source.split(file.length(), options);
     assertTrue(splits.size() == 1);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }

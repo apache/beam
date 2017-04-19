@@ -133,7 +133,7 @@ public class DataflowPipelineJobTest {
 
   /**
    * Validates that a given time is valid for the total time slept by a
-   * AttemptBoundedExponentialBackOff given the number of retries and
+   * BackOff given the number of retries and
    * an initial polling interval.
    *
    * @param pollingInterval The initial polling interval given.

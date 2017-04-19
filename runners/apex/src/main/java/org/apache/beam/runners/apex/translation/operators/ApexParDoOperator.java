@@ -48,6 +48,7 @@ import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
@@ -368,7 +369,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     }
 
     pushbackDoFnRunner =
-        PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
   }
 

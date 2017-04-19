@@ -56,7 +56,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
      * {@code desiredNumSplits} partitions. Each partition is then a split.
      */
     @Override
-    public List<KinesisSource> generateInitialSplits(int desiredNumSplits,
+    public List<KinesisSource> split(int desiredNumSplits,
                                                      PipelineOptions options) throws Exception {
         KinesisReaderCheckpoint checkpoint =
                 initialCheckpointGenerator.generate(SimplifiedKinesisClient.from(kinesis));

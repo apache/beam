@@ -691,9 +691,9 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testPropertyIsSetOnRegisteredPipelineOptionNotPartOfOriginalInterface() {
     PipelineOptions options = PipelineOptionsFactory
-        .fromArgs("--project=testProject")
+        .fromArgs("--streaming")
         .create();
-    assertEquals("testProject", options.as(GcpOptions.class).getProject());
+    assertTrue(options.as(StreamingOptions.class).isStreaming());
   }
 
   /** A test interface containing all the primitives. */

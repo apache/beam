@@ -43,7 +43,7 @@ public class SourceTestUtilsTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     BoundedSource<Long> baseSource = CountingSource.upTo(100);
     BoundedSource<Long> unsplittableSource = SourceTestUtils.toUnsplittableSource(baseSource);
-    List<?> splits = unsplittableSource.splitIntoBundles(1, options);
+    List<?> splits = unsplittableSource.split(1, options);
     assertEquals(splits.size(), 1);
     assertEquals(splits.get(0), unsplittableSource);
 

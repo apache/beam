@@ -43,9 +43,13 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   private static final Logger LOG = LoggerFactory.getLogger(ParDoEvaluatorFactory.class);
   private final LoadingCache<DoFn<?, ?>, DoFnLifecycleManager> fnClones;
   private final EvaluationContext evaluationContext;
+  private final ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory;
 
-  ParDoEvaluatorFactory(EvaluationContext evaluationContext) {
+  ParDoEvaluatorFactory(
+      EvaluationContext evaluationContext,
+      ParDoEvaluator.DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
     this.evaluationContext = evaluationContext;
+    this.runnerFactory = runnerFactory;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
@@ -126,7 +130,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
         fnManager);
   }
 
-  ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+  ParDoEvaluator<InputT> createParDoEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
       StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
@@ -148,7 +152,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           sideInputs,
           mainOutputTag,
           additionalOutputTags,
-          pcollections(application.getOutputs()));
+          pcollections(application.getOutputs()),
+          runnerFactory);
     } catch (Exception e) {
       try {
         fnManager.remove();
@@ -162,7 +167,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     }
   }
 
-  private Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
+  static Map<TupleTag<?>, PCollection<?>> pcollections(Map<TupleTag<?>, PValue> outputs) {
     Map<TupleTag<?>, PCollection<?>> pcs = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       pcs.put(output.getKey(), (PCollection<?>) output.getValue());

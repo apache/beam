@@ -55,7 +55,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> generateInitialSplits(
+  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.singletonList(this);
   }

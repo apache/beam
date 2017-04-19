@@ -778,6 +778,12 @@ public class DisplayData implements Serializable {
       visitedComponents.add(subComponent);
       visitedPathMap.put(path, subComponent);
       Class<?> namespace = subComponent.getClass();
+      // Common case: AutoValue classes such as AutoValue_FooIO_Read. It's more useful
+      // to show the user the FooIO.Read class, which is the direct superclass of the AutoValue
+      // generated class.
+      if (namespace.getSimpleName().startsWith("AutoValue_")) {
+        namespace = namespace.getSuperclass();
+      }
 
       Path prevPath = latestPath;
       Class<?> prevNs = latestNs;

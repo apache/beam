@@ -26,6 +26,7 @@ import threading
 import time
 import traceback
 
+from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -373,7 +374,7 @@ class DataflowRunner(PipelineRunner):
         transform_node.full_label + (
             '/Do' if transform_node.side_inputs else ''),
         transform_node,
-        transform_node.transform.side_output_tags)
+        transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
@@ -384,7 +385,7 @@ class DataflowRunner(PipelineRunner):
     # Add side inputs if any.
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
-    # Generate description for main output and side outputs. The output names
+    # Generate description for the outputs. The output names
     # will be 'out' for main output and 'out_<tag>' for a tagged output.
     # Using 'out' as a tag will not clash with the name for main since it will
     # be transformed into 'out_out' internally.
@@ -397,8 +398,8 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.side_output_tags:
-      # The assumption here is that side outputs will have the same typehint
+    for side_tag in transform.output_tags:
+      # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
       outputs.append(
@@ -479,6 +480,11 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
+      except error.RuntimeValueProviderError:
+        # Size estimation is best effort, and this error is by value provider.
+        logging.info(
+            'Could not estimate size of source %r due to ' + \
+            'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(
