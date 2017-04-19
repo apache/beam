@@ -153,6 +153,14 @@
       <div class="row">
         <h1 id="using-the-apache-flink-runner">Using the Apache Flink Runner</h1>
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 <p>The Apache Flink Runner can be used to execute Beam pipelines using <a href="https://flink.apache.org">Apache Flink</a>. When using the Flink Runner you will create a jar file containing your job that can be executed on a regular Flink cluster. It’s also possible to execute a Beam pipeline using Flink’s local execution mode without setting up a cluster. This is helpful for development and debugging of your pipeline.</p>
 
 <p>The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:</p>
@@ -187,8 +195,7 @@
 
 <h3 id="specify-your-dependency">Specify your dependency</h3>
 
-<p>You must specify your dependency on the Flink Runner.</p>
-
+<p><span class="language-java">When using Java, you must specify your dependency on the Flink Runner in your <code class="highlighter-rouge">pom.xml</code>.</span></p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">flink_2</span><span class="o">.</span><span class="mi">10</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
@@ -197,6 +204,8 @@
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
 </code></pre>
 </div>
+
+<p><span class="language-py">This section is not applicable to the Beam SDK for Python.</span></p>
 
 <h2 id="executing-a-pipeline-on-a-flink-cluster">Executing a pipeline on a Flink cluster</h2>
 
@@ -278,7 +287,7 @@
 </tr>
 </table>
 
-<p>See the reference documentation for the  <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html">FlinkPipelineOptions</a></span><span class="language-python"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/pipeline_options.py">PipelineOptions</a></span> interface (and its subinterfaces) for the complete list of pipeline configuration options.</p>
+<p>See the reference documentation for the  <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html">FlinkPipelineOptions</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/pipeline_options.py">PipelineOptions</a></span> interface (and its subinterfaces) for the complete list of pipeline configuration options.</p>
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
 
