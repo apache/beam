@@ -29,10 +29,9 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.metrics import Metrics
-from apache_beam.io.iobase import BoundedSource
+from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.io.iobase import Read
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.test_pipeline import TestPipeline
 import apache_beam.pvalue as pvalue
@@ -177,7 +176,9 @@ class PTransformTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_read_from_text_metrics(self):
-    class CountingSource(BoundedSource):
+    from apache_beam.io import iobase
+    from apache_beam.io.range_trackers import OffsetRangeTracker
+    class CountingSource(iobase.BoundedSource):
 
       def __init__(self, count):
         self.records_read = Metrics.counter(self.__class__, 'recordsRead')
@@ -189,10 +190,10 @@ class PTransformTest(unittest.TestCase):
       def get_range_tracker(self, start_position, stop_position):
         if start_position is None:
           start_position = 0
-          if stop_position is None:
+        if stop_position is None:
             stop_position = self._count
 
-            return OffsetRangeTracker(start_position, stop_position)
+        return OffsetRangeTracker(start_position, stop_position)
 
       def read(self, range_tracker):
         for i in range(self._count):
@@ -201,33 +202,40 @@ class PTransformTest(unittest.TestCase):
           self.records_read.inc()
           yield i
 
-    def split(self, desired_bundle_size, start_position=None,
-              stop_position=None):
-      if start_position is None:
-        start_position = 0
-      if stop_position is None:
-        stop_position = self._count
+      def split(self, desired_bundle_size, start_position=None,
+                stop_position=None):
+        if start_position is None:
+          start_position = 0
+        if stop_position is None:
+          stop_position = self._count
 
-      bundle_start = start_position
-      while bundle_start < self._count:
-        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
-        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                  source=self,
-                                  start_position=bundle_start,
-                                  stop_position=bundle_stop)
-        bundle_start = bundle_stop
+        bundle_start = start_position
+        while bundle_start < self._count:
+          bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+          yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                    source=self,
+                                    start_position=bundle_start,
+                                    stop_position=bundle_stop)
+          bundle_start = bundle_stop
 
+    class CounterDoFn(beam.DoFn):
+      def __init__(self):
+        self.received_records = Metrics.counter(self.__class__,
+                                                'receivedRecords')
+
+      def process(self, element):
+        self.received_records.inc()
 
     pipeline = TestPipeline()
-    pcoll = pipeline | Read(CountingSource(100))
+    pcoll = pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn())
     res = pipeline.run()
     res.wait_until_finish()
-    metric_results = res.metrics().query()
+    metric_results = res.metrics().query(MetricsFilter()
+                                         .with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
     self.assertEqual(outputs_counter.key.step, 'Read')
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)
-
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
