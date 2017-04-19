@@ -55,10 +55,10 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 /**
- * Tests for {@link PushbackSideInputDoFnRunner}.
+ * Tests for {@link SimplePushbackSideInputDoFnRunner}.
  */
 @RunWith(JUnit4.class)
-public class PushbackSideInputDoFnRunnerTest {
+public class SimplePushbackSideInputDoFnRunnerTest {
   @Mock private ReadyCheckingSideInputReader reader;
   private TestDoFnRunner<Integer, Integer> underlying;
   private PCollectionView<Integer> singletonView;
@@ -78,10 +78,10 @@ public class PushbackSideInputDoFnRunnerTest {
     underlying = new TestDoFnRunner<>();
   }
 
-  private PushbackSideInputDoFnRunner<Integer, Integer> createRunner(
+  private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
       ImmutableList<PCollectionView<?>> views) {
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        PushbackSideInputDoFnRunner.create(underlying, views, reader);
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
+        SimplePushbackSideInputDoFnRunner.create(underlying, views, reader);
     runner.startBundle();
     return runner;
   }
@@ -102,7 +102,7 @@ public class PushbackSideInputDoFnRunnerTest {
     when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
         .thenReturn(false);
 
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
     WindowedValue<Integer> oneWindow =
@@ -122,7 +122,7 @@ public class PushbackSideInputDoFnRunnerTest {
     when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
         .thenReturn(false);
 
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
     WindowedValue<Integer> multiWindow =
@@ -150,7 +150,7 @@ public class PushbackSideInputDoFnRunnerTest {
                 org.mockito.AdditionalMatchers.not(Mockito.eq(GlobalWindow.INSTANCE))))
         .thenReturn(true);
 
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
 
     IntervalWindow littleWindow = new IntervalWindow(new Instant(-500L), new Instant(0L));
@@ -181,7 +181,7 @@ public class PushbackSideInputDoFnRunnerTest {
         .thenReturn(true);
 
     ImmutableList<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(singletonView);
-    PushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(views);
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(views);
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -202,7 +202,7 @@ public class PushbackSideInputDoFnRunnerTest {
 
   @Test
   public void processElementNoSideInputs() {
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
         createRunner(ImmutableList.<PCollectionView<?>>of());
 
     WindowedValue<Integer> multiWindow =
