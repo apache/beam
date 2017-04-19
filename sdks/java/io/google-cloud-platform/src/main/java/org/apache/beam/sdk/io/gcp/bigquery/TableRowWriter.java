@@ -29,13 +29,10 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Writes {@TableRow} objects out to a file. Used when doing batch load jobs into BigQuery.
- */
+/** Writes {@TableRow} objects out to a file. Used when doing batch load jobs into BigQuery. */
 class TableRowWriter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
@@ -47,6 +44,16 @@ class TableRowWriter {
   private WritableByteChannel channel;
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
+
+  public static final class Result {
+    final String filename;
+    final long byteSize;
+
+    public Result(String filename, long byteSize) {
+      this.filename = filename;
+      this.byteSize = byteSize;
+    }
+  }
 
   TableRowWriter(String basename) {
     this.tempFilePrefix = basename;
@@ -77,8 +84,8 @@ class TableRowWriter {
     out.write(NEWLINE);
   }
 
-  public final KV<String, Long> close() throws IOException {
+  public final Result close() throws IOException {
     channel.close();
-    return KV.of(fileName, out.getCount());
+    return new Result(fileName, out.getCount());
   }
 }
