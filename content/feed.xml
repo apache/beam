@@ -1131,7 +1131,7 @@ TestStream.&lt;/p&gt;
 has enabled the testing of Pipelines which produce speculative and late panes.
 This permits tests for all styles of pipeline to be expressed directly within the
 Java SDK. If you have questions or comments, we’d love to hear them on the
-&lt;a href=&quot;/use/mailing-lists/&quot;&gt;mailing lists&lt;/a&gt;.&lt;/p&gt;
+&lt;a href=&quot;/get-started/support/&quot;&gt;mailing lists&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Thu, 20 Oct 2016 11:00:00 -0700</pubDate>
         <link>https://beam.apache.org/blog/2016/10/20/test-stream.html</link>
@@ -1164,7 +1164,7 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 &lt;p&gt;We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p&gt;
 
-&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;other presentation materials&lt;/a&gt;. You can reach out to us on the &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href=&quot;/contribute/presentation-materials/&quot;&gt;other presentation materials&lt;/a&gt;. You can reach out to us on the &lt;a href=&quot;/get-started/support/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
 
 </description>
         <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
@@ -1217,7 +1217,7 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
   &lt;li&gt;Presented at multiple existing meetups and are starting to organize some of our own.&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;While it’s nice to reflect back on all we’ve done, we’re working full &lt;em&gt;stream&lt;/em&gt; ahead towards a stable release and graduation from incubator. And we’d love your help – join the &lt;a href=&quot;/use/mailing-lists/&quot;&gt;mailing lists&lt;/a&gt;, check out the &lt;a href=&quot;/contribute/contribution-guide/&quot;&gt;contribution guide&lt;/a&gt;, and grab a &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-520?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20in%20(newbie%2C%20starter)&quot;&gt;starter task&lt;/a&gt; from Jira!&lt;/p&gt;
+&lt;p&gt;While it’s nice to reflect back on all we’ve done, we’re working full &lt;em&gt;stream&lt;/em&gt; ahead towards a stable release and graduation from incubator. And we’d love your help – join the &lt;a href=&quot;/get-started/support/&quot;&gt;mailing lists&lt;/a&gt;, check out the &lt;a href=&quot;/contribute/contribution-guide/&quot;&gt;contribution guide&lt;/a&gt;, and grab a &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-520?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20in%20(newbie%2C%20starter)&quot;&gt;starter task&lt;/a&gt; from Jira!&lt;/p&gt;
 
 </description>
         <pubDate>Wed, 03 Aug 2016 00:00:01 -0700</pubDate>
@@ -1243,7 +1243,7 @@ making them readily available for our users. The initial release includes the
 SDK for Java, along with three runners: Apache Flink, Apache Spark and Google
 Cloud Dataflow, a fully-managed cloud service. The release is available both
 in the &lt;a href=&quot;http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22&quot;&gt;Maven Central Repository&lt;/a&gt;,
-as well as a download from the &lt;a href=&quot;/use/releases/&quot;&gt;project’s website&lt;/a&gt;.&lt;/p&gt;
+as well as a download from the &lt;a href=&quot;/get-started/downloads/&quot;&gt;project’s website&lt;/a&gt;.&lt;/p&gt;
 
 &lt;p&gt;The goal of this release was process-oriented. In particular, the Beam
 community wanted to release existing functionality to our users, build and
@@ -1258,7 +1258,7 @@ anticipated, perhaps one every 1-2 months.&lt;/p&gt;
 &lt;p&gt;As always, the Beam community welcomes feedback. Stabilization, usability and
 the developer experience will be our focus for the next several months. If you
 have any comments or discover any issues, I’d like to invite you to reach out
-to us via &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user’s mailing list&lt;/a&gt; or the
+to us via &lt;a href=&quot;/get-started/support/&quot;&gt;user’s mailing list&lt;/a&gt; or the
 &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM/&quot;&gt;Apache JIRA issue tracker&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Wed, 15 Jun 2016 00:00:01 -0700</pubDate>
