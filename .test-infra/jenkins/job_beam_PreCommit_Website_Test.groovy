@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-evaluate(new File("./common_job_properties.groovy"))
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // Defines a job.
 job('beam_PreCommit_Website_Test') {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-evaluate(new File("./common_job_properties.groovy"))
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // This is the Java precommit which runs a maven install, and the current set
 // of precommit tests.

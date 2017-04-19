@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-evaluate(new File("./common_job_properties.groovy"))
+COMMON_JOB_PROPERTIES_REPLACEMENT
 
 // This is the nightly snapshot build -- we use this to deploy a daily snapshot
 // to https://repository.apache.org/content/groups/snapshots/org/apache/beam.
