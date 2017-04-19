@@ -59,7 +59,6 @@ public abstract class MetricsFilter {
      *
      * <p>If no name filters are specified then all metric names will be inculded.
      *
-     *
      * <p>If one or more name filters are specified, then only metrics that match one or more of the
      * filters will be included.
      */
@@ -75,6 +74,14 @@ public abstract class MetricsFilter {
      *
      * <p>If one or more steps are specified, then metrics will be included if they are part of
      * any of the specified steps.
+     *
+     * <p>The step names of metrics are identified as a path within the pipeline. So for example, a
+     * transform that is applied with the name "bar" in a composite that was applied with the name
+     * "foo" would have a step name of "foo/bar".
+     *
+     * <p>Step name filters may be either a full name (such as "foo/bar/baz") or a partial name such
+     * as "foo", "bar" or "foo/bar". However, each component of the step name must be completely
+     * matched, so the filter "foo" will not match the step name such as "fool/bar/foot".
      */
     public Builder addStep(String step) {
       immutableStepsBuilder().add(step);
