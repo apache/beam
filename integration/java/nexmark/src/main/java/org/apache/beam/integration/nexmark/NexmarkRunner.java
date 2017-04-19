@@ -24,14 +24,13 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.integration.nexmark.io.PubsubHelper;
@@ -63,15 +62,18 @@ import org.apache.beam.integration.nexmark.queries.Query8;
 import org.apache.beam.integration.nexmark.queries.Query8Model;
 import org.apache.beam.integration.nexmark.queries.Query9;
 import org.apache.beam.integration.nexmark.queries.Query9Model;
-import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -186,38 +188,59 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   protected abstract int maxNumWorkers();
 
   /**
-   * Return the current value for a long counter, or -1 if can't be retrieved.
+   * Return the current value for a long counter, or a default value if can't be retrieved.
+   * Note this uses only attempted metrics because some runners don't support committed metrics.
    */
-  protected long getLong(PipelineResult job, Aggregator<Long, Long> aggregator) {
+  protected long getCounterMetric(PipelineResult result, String namespace, String name,
+    long defaultValue) {
+    //TODO Ismael calc this only once
+    MetricQueryResults metrics = result.metrics().queryMetrics(
+        MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
+    Iterable<MetricResult<Long>> counters = metrics.counters();
     try {
-      Collection<Long> values = job.getAggregatorValues(aggregator).getValues();
-      if (values.size() != 1) {
-        return -1;
-      }
-      return Iterables.getOnlyElement(values);
-    } catch (AggregatorRetrievalException e) {
-      return -1;
+      MetricResult<Long> metricResult = counters.iterator().next();
+      return metricResult.attempted();
+    } catch (NoSuchElementException e) {
+      //TODO Ismael
     }
+    return defaultValue;
   }
+
+  /**
+   * Return the current value for a long counter, or a default value if can't be retrieved.
+   * Note this uses only attempted metrics because some runners don't support committed metrics.
+   */
+  protected long getDistributionMetric(PipelineResult result, String namespace, String name,
+      DistributionType distType, long defaultValue) {
+    MetricQueryResults metrics = result.metrics().queryMetrics(
+        MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
+    try {
+      MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
+      if (distType.equals(DistributionType.MIN)) {
+        return distributionResult.attempted().min();
+      } else if (distType.equals(DistributionType.MAX)) {
+        return distributionResult.attempted().max();
+      } else {
+        //TODO Ismael
+      }
+    } catch (NoSuchElementException e) {
+      //TODO Ismael
+    }
+    return defaultValue;
+  }
+
+  private enum DistributionType {MIN, MAX}
 
   /**
    * Return the current value for a time counter, or -1 if can't be retrieved.
    */
-  protected long getTimestamp(
-    long now, PipelineResult job, Aggregator<Long, Long> aggregator) {
-    try {
-      Collection<Long> values = job.getAggregatorValues(aggregator).getValues();
-      if (values.size() != 1) {
-        return -1;
-      }
-      long value = Iterables.getOnlyElement(values);
-      if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
-        return -1;
-      }
-      return value;
-    } catch (AggregatorRetrievalException e) {
+  protected long getTimestampMetric(long now, long value) {
+    //TODO Ismael improve doc
+    if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
       return -1;
     }
+    return value;
   }
 
   /**
@@ -294,21 +317,46 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return the current performance given {@code eventMonitor} and {@code resultMonitor}.
    */
   private NexmarkPerf currentPerf(
-      long startMsSinceEpoch, long now, PipelineResult job,
+      long startMsSinceEpoch, long now, PipelineResult result,
       List<NexmarkPerf.ProgressSnapshot> snapshots, Monitor<?> eventMonitor,
       Monitor<?> resultMonitor) {
     NexmarkPerf perf = new NexmarkPerf();
 
-    long numEvents = getLong(job, eventMonitor.getElementCounter());
-    long numEventBytes = getLong(job, eventMonitor.getBytesCounter());
-    long eventStart = getTimestamp(now, job, eventMonitor.getStartTime());
-    long eventEnd = getTimestamp(now, job, eventMonitor.getEndTime());
-    long numResults = getLong(job, resultMonitor.getElementCounter());
-    long numResultBytes = getLong(job, resultMonitor.getBytesCounter());
-    long resultStart = getTimestamp(now, job, resultMonitor.getStartTime());
-    long resultEnd = getTimestamp(now, job, resultMonitor.getEndTime());
-    long timestampStart = getTimestamp(now, job, resultMonitor.getStartTimestamp());
-    long timestampEnd = getTimestamp(now, job, resultMonitor.getEndTimestamp());
+    long numEvents =
+      getCounterMetric(result, eventMonitor.name, eventMonitor.prefix + ".elements", -1);
+    long numEventBytes =
+      getCounterMetric(result, eventMonitor.name, eventMonitor.prefix + ".bytes", -1);
+    long eventStart =
+      getTimestampMetric(now,
+        getDistributionMetric(result, eventMonitor.name, eventMonitor.prefix + ".startTime",
+          DistributionType.MIN, -1));
+    long eventEnd =
+      getTimestampMetric(now,
+        getDistributionMetric(result, eventMonitor.name, eventMonitor.prefix + ".endTime",
+          DistributionType.MAX, -1));
+
+    long numResults =
+      getCounterMetric(result, resultMonitor.name, resultMonitor.prefix + ".elements", -1);
+    long numResultBytes =
+      getCounterMetric(result, resultMonitor.name, resultMonitor.prefix + ".bytes", -1);
+    long resultStart =
+      getTimestampMetric(now,
+        getDistributionMetric(result, resultMonitor.name, resultMonitor.prefix + ".startTime",
+          DistributionType.MIN, -1));
+    long resultEnd =
+      getTimestampMetric(now,
+        getDistributionMetric(result, resultMonitor.name, resultMonitor.prefix + ".endTime",
+          DistributionType.MAX, -1));
+    long timestampStart =
+      getTimestampMetric(now,
+        getDistributionMetric(result,
+          resultMonitor.name, resultMonitor.prefix + ".startTimestamp",
+          DistributionType.MIN, -1));
+    long timestampEnd =
+      getTimestampMetric(now,
+        getDistributionMetric(result,
+          resultMonitor.name, resultMonitor.prefix + ".endTimestamp",
+          DistributionType.MAX, -1));
 
     long effectiveEnd = -1;
     if (eventEnd >= 0 && resultEnd >= 0) {
@@ -372,7 +420,7 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
       perf.shutdownDelaySec = (now - resultEnd) / 1000.0;
     }
 
-    perf.jobId = getJobId(job);
+    perf.jobId = getJobId(result);
     // As soon as available, try to capture cumulative cost at this point too.
 
     NexmarkPerf.ProgressSnapshot snapshot = new NexmarkPerf.ProgressSnapshot();
@@ -574,9 +622,10 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
 
       if (options.isStreaming() && !waitingForShutdown) {
         Duration quietFor = new Duration(lastActivityMsSinceEpoch, now);
-        if (query.getFatalCount() != null && getLong(job, query.getFatalCount()) > 0) {
+        long fatalCount = getCounterMetric(job, query.getName(), "fatal", 0);
+        if (fatalCount > 0) {
           NexmarkUtils.console("job has fatal errors, cancelling.");
-          errors.add(String.format("Pipeline reported %s fatal errors", query.getFatalCount()));
+          errors.add(String.format("Pipeline reported %s fatal errors", fatalCount));
           waitingForShutdown = true;
         } else if (configuration.debug && configuration.numEvents > 0
                    && currPerf.numEvents == configuration.numEvents
@@ -1033,7 +1082,7 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
       if (c.element().hashCode() % 2 == 0) {
         c.output(c.element());
       } else {
-        c.sideOutput(SIDE, c.element());
+        c.output(SIDE, c.element());
       }
     }
   }

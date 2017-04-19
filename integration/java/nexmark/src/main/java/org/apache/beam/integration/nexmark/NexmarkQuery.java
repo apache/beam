@@ -17,13 +17,13 @@
  */
 package org.apache.beam.integration.nexmark;
 
-import javax.annotation.Nullable;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.integration.nexmark.model.Person;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -206,6 +206,7 @@ public abstract class NexmarkQuery
   public final Monitor<Event> eventMonitor;
   public final Monitor<KnownSize> resultMonitor;
   public final Monitor<Event> endOfStreamMonitor;
+  protected final Counter fatalCounter;
 
   protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
     super(name);
@@ -214,20 +215,13 @@ public abstract class NexmarkQuery
       eventMonitor = new Monitor<>(name + ".Events", "event");
       resultMonitor = new Monitor<>(name + ".Results", "result");
       endOfStreamMonitor = new Monitor<>(name + ".EndOfStream", "end");
+      fatalCounter = Metrics.counter(name , "fatal");
     } else {
       eventMonitor = null;
       resultMonitor = null;
       endOfStreamMonitor = null;
+      fatalCounter = null;
     }
-  }
-
-  /**
-   * Return the aggregator which counts fatal errors in this query. Return null if no such
-   * aggregator.
-   */
-  @Nullable
-  public Aggregator<Long, Long> getFatalCount() {
-    return null;
   }
 
   /**

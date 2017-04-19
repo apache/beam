@@ -53,12 +53,12 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -419,48 +419,42 @@ public class NexmarkUtils {
    */
   public static ParDo.SingleOutput<Event, Event> snoop(final String name) {
     return ParDo.of(new DoFn<Event, Event>() {
-                  final Aggregator<Long, Long> eventCounter =
-                      createAggregator("events", Sum.ofLongs());
-                  final Aggregator<Long, Long> newPersonCounter =
-                      createAggregator("newPersons", Sum.ofLongs());
-                  final Aggregator<Long, Long> newAuctionCounter =
-                      createAggregator("newAuctions", Sum.ofLongs());
-                  final Aggregator<Long, Long> bidCounter =
-                      createAggregator("bids", Sum.ofLongs());
-                  final Aggregator<Long, Long> endOfStreamCounter =
-                      createAggregator("endOfStream", Sum.ofLongs());
+      final Counter eventCounter = Metrics.counter(name, "events");
+      final Counter newPersonCounter = Metrics.counter(name, "newPersons");
+      final Counter newAuctionCounter = Metrics.counter(name, "newAuctions");
+      final Counter bidCounter = Metrics.counter(name, "bids");
+      final Counter endOfStreamCounter = Metrics.counter(name, "endOfStream");
 
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    eventCounter.addValue(1L);
-                    if (c.element().newPerson != null) {
-                      newPersonCounter.addValue(1L);
-                    } else if (c.element().newAuction != null) {
-                      newAuctionCounter.addValue(1L);
-                    } else if (c.element().bid != null) {
-                      bidCounter.addValue(1L);
-                    } else {
-                      endOfStreamCounter.addValue(1L);
-                    }
-                    info("%s snooping element %s", name, c.element());
-                    c.output(c.element());
-                  }
-                });
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        eventCounter.inc();
+        if (c.element().newPerson != null) {
+          newPersonCounter.inc();
+        } else if (c.element().newAuction != null) {
+          newAuctionCounter.inc();
+        } else if (c.element().bid != null) {
+          bidCounter.inc();
+        } else {
+          endOfStreamCounter.inc();
+        }
+        info("%s snooping element %s", name, c.element());
+        c.output(c.element());
+      }
+    });
   }
 
   /**
    * Return a transform to count and discard each element.
    */
-  public static <T> ParDo.SingleOutput<T, Void> devNull(String name) {
+  public static <T> ParDo.SingleOutput<T, Void> devNull(final String name) {
     return ParDo.of(new DoFn<T, Void>() {
-                  final Aggregator<Long, Long> discardCounter =
-                      createAggregator("discarded", Sum.ofLongs());
+      final Counter discardedCounterMetric = Metrics.counter(name, "discarded");
 
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    discardCounter.addValue(1L);
-                  }
-                });
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        discardedCounterMetric.inc();
+      }
+    });
   }
 
   /**
@@ -468,28 +462,27 @@ public class NexmarkUtils {
    */
   public static <T> ParDo.SingleOutput<T, T> log(final String name) {
     return ParDo.of(new DoFn<T, T>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    LOG.info("%s: %s", name, c.element());
-                    c.output(c.element());
-                  }
-                });
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        LOG.info("%s: %s", name, c.element());
+        c.output(c.element());
+      }
+    });
   }
 
   /**
    * Return a transform to format each element as a string.
    */
-  public static <T> ParDo.SingleOutput<T, String> format(String name) {
+  public static <T> ParDo.SingleOutput<T, String> format(final String name) {
     return ParDo.of(new DoFn<T, String>() {
-                  final Aggregator<Long, Long> recordCounter =
-                      createAggregator("records", Sum.ofLongs());
+      final Counter recordCounterMetric = Metrics.counter(name, "records");
 
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    recordCounter.addValue(1L);
-                    c.output(c.element().toString());
-                  }
-                });
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        recordCounterMetric.inc();
+        c.output(c.element().toString());
+      }
+    });
   }
 
   /**
@@ -497,11 +490,11 @@ public class NexmarkUtils {
    */
   public static <T> ParDo.SingleOutput<T, TimestampedValue<T>> stamp(String name) {
     return ParDo.of(new DoFn<T, TimestampedValue<T>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(TimestampedValue.of(c.element(), c.timestamp()));
-                  }
-                });
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(TimestampedValue.of(c.element(), c.timestamp()));
+      }
+    });
   }
 
   /**

@@ -66,6 +66,6 @@ public class BoundedEventSourceTest {
     long n = 200L;
     BoundedEventSource source = new BoundedEventSource(makeConfig(n), 1);
     SourceTestUtils.assertSourcesEqualReferenceSource(
-        source, source.splitIntoBundles(10, options), options);
+        source, source.split(10, options), options);
   }
 }

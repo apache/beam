@@ -20,83 +20,60 @@ package org.apache.beam.integration.nexmark;
 import java.io.Serializable;
 
 import org.apache.beam.integration.nexmark.model.KnownSize;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * A monitor of elements with support for later retrieving their aggregators.
+ * A monitor of elements with support for later retrieving their metrics.
  *
  * @param <T> Type of element we are monitoring.
  */
 public class Monitor<T extends KnownSize> implements Serializable {
   private class MonitorDoFn extends DoFn<T, T> {
-    public final Aggregator<Long, Long> elementCounter =
-        createAggregator(counterNamePrefix + "_elements", Sum.ofLongs());
-    public final Aggregator<Long, Long> bytesCounter =
-        createAggregator(counterNamePrefix + "_bytes", Sum.ofLongs());
-    public final Aggregator<Long, Long> startTime =
-        createAggregator(counterNamePrefix + "_startTime", Min.ofLongs());
-    public final Aggregator<Long, Long> endTime =
-        createAggregator(counterNamePrefix + "_endTime", Max.ofLongs());
-    public final Aggregator<Long, Long> startTimestamp =
-        createAggregator("startTimestamp", Min.ofLongs());
-    public final Aggregator<Long, Long> endTimestamp =
-        createAggregator("endTimestamp", Max.ofLongs());
+    final Counter elementCounter =
+      Metrics.counter(name , prefix + ".elements");
+    final Counter bytesCounter =
+      Metrics.counter(name , prefix + ".bytes");
+    final Distribution startTime =
+      Metrics.distribution(name , prefix + ".startTime");
+    final Distribution endTime =
+      Metrics.distribution(name , prefix + ".endTime");
+    final Distribution startTimestamp =
+      Metrics.distribution(name , prefix + ".startTimestamp");
+    final Distribution endTimestamp =
+      Metrics.distribution(name , prefix + ".endTimestamp");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      elementCounter.addValue(1L);
-      bytesCounter.addValue(c.element().sizeInBytes());
+      elementCounter.inc();
+      bytesCounter.inc(c.element().sizeInBytes());
       long now = System.currentTimeMillis();
-      startTime.addValue(now);
-      endTime.addValue(now);
-      startTimestamp.addValue(c.timestamp().getMillis());
-      endTimestamp.addValue(c.timestamp().getMillis());
+      startTime.update(now);
+      endTime.update(now);
+      startTimestamp.update(c.timestamp().getMillis());
+      endTimestamp.update(c.timestamp().getMillis());
       c.output(c.element());
     }
   }
 
+  public final String name;
+  public final String prefix;
   final MonitorDoFn doFn;
   final PTransform<PCollection<? extends T>, PCollection<T>> transform;
-  private String counterNamePrefix;
 
-  public Monitor(String name, String counterNamePrefix) {
-    this.counterNamePrefix = counterNamePrefix;
+  public Monitor(String name, String prefix) {
+    this.name = name;
+    this.prefix = prefix;
     doFn = new MonitorDoFn();
     transform = ParDo.of(doFn);
   }
 
   public PTransform<PCollection<? extends T>, PCollection<T>> getTransform() {
     return transform;
-  }
-
-  public Aggregator<Long, Long> getElementCounter() {
-    return doFn.elementCounter;
-  }
-
-  public Aggregator<Long, Long> getBytesCounter() {
-    return doFn.bytesCounter;
-  }
-
-  public Aggregator<Long, Long> getStartTime() {
-    return doFn.startTime;
-  }
-
-  public Aggregator<Long, Long> getEndTime() {
-    return doFn.endTime;
-  }
-
-  public Aggregator<Long, Long> getStartTimestamp() {
-    return doFn.startTimestamp;
-  }
-
-  public Aggregator<Long, Long> getEndTimestamp() {
-    return doFn.endTimestamp;
   }
 }
