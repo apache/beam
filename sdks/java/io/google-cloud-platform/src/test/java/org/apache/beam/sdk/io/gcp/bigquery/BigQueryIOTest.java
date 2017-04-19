@@ -28,7 +28,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -1230,17 +1229,10 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testBigQueryTableSourceInitSplit() throws Exception {
-    Job extractJob = new Job();
-    JobStatistics jobStats = new JobStatistics();
-    JobStatistics4 extractStats = new JobStatistics4();
-    extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
-    jobStats.setExtract(extractStats);
-    extractJob.setStatus(new JobStatus())
-        .setStatistics(jobStats);
-
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    FakeJobService fakeJobService = new FakeJobService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
+        .withJobService(fakeJobService)
         .withDatasetService(fakeDatasetService);
 
     List<TableRow> expected = ImmutableList.of(
@@ -1280,8 +1272,14 @@ public class BigQueryIOTest implements Serializable {
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
+    // Simulate a repeated call to split(), like a Dataflow worker will sometimes do.
+    sources = bqSource.split(200, options);
+    assertEquals(2, sources.size());
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
+
+    // A repeated call to split() should not have caused a duplicate extract job.
+    assertEquals(1, fakeJobService.getNumExtractJobCalls());
   }
 
   @Test
