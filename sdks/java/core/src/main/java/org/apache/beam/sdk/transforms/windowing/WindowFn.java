@@ -124,12 +124,11 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract Coder<W> windowCoder();
 
   /**
-   * Returns the window of the side input corresponding to the given window of
-   * the main input.
-   *
-   * <p>Authors of custom {@code WindowFn}s should override this.
+   * Returns the default {@link WindowMappingFn} to use to map main input windows to side input
+   * windows. This should accept arbitrary main input windows, and produce a {@link BoundedWindow}
+   * that can be produced by this {@link WindowFn}.
    */
-  public abstract W getSideInputWindow(BoundedWindow window);
+  public abstract WindowMappingFn<W> getDefaultWindowMappingFn();
 
   /**
    * Returns the output timestamp to use for data depending on the given

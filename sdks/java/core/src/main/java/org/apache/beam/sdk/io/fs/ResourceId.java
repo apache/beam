@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 
 /**
@@ -82,4 +83,11 @@ public interface ResourceId {
    * <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   String getScheme();
+
+  /**
+   * Returns the string representation of this {@link ResourceId}.
+   *
+   * <p>The corresponding {@link FileSystem#match} is required to accept this string representation.
+   */
+  String toString();
 }

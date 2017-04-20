@@ -281,6 +281,31 @@
                 </configuration>
               </execution>
               <execution>
+                <id>dataflow-runner-integration-tests-streaming</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+                      "--streaming=true"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
                 <id>apex-runner-integration-tests</id>
                 <goals>
                   <goal>integration-test</goal>
@@ -448,6 +473,11 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
     </dependency>
 
@@ -525,7 +555,7 @@
 
     <!--
       For testing the example itself, use the direct runner. This is separate from
-      the use of RunnableOnService tests for testing a particular runner.
+      the use of ValidatesRunner tests for testing a particular runner.
     -->
     <dependency>
       <groupId>org.apache.beam</groupId>

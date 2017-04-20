@@ -26,7 +26,7 @@ import org.joda.time.Instant;
  *
  * <p>For example, to fire after the end of the window, and every time late data arrives:
  * <pre> {@code
- *     Repeatedly.forever(AfterWatermark.isPastEndOfWindow());
+ *     Repeatedly.forever(AfterWatermark.pastEndOfWindow());
  * } </pre>
  *
  * <p>{@code Repeatedly.forever(someTrigger)} behaves like an infinite

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -37,7 +37,7 @@ public interface PValue extends POutput, PInput {
    * never appropriate.
    */
   @Deprecated
-  List<TaggedPValue> expand();
+  Map<TupleTag<?>, PValue> expand();
 
   /**
    * After building, finalizes this {@code PValue} to make it ready for being used as an input to a

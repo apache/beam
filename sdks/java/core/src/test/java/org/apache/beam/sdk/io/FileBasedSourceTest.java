@@ -410,7 +410,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(file0.getParent() + "/" + "file*", Long.MAX_VALUE, null);
-    List<? extends BoundedSource<String>> splits = source.splitIntoBundles(Long.MAX_VALUE, null);
+    List<? extends BoundedSource<String>> splits = source.split(Long.MAX_VALUE, null);
     assertEquals(numFiles, splits.size());
   }
 
@@ -421,7 +421,7 @@ public class FileBasedSourceTest {
     TestFileBasedSource source = new TestFileBasedSource(missingFilePath, Long.MAX_VALUE, null);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Unable to find any files matching %s", missingFilePath));
-    source.splitIntoBundles(1234, options);
+    source.split(1234, options);
   }
 
   @Test
@@ -698,7 +698,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 16, null);
 
-    List<? extends BoundedSource<String>> sources = source.splitIntoBundles(32, null);
+    List<? extends BoundedSource<String>> sources = source.split(32, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);
@@ -877,7 +877,7 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source =
         new TestFileBasedSource(new File(file1.getParent(), "file*").getPath(), 64, null);
-    List<? extends BoundedSource<String>> sources = source.splitIntoBundles(512, null);
+    List<? extends BoundedSource<String>> sources = source.split(512, null);
 
     // Not a trivial split.
     assertTrue(sources.size() > 1);

@@ -34,6 +34,10 @@ class RunnerError(BeamError):
   """An error related to a Runner object (e.g. cannot find a runner to run)."""
 
 
+class RuntimeValueProviderError(RuntimeError):
+  """An error related to a ValueProvider object raised during runtime."""
+
+
 class SideInputError(BeamError):
   """An error related to a side input to a parallel Do operation."""
 

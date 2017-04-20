@@ -19,11 +19,18 @@
 package org.apache.beam.runners.spark.io;
 
 import com.google.api.client.util.BackOff;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -49,29 +56,34 @@ import org.slf4j.LoggerFactory;
 public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     extends BoundedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(MicrobatchSource.class);
+  private static volatile Cache<MicrobatchSource<?, ?>, BoundedReader<?>> readerCache;
 
   private final UnboundedSource<T, CheckpointMarkT> source;
   private final Duration maxReadTime;
   private final int numInitialSplits;
   private final long maxNumRecords;
   private final int sourceId;
+  private final double readerCacheInterval;
 
   // each split of the underlying UnboundedSource is associated with a (consistent) id
   // to match it's corresponding CheckpointMark state.
   private final int splitId;
 
-  MicrobatchSource(UnboundedSource<T, CheckpointMarkT> source,
-                   Duration maxReadTime,
-                   int numInitialSplits,
-                   long maxNumRecords,
-                   int splitId,
-                   int sourceId) {
+  MicrobatchSource(
+      UnboundedSource<T, CheckpointMarkT> source,
+      Duration maxReadTime,
+      int numInitialSplits,
+      long maxNumRecords,
+      int splitId,
+      int sourceId,
+      double readerCacheInterval) {
     this.source = source;
     this.maxReadTime = maxReadTime;
     this.numInitialSplits = numInitialSplits;
     this.maxNumRecords = maxNumRecords;
     this.splitId = splitId;
     this.sourceId = sourceId;
+    this.readerCacheInterval = readerCacheInterval;
   }
 
   /**
@@ -90,18 +102,18 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   @Override
-  public List<? extends BoundedSource<T>>
-      splitIntoBundles(long desiredBundleSizeBytes,
+  public List<? extends BoundedSource<T>> split(long desiredBundleSizeBytes,
                        PipelineOptions options) throws Exception {
     List<MicrobatchSource<T, CheckpointMarkT>> result = new ArrayList<>();
     List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
-        source.generateInitialSplits(numInitialSplits, options);
+        source.split(numInitialSplits, options);
     int numSplits = splits.size();
     long[] numRecords = splitNumRecords(maxNumRecords, numSplits);
     for (int i = 0; i < numSplits; i++) {
       // splits must be stable, and cannot change during consecutive executions
       // for example: Kafka should not add partitions if more then one topic is read.
-      result.add(new MicrobatchSource<>(splits.get(i), maxReadTime, 1, numRecords[i], i, sourceId));
+      result.add(new MicrobatchSource<>(splits.get(i), maxReadTime, 1, numRecords[i], i, sourceId,
+          readerCacheInterval));
     }
     return result;
   }
@@ -113,12 +125,30 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-    return createReader(options, null);
+    return getOrCreateReader(options, null);
   }
 
-  public BoundedReader<T> createReader(PipelineOptions options, CheckpointMarkT checkpointMark)
-      throws IOException {
-    return new Reader(source.createReader(options, checkpointMark));
+  @SuppressWarnings("unchecked")
+  public BoundedReader<T> getOrCreateReader(
+      PipelineOptions options,
+      CheckpointMarkT checkpointMark) throws IOException {
+    try {
+      initReaderCache((long) readerCacheInterval);
+      return (BoundedReader<T>) readerCache.get(this, new ReaderLoader(options, checkpointMark));
+    } catch (ExecutionException e) {
+      throw new RuntimeException("Failed to get or create reader", e);
+    }
+  }
+
+  private static synchronized void initReaderCache(long readerCacheInterval) {
+    if (readerCache == null) {
+      LOG.info("Creating reader cache. Cache interval = " + readerCacheInterval + " ms.");
+      readerCache =
+          CacheBuilder.newBuilder()
+              .expireAfterAccess(readerCacheInterval, TimeUnit.MILLISECONDS)
+              .removalListener(new ReaderCacheRemovalListener())
+              .build();
+    }
   }
 
   @Override
@@ -171,12 +201,12 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
    */
   public class Reader extends BoundedSource.BoundedReader<T> {
     private long recordsRead = 0L;
-    private final Instant endTime;
+    private Instant endTime;
     private final FluentBackoff backoffFactory;
     private final UnboundedSource.UnboundedReader<T> reader;
+    private boolean started;
 
     private Reader(UnboundedSource.UnboundedReader<T> reader) {
-      endTime = Instant.now().plus(maxReadTime);
       this.reader = reader;
       backoffFactory =
           FluentBackoff.DEFAULT
@@ -190,12 +220,16 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       LOG.debug("MicrobatchReader-{}: Starting a microbatch read from an unbounded source with a "
           + "max read time of {} msec, and max number of records {}.", splitId, maxReadTime,
               maxNumRecords);
-      if (reader.start()) {
-        recordsRead++;
-        return true;
-      } else {
-        return advanceWithBackoff();
+      endTime = Instant.now().plus(maxReadTime);
+      // Since reader is reused in microbatches only start it if it has not already been started.
+      if (!started) {
+        started = true;
+        if (reader.start()) {
+          recordsRead++;
+          return true;
+        }
       }
+      return advanceWithBackoff();
     }
 
     @Override
@@ -260,6 +294,48 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
 
     public Instant getWatermark() {
       return reader.getWatermark();
+    }
+  }
+
+  /**
+   * {@link Callable} which creates a {@link Reader}.
+   */
+  private class ReaderLoader implements Callable<BoundedReader<T>> {
+    private final PipelineOptions options;
+    private final CheckpointMarkT checkpointMark;
+
+    ReaderLoader(PipelineOptions options, CheckpointMarkT checkpointMark) {
+      this.options = options;
+      this.checkpointMark = checkpointMark;
+    }
+
+    @Override
+    public BoundedReader<T> call() throws Exception {
+      LOG.info("No cached reader found for split: [" + source
+          + "]. Creating new reader at checkpoint mark " + checkpointMark);
+      return new Reader(source.createReader(options, checkpointMark));
+    }
+  }
+
+  /**
+   * Listener to be called when a reader is removed from {@link MicrobatchSource#readerCache}.
+   */
+  private static class ReaderCacheRemovalListener
+      implements RemovalListener<MicrobatchSource<?, ?>, BoundedReader<?>> {
+    @Override public void onRemoval(
+        RemovalNotification<MicrobatchSource<?, ?>, BoundedReader<?>> notification) {
+      try {
+        notification.getValue().close();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  @VisibleForTesting
+  public static void clearCache() {
+    synchronized (MicrobatchSource.class) {
+      readerCache.invalidateAll();
     }
   }
 }

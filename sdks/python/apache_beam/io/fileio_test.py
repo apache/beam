@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for local and GCS sources and sinks."""
+"""Unit tests for file sinks."""
 
 import glob
 import logging
@@ -26,7 +26,6 @@ import tempfile
 import unittest
 
 import hamcrest as hc
-import mock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -35,49 +34,7 @@ from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
-
-class TestChannelFactory(unittest.TestCase):
-
-  @mock.patch('apache_beam.io.fileio.gcsio')
-  def test_size_of_files_in_glob_complete(self, *unused_args):
-    # Prepare mocks.
-    gcsio_mock = mock.MagicMock()
-    fileio.gcsio.GcsIO = lambda: gcsio_mock
-    file_names = ['gs://bucket/file1', 'gs://bucket/file2']
-    gcsio_mock.size_of_files_in_glob.return_value = {
-        'gs://bucket/file1': 1,
-        'gs://bucket/file2': 2
-    }
-    expected_results = {
-        'gs://bucket/file1': 1,
-        'gs://bucket/file2': 2
-    }
-    self.assertEqual(
-        fileio.ChannelFactory.size_of_files_in_glob(
-            'gs://bucket/*', file_names),
-        expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
-
-  @mock.patch('apache_beam.io.fileio.gcsio')
-  def test_size_of_files_in_glob_incomplete(self, *unused_args):
-    # Prepare mocks.
-    gcsio_mock = mock.MagicMock()
-    fileio.gcsio.GcsIO = lambda: gcsio_mock
-    file_names = ['gs://bucket/file1', 'gs://bucket/file2']
-    gcsio_mock.size_of_files_in_glob.return_value = {
-        'gs://bucket/file1': 1
-    }
-    gcsio_mock.size.return_value = 2
-    expected_results = {
-        'gs://bucket/file1': 1,
-        'gs://bucket/file2': 2
-    }
-    self.assertEqual(
-        fileio.ChannelFactory.size_of_files_in_glob(
-            'gs://bucket/*', file_names),
-        expected_results)
-    gcsio_mock.size_of_files_in_glob.assert_called_once_with('gs://bucket/*')
-    gcsio_mock.size.assert_called_once_with('gs://bucket/file2')
+from apache_beam.utils.value_provider import StaticValueProvider
 
 
 # TODO: Refactor code so all io tests are using same library
@@ -112,36 +69,6 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
     return file_name
 
 
-class TestCompressedFile(_TestCaseWithTempDirCleanUp):
-
-  def test_seekable(self):
-    readable = fileio._CompressedFile(open(self._create_temp_file(), 'r'))
-    self.assertFalse(readable.seekable)
-
-    writeable = fileio._CompressedFile(open(self._create_temp_file(), 'w'))
-    self.assertFalse(writeable.seekable)
-
-  def test_tell(self):
-    lines = ['line%d\n' % i for i in range(10)]
-    tmpfile = self._create_temp_file()
-    writeable = fileio._CompressedFile(open(tmpfile, 'w'))
-    current_offset = 0
-    for line in lines:
-      writeable.write(line)
-      current_offset += len(line)
-      self.assertEqual(current_offset, writeable.tell())
-
-    writeable.close()
-    readable = fileio._CompressedFile(open(tmpfile))
-    current_offset = 0
-    while True:
-      line = readable.readline()
-      current_offset += len(line)
-      self.assertEqual(current_offset, readable.tell())
-      if not line:
-        break
-
-
 class MyFileSink(fileio.FileSink):
 
   def open(self, temp_path):
@@ -168,7 +95,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def test_file_sink_writing(self):
     temp_path = os.path.join(self._new_tempdir(), 'filesink')
     sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+        temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -189,8 +116,8 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     res = list(sink.finalize_write(init_token, [res1, res2]))
 
     # Check the results.
-    shard1 = temp_path + '-00000-of-00002.foo'
-    shard2 = temp_path + '-00001-of-00002.foo'
+    shard1 = temp_path + '-00000-of-00002.output'
+    shard2 = temp_path + '-00001-of-00002.output'
     self.assertEqual(res, [shard1, shard2])
     self.assertEqual(open(shard1).read(), '[start][a][b][end]')
     self.assertEqual(open(shard2).read(), '[start][x][y][z][end]')
@@ -201,33 +128,48 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
     sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+        temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
             'file_pattern',
-            '{}{}'.format(temp_path,
-                          '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
-
+            '{}{}'.format(
+                temp_path,
+                '-%(shard_num)05d-of-%(num_shards)05d.output'))]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
     sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+        temp_path, file_name_suffix='.output', coder=coders.ToStringCoder()
+    )
     p = TestPipeline()
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
     self.assertEqual(
-        open(temp_path + '-00000-of-00001.foo').read(), '[start][end]')
+        open(temp_path + '-00000-of-00001.output').read(), '[start][end]')
+
+  def test_static_value_provider_empty_write(self):
+    temp_path = StaticValueProvider(value_type=str,
+                                    value=tempfile.NamedTemporaryFile().name)
+    sink = MyFileSink(
+        temp_path,
+        file_name_suffix=StaticValueProvider(value_type=str, value='.output'),
+        coder=coders.ToStringCoder()
+    )
+    p = TestPipeline()
+    p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
+    p.run()
+    self.assertEqual(
+        open(temp_path.get() + '-00000-of-00001.output').read(), '[start][end]')
 
   def test_fixed_shard_write(self):
     temp_path = os.path.join(self._new_tempdir(), 'empty')
     sink = MyFileSink(
         temp_path,
-        file_name_suffix='.foo',
+        file_name_suffix='.output',
         num_shards=3,
         shard_name_template='_NN_SSS_',
         coder=coders.ToStringCoder())
@@ -237,7 +179,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     p.run()
 
     concat = ''.join(
-        open(temp_path + '_03_%03d_.foo' % shard_num).read()
+        open(temp_path + '_03_%03d_.output' % shard_num).read()
         for shard_num in range(3))
     self.assertTrue('][a][' in concat, concat)
     self.assertTrue('][b][' in concat, concat)
@@ -245,7 +187,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def test_file_sink_multi_shards(self):
     temp_path = os.path.join(self._new_tempdir(), 'multishard')
     sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+        temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -268,7 +210,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
     res = sorted(res_second)
     for i in range(num_shards):
-      shard_name = '%s-%05d-of-%05d.foo' % (temp_path, i, num_shards)
+      shard_name = '%s-%05d-of-%05d.output' % (temp_path, i, num_shards)
       uuid = 'uuid-%05d' % i
       self.assertEqual(res[i], shard_name)
       self.assertEqual(
@@ -280,7 +222,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def test_file_sink_io_error(self):
     temp_path = os.path.join(self._new_tempdir(), 'ioerror')
     sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+        temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
     init_token = sink.initialize_write()
@@ -299,52 +241,6 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
     os.remove(res2)
     with self.assertRaises(Exception):
       list(sink.finalize_write(init_token, [res1, res2]))
-
-  @mock.patch('apache_beam.io.fileio.ChannelFactory.rename')
-  @mock.patch('apache_beam.io.fileio.gcsio')
-  def test_rename_batch(self, *unused_args):
-    # Prepare mocks.
-    gcsio_mock = mock.MagicMock()
-    fileio.gcsio.GcsIO = lambda: gcsio_mock
-    fileio.ChannelFactory.rename = mock.MagicMock()
-    to_rename = [
-        ('gs://bucket/from1', 'gs://bucket/to1'),
-        ('gs://bucket/from2', 'gs://bucket/to2'),
-        ('/local/from1', '/local/to1'),
-        ('gs://bucket/from3', 'gs://bucket/to3'),
-        ('/local/from2', '/local/to2'),
-    ]
-    gcsio_mock.copy_batch.side_effect = [[
-        ('gs://bucket/from1', 'gs://bucket/to1', None),
-        ('gs://bucket/from2', 'gs://bucket/to2', None),
-        ('gs://bucket/from3', 'gs://bucket/to3', None),
-    ]]
-    gcsio_mock.delete_batch.side_effect = [[
-        ('gs://bucket/from1', None),
-        ('gs://bucket/from2', None),
-        ('gs://bucket/from3', None),
-    ]]
-
-    # Issue batch rename.
-    fileio.ChannelFactory.rename_batch(to_rename)
-
-    # Verify mocks.
-    expected_local_rename_calls = [
-        mock.call('/local/from1', '/local/to1'),
-        mock.call('/local/from2', '/local/to2'),
-    ]
-    self.assertEqual(fileio.ChannelFactory.rename.call_args_list,
-                     expected_local_rename_calls)
-    gcsio_mock.copy_batch.assert_called_once_with([
-        ('gs://bucket/from1', 'gs://bucket/to1'),
-        ('gs://bucket/from2', 'gs://bucket/to2'),
-        ('gs://bucket/from3', 'gs://bucket/to3'),
-    ])
-    gcsio_mock.delete_batch.assert_called_once_with([
-        'gs://bucket/from1',
-        'gs://bucket/from2',
-        'gs://bucket/from3',
-    ])
 
 
 if __name__ == '__main__':

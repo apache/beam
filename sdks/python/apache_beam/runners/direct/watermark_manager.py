@@ -210,12 +210,12 @@ class TransformWatermarks(object):
 
   @property
   def synchronized_processing_output_time(self):
-    return self._clock.now
+    return self._clock.time()
 
   def extract_fired_timers(self):
     with self._lock:
       if self._fired_timers:
-        return  False
+        return False
 
       should_fire = (
           self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and

@@ -27,12 +27,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
@@ -42,16 +42,18 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -134,7 +136,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
 
         // validate assertion succeeded (at least once).
-        int successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        int successAssertions = 0;
+        try {
+          successAssertions = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+        } catch (NullPointerException e) {
+          // No assertions registered will cause an NPE here.
+        }
         Integer expectedAssertions = testSparkPipelineOptions.getExpectedAssertions() != null
             ? testSparkPipelineOptions.getExpectedAssertions() : expectedNumberOfAssertions;
         assertThat(
@@ -144,7 +151,12 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             successAssertions,
             is(expectedAssertions));
         // validate assertion didn't fail.
-        int failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        int failedAssertions = 0;
+        try {
+          failedAssertions = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+        } catch (NullPointerException e) {
+          // No assertions registered will cause an NPE here.
+        }
         assertThat(
             String.format("Found %d failed assertions.", failedAssertions),
             failedAssertions,
@@ -206,9 +218,11 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @VisibleForTesting
   void adaptBoundedReads(Pipeline pipeline) {
-    pipeline.replace(
-        PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
-        new AdaptedBoundedAsUnbounded.Factory());
+    pipeline.replaceAll(
+        Collections.singletonList(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(BoundedReadFromUnboundedSource.class),
+                new AdaptedBoundedAsUnbounded.Factory())));
   }
 
   private static class AdaptedBoundedAsUnbounded<T> extends PTransform<PBegin, PCollection<T>> {
@@ -231,19 +245,16 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
         implements PTransformOverrideFactory<
             PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> {
       @Override
-      public PTransform<PBegin, PCollection<T>> getReplacementTransform(
-          BoundedReadFromUnboundedSource<T> transform) {
-        return new AdaptedBoundedAsUnbounded<>(transform);
-      }
-
-      @Override
-      public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
-        return p.begin();
+      public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+          AppliedPTransform<PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> transform) {
+        return PTransformReplacement.of(
+            transform.getPipeline().begin(),
+            new AdaptedBoundedAsUnbounded<T>(transform.getTransform()));
       }
 
       @Override
       public Map<PValue, ReplacementOutput> mapOutputs(
-          List<TaggedPValue> outputs, PCollection<T> newOutput) {
+          Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
         return ReplacementOutputs.singleton(outputs, newOutput);
       }
     }

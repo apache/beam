@@ -46,8 +46,15 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   }
 
   @Override
-  public GlobalWindow getSideInputWindow(BoundedWindow window) {
-    return GlobalWindow.INSTANCE;
+  public WindowMappingFn<GlobalWindow> getDefaultWindowMappingFn() {
+    return new GlobalWindowMappingFn();
+  }
+
+  static class GlobalWindowMappingFn extends WindowMappingFn<GlobalWindow> {
+    @Override
+    public GlobalWindow getSideInputWindow(BoundedWindow mainWindow) {
+      return GlobalWindow.INSTANCE;
+    }
   }
 
   @Override

@@ -456,8 +456,7 @@ class TranscriptTest(unittest.TestCase):
       assert s[0] == '[' and s[-1] == ']', s
       if not s[1:-1].strip():
         return []
-      else:
-        return [int(x) for x in s[1:-1].split(',')]
+      return [int(x) for x in s[1:-1].split(',')]
 
     def split_args(s):
       """Splits 'a, b, [c, d]' into ['a', 'b', '[c, d]']."""
@@ -507,8 +506,7 @@ class TranscriptTest(unittest.TestCase):
       fn = parse(s, names)
       if isinstance(fn, type):
         return fn()
-      else:
-        return fn
+      return fn
 
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module

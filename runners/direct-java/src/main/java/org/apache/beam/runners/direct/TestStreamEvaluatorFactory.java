@@ -31,7 +31,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.TestStream.ElementEvent;
@@ -48,8 +47,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -108,7 +107,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       if (event.getType().equals(EventType.ELEMENT)) {
         UncommittedBundle<T> bundle =
             context.createBundle(
-                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs()).getValue());
+                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs().values()));
         for (TimestampedValue<T> elem : ((ElementEvent<T>) event).getElements()) {
           bundle.add(
               WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp()));
@@ -170,19 +169,16 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public PTransform<PBegin, PCollection<T>> getReplacementTransform(
-        TestStream<T> transform) {
-      return new DirectTestStream<>(runner, transform);
-    }
-
-    @Override
-    public PBegin getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return p.begin();
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, TestStream<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(),
+          new DirectTestStream<T>(runner, transform.getTransform()));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<T> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 

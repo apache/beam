@@ -31,7 +31,7 @@ import org.joda.time.Instant;
  */
 @Experimental(Kind.STATE)
 public interface WatermarkHoldState<W extends BoundedWindow>
-    extends CombiningState<Instant, Instant> {
+    extends GroupingState<Instant, Instant> {
   /**
    * Return the {@link OutputTimeFn} which will be used to determine a watermark hold time given
    * an element timestamp, and to combine watermarks from windows which are about to be merged.

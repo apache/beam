@@ -48,7 +48,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -71,14 +70,16 @@ import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.utils.Utils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -278,7 +279,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSource() {
     int numElements = 1000;
 
@@ -292,7 +292,30 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  public void testUnboundedSourceWithSingleTopic() {
+    // same as testUnboundedSource, but with single topic
+
+    int numElements = 1000;
+    String topic = "my_topic";
+
+    KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
+        .withBootstrapServers("none")
+        .withTopic("my_topic")
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
+        .withKeyCoder(BigEndianIntegerCoder.of())
+        .withValueCoder(BigEndianLongCoder.of())
+        .withMaxNumRecords(numElements);
+
+    PCollection<Long> input = p
+        .apply(reader.withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   public void testUnboundedSourceWithExplicitPartitions() {
     int numElements = 1000;
 
@@ -331,7 +354,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
 
     int numElements = 1000;
@@ -359,7 +381,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
 
     int numElements = 1000;
@@ -368,7 +389,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
         mkKafkaReadTransform(numElements, null).makeSource();
     List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -425,7 +446,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
-          .generateInitialSplits(1, PipelineOptionsFactory.create())
+          .split(1, PipelineOptionsFactory.create())
           .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -465,7 +486,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
             .makeSource()
-            .generateInitialSplits(1, PipelineOptionsFactory.create())
+            .split(1, PipelineOptionsFactory.create())
             .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -494,7 +515,7 @@ public class KafkaIOTest {
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
-        .generateInitialSplits(1, PipelineOptionsFactory.create())
+        .split(1, PipelineOptionsFactory.create())
         .get(0);
 
     reader = source.createReader(null, mark);
@@ -728,8 +749,21 @@ public class KafkaIOTest {
   private static class ProducerFactoryFn
     implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
 
+    @SuppressWarnings("unchecked")
     @Override
     public Producer<Integer, Long> apply(Map<String, Object> config) {
+
+      // Make sure the config is correctly set up for serializers.
+      Utils.newInstance(
+          ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+              .asSubclass(Serializer.class)
+      ).configure(config, true);
+
+      Utils.newInstance(
+          ((Class<?>) config.get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))
+              .asSubclass(Serializer.class)
+      ).configure(config, false);
+
       return MOCK_PRODUCER;
     }
   }

@@ -402,7 +402,8 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
-            bigquery.TableCell(v=to_json_value([]))])]
+            # REPEATED field without any values.
+            bigquery.TableCell(v=None)])]
     return table_rows, schema, expected_rows
 
   def test_read_from_table(self):

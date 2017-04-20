@@ -83,9 +83,7 @@ import org.joda.time.Instant;
  * needs to be created without dependencies on files or other external
  * entities.  This is especially useful during testing.
  *
- * <p>Caveat: {@code Create} only supports small in-memory datasets,
- * particularly when submitting jobs to the Google Cloud Dataflow
- * service.
+ * <p>Caveat: {@code Create} only supports small in-memory datasets.
  *
  * @param <T> the type of the elements of the resulting {@code PCollection}
  */
@@ -207,7 +205,10 @@ public class Create<T> {
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
    */
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
-    return new TimestampedValues<>(elems, Optional.<Coder<T>>absent());
+    return new TimestampedValues<>(
+        elems,
+        Optional.<Coder<T>>absent(),
+        Optional.<TypeDescriptor<T>>absent());
   }
 
   /**
@@ -461,11 +462,11 @@ public class Create<T> {
       @Override
       protected boolean advanceImpl() throws IOException {
         CreateSource<T> source = getCurrentSource();
-        index++;
-        if (index >= source.allElementsBytes.size()) {
+        if (index + 1 >= source.allElementsBytes.size()) {
           next = null;
           return false;
         }
+        index++;
         next =
             Optional.fromNullable(
                 CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
@@ -495,27 +496,32 @@ public class Create<T> {
      * is used.
      */
     public TimestampedValues<T> withCoder(Coder<T> coder) {
-      return new TimestampedValues<>(timestampedElements, Optional.<Coder<T>>of(coder));
+      return new TimestampedValues<>(timestampedElements, Optional.of(coder), typeDescriptor);
+    }
+
+    /**
+     * Returns a {@link Create.TimestampedValues} PTransform like this one that uses the given
+     * {@code TypeDescriptor<T>} to determine the {@code Coder} to use to decode each of the
+     * objects into a value of type {@code T}. Note that a default coder must be registered for the
+     * class described in the {@code TypeDescriptor<T>}.
+     *
+     * <p>By default, {@code Create.TimestampedValues} can automatically determine the {@code Coder}
+     * to use if all elements have the same non-parameterized run-time class, and a default coder is
+     * registered for that class. See {@link CoderRegistry} for details on how defaults are
+     * determined.
+     *
+     * <p>Note that for {@link Create.TimestampedValues} with no elements, the {@link VoidCoder} is
+     * used.
+     */
+    public TimestampedValues<T> withType(TypeDescriptor<T> type) {
+      return new TimestampedValues<>(timestampedElements, elementCoder, Optional.of(type));
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
       try {
-        Iterable<T> rawElements =
-            Iterables.transform(
-                timestampedElements,
-                new Function<TimestampedValue<T>, T>() {
-                  @Override
-                  public T apply(TimestampedValue<T> input) {
-                    return input.getValue();
-                  }
-                });
-        Coder<T> coder;
-        if (elementCoder.isPresent()) {
-          coder = elementCoder.get();
-        } else {
-          coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
-        }
+        Coder<T> coder = getDefaultOutputCoder(input);
+
         PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
             Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
 
@@ -533,12 +539,19 @@ public class Create<T> {
     /** The timestamped elements of the resulting PCollection. */
     private final transient Iterable<TimestampedValue<T>> timestampedElements;
 
+    /** The coder used to encode the values to and from a binary representation. */
     private final transient Optional<Coder<T>> elementCoder;
 
+    /** The value type. */
+    private final transient Optional<TypeDescriptor<T>> typeDescriptor;
+
     private TimestampedValues(
-        Iterable<TimestampedValue<T>> timestampedElements, Optional<Coder<T>> elementCoder) {
+        Iterable<TimestampedValue<T>> timestampedElements,
+        Optional<Coder<T>> elementCoder,
+        Optional<TypeDescriptor<T>> typeDescriptor) {
       this.timestampedElements = timestampedElements;
       this.elementCoder = elementCoder;
+      this.typeDescriptor = typeDescriptor;
     }
 
     private static class ConvertTimestamps<T> extends DoFn<TimestampedValue<T>, T> {
@@ -547,15 +560,36 @@ public class Create<T> {
         c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
       }
     }
+
+    @Override
+    public Coder<T> getDefaultOutputCoder(PBegin input) throws CannotProvideCoderException {
+      if (elementCoder.isPresent()) {
+        return elementCoder.get();
+      } else if (typeDescriptor.isPresent()) {
+        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
+      } else {
+        Iterable<T> rawElements =
+            Iterables.transform(
+                timestampedElements,
+                new Function<TimestampedValue<T>, T>() {
+                  @Override
+                  public T apply(TimestampedValue<T> input) {
+                    return input.getValue();
+                  }
+                });
+        return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
+      }
+    }
   }
 
   private static <T> Coder<T> getDefaultCreateCoder(CoderRegistry registry, Iterable<T> elems)
       throws CannotProvideCoderException {
     checkArgument(
         !Iterables.isEmpty(elems),
-        "Elements must be provided to construct the default Create Coder. To Create an empty "
-            + "PCollection, either call Create.empty(Coder), or call 'withCoder(Coder)' on the "
-            + "result PTransform");
+        "Can not determine a default Coder for a 'Create' PTransform that "
+        + "has no elements.  Either add elements, call Create.empty(Coder),"
+        + " Create.empty(TypeDescriptor), or call 'withCoder(Coder)' or "
+        + "'withType(TypeDescriptor)' on the PTransform.");
     // First try to deduce a coder using the types of the elements.
     Class<?> elementClazz = Void.class;
     for (T elem : elems) {

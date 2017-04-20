@@ -162,13 +162,13 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
+    public <T> void output(TupleTag<T> tag, T output) {
+      context.output(tag, output);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      context.outputWithTimestamp(tag, output, timestamp);
     }
 
     @Override
@@ -255,13 +255,13 @@ public class DoFnAdapters {
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      context.sideOutput(tag, output);
+    public <T> void output(TupleTag<T> tag, T output) {
+      context.output(tag, output);
     }
 
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.sideOutputWithTimestamp(tag, output, timestamp);
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      context.outputWithTimestamp(tag, output, timestamp);
     }
 
     @Override
@@ -283,6 +283,11 @@ public class DoFnAdapters {
     @Override
     public PaneInfo pane() {
       return context.pane();
+    }
+
+    @Override
+    public void updateWatermark(Instant watermark) {
+      throw new UnsupportedOperationException("Only splittable DoFn's can use updateWatermark()");
     }
 
     @Override

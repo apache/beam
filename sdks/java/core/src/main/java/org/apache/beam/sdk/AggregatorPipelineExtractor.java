@@ -69,11 +69,11 @@ class AggregatorPipelineExtractor {
 
     private Collection<Aggregator<?, ?>> getAggregators(PTransform<?, ?> transform) {
       if (transform != null) {
-        if (transform instanceof ParDo.Bound) {
-          return AggregatorRetriever.getAggregators(((ParDo.Bound<?, ?>) transform).getFn());
-        } else if (transform instanceof ParDo.BoundMulti) {
+        if (transform instanceof ParDo.SingleOutput) {
+          return AggregatorRetriever.getAggregators(((ParDo.SingleOutput<?, ?>) transform).getFn());
+        } else if (transform instanceof ParDo.MultiOutput) {
           return AggregatorRetriever.getAggregators(
-              ((ParDo.BoundMulti<?, ?>) transform).getFn());
+              ((ParDo.MultiOutput<?, ?>) transform).getFn());
         }
       }
       return Collections.emptyList();

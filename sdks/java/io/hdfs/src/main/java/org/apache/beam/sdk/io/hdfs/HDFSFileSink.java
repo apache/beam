@@ -33,6 +33,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,6 +41,8 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -90,6 +93,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * @param <V> the type of values to be written to the sink via {@link FileOutputFormat}.
  */
 @AutoValue
+@Experimental
 public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
 
   private static final JobID jobId = new JobID(
@@ -284,6 +288,10 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
+    public void setWindowedWrites(boolean windowedWrites) {
+    }
+
+    @Override
     public void finalize(final Iterable<String> writerResults, PipelineOptions options)
         throws Exception {
       UGIHelper.getBestUGI(sink.username()).doAs(new PrivilegedExceptionAction<Void>() {
@@ -298,7 +306,6 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     private void doFinalize(Iterable<String> writerResults) throws Exception {
       Job job = sink.newJob();
       FileSystem fs = FileSystem.get(new URI(path), job.getConfiguration());
-
       // If there are 0 output shards, just create output folder.
       if (!writerResults.iterator().hasNext()) {
         fs.mkdirs(new Path(path));
@@ -389,7 +396,17 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
     }
 
     @Override
-    public void open(final String uId) throws Exception {
+    public void openWindowed(final String uId,
+                             BoundedWindow window,
+                             PaneInfo paneInfo,
+                             int shard,
+                             int numShards) throws Exception {
+      throw new UnsupportedOperationException("Windowing support not implemented yet for"
+          + "HDFS. Window " + window);
+    }
+
+    @Override
+    public void openUnwindowed(final String uId, int shard, int numShards) throws Exception {
       UGIHelper.getBestUGI(writeOperation.sink.username()).doAs(
           new PrivilegedExceptionAction<Void>() {
             @Override
@@ -408,8 +425,7 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
       FileOutputFormat.setOutputPath(job, new Path(path));
 
       // Each Writer is responsible for writing one bundle of elements and is represented by one
-      // unique Hadoop task based on uId/hash. All tasks share the same job ID. Since Dataflow
-      // handles retrying of failed bundles, each task has one attempt only.
+      // unique Hadoop task based on uId/hash. All tasks share the same job ID.
       JobID jobId = job.getJobID();
       TaskID taskId = new TaskID(jobId, TaskType.REDUCE, hash);
       context = new TaskAttemptContextImpl(job.getConfiguration(), new TaskAttemptID(taskId, 0));
@@ -425,6 +441,11 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
           "Record writer can't be null. Make sure to open Writer first!");
       KV<K, V> kv = writeOperation.sink.outputConverter().apply(value);
       recordWriter.write(kv.getKey(), kv.getValue());
+    }
+
+    @Override
+    public void cleanup() throws Exception {
+
     }
 
     @Override

@@ -46,10 +46,10 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
  * {@link FileBasedSource} that is able to read the decompressed file format.
  *
- * <p>For example, use the following to read from a gzip-compressed XML file:
+ * <p>For example, use the following to read from a gzip-compressed file-based source:
  *
  * <pre> {@code
- * XmlSource mySource = XmlSource.from(...);
+ * FileBasedSource<T> mySource = ...;
  * PCollection<T> collection = p.apply(Read.from(CompressedSource
  *     .from(mySource)
  *     .withDecompression(CompressedSource.CompressionMode.GZIP)));
@@ -334,8 +334,14 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
+    boolean splittable = false;
+    try {
+      splittable = isSplittable();
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to determine if the source is splittable", e);
+    }
     checkArgument(
-        isSplittable() || startOffset == 0,
+        splittable || startOffset == 0,
         "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
   }
 
@@ -366,11 +372,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * from the requested file name that the file is not compressed.
    */
   @Override
-  protected final boolean isSplittable() {
+  protected final boolean isSplittable() throws Exception {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;
-      return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec());
+      return !fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec())
+          && sourceDelegate.isSplittable();
     }
     return false;
   }

@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -68,6 +69,7 @@ import org.elasticsearch.client.RestClientBuilder;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
+ * This IO is only compatible with Elasticsearch v2.x
  *
  * <h3>Reading from Elasticsearch</h3>
  *
@@ -113,6 +115,7 @@ import org.elasticsearch.client.RestClientBuilder;
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
  * to specify the size of the write batch in number of documents or in bytes.
  */
+@Experimental
 public class ElasticsearchIO {
 
   public static Read read() {
@@ -182,8 +185,10 @@ public class ElasticsearchIO {
      * @param index the index toward which the requests will be issued
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
+     * @throws IOException when it fails to connect to Elasticsearch
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type) {
+    public static ConnectionConfiguration create(String[] addresses, String index, String type)
+        throws IOException {
       checkArgument(
           addresses != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null address");
@@ -197,11 +202,29 @@ public class ElasticsearchIO {
       checkArgument(
           type != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null type");
-      return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
-          .setAddresses(Arrays.asList(addresses))
-          .setIndex(index)
-          .setType(type)
-          .build();
+      ConnectionConfiguration connectionConfiguration =
+          new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
+              .setAddresses(Arrays.asList(addresses))
+              .setIndex(index)
+              .setType(type)
+              .build();
+      checkVersion(connectionConfiguration);
+      return connectionConfiguration;
+    }
+
+    private static void checkVersion(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
+      RestClient restClient = connectionConfiguration.createClient();
+      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      JsonNode jsonNode = parseResponse(response);
+      String version = jsonNode.path("version").path("number").asText();
+      boolean version2x = version.startsWith("2.");
+      restClient.close();
+      checkArgument(
+          version2x,
+          "ConnectionConfiguration.create(addresses, index, type): "
+              + "the Elasticsearch version to connect to is different of 2.x. "
+              + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
     }
 
     /**
@@ -405,7 +428,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public List<? extends BoundedSource<String>> splitIntoBundles(
+    public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 

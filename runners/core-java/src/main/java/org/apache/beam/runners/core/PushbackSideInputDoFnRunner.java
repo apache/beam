@@ -17,113 +17,35 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Instant;
 
 /**
- * A {@link DoFnRunner} that can refuse to process elements that are not ready, instead returning
- * them via the {@link #processElementInReadyWindows(WindowedValue)}.
+ * Interface for runners of {@link DoFn}'s that support pushback when reading side inputs,
+ * i.e. return elements that could not be processed because they require reading a side input
+ * window that is not ready.
  */
-public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
-  private final DoFnRunner<InputT, OutputT> underlying;
-  private final Collection<PCollectionView<?>> views;
-  private final ReadyCheckingSideInputReader sideInputReader;
-
-  private Set<BoundedWindow> notReadyWindows;
-
-  public static <InputT, OutputT> PushbackSideInputDoFnRunner<InputT, OutputT> create(
-      DoFnRunner<InputT, OutputT> underlying,
-      Collection<PCollectionView<?>> views,
-      ReadyCheckingSideInputReader sideInputReader) {
-    return new PushbackSideInputDoFnRunner<>(underlying, views, sideInputReader);
-  }
-
-  private PushbackSideInputDoFnRunner(
-      DoFnRunner<InputT, OutputT> underlying,
-      Collection<PCollectionView<?>> views,
-      ReadyCheckingSideInputReader sideInputReader) {
-    this.underlying = underlying;
-    this.views = views;
-    this.sideInputReader = sideInputReader;
-  }
-
-  @Override
-  public void startBundle() {
-    notReadyWindows = new HashSet<>();
-    underlying.startBundle();
-  }
+public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
+  /** Calls the underlying {@link DoFn.StartBundle} method. */
+  void startBundle();
 
   /**
-   * Call the underlying {@link DoFnRunner#processElement(WindowedValue)} for the provided element
+   * Call the underlying {@link DoFn.ProcessElement} method for the provided element
    * for each window the element is in that is ready.
    *
    * @param elem the element to process in all ready windows
    * @return each element that could not be processed because it requires a side input window
    * that is not ready.
    */
-  public Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
-    if (views.isEmpty()) {
-      // When there are no side inputs, we can preserve the compressed representation.
-      processElement(elem);
-      return Collections.emptyList();
-    }
-    ImmutableList.Builder<WindowedValue<InputT>> pushedBack = ImmutableList.builder();
-    for (WindowedValue<InputT> windowElem : elem.explodeWindows()) {
-      BoundedWindow mainInputWindow = Iterables.getOnlyElement(windowElem.getWindows());
-      if (isReady(mainInputWindow)) {
-        // When there are any side inputs, we have to process the element in each window
-        // individually, to disambiguate access to per-window side inputs.
-        processElement(windowElem);
-      } else {
-        notReadyWindows.add(mainInputWindow);
-        pushedBack.add(windowElem);
-      }
-    }
-    return pushedBack.build();
-  }
+  Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem);
 
-  private boolean isReady(BoundedWindow mainInputWindow) {
-    if (notReadyWindows.contains(mainInputWindow)) {
-      return false;
-    }
-    for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow =
-          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-      if (!sideInputReader.isReady(view, sideInputWindow)) {
-        return false;
-      }
-    }
-    return true;
-  }
+  /** Calls the underlying {@link DoFn.OnTimer} method. */
+  void onTimer(String timerId, BoundedWindow window, Instant timestamp,
+               TimeDomain timeDomain);
 
-  @Override
-  public void processElement(WindowedValue<InputT> elem) {
-    underlying.processElement(elem);
-  }
-
-  @Override
-  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
-      TimeDomain timeDomain) {
-    underlying.onTimer(timerId, window, timestamp, timeDomain);
-  }
-
-  /**
-   * Call the underlying {@link DoFnRunner#finishBundle()}.
-   */
-  @Override
-  public void finishBundle() {
-    notReadyWindows = null;
-    underlying.finishBundle();
-  }
+  /** Calls the underlying {@link DoFn.FinishBundle} method. */
+  void finishBundle();
 }
-

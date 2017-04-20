@@ -164,52 +164,11 @@
       <version>9.4.1212.jre7</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-common</artifactId>
+      <scope>test</scope>
+      <classifier>tests</classifier>
+    </dependency>
   </dependencies>
-
-  <build>
-    <pluginManagement>
-      <plugins>
-        <!-- BEAM-1661 -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <artifactSet>
-                  <includes>
-                    <include>com.google.guava:guava</include>
-                  </includes>
-                </artifactSet>
-                <relocations>
-                  <relocation>
-                    <pattern>com.google.common</pattern>
-                    <shadedPattern>org.apache.beam.sdk.io.jdbc.repackaged.com.google.common</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>com.google.thirdparty</pattern>
-                    <shadedPattern>org.apache.beam.sdk.io.jdbc.repackaged.com.google.thirdparty</shadedPattern>
-                  </relocation>
-                </relocations>
-                <transformers>
-                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                </transformers>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 </project>

@@ -164,10 +164,10 @@ class CombineTest(unittest.TestCase):
             DisplayDataItemMatcher('fn', sampleFn.fn.__name__),
             DisplayDataItemMatcher('combine_fn',
                                    transform.fn.__class__)]
-        if len(args) > 0:
+        if args:
           expected_items.append(
               DisplayDataItemMatcher('args', str(args)))
-        if len(kwargs) > 0:
+        if kwargs:
           expected_items.append(
               DisplayDataItemMatcher('kwargs', str(kwargs)))
         hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))

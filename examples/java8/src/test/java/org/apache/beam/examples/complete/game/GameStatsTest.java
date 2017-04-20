@@ -23,8 +23,8 @@ import java.util.List;
 import org.apache.beam.examples.complete.game.GameStats.CalculateSpammyUsers;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
  * Tests of GameStats.
  * Because the pipeline was designed for easy readability and explanations, it lacks good
  * modularity for testing. See our testing documentation for better ideas:
- * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline.
+ * https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
 public class GameStatsTest implements Serializable {
@@ -63,7 +63,7 @@ public class GameStatsTest implements Serializable {
 
   /** Test the calculation of 'spammy users'. */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testCalculateSpammyUsers() throws Exception {
     PCollection<KV<String, Integer>> input = p.apply(Create.of(USER_SCORES));
     PCollection<KV<String, Integer>> output = input.apply(new CalculateSpammyUsers());

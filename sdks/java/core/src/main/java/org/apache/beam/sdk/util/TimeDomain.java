@@ -30,7 +30,7 @@ public enum TimeDomain {
 
   /**
    * The {@code PROCESSING_TIME} domain corresponds to the current to the current (system) time.
-   * This is advanced during execution of the Dataflow pipeline.
+   * This is advanced during execution of the pipeline.
    */
   PROCESSING_TIME,
 

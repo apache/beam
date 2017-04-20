@@ -18,8 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
+import com.google.common.base.Optional;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -29,11 +28,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.spark.HashPartitioner;
+import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-
 
 
 /**
@@ -50,31 +50,42 @@ public class GroupCombineFunctions {
       JavaRDD<WindowedValue<KV<K, V>>> rdd,
       Coder<K> keyCoder,
       WindowedValueCoder<V> wvCoder) {
-
-    // Use coders to convert objects in the PCollection to byte arrays, so they
+    // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd
-        .map(new ReifyTimestampsAndWindowsFunction<K, V>())
-        .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
-        .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
-        .groupByKey()
-        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
-        .map(TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFunction())
-        .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction());
+    JavaPairRDD<ByteArray, byte[]> pairRDD =
+        rdd
+            .map(new ReifyTimestampsAndWindowsFunction<K, V>())
+            .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
+            .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+    // use a default parallelism HashPartitioner.
+    Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
+
+    // using mapPartitions allows to preserve the partitioner
+    // and avoid unnecessary shuffle downstream.
+    return pairRDD
+        .groupByKey(partitioner)
+        .mapPartitionsToPair(
+            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
+            true)
+        .mapPartitions(
+            TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFlatMapFunction(), true)
+        .mapPartitions(
+            TranslationUtils.functionToFlatMapFunction(
+                WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction()),
+            true);
   }
 
   /**
    * Apply a composite {@link org.apache.beam.sdk.transforms.Combine.Globally} transformation.
    */
-  public static <InputT, AccumT> Iterable<WindowedValue<AccumT>> combineGlobally(
+  public static <InputT, AccumT> Optional<Iterable<WindowedValue<AccumT>>> combineGlobally(
       JavaRDD<WindowedValue<InputT>> rdd,
       final SparkGlobalCombineFn<InputT, AccumT, ?> sparkCombineFn,
       final Coder<InputT> iCoder,
       final Coder<AccumT> aCoder,
       final WindowingStrategy<?, ?> windowingStrategy) {
-    checkArgument(!rdd.isEmpty(), "CombineGlobally computation should be skipped for empty RDDs.");
-
     // coders.
     final WindowedValue.FullWindowedValueCoder<InputT> wviCoder =
         WindowedValue.FullWindowedValueCoder.of(iCoder,
@@ -93,6 +104,11 @@ public class GroupCombineFunctions {
     //---- AccumT: A
     //---- InputT: I
     JavaRDD<byte[]> inputRDDBytes = rdd.map(CoderHelpers.toByteFunction(wviCoder));
+
+    if (inputRDDBytes.isEmpty()) {
+      return Optional.absent();
+    }
+
     /*Itr<WV<A>>*/ byte[] accumulatedBytes = inputRDDBytes.aggregate(
         CoderHelpers.toByteArray(sparkCombineFn.zeroValue(), iterAccumCoder),
         new Function2</*A*/ byte[], /*I*/ byte[], /*A*/ byte[]>() {
@@ -115,7 +131,8 @@ public class GroupCombineFunctions {
           }
         }
     );
-    return CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder);
+
+    return Optional.of(CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder));
   }
 
   /**

@@ -476,7 +476,7 @@ public class BigtableIOTest {
             ByteKeyRange.ALL_KEYS,
             null /*size*/);
     List<BigtableSource> splits =
-        source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));
@@ -503,7 +503,8 @@ public class BigtableIOTest {
         null /*filter*/,
         ByteKeyRange.ALL_KEYS,
         null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -528,7 +529,8 @@ public class BigtableIOTest {
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
         new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
-    List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
@@ -699,14 +701,10 @@ public class BigtableIOTest {
         BigtableIO.read().withBigtableOptions(optionsBuilder.build());
 
     BigtableOptions options = read.getBigtableOptions();
-    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
-        options.getRetryOptions().getStreamingBatchSize());
     assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
 
     assertThat(options.getRetryOptions(),
-        Matchers.equalTo(retryOptionsBuilder
-            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
-            .build()));
+        Matchers.equalTo(retryOptionsBuilder.build()));
   }
 
   @Test
@@ -731,8 +729,6 @@ public class BigtableIOTest {
     BigtableOptions options = write.getBigtableOptions();
     assertEquals(true, options.getBulkOptions().useBulkApi());
     assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
-    assertEquals(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE,
-        options.getRetryOptions().getStreamingBatchSize());
     assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
 
     assertThat(options.getBulkOptions(),
@@ -740,9 +736,7 @@ public class BigtableIOTest {
             .setUseBulkApi(true)
             .build()));
     assertThat(options.getRetryOptions(),
-        Matchers.equalTo(retryOptionsBuilder
-            .setStreamingBatchSize(RetryOptions.DEFAULT_STREAMING_BATCH_SIZE)
-            .build()));
+        Matchers.equalTo(retryOptionsBuilder.build()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////

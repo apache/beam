@@ -129,8 +129,7 @@ class Coder(object):
       d = dict(self.__dict__)
       del d['_impl']
       return d
-    else:
-      return self.__dict__
+    return self.__dict__
 
   @classmethod
   def from_type_hint(cls, unused_typehint, unused_registry):
@@ -188,8 +187,8 @@ class Coder(object):
     # TODO(BEAM-115): Use specialized URNs and components.
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
-        spec=beam_runner_api_pb2.FunctionSpec(
-            spec=beam_runner_api_pb2.UrnWithParameter(
+        spec=beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urns.PICKLED_CODER,
                 parameter=proto_utils.pack_Any(
                     google.protobuf.wrappers_pb2.BytesValue(
@@ -224,8 +223,7 @@ class ToStringCoder(Coder):
       return value.encode('utf-8')
     elif isinstance(value, str):
       return value
-    else:
-      return str(value)
+    return str(value)
 
   def decode(self, _):
     raise NotImplementedError('ToStringCoder cannot be used for decoding.')

@@ -25,41 +25,53 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
+import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
+import org.apache.beam.runners.apex.translation.utils.StateInternalsProxy;
 import org.apache.beam.runners.apex.translation.utils.ValueAndCoderKryoSerializable;
 import org.apache.beam.runners.core.AggregatorFactory;
-import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.ExecutionContext;
-import org.apache.beam.runners.core.OldDoFn;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StatefulDoFnRunner;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,15 +85,21 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
   @Bind(JavaSerializer.class)
-  private final OldDoFn<InputT, OutputT> doFn;
+  private final DoFn<InputT, OutputT> doFn;
   @Bind(JavaSerializer.class)
   private final TupleTag<OutputT> mainOutputTag;
   @Bind(JavaSerializer.class)
-  private final List<TupleTag<?>> sideOutputTags;
+  private final List<TupleTag<?>> additionalOutputTags;
   @Bind(JavaSerializer.class)
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
   private final List<PCollectionView<?>> sideInputs;
+
+  private StateInternalsProxy<?> currentKeyStateInternals;
+  // TODO: if the operator gets restored to checkpointed state due to a failure,
+  // the timer state is lost.
+  private final transient CurrentKeyTimerInternals<Object> currentKeyTimerInternals =
+      new CurrentKeyTimerInternals<>();
 
   private final StateInternals<Void> sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
@@ -91,31 +109,32 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
   private transient SideInputHandler sideInputHandler;
-  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>> sideOutputPortMapping =
-      Maps.newHashMapWithExpectedSize(5);
+  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>>
+      additionalOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
+  private transient DoFnInvoker<InputT, OutputT> doFnInvoker;
 
-  @Deprecated
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
-      OldDoFn<InputT, OutputT> doFn,
+      DoFn<InputT, OutputT> doFn,
       TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
       Coder<WindowedValue<InputT>> inputCoder,
-      StateInternalsFactory<Void> stateInternalsFactory
+      ApexStateBackend stateBackend
       ) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
-    this.sideOutputTags = sideOutputTags;
+    this.additionalOutputTags = additionalOutputTags;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
-    this.sideInputStateInternals = stateInternalsFactory.stateInternalsForKey(null);
+    this.sideInputStateInternals = new StateInternalsProxy<>(
+        stateBackend.newStateInternalsFactory(VoidCoder.of()));
 
-    if (sideOutputTags.size() > sideOutputPorts.length) {
-      String msg = String.format("Too many side outputs (currently only supporting %s).",
-          sideOutputPorts.length);
+    if (additionalOutputTags.size() > additionalOutputPorts.length) {
+      String msg = String.format("Too many additional outputs (currently only supporting %s).",
+          additionalOutputPorts.length);
       throw new UnsupportedOperationException(msg);
     }
 
@@ -125,33 +144,12 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   }
 
-  public ApexParDoOperator(
-      ApexPipelineOptions pipelineOptions,
-      DoFn<InputT, OutputT> doFn,
-      TupleTag<OutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
-      WindowingStrategy<?, ?> windowingStrategy,
-      List<PCollectionView<?>> sideInputs,
-      Coder<WindowedValue<InputT>> inputCoder,
-      StateInternalsFactory<Void> stateInternalsFactory
-      ) {
-    this(
-        pipelineOptions,
-        DoFnAdapters.toOldDoFn(doFn),
-        mainOutputTag,
-        sideOutputTags,
-        windowingStrategy,
-        sideInputs,
-        inputCoder,
-        stateInternalsFactory);
-  }
-
   @SuppressWarnings("unused") // for Kryo
   private ApexParDoOperator() {
     this.pipelineOptions = null;
     this.doFn = null;
     this.mainOutputTag = null;
-    this.sideOutputTags = null;
+    this.additionalOutputTags = null;
     this.windowingStrategy = null;
     this.sideInputs = null;
     this.pushedBack = null;
@@ -221,29 +219,31 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   public final transient DefaultOutputPort<ApexStreamTuple<?>> output = new DefaultOutputPort<>();
 
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput1 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput1 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput2 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput2 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput3 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput3 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput4 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput4 =
       new DefaultOutputPort<>();
   @OutputPortFieldAnnotation(optional = true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput5 =
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> additionalOutput5 =
       new DefaultOutputPort<>();
 
-  public final transient DefaultOutputPort<?>[] sideOutputPorts = {sideOutput1, sideOutput2,
-      sideOutput3, sideOutput4, sideOutput5};
+  public final transient DefaultOutputPort<?>[] additionalOutputPorts = {
+    additionalOutput1, additionalOutput2, additionalOutput3, additionalOutput4, additionalOutput5
+  };
 
   @Override
   public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple) {
-    DefaultOutputPort<ApexStreamTuple<?>> sideOutputPort = sideOutputPortMapping.get(tag);
-    if (sideOutputPort != null) {
-      sideOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
+    DefaultOutputPort<ApexStreamTuple<?>> additionalOutputPort =
+        additionalOutputPortMapping.get(tag);
+    if (additionalOutputPort != null) {
+      additionalOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
     } else {
       output.emit(ApexStreamTuple.DataTuple.of(tuple));
     }
@@ -255,6 +255,17 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   private Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     try {
       pushbackDoFnRunner.startBundle();
+      if (currentKeyStateInternals != null) {
+        InputT value = elem.getValue();
+        Object key;
+        if (value instanceof KeyedWorkItem) {
+          key = ((KeyedWorkItem) value).key();
+        } else {
+          key = ((KV) value).getKey();
+        }
+        ((StateInternalsProxy) currentKeyStateInternals).setKey(key);
+        currentKeyTimerInternals.currentKey = key;
+      }
       Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner
           .processElementInReadyWindows(elem);
       pushbackDoFnRunner.finishBundle();
@@ -298,35 +309,74 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       sideInputReader = sideInputHandler;
     }
 
-    for (int i = 0; i < sideOutputTags.size(); i++) {
+    for (int i = 0; i < additionalOutputTags.size(); i++) {
       @SuppressWarnings("unchecked")
       DefaultOutputPort<ApexStreamTuple<?>> port = (DefaultOutputPort<ApexStreamTuple<?>>)
-          sideOutputPorts[i];
-      sideOutputPortMapping.put(sideOutputTags.get(i), port);
+          additionalOutputPorts[i];
+      additionalOutputPortMapping.put(additionalOutputTags.get(i), port);
     }
 
+    NoOpStepContext stepContext = new NoOpStepContext() {
+
+      @Override
+      public StateInternals<?> stateInternals() {
+        return currentKeyStateInternals;
+      }
+
+      @Override
+      public TimerInternals timerInternals() {
+        return currentKeyTimerInternals;
+      }
+
+    };
     DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         pipelineOptions.get(),
         doFn,
         sideInputReader,
         this,
         mainOutputTag,
-        sideOutputTags,
-        new NoOpStepContext(),
+        additionalOutputTags,
+        stepContext,
         new NoOpAggregatorFactory(),
         windowingStrategy
         );
 
-    pushbackDoFnRunner =
-        PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+    doFnInvoker.invokeSetup();
 
-    try {
-      doFn.setup();
-    } catch (Exception e) {
-      Throwables.propagateIfPossible(e);
-      throw new RuntimeException(e);
+    if (this.currentKeyStateInternals != null) {
+
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
+              stepContext.timerInternals(), windowingStrategy);
+
+      @SuppressWarnings({"rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+              doFn, stepContext.stateInternals(), windowCoder);
+
+      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
+          doFn,
+          doFnRunner,
+          stepContext,
+          new NoOpAggregatorFactory(),
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
     }
 
+    pushbackDoFnRunner =
+        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+
+  }
+
+  @Override
+  public void teardown() {
+    doFnInvoker.invokeTeardown();
+    super.teardown();
   }
 
   @Override
@@ -389,6 +439,72 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
     public void clear() {
       state = Long.MAX_VALUE;
+    }
+
+  }
+
+  private class CurrentKeyTimerInternals<K> implements TimerInternals {
+
+    private TimerInternalsFactory<K> factory = new TimerInternalsFactory<K>() {
+      @Override
+      public TimerInternals timerInternalsForKey(K key) {
+        InMemoryTimerInternals timerInternals = perKeyTimerInternals.get(key);
+        if (timerInternals == null) {
+          perKeyTimerInternals.put(key, timerInternals = new InMemoryTimerInternals());
+        }
+        return timerInternals;
+      }
+    };
+
+    // TODO: durable state store
+    final Map<K, InMemoryTimerInternals> perKeyTimerInternals = new HashMap<>();
+    private K currentKey;
+
+    @Override
+    public void setTimer(StateNamespace namespace, String timerId, Instant target,
+        TimeDomain timeDomain) {
+      factory.timerInternalsForKey(currentKey).setTimer(
+          namespace, timerId, target, timeDomain);
+    }
+
+    @Override
+    public void setTimer(TimerData timerData) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void deleteTimer(TimerData timerKey) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Instant currentSynchronizedProcessingTime() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      return new Instant(currentInputWatermark);
+    }
+
+    @Override
+    public Instant currentOutputWatermarkTime() {
+      throw new UnsupportedOperationException();
     }
 
   }

@@ -78,7 +78,15 @@ def create_runner(runner_name):
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
-    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    try:
+      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    except ImportError:
+      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+        raise ImportError(
+            'Google Cloud Dataflow runner not available, '
+            'please install apache_beam[gcp]')
+      else:
+        raise
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
@@ -222,7 +230,7 @@ class PValueCache(object):
     return len(self._cache)
 
   def to_cache_key(self, transform, tag):
-    return str((id(transform), tag))
+    return transform.full_label, tag
 
   def _ensure_pvalue_has_real_producer(self, pvalue):
     """Ensure the passed-in PValue has the real_producer attribute.
@@ -276,8 +284,8 @@ class PValueCache(object):
     except KeyError:
       if (pvalue.tag is not None
           and self.to_cache_key(pvalue.real_producer, None) in self._cache):
-        # This is an undeclared, empty side output of a DoFn executed
-        # in the local runner before this side output referenced.
+        # This is an undeclared, empty output of a DoFn executed
+        # in the local runner before this output was referenced.
         return []
       else:
         raise

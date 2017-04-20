@@ -17,226 +17,58 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.values.PCollection;
 
-// CHECKSTYLE.OFF: JavadocStyle
-/**
- * A {@link Sink} that outputs records as XML-formatted elements. Writes a {@link PCollection} of
- * records from JAXB-annotated classes to a single file location.
- *
- * <p>Given a PCollection containing records of type T that can be marshalled to XML elements, this
- * Sink will produce a single file consisting of a single root element that contains all of the
- * elements in the PCollection.
- *
- * <p>XML Sinks are created with a base filename to write to, a root element name that will be used
- * for the root element of the output files, and a class to bind to an XML element. This class
- * will be used in the marshalling of records in an input PCollection to their XML representation
- * and must be able to be bound using JAXB annotations (checked at pipeline construction time).
- *
- * <p>XML Sinks can be written to using the {@link Write} transform:
- *
- * <pre>
- * p.apply(Write.to(
- *      XmlSink.ofRecordClass(Type.class)
- *          .withRootElementName(root_element)
- *          .toFilenamePrefix(output_filename)));
- * </pre>
- *
- * <p>For example, consider the following class with JAXB annotations:
- *
- * <pre>
- *  {@literal @}XmlRootElement(name = "word_count_result")
- *  {@literal @}XmlType(propOrder = {"word", "frequency"})
- *  public class WordFrequency {
- *    private String word;
- *    private long frequency;
- *
- *    public WordFrequency() { }
- *
- *    public WordFrequency(String word, long frequency) {
- *      this.word = word;
- *      this.frequency = frequency;
- *    }
- *
- *    public void setWord(String word) {
- *      this.word = word;
- *    }
- *
- *    public void setFrequency(long frequency) {
- *      this.frequency = frequency;
- *    }
- *
- *    public long getFrequency() {
- *      return frequency;
- *    }
- *
- *    public String getWord() {
- *      return word;
- *    }
- *  }
- * </pre>
- *
- * <p>The following will produce XML output with a root element named "words" from a PCollection of
- * WordFrequency objects:
- * <pre>
- * p.apply(Write.to(
- *  XmlSink.ofRecordClass(WordFrequency.class)
- *      .withRootElement("words")
- *      .toFilenamePrefix(output_file)));
- * </pre>
- *
- * <p>The output of which will look like:
- * <pre>
- * {@code
- * <words>
- *
- *  <word_count_result>
- *    <word>decreased</word>
- *    <frequency>1</frequency>
- *  </word_count_result>
- *
- *  <word_count_result>
- *    <word>War</word>
- *    <frequency>4</frequency>
- *  </word_count_result>
- *
- *  <word_count_result>
- *    <word>empress'</word>
- *    <frequency>14</frequency>
- *  </word_count_result>
- *
- *  <word_count_result>
- *    <word>stoops</word>
- *    <frequency>6</frequency>
- *  </word_count_result>
- *
- *  ...
- * </words>
- * }</pre>
- */
-// CHECKSTYLE.ON: JavadocStyle
-@SuppressWarnings("checkstyle:javadocstyle")
-public class XmlSink {
+/** Implementation of {@link XmlIO#write}. */
+class XmlSink<T> extends FileBasedSink<T> {
   protected static final String XML_EXTENSION = "xml";
 
-  /**
-   * Returns a builder for an XmlSink. You'll need to configure the class to bind, the root
-   * element name, and the output file prefix with {@link Bound#ofRecordClass}, {@link
-   * Bound#withRootElement}, and {@link Bound#toFilenamePrefix}, respectively.
-   */
-  public static Bound<?> write() {
-    return new Bound<>(null, null, null);
+  private final XmlIO.Write<T> spec;
+
+  XmlSink(XmlIO.Write<T> spec) {
+    super(spec.getFilenamePrefix(), XML_EXTENSION);
+    this.spec = spec;
   }
 
   /**
-   * Returns an XmlSink that writes objects as XML entities.
-   *
-   * <p>Output files will have the name {@literal {baseOutputFilename}-0000i-of-0000n.xml} where n
-   * is the number of output bundles that the Dataflow service divides the output into.
-   *
-   * @param klass the class of the elements to write.
-   * @param rootElementName the enclosing root element.
-   * @param baseOutputFilename the output filename prefix.
+   * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
+   * been set and that the class can be bound in a JAXB context.
    */
-  public static <T> Bound<T> writeOf(
-      Class<T> klass, String rootElementName, String baseOutputFilename) {
-    return new Bound<>(klass, rootElementName, baseOutputFilename);
+  @Override
+  public void validate(PipelineOptions options) {
+    spec.validate(null);
   }
 
   /**
-   * A {@link FileBasedSink} that writes objects as XML elements.
+   * Creates an {@link XmlWriteOperation}.
    */
-  public static class Bound<T> extends FileBasedSink<T> {
-    final Class<T> classToBind;
-    final String rootElementName;
+  @Override
+  public XmlWriteOperation<T> createWriteOperation(PipelineOptions options) {
+    return new XmlWriteOperation<>(this);
+  }
 
-    private Bound(Class<T> classToBind, String rootElementName, String baseOutputFilename) {
-      super(baseOutputFilename, XML_EXTENSION);
-      this.classToBind = classToBind;
-      this.rootElementName = rootElementName;
-    }
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    spec.populateDisplayData(builder);
+  }
 
-    /**
-     * Returns an XmlSink that writes objects of the class specified as XML elements.
-     *
-     * <p>The specified class must be able to be used to create a JAXB context.
-     */
-    public <T> Bound<T> ofRecordClass(Class<T> classToBind) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
-    }
-
-    /**
-     * Returns an XmlSink that writes to files with the given prefix.
-     *
-     * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
-     * the number of output bundles that the Dataflow service divides the output into.
-     */
-    public Bound<T> toFilenamePrefix(String baseOutputFilename) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename);
-    }
-
-    /**
-     * Returns an XmlSink that writes XML files with an enclosing root element of the
-     * supplied name.
-     */
-    public Bound<T> withRootElement(String rootElementName) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
-    }
-
-    /**
-     * Validates that the root element, class to bind to a JAXB context, and filenamePrefix have
-     * been set and that the class can be bound in a JAXB context.
-     */
-    @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(classToBind, "Missing a class to bind to a JAXB context.");
-      checkNotNull(rootElementName, "Missing a root element name.");
-      checkNotNull(baseOutputFilename, "Missing a filename to write to.");
-      try {
-        JAXBContext.newInstance(classToBind);
-      } catch (JAXBException e) {
-        throw new RuntimeException("Error binding classes to a JAXB Context.", e);
-      }
-    }
-
-    /**
-     * Creates an {@link XmlWriteOperation}.
-     */
-    @Override
-    public XmlWriteOperation<T> createWriteOperation(PipelineOptions options) {
-      return new XmlWriteOperation<>(this);
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-      builder
-          .addIfNotNull(DisplayData.item("rootElement", rootElementName)
-            .withLabel("XML Root Element"))
-          .addIfNotNull(DisplayData.item("recordClass", classToBind)
-            .withLabel("XML Record Class"));
-    }
+  void populateFileBasedDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
   }
 
   /**
    * {@link Sink.WriteOperation} for XML {@link Sink}s.
    */
   protected static final class XmlWriteOperation<T> extends FileBasedWriteOperation<T> {
-    public XmlWriteOperation(XmlSink.Bound<T> sink) {
+    public XmlWriteOperation(XmlSink<T> sink) {
       super(sink);
     }
 
@@ -247,7 +79,7 @@ public class XmlSink {
     public XmlWriter<T> createWriter(PipelineOptions options) throws Exception {
       JAXBContext context;
       Marshaller marshaller;
-      context = JAXBContext.newInstance(getSink().classToBind);
+      context = JAXBContext.newInstance(getSink().spec.getRecordClass());
       marshaller = context.createMarshaller();
       marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
       marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
@@ -259,8 +91,8 @@ public class XmlSink {
      * Return the XmlSink.Bound for this write operation.
      */
     @Override
-    public XmlSink.Bound<T> getSink() {
-      return (XmlSink.Bound<T>) super.getSink();
+    public XmlSink<T> getSink() {
+      return (XmlSink<T>) super.getSink();
     }
   }
 
@@ -289,7 +121,7 @@ public class XmlSink {
      */
     @Override
     protected void writeHeader() throws Exception {
-      String rootElementName = getWriteOperation().getSink().rootElementName;
+      String rootElementName = getWriteOperation().getSink().spec.getRootElement();
       os.write(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "<" + rootElementName + ">\n"));
     }
 
@@ -298,7 +130,7 @@ public class XmlSink {
      */
     @Override
     protected void writeFooter() throws Exception {
-      String rootElementName = getWriteOperation().getSink().rootElementName;
+      String rootElementName = getWriteOperation().getSink().spec.getRootElement();
       os.write(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "\n</" + rootElementName + ">"));
     }
 

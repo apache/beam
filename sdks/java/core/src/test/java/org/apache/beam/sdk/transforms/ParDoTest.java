@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -38,6 +39,7 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -54,14 +56,17 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
@@ -69,13 +74,14 @@ import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.ParDo.Bound;
+import org.apache.beam.sdk.transforms.Mean.CountSum;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -87,8 +93,8 @@ import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -101,6 +107,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -146,15 +153,15 @@ public class ParDoTest implements Serializable {
     State state = State.NOT_SET_UP;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
-    final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
+    final List<TupleTag<String>> additionalOutputTupleTags = new ArrayList<>();
 
     public TestDoFn() {
     }
 
     public TestDoFn(List<PCollectionView<Integer>> sideInputViews,
-                    List<TupleTag<String>> sideOutputTupleTags) {
+                    List<TupleTag<String>> additionalOutputTupleTags) {
       this.sideInputViews.addAll(sideInputViews);
-      this.sideOutputTupleTags.addAll(sideOutputTupleTags);
+      this.additionalOutputTupleTags.addAll(additionalOutputTupleTags);
     }
 
     @Setup
@@ -190,9 +197,9 @@ public class ParDoTest implements Serializable {
 
     private void outputToAll(Context c, String value) {
       c.output(value);
-      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
-                     sideOutputTupleTag.getId() + ": " + value);
+      for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
+        c.output(additionalOutputTupleTag,
+                     additionalOutputTupleTag.getId() + ": " + value);
       }
     }
 
@@ -205,9 +212,9 @@ public class ParDoTest implements Serializable {
         value += ": " + sideInputValues;
       }
       c.output(value);
-      for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-        c.sideOutput(sideOutputTupleTag,
-                     sideOutputTupleTag.getId() + ": " + value);
+      for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
+        c.output(additionalOutputTupleTag,
+                     additionalOutputTupleTag.getId() + ": " + value);
       }
     }
   }
@@ -249,15 +256,15 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  static class TestOutputTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestOutputTimestampDoFn<T extends Number> extends DoFn<T, T> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      Integer value = c.element();
+      T value = c.element();
       c.outputWithTimestamp(value, new Instant(value.longValue()));
     }
   }
 
-  static class TestShiftTimestampDoFn extends DoFn<Integer, Integer> {
+  static class TestShiftTimestampDoFn<T extends Number> extends DoFn<T, T> {
     private Duration allowedTimestampSkew;
     private Duration durationToShift;
 
@@ -275,12 +282,12 @@ public class ParDoTest implements Serializable {
     public void processElement(ProcessContext c) {
       Instant timestamp = c.timestamp();
       checkNotNull(timestamp);
-      Integer value = c.element();
+      T value = c.element();
       c.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
   }
 
-  static class TestFormatTimestampDoFn extends DoFn<Integer, String> {
+  static class TestFormatTimestampDoFn<T extends Number> extends DoFn<T, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
       checkNotNull(c.timestamp());
@@ -318,7 +325,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDo() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -334,7 +341,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDo2() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -350,7 +357,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoEmpty() {
 
     List<Integer> inputs = Arrays.asList();
@@ -366,7 +373,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoEmptyOutputs() {
 
     List<Integer> inputs = Arrays.asList();
@@ -381,91 +388,91 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testParDoWithSideOutputs() {
+  @Category(ValidatesRunner.class)
+  public void testParDoWithTaggedOutput() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> sideOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("additional3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
-                   Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
+                   Arrays.asList(additionalOutputTag1, additionalOutputTag2, additionalOutputTag3)))
                .withOutputTags(
                    mainOutputTag,
-                   TupleTagList.of(sideOutputTag3)
-                       .and(sideOutputTag1)
-                       .and(sideOutputTagUnwritten)
-                       .and(sideOutputTag2)));
+                   TupleTagList.of(additionalOutputTag3)
+                       .and(additionalOutputTag1)
+                       .and(additionalOutputTagUnwritten)
+                       .and(additionalOutputTag2)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
 
-    PAssert.that(outputs.get(sideOutputTag1))
+    PAssert.that(outputs.get(additionalOutputTag1))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag1));
-    PAssert.that(outputs.get(sideOutputTag2))
+                   .fromOutput(additionalOutputTag1));
+    PAssert.that(outputs.get(additionalOutputTag2))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag2));
-    PAssert.that(outputs.get(sideOutputTag3))
+                   .fromOutput(additionalOutputTag2));
+    PAssert.that(outputs.get(additionalOutputTag3))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag3));
-    PAssert.that(outputs.get(sideOutputTagUnwritten)).empty();
+                   .fromOutput(additionalOutputTag3));
+    PAssert.that(outputs.get(additionalOutputTagUnwritten)).empty();
 
     pipeline.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testParDoEmptyWithSideOutputs() {
+  @Category(ValidatesRunner.class)
+  public void testParDoEmptyWithTaggedOutput() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> sideOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("additional3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.empty(VarIntCoder.of()))
         .apply(ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
-                   Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
+                   Arrays.asList(additionalOutputTag1, additionalOutputTag2, additionalOutputTag3)))
                .withOutputTags(
                    mainOutputTag,
-                   TupleTagList.of(sideOutputTag3).and(sideOutputTag1)
-                   .and(sideOutputTagUnwritten).and(sideOutputTag2)));
+                   TupleTagList.of(additionalOutputTag3).and(additionalOutputTag1)
+                   .and(additionalOutputTagUnwritten).and(additionalOutputTag2)));
 
     List<Integer> inputs = Collections.emptyList();
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
 
-    PAssert.that(outputs.get(sideOutputTag1))
+    PAssert.that(outputs.get(additionalOutputTag1))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag1));
-    PAssert.that(outputs.get(sideOutputTag2))
+                   .fromOutput(additionalOutputTag1));
+    PAssert.that(outputs.get(additionalOutputTag2))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag2));
-    PAssert.that(outputs.get(sideOutputTag3))
+                   .fromOutput(additionalOutputTag2));
+    PAssert.that(outputs.get(additionalOutputTag3))
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                   .fromSideOutput(sideOutputTag3));
-    PAssert.that(outputs.get(sideOutputTagUnwritten)).empty();
+                   .fromOutput(additionalOutputTag3));
+    PAssert.that(outputs.get(additionalOutputTagUnwritten)).empty();
 
     pipeline.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testParDoWithEmptySideOutputs() {
+  @Category(ValidatesRunner.class)
+  public void testParDoWithEmptyTaggedOutput() {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.empty(VarIntCoder.of()))
@@ -473,54 +480,55 @@ public class ParDoTest implements Serializable {
                .of(new TestNoOutputDoFn())
                .withOutputTags(
                    mainOutputTag,
-                   TupleTagList.of(sideOutputTag1).and(sideOutputTag2)));
+                   TupleTagList.of(additionalOutputTag1).and(additionalOutputTag2)));
 
     PAssert.that(outputs.get(mainOutputTag)).empty();
 
-    PAssert.that(outputs.get(sideOutputTag1)).empty();
-    PAssert.that(outputs.get(sideOutputTag2)).empty();
+    PAssert.that(outputs.get(additionalOutputTag1)).empty();
+    PAssert.that(outputs.get(additionalOutputTag2)).empty();
 
     pipeline.run();
   }
 
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testParDoWithOnlySideOutputs() {
+  @Category(ValidatesRunner.class)
+  public void testParDoWithOnlyTaggedOutput() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<Void> mainOutputTag = new TupleTag<Void>("main"){};
-    final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>("side"){};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additional"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new DoFn<Integer, Void>(){
                 @ProcessElement
                 public void processElement(ProcessContext c) {
-                  c.sideOutput(sideOutputTag, c.element());
-                }}));
+                  c.output(additionalOutputTag, c.element());
+                }})
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag)).empty();
-    PAssert.that(outputs.get(sideOutputTag)).containsInAnyOrder(inputs);
+    PAssert.that(outputs.get(additionalOutputTag)).containsInAnyOrder(inputs);
 
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoWritingToUndeclaredSideOutput() {
+  public void testParDoWritingToUndeclaredTag() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
-    TupleTag<String> sideTag = new TupleTag<String>("side"){};
+    TupleTag<String> notOutputTag = new TupleTag<String>("additional"){};
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFn(
             Arrays.<PCollectionView<Integer>>asList(),
-            Arrays.asList(sideTag))));
+            Arrays.asList(notOutputTag))));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
@@ -531,7 +539,7 @@ public class ParDoTest implements Serializable {
   @Test
   // TODO: The exception thrown is runner-specific, even if the behavior is general
   @Category(NeedsRunner.class)
-  public void testParDoUndeclaredSideOutputLimit() {
+  public void testParDoUndeclaredTagLimit() {
 
     PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3)));
 
@@ -540,13 +548,13 @@ public class ParDoTest implements Serializable {
         .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
-              TupleTag<String> specialSideTag = new TupleTag<String>(){};
-              c.sideOutput(specialSideTag, "side");
-              c.sideOutput(specialSideTag, "side");
-              c.sideOutput(specialSideTag, "side");
+              TupleTag<String> specialOutputTag = new TupleTag<String>(){};
+              c.output(specialOutputTag, "special");
+              c.output(specialOutputTag, "special");
+              c.output(specialOutputTag, "special");
 
               for (int i = 0; i < 998; i++) {
-                c.sideOutput(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "tag" + i);
               }
             }}));
     pipeline.run();
@@ -557,17 +565,17 @@ public class ParDoTest implements Serializable {
             @ProcessElement
             public void processElement(ProcessContext c) {
               for (int i = 0; i < 1000; i++) {
-                c.sideOutput(new TupleTag<String>(){}, "side");
+                c.output(new TupleTag<String>(){}, "output" + i);
               }
             }}));
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("the number of side outputs has exceeded a limit");
+    thrown.expectMessage("the number of outputs has exceeded a limit");
     pipeline.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideInputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -584,10 +592,11 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1, sideInputUnread, sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1, sideInputUnread, sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -598,7 +607,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoWithSideInputsIsCumulative() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -615,12 +624,13 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2));
 
     PAssert.that(output)
         .satisfies(ParDoTest.HasExpectedOutput
@@ -631,13 +641,13 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultiOutputParDoWithSideInputs() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+    final TupleTag<Void> additionalOutputTag = new TupleTag<Void>("output"){};
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -651,13 +661,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -668,13 +679,13 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testMultiOutputParDoWithSideInputsIsCumulative() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     final TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput"){};
+    final TupleTag<Void> additionalOutputTag = new TupleTag<Void>("output"){};
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))
@@ -688,13 +699,14 @@ public class ParDoTest implements Serializable {
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
-        .apply(ParDo.withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
+        .apply(ParDo
             .of(new TestDoFn(
                 Arrays.asList(sideInput1, sideInput2),
-                Arrays.<TupleTag<String>>asList())));
+                Arrays.<TupleTag<String>>asList()))
+            .withSideInputs(sideInput1)
+            .withSideInputs(sideInputUnread)
+            .withSideInputs(sideInput2)
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     PAssert.that(outputs.get(mainOutputTag))
         .satisfies(ParDoTest.HasExpectedOutput
@@ -738,7 +750,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testSideInputsWithMultipleWindows() {
     // Tests that the runner can safely run a DoFn that uses side inputs
     // on an input where the element is in multiple windows. The complication is
@@ -841,37 +853,37 @@ public class ParDoTest implements Serializable {
   @Test
   public void testParDoMultiNameBasedDoFnWithTrimmerSuffix() {
     assertThat(
-        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName(),
-        containsString("ParMultiDo(SideOutputDummy)"));
+        ParDo.of(new TaggedOutputDummyFn(null)).withOutputTags(null, null).getName(),
+        containsString("ParMultiDo(TaggedOutputDummy)"));
   }
 
   @Test
-  public void testParDoWithSideOutputsName() {
+  public void testParDoWithTaggedOutputName() {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-    TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
-    TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
-    TupleTag<String> sideOutputTag3 = new TupleTag<String>("side3"){};
-    TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+    TupleTag<String> additionalOutputTag1 = new TupleTag<String>("output1"){};
+    TupleTag<String> additionalOutputTag2 = new TupleTag<String>("output2"){};
+    TupleTag<String> additionalOutputTag3 = new TupleTag<String>("output3"){};
+    TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
     PCollectionTuple outputs = pipeline
         .apply(Create.of(Arrays.asList(3, -42, 666))).setName("MyInput")
         .apply("MyParDo", ParDo
                .of(new TestDoFn(
                    Arrays.<PCollectionView<Integer>>asList(),
-                   Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
+                   Arrays.asList(additionalOutputTag1, additionalOutputTag2, additionalOutputTag3)))
                .withOutputTags(
                    mainOutputTag,
-                   TupleTagList.of(sideOutputTag3).and(sideOutputTag1)
-                   .and(sideOutputTagUnwritten).and(sideOutputTag2)));
+                   TupleTagList.of(additionalOutputTag3).and(additionalOutputTag1)
+                   .and(additionalOutputTagUnwritten).and(additionalOutputTag2)));
 
     assertEquals("MyParDo.main", outputs.get(mainOutputTag).getName());
-    assertEquals("MyParDo.side1", outputs.get(sideOutputTag1).getName());
-    assertEquals("MyParDo.side2", outputs.get(sideOutputTag2).getName());
-    assertEquals("MyParDo.side3", outputs.get(sideOutputTag3).getName());
-    assertEquals("MyParDo.sideUnwritten",
-                 outputs.get(sideOutputTagUnwritten).getName());
+    assertEquals("MyParDo.output1", outputs.get(additionalOutputTag1).getName());
+    assertEquals("MyParDo.output2", outputs.get(additionalOutputTag2).getName());
+    assertEquals("MyParDo.output3", outputs.get(additionalOutputTag3).getName());
+    assertEquals("MyParDo.unwrittenOutput",
+                 outputs.get(additionalOutputTagUnwritten).getName());
   }
 
   @Test
@@ -880,33 +892,33 @@ public class ParDoTest implements Serializable {
     PCollection<Long> longs = pipeline.apply(CountingInput.unbounded());
 
     TupleTag<Long> mainOut = new TupleTag<>();
-    final TupleTag<String> sideOutOne = new TupleTag<>();
-    final TupleTag<Integer> sideOutTwo = new TupleTag<>();
+    final TupleTag<String> valueAsString = new TupleTag<>();
+    final TupleTag<Integer> valueAsInt = new TupleTag<>();
     DoFn<Long, Long> fn =
         new DoFn<Long, Long>() {
           @ProcessElement
           public void processElement(ProcessContext cxt) {
             cxt.output(cxt.element());
-            cxt.sideOutput(sideOutOne, Long.toString(cxt.element()));
-            cxt.sideOutput(sideOutTwo, Long.valueOf(cxt.element()).intValue());
+            cxt.output(valueAsString, Long.toString(cxt.element()));
+            cxt.output(valueAsInt, Long.valueOf(cxt.element()).intValue());
           }
         };
 
-    ParDo.BoundMulti<Long, Long> parDo =
-        ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(sideOutOne).and(sideOutTwo));
+    ParDo.MultiOutput<Long, Long> parDo =
+        ParDo.of(fn).withOutputTags(mainOut, TupleTagList.of(valueAsString).and(valueAsInt));
     PCollectionTuple firstApplication = longs.apply("first", parDo);
     PCollectionTuple secondApplication = longs.apply("second", parDo);
     assertThat(firstApplication, not(equalTo(secondApplication)));
     assertThat(
         firstApplication.getAll().keySet(),
-        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, sideOutOne, sideOutTwo));
+        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, valueAsString, valueAsInt));
     assertThat(
         secondApplication.getAll().keySet(),
-        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, sideOutOne, sideOutTwo));
+        Matchers.<TupleTag<?>>containsInAnyOrder(mainOut, valueAsString, valueAsInt));
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testParDoInCustomTransform() {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -1005,29 +1017,94 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  private static class SideOutputDummyFn extends DoFn<Integer, Integer> {
-    private TupleTag<TestDummy> sideTag;
-    public SideOutputDummyFn(TupleTag<TestDummy> sideTag) {
-      this.sideTag = sideTag;
+  private static class TaggedOutputDummyFn extends DoFn<Integer, Integer> {
+    private TupleTag<TestDummy> dummyOutputTag;
+    public TaggedOutputDummyFn(TupleTag<TestDummy> dummyOutputTag) {
+      this.dummyOutputTag = dummyOutputTag;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(1);
-      c.sideOutput(sideTag, new TestDummy());
+      c.output(dummyOutputTag, new TestDummy());
      }
   }
 
   private static class MainOutputDummyFn extends DoFn<Integer, TestDummy> {
-    private TupleTag<Integer> sideTag;
-    public MainOutputDummyFn(TupleTag<Integer> sideTag) {
-      this.sideTag = sideTag;
+    private TupleTag<Integer> intOutputTag;
+    public MainOutputDummyFn(TupleTag<Integer> intOutputTag) {
+      this.intOutputTag = intOutputTag;
     }
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());
-      c.sideOutput(sideTag, 1);
+      c.output(intOutputTag, 1);
      }
+  }
+
+  private static class MyInteger implements Comparable<MyInteger> {
+    private final int value;
+
+    MyInteger(int value) {
+      this.value = value;
+    }
+
+    public int getValue() {
+      return value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+
+      if (!(o instanceof MyInteger)) {
+        return false;
+      }
+
+      MyInteger myInteger = (MyInteger) o;
+
+      return value == myInteger.value;
+
+    }
+
+    @Override
+    public int hashCode() {
+      return value;
+    }
+
+    @Override
+    public int compareTo(MyInteger o) {
+      return Integer.compare(this.getValue(), o.getValue());
+    }
+
+    @Override
+    public String toString() {
+      return "MyInteger{" + "value=" + value + '}';
+    }
+  }
+
+  private static class MyIntegerCoder extends CustomCoder<MyInteger> {
+    private static final MyIntegerCoder INSTANCE = new MyIntegerCoder();
+
+    private final VarIntCoder delegate = VarIntCoder.of();
+
+    public static MyIntegerCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(MyInteger value, OutputStream outStream, Context context)
+        throws CoderException, IOException {
+      delegate.encode(value.getValue(), outStream, context);
+    }
+
+    @Override
+    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+        IOException {
+      return new MyInteger(delegate.decode(inStream, context));
+    }
   }
 
   /** PAssert "matcher" for expected output. */
@@ -1035,7 +1112,7 @@ public class ParDoTest implements Serializable {
       implements SerializableFunction<Iterable<String>, Void>, Serializable {
     private final List<Integer> inputs;
     private final List<Integer> sideInputs;
-    private final String sideOutput;
+    private final String additionalOutput;
     private final boolean ordered;
 
     public static HasExpectedOutput forInput(List<Integer> inputs) {
@@ -1048,11 +1125,11 @@ public class ParDoTest implements Serializable {
 
     private HasExpectedOutput(List<Integer> inputs,
                               List<Integer> sideInputs,
-                              String sideOutput,
+                              String additionalOutput,
                               boolean ordered) {
       this.inputs = inputs;
       this.sideInputs = sideInputs;
-      this.sideOutput = sideOutput;
+      this.additionalOutput = additionalOutput;
       this.ordered = ordered;
     }
 
@@ -1061,18 +1138,18 @@ public class ParDoTest implements Serializable {
       for (Integer sideInputValue : sideInputValues) {
         sideInputs.add(sideInputValue);
       }
-      return new HasExpectedOutput(inputs, sideInputs, sideOutput, ordered);
+      return new HasExpectedOutput(inputs, sideInputs, additionalOutput, ordered);
     }
 
-    public HasExpectedOutput fromSideOutput(TupleTag<String> sideOutputTag) {
-      return fromSideOutput(sideOutputTag.getId());
+    public HasExpectedOutput fromOutput(TupleTag<String> outputTag) {
+      return fromOutput(outputTag.getId());
     }
-    public HasExpectedOutput fromSideOutput(String sideOutput) {
-      return new HasExpectedOutput(inputs, sideInputs, sideOutput, ordered);
+    public HasExpectedOutput fromOutput(String outputId) {
+      return new HasExpectedOutput(inputs, sideInputs, outputId, ordered);
     }
 
     public HasExpectedOutput inOrder() {
-      return new HasExpectedOutput(inputs, sideInputs, sideOutput, true);
+      return new HasExpectedOutput(inputs, sideInputs, additionalOutput, true);
     }
 
     @Override
@@ -1097,17 +1174,17 @@ public class ParDoTest implements Serializable {
         sideInputsSuffix = ": " + sideInputs;
       }
 
-      String sideOutputPrefix;
-      if (sideOutput.isEmpty()) {
-        sideOutputPrefix = "";
+      String additionalOutputPrefix;
+      if (additionalOutput.isEmpty()) {
+        additionalOutputPrefix = "";
       } else {
-        sideOutputPrefix = sideOutput + ": ";
+        additionalOutputPrefix = additionalOutput + ": ";
       }
 
       List<String> expectedProcesseds = new ArrayList<>();
       for (Integer input : inputs) {
         expectedProcesseds.add(
-            sideOutputPrefix + "processing: " + input + sideInputsSuffix);
+            additionalOutputPrefix + "processing: " + input + sideInputsSuffix);
       }
       String[] expectedProcessedsArray =
           expectedProcesseds.toArray(new String[expectedProcesseds.size()]);
@@ -1119,10 +1196,10 @@ public class ParDoTest implements Serializable {
 
       assertEquals(starteds.size(), finisheds.size());
       for (String started : starteds) {
-        assertEquals(sideOutputPrefix + "started", started);
+        assertEquals(additionalOutputPrefix + "started", started);
       }
       for (String finished : finisheds) {
-        assertEquals(sideOutputPrefix + "finished", finished);
+        assertEquals(additionalOutputPrefix + "finished", finished);
       }
 
       return null;
@@ -1131,15 +1208,15 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testSideOutputUnknownCoder() throws Exception {
+  public void testTaggedOutputUnknownCoder() throws Exception {
 
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
-    final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("unknownSide");
-    input.apply(ParDo.of(new SideOutputDummyFn(sideOutputTag))
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("unknownSide");
+    input.apply(ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
+        .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");
@@ -1147,26 +1224,27 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testSideOutputUnregisteredExplicitCoder() throws Exception {
+  public void testTaggedOutputUnregisteredExplicitCoder() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
-    final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("unregisteredSide");
-    ParDo.BoundMulti<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag));
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("unregisteredSide");
+    ParDo.MultiOutput<Integer, Integer> pardo =
+        ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
-    outputTuple.get(sideOutputTag).setCoder(new TestDummyCoder());
+    outputTuple.get(additionalOutputTag).setCoder(new TestDummyCoder());
 
-    outputTuple.get(sideOutputTag).apply(View.<TestDummy>asSingleton());
+    outputTuple.get(additionalOutputTag).apply(View.<TestDummy>asSingleton());
 
-    assertEquals(new TestDummyCoder(), outputTuple.get(sideOutputTag).getCoder());
-    outputTuple.get(sideOutputTag).finishSpecifyingOutput(input, pardo); // Check for crashes
+    assertEquals(new TestDummyCoder(), outputTuple.get(additionalOutputTag).getCoder());
+    outputTuple.get(additionalOutputTag).finishSpecifyingOutput(input, pardo); // Check for crashes
     assertEquals(new TestDummyCoder(),
-        outputTuple.get(sideOutputTag).getCoder()); // Check for corruption
+        outputTuple.get(additionalOutputTag).getCoder()); // Check for corruption
   }
 
   @Test
@@ -1177,9 +1255,11 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
     final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("unregisteredMain");
-    final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>("side") {};
-    PCollectionTuple outputTuple = input.apply(ParDo.of(new MainOutputDummyFn(sideOutputTag))
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additionalOutput") {};
+    PCollectionTuple outputTuple =
+        input.apply(
+            ParDo.of(new MainOutputDummyFn(additionalOutputTag))
+                .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputTuple.get(mainOutputTag).setCoder(new TestDummyCoder());
 
@@ -1188,31 +1268,31 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMainOutputApplySideOutputNoCoder() {
+  public void testMainOutputApplyTaggedOutputNoCoder() {
     // Regression test: applying a transform to the main output
     // should not cause a crash based on lack of a coder for the
-    // side output.
+    // additional output.
 
     final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("main");
-    final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("side");
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("additionalOutput");
     PCollectionTuple tuple = pipeline
         .apply(Create.of(new TestDummy())
             .withCoder(TestDummyCoder.of()))
         .apply(ParDo
-            .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
             .of(
                 new DoFn<TestDummy, TestDummy>() {
                   @ProcessElement
                   public void processElement(ProcessContext context) {
                     TestDummy element = context.element();
                     context.output(element);
-                    context.sideOutput(sideOutputTag, element);
+                    context.output(additionalOutputTag, element);
                   }
                 })
-    );
+            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag))
+        );
 
     // Before fix, tuple.get(mainOutputTag).apply(...) would indirectly trigger
-    // tuple.get(sideOutputTag).finishSpecifyingOutput(), which would crash
+    // tuple.get(additionalOutputTag).finishSpecifyingOutput(), which would crash
     // on a missing coder.
     tuple.get(mainOutputTag)
         .setCoder(TestDummyCoder.of())
@@ -1223,7 +1303,7 @@ public class ParDoTest implements Serializable {
           }
         }));
 
-    tuple.get(sideOutputTag).setCoder(TestDummyCoder.of());
+    tuple.get(additionalOutputTag).setCoder(TestDummyCoder.of());
 
     pipeline.run();
   }
@@ -1237,9 +1317,9 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1251,26 +1331,27 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoSideOutputWithTimestamp() {
+  public void testParDoTaggedOutputWithTimestamp() {
 
     PCollection<Integer> input =
         pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main"){};
-    final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>("side"){};
+    final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additional"){};
 
     PCollection<String> output =
         input
-        .apply(ParDo.withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)).of(
+        .apply(ParDo.of(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
-                c.sideOutputWithTimestamp(
-                    sideOutputTag, c.element(), new Instant(c.element().longValue()));
+                c.outputWithTimestamp(
+                    additionalOutputTag, c.element(), new Instant(c.element().longValue()));
               }
-            })).get(sideOutputTag)
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+            }).withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
+        .get(additionalOutputTag)
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1281,7 +1362,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category(ValidatesRunner.class)
   public void testParDoShiftTimestamp() {
 
     PCollection<Integer> input =
@@ -1289,10 +1370,12 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000),
-                                                   Duration.millis(-1000))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+            .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+            .apply(
+                ParDo.of(
+                    new TestShiftTimestampDoFn<Integer>(
+                        Duration.millis(1000), Duration.millis(-1000))))
+            .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: -997",
@@ -1306,11 +1389,15 @@ public class ParDoTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalid() {
 
-    pipeline.apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.millis(1000), // allowed skew = 1 second
-                                                   Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+    pipeline
+        .apply(Create.of(Arrays.asList(3, 42, 6)))
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(
+            ParDo.of(
+                new TestShiftTimestampDoFn<Integer>(
+                    Duration.millis(1000), // allowed skew = 1 second
+                    Duration.millis(-1001))))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
@@ -1323,18 +1410,69 @@ public class ParDoTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testParDoShiftTimestampInvalidZeroAllowed() {
-
-    pipeline.apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn(Duration.ZERO,
-                                                   Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn()));
+    pipeline
+        .apply(Create.of(Arrays.asList(3, 42, 6)))
+        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.millis(-1001))))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
     thrown.expectMessage(
         "Output timestamps must be no earlier than the timestamp of the current input");
     thrown.expectMessage("minus the allowed skew (0 milliseconds).");
+    pipeline.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testParDoShiftTimestampUnlimited() {
+    PCollection<Long> outputs =
+        pipeline
+            .apply(
+                Create.of(
+                    Arrays.asList(
+                        0L,
+                        BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(),
+                        GlobalWindow.INSTANCE.maxTimestamp().getMillis())))
+            .apply("AssignTimestampToValue", ParDo.of(new TestOutputTimestampDoFn<Long>()))
+            .apply("ReassignToMinimumTimestamp",
+                ParDo.of(
+                    new DoFn<Long, Long>() {
+                      @ProcessElement
+                      public void reassignTimestamps(ProcessContext context) {
+                        // Shift the latest element as far backwards in time as the model permits
+                        context.outputWithTimestamp(
+                            context.element(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+                      }
+
+                      @Override
+                      public Duration getAllowedTimestampSkew() {
+                        return Duration.millis(Long.MAX_VALUE);
+                      }
+                    }));
+
+    PAssert.that(outputs)
+        .satisfies(
+            new SerializableFunction<Iterable<Long>, Void>() {
+              @Override
+              public Void apply(Iterable<Long> input) {
+                // This element is not shifted backwards in time. It must be present in the output.
+                assertThat(input, hasItem(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+                for (Long elem : input) {
+                  // Sanity check the outputs. 0L and the end of the global window are shifted
+                  // backwards in time and theoretically could be dropped.
+                  assertThat(
+                      elem,
+                      anyOf(
+                          equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
+                          equalTo(GlobalWindow.INSTANCE.maxTimestamp().getMillis()),
+                          equalTo(0L)));
+                }
+                return null;
+              }
+            });
+
     pipeline.run();
   }
 
@@ -1373,7 +1511,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testWindowingInStartAndFinishBundle() {
 
     PCollection<String> output =
@@ -1446,7 +1584,7 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    Bound<String, String> parDo = ParDo.of(fn);
+    SingleOutput<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, hasDisplayItem(allOf(
@@ -1469,7 +1607,7 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    Bound<String, String> parDo = ParDo.of(fn);
+    SingleOutput<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));
@@ -1477,7 +1615,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateSimple() {
     final String stateId = "foo";
 
@@ -1506,7 +1644,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateDedup() {
     final String stateId = "foo";
 
@@ -1554,7 +1692,133 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInference() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, MyInteger> fn =
+        new DoFn<KV<String, Integer>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+    PCollection<MyInteger> output =
+        pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    PAssert.that(output).containsInAnyOrder(new MyInteger(0), new MyInteger(1), new MyInteger(2));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, MyInteger> fn =
+        new DoFn<KV<String, Integer>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for ValueState and no Coder was specified.");
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateCoderInferenceFromInputCoder() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, MyInteger>, MyInteger> fn =
+        new DoFn<KV<String, MyInteger>, MyInteger>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<MyInteger>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+            MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
+            c.output(currentValue);
+            state.write(new MyInteger(currentValue.getValue() + 1));
+          }
+        };
+
+        pipeline
+            .apply(Create.of(KV.of("hello", new MyInteger(42)),
+                KV.of("hello", new MyInteger(97)), KV.of("hello", new MyInteger(84)))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder)))
+            .apply(ParDo.of(fn)).setCoder(myIntegerCoder);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCoderInferenceOfList() {
+    final String stateId = "foo";
+    MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<List<MyInteger>>> intState =
+              StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<List<MyInteger>> state) {
+            MyInteger myInteger = new MyInteger(c.element().getValue());
+            List<MyInteger> currentValue = state.read();
+            List<MyInteger> newValue = currentValue != null
+                ? ImmutableList.<MyInteger>builder().addAll(currentValue).add(myInteger).build()
+                : Collections.singletonList(myInteger);
+            c.output(newValue);
+            state.write(newValue);
+          }
+        };
+
+    pipeline.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateFixedWindows() {
     final String stateId = "foo";
 
@@ -1602,7 +1866,7 @@ public class ParDoTest implements Serializable {
    * which may (or may not) be executed in similar contexts after runner optimizations.
    */
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testValueStateSameId() {
     final String stateId = "foo";
 
@@ -1652,8 +1916,8 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
-  public void testValueStateSideOutput() {
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testValueStateTaggedOutput() {
     final String stateId = "foo";
 
     final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
@@ -1673,7 +1937,7 @@ public class ParDoTest implements Serializable {
             if (currentValue % 2 == 0) {
               c.output(currentValue);
             } else {
-              c.sideOutput(oddTag, currentValue);
+              c.output(oddTag, currentValue);
             }
             state.write(currentValue + 1);
           }
@@ -1702,7 +1966,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testBagState() {
     final String stateId = "foo";
 
@@ -1737,7 +2001,83 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesSetState.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBagStateCoderInference() {
+    final String stateId = "foo";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+              StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<MyInteger> state) {
+            Iterable<MyInteger> currentValue = state.read();
+            state.add(new MyInteger(c.element().getValue()));
+            if (Iterables.size(state.read()) >= 4) {
+              List<MyInteger> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    PCollection<List<MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(Lists.newArrayList(new MyInteger(12), new MyInteger(42),
+        new MyInteger(84), new MyInteger(97)));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testBagStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, List<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, List<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<MyInteger>> bufferState =
+              StateSpecs.bag();
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<MyInteger> state) {
+            Iterable<MyInteger> currentValue = state.read();
+            state.add(new MyInteger(c.element().getValue()));
+            if (Iterables.size(state.read()) >= 4) {
+              List<MyInteger> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for BagState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(ListCoder.of(myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
   public void testSetState() {
     final String stateId = "foo";
     final String countStateId = "count";
@@ -1749,15 +2089,15 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, SetState<Integer>> setState =
               StateSpecs.set(VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
               ProcessContext c,
               @StateId(stateId) SetState<Integer> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             state.add(c.element().getValue());
             count.add(1);
@@ -1779,7 +2119,94 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class, UsesMapState.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetStateCoderInference() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, Integer>, Set<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, Set<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+
+          @StateId(countStateId)
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<MyInteger> state,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
+            state.add(new MyInteger(c.element().getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<MyInteger> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    PCollection<Set<MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+            .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(
+        Sets.newHashSet(new MyInteger(97), new MyInteger(42), new MyInteger(12)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
+  public void testSetStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, Integer>, Set<MyInteger>> fn =
+        new DoFn<KV<String, Integer>, Set<MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, SetState<MyInteger>> setState = StateSpecs.set();
+
+          @StateId(countStateId)
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId) SetState<MyInteger> state,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
+            state.add(new MyInteger(c.element().getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Set<MyInteger> set = Sets.newHashSet(state.read());
+              c.output(set);
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for SetState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 42), KV.of("hello", 12)))
+        .apply(ParDo.of(fn)).setCoder(SetCoder.of(myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
   public void testMapState() {
     final String stateId = "foo";
     final String countStateId = "count";
@@ -1791,20 +2218,20 @@ public class ParDoTest implements Serializable {
           private final StateSpec<Object, MapState<String, Integer>> mapState =
               StateSpecs.map(StringUtf8Coder.of(), VarIntCoder.of());
           @StateId(countStateId)
-          private final StateSpec<Object, AccumulatorCombiningState<Integer, int[], Integer>>
-              countState = StateSpecs.combiningValueFromInputInternal(VarIntCoder.of(),
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
               Sum.ofIntegers());
 
           @ProcessElement
           public void processElement(
               ProcessContext c, @StateId(stateId) MapState<String, Integer> state,
-              @StateId(countStateId) AccumulatorCombiningState<Integer, int[], Integer>
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
                   count) {
             KV<String, Integer> value = c.element().getValue();
             state.put(value.getKey(), value.getValue());
             count.add(1);
             if (count.read() >= 4) {
-              Iterable<Map.Entry<String, Integer>> iterate = state.iterate();
+              Iterable<Map.Entry<String, Integer>> iterate = state.entries().read();
               for (Map.Entry<String, Integer> entry : iterate) {
                 c.output(KV.of(entry.getKey(), entry.getValue()));
               }
@@ -1824,7 +2251,100 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateCoderInference() {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          @StateId(countStateId)
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), new MyInteger(value.getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
+              for (Map.Entry<String, MyInteger> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    PCollection<KV<String, MyInteger>> output =
+        pipeline.apply(
+            Create.of(
+                KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+                KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+            .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+    PAssert.that(output).containsInAnyOrder(KV.of("a", new MyInteger(97)),
+        KV.of("b", new MyInteger(42)), KV.of("c", new MyInteger(12)));
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
+  public void testMapStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+    final String countStateId = "count";
+    Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
+
+    DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
+        new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, MapState<String, MyInteger>> mapState = StateSpecs.map();
+          @StateId(countStateId)
+          private final StateSpec<Object, CombiningState<Integer, int[], Integer>>
+              countState = StateSpecs.combiningFromInputInternal(VarIntCoder.of(),
+              Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) MapState<String, MyInteger> state,
+              @StateId(countStateId) CombiningState<Integer, int[], Integer>
+                  count) {
+            KV<String, Integer> value = c.element().getValue();
+            state.put(value.getKey(), new MyInteger(value.getValue()));
+            count.add(1);
+            if (count.read() >= 4) {
+              Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
+              for (Map.Entry<String, MyInteger> entry : iterate) {
+                c.output(KV.of(entry.getKey(), entry.getValue()));
+              }
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for MapState and no Coder was specified.");
+
+    pipeline.apply(
+        Create.of(
+            KV.of("hello", KV.of("a", 97)), KV.of("hello", KV.of("b", 42)),
+            KV.of("hello", KV.of("b", 42)), KV.of("hello", KV.of("c", 12))))
+        .apply(ParDo.of(fn)).setCoder(KvCoder.of(StringUtf8Coder.of(), myIntegerCoder));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testCombiningState() {
     final String stateId = "foo";
 
@@ -1835,15 +2355,15 @@ public class ParDoTest implements Serializable {
 
           @StateId(stateId)
           private final StateSpec<
-                  Object, AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double>>
+                  Object, CombiningState<Double, CountSum<Double>, Double>>
               combiningState =
-                  StateSpecs.combiningValue(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
+                  StateSpecs.combining(new Mean.CountSumCoder<Double>(), Mean.<Double>of());
 
           @ProcessElement
           public void processElement(
               ProcessContext c,
               @StateId(stateId)
-                  AccumulatorCombiningState<Double, Mean.CountSum<Double>, Double> state) {
+                  CombiningState<Double, CountSum<Double>, Double> state) {
             state.add(c.element().getValue());
             Double currentValue = state.read();
             if (Math.abs(currentValue - 0.5) < EPSILON) {
@@ -1863,7 +2383,133 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCombiningStateCoderInference() {
+    pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
+
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, String> fn =
+        new DoFn<KV<String, Integer>, String>() {
+          private static final int EXPECTED_SUM = 16;
+
+          @StateId(stateId)
+          private final StateSpec<
+              Object, CombiningState<Integer, MyInteger, Integer>>
+              combiningState =
+              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                @Override
+                public MyInteger createAccumulator() {
+                  return new MyInteger(0);
+                }
+
+                @Override
+                public MyInteger addInput(MyInteger accumulator, Integer input) {
+                  return new MyInteger(accumulator.getValue() + input);
+                }
+
+                @Override
+                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                  int newValue = 0;
+                  for (MyInteger myInteger : accumulators) {
+                    newValue += myInteger.getValue();
+                  }
+                  return new MyInteger(newValue);
+                }
+
+                @Override
+                public Integer extractOutput(MyInteger accumulator) {
+                  return accumulator.getValue();
+                }
+              });
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  CombiningState<Integer, MyInteger, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
+            .apply(ParDo.of(fn));
+
+    // There should only be one moment at which the average is exactly 16
+    PAssert.that(output).containsInAnyOrder("right on");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCombiningStateCoderInferenceFailure() throws Exception {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, String> fn =
+        new DoFn<KV<String, Integer>, String>() {
+          private static final int EXPECTED_SUM = 16;
+
+          @StateId(stateId)
+          private final StateSpec<
+              Object, CombiningState<Integer, MyInteger, Integer>>
+              combiningState =
+              StateSpecs.combining(new Combine.CombineFn<Integer, MyInteger, Integer>() {
+                @Override
+                public MyInteger createAccumulator() {
+                  return new MyInteger(0);
+                }
+
+                @Override
+                public MyInteger addInput(MyInteger accumulator, Integer input) {
+                  return new MyInteger(accumulator.getValue() + input);
+                }
+
+                @Override
+                public MyInteger mergeAccumulators(Iterable<MyInteger> accumulators) {
+                  int newValue = 0;
+                  for (MyInteger myInteger : accumulators) {
+                    newValue += myInteger.getValue();
+                  }
+                  return new MyInteger(newValue);
+                }
+
+                @Override
+                public Integer extractOutput(MyInteger accumulator) {
+                  return accumulator.getValue();
+                }
+              });
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId(stateId)
+                  CombiningState<Integer, MyInteger, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to infer a coder for GroupingState and no Coder was specified.");
+
+    pipeline
+        .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
+        .apply(ParDo.of(fn));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testBagStateSideInput() {
 
     final PCollectionView<List<Integer>> listView =
@@ -1925,7 +2571,7 @@ public class ParDoTest implements Serializable {
    * and is only supported by the direct runner.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerBounded() throws Exception {
     final String timerId = "foo";
 
@@ -1952,12 +2598,56 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
+  public void testTimerReceivedInOriginalWindow() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, BoundedWindow> fn =
+        new DoFn<KV<String, Integer>, BoundedWindow>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.setForNowPlus(Duration.standardSeconds(1));
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context, BoundedWindow window) {
+            context.output(context.window());
+          }
+
+          public TypeDescriptor<BoundedWindow> getOutputTypeDescriptor() {
+            return (TypeDescriptor) TypeDescriptor.of(IntervalWindow.class);
+          }
+        };
+
+    SlidingWindows windowing =
+        SlidingWindows.of(Duration.standardMinutes(3)).every(Duration.standardMinutes(1));
+    PCollection<BoundedWindow> output =
+        pipeline
+            .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 24), new Instant(0L))))
+            .apply(Window.<KV<String, Integer>>into(windowing))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            new IntervalWindow(new Instant(0), Duration.standardMinutes(3)),
+            new IntervalWindow(
+                new Instant(0).minus(Duration.standardMinutes(1)), Duration.standardMinutes(3)),
+            new IntervalWindow(
+                new Instant(0).minus(Duration.standardMinutes(2)), Duration.standardMinutes(3)));
+    pipeline.run();
+  }
+
   /**
    * Tests that an event time timer set absolutely for the last possible moment fires and results in
    * supplementary output. The test is otherwise identical to {@link #testEventTimeTimerBounded()}.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerAbsolute() throws Exception {
     final String timerId = "foo";
 
@@ -1990,7 +2680,7 @@ public class ParDoTest implements Serializable {
    * implementations that may GC in ways not simply governed by the watermark.
    */
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testEventTimeTimerMultipleKeys() throws Exception {
     final String timerId = "foo";
     final String stateId = "sizzle";
@@ -2054,7 +2744,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testAbsoluteProcessingTimeTimerRejected() throws Exception {
     final String timerId = "foo";
 
@@ -2083,7 +2773,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class})
   public void testOutOfBoundsEventTimeTimer() throws Exception {
     final String timerId = "foo";
 
@@ -2193,29 +2883,13 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti<String, String> parDo = ParDo
-            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
-            .of(fn);
+    ParDo.MultiOutput<String, String> parDo = ParDo
+            .of(fn)
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty());
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
-  }
-
-  private abstract static class SomeTracker implements RestrictionTracker<Object> {}
-  private static class TestSplittableDoFn extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext context, SomeTracker tracker) {}
-
-    @GetInitialRestriction
-    public Object getInitialRestriction(Integer element) {
-      return null;
-    }
-
-    @NewTracker
-    public SomeTracker newTracker(Object restriction) {
-      return null;
-    }
   }
 
   @Test

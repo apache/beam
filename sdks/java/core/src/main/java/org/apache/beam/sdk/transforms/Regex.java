@@ -486,7 +486,8 @@ public class Regex {
 
   /**
    * {@code Regex.MatchesName<String>} takes a {@code PCollection<String>} and returns a {@code
-   * PCollection<String>} representing the value extracted from all the Regex groups of the input
+   * PCollection<List<String>>} representing the value extracted from all the
+   * Regex groups of the input
    * {@code PCollection} to the number of times that element occurs in the input.
    *
    * <p>This transform runs a Regex on the entire input line. If the entire line does not match the
@@ -497,8 +498,8 @@ public class Regex {
    *
    * <pre>{@code
    * PCollection<String> words = ...;
-   * PCollection<String> values =
-   *     words.apply(Regex.matches("myregex (mygroup)"));
+   * PCollection<List<String>> values =
+   *     words.apply(Regex.allMatches("myregex (mygroup)"));
    * }</pre>
    */
   public static class AllMatches
@@ -709,7 +710,8 @@ public class Regex {
 
   /**
    * {@code Regex.Find<String>} takes a {@code PCollection<String>} and returns a {@code
-   * PCollection<String>} representing the value extracted from the Regex groups of the input {@code
+   * PCollection<List<String>>} representing the value extracted from the
+   * Regex groups of the input {@code
    * PCollection} to the number of times that element occurs in the input.
    *
    * <p>This transform runs a Regex on the entire input line. If a portion of the line does not
@@ -720,8 +722,8 @@ public class Regex {
    *
    * <pre>{@code
    * PCollection<String> words = ...;
-   * PCollection<String> values =
-   *     words.apply(Regex.find("myregex (mygroup)"));
+   * PCollection<List<String>> values =
+   *     words.apply(Regex.findAll("myregex (mygroup)"));
    * }</pre>
    */
   public static class FindAll extends PTransform<PCollection<String>, PCollection<List<String>>> {

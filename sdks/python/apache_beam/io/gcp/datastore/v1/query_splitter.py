@@ -97,7 +97,7 @@ def _validate_query(query):
   if len(query.kind) != 1:
     raise ValueError('Query must have exactly one kind.')
 
-  if len(query.order) != 0:
+  if query.order:
     raise ValueError('Query cannot have any sort orders.')
 
   if query.HasField('limit'):

@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -120,7 +121,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output =
           evaluationContext.createBundle(
-              (PCollection<OutputT>) getOnlyElement(transform.getOutputs()).getValue());
+              (PCollection<OutputT>) getOnlyElement(transform.getOutputs().values()));
       UnboundedSourceShard<OutputT, CheckpointMarkT> shard = element.getValue();
       UnboundedReader<OutputT> reader = null;
       try {
@@ -139,7 +140,24 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             numElements++;
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
-          UnboundedSourceShard<OutputT, CheckpointMarkT> residual = finishRead(reader, shard);
+
+          CheckpointMarkT finishedCheckpoint = finishRead(reader, shard);
+          UnboundedSourceShard<OutputT, CheckpointMarkT> residual;
+          // Sometimes resume from a checkpoint even if it's not required
+          if (ThreadLocalRandom.current().nextDouble(1.0) >= readerReuseChance) {
+            UnboundedReader<OutputT> toClose = reader;
+            // Prevent double-close. UnboundedReader is AutoCloseable, which does not require
+            // idempotency of close. Nulling out the reader here prevents trying to re-close it
+            // if the call to close throws an IOException.
+            reader = null;
+            toClose.close();
+            residual =
+                UnboundedSourceShard.of(
+                    shard.getSource(), shard.getDeduplicator(), null, finishedCheckpoint);
+          } else {
+            residual = shard.withCheckpoint(finishedCheckpoint);
+          }
+
           resultBuilder
               .addOutput(output)
               .addUnprocessedElements(
@@ -171,7 +189,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       if (existing == null) {
         CheckpointMarkT checkpoint = shard.getCheckpoint();
         if (checkpoint != null) {
-          checkpoint.finalizeCheckpoint();
+          checkpoint = CoderUtils.clone(shard.getSource().getCheckpointMarkCoder(), checkpoint);
         }
         return shard
             .getSource()
@@ -195,7 +213,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
      * Checkpoint the current reader, finalize the previous checkpoint, and return the residual
      * {@link UnboundedSourceShard}.
      */
-    private UnboundedSourceShard<OutputT, CheckpointMarkT> finishRead(
+    private CheckpointMarkT finishRead(
         UnboundedReader<OutputT> reader, UnboundedSourceShard<OutputT, CheckpointMarkT> shard)
         throws IOException {
       final CheckpointMark oldMark = shard.getCheckpoint();
@@ -209,7 +227,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       // committing the output.
       if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         PCollection<OutputT> outputPc =
-            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
+            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
         evaluationContext.scheduleAfterOutputWouldBeProduced(
             outputPc,
             GlobalWindow.INSTANCE,
@@ -226,14 +244,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               }
             });
       }
-
-      // Sometimes resume from a checkpoint even if it's not required
-      if (ThreadLocalRandom.current().nextDouble(1.0) >= readerReuseChance) {
-        reader.close();
-        return UnboundedSourceShard.of(shard.getSource(), shard.getDeduplicator(), null, mark);
-      } else {
-        return shard.withCheckpoint(mark);
-      }
+      return mark;
     }
 
     @Override
@@ -290,7 +301,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         throws Exception {
       UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
       List<? extends UnboundedSource<OutputT, ?>> splits =
-          source.generateInitialSplits(targetParallelism, evaluationContext.getPipelineOptions());
+          source.split(targetParallelism, evaluationContext.getPipelineOptions());
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()

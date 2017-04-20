@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
+import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -25,7 +26,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -104,9 +104,9 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
       }
 
       @Override
-      public <SideOutputT> void sideOutputWindowedValue(
-              TupleTag<SideOutputT> tag,
-              SideOutputT output,
+      public <AdditionalOutputT> void outputWindowedValue(
+              TupleTag<AdditionalOutputT> tag,
+              AdditionalOutputT output,
               Instant timestamp,
               Collection<? extends BoundedWindow> windows,
               PaneInfo pane) {

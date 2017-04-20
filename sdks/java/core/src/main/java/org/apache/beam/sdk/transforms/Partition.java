@@ -105,8 +105,8 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
 
     PCollectionTuple outputs = in.apply(
         ParDo
-        .withOutputTags(new TupleTag<Void>(){}, outputTags)
-        .of(partitionDoFn));
+        .of(partitionDoFn)
+        .withOutputTags(new TupleTag<Void>(){}, outputTags));
 
     PCollectionList<T> pcs = PCollectionList.empty(in.getPipeline());
     Coder<T> coder = in.getCoder();
@@ -169,7 +169,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       if (0 <= partition && partition < numPartitions) {
         @SuppressWarnings("unchecked")
         TupleTag<X> typedTag = (TupleTag<X>) outputTags.get(partition);
-        c.sideOutput(typedTag, input);
+        c.output(typedTag, input);
       } else {
         throw new IndexOutOfBoundsException(
             "Partition function returned out of bounds index: "
