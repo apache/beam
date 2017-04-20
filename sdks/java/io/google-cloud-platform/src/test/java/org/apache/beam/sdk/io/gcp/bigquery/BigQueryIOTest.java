@@ -400,10 +400,20 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testReadFromTable() throws IOException, InterruptedException {
+  public void testReadFromTableOldSource() throws IOException, InterruptedException {
+    testReadFromTable(false);
+  }
+
+  @Test
+  public void testReadFromTableNewSource() throws IOException, InterruptedException {
+    testReadFromTable(true);
+  }
+
+  private void testReadFromTable(boolean useNewSource)
+      throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    //    bqOptions.setUseNewSource(Boolean.TRUE);
+    bqOptions.setUseNewSource(useNewSource);
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
     Job job = new Job();

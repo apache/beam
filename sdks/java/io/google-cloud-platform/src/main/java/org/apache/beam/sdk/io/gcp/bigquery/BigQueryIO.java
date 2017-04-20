@@ -48,8 +48,8 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
+import org.apache.beam.sdk.coders.TableSchemaJsonCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -601,7 +601,7 @@ public class BigQueryIO {
                 })
             .withOutputTags(filesTag, TupleTagList.of(tableSchemaTag)));
         final PCollectionView<TableSchema> schemaView = tuple.get(tableSchemaTag)
-            .setCoder(StringDelegateCoder.of(TableSchema.class))
+            .setCoder(TableSchemaJsonCoder.of())
             .apply(View.<TableSchema>asSingleton());
         rows = tuple.get(filesTag)
             .apply(WithKeys.of(new SerializableFunction<String, String>() {
