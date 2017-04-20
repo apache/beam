@@ -886,16 +886,16 @@ public class AvroIO {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        org.apache.beam.sdk.io.Write<T> write = null;
+        WriteFiles<T> write = null;
         if (filenamePolicy != null) {
-          write = org.apache.beam.sdk.io.Write.to(
+          write = WriteFiles.to(
               new AvroSink<>(
                   filenamePolicy,
                   AvroCoder.of(type, schema),
                   codec,
                   metadata));
         } else {
-          write = org.apache.beam.sdk.io.Write.to(
+          write = WriteFiles.to(
               new AvroSink<>(
                   filenamePrefix,
                   filenameSuffix,

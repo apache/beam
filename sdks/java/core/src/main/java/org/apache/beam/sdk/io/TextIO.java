@@ -702,12 +702,12 @@ public class TextIO {
           throw new IllegalStateException(
               "cannot set both a filename policy and a filename prefix");
         }
-        org.apache.beam.sdk.io.Write<String> write = null;
+        WriteFiles<String> write = null;
         if (filenamePolicy != null) {
-         write = org.apache.beam.sdk.io.Write.to(
+         write = WriteFiles.to(
              new TextSink(filenamePolicy, header, footer, writableByteChannelFactory));
         } else {
-          write = org.apache.beam.sdk.io.Write.to(
+          write = WriteFiles.to(
               new TextSink(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
                   writableByteChannelFactory));
         }
@@ -717,7 +717,7 @@ public class TextIO {
         if (windowedWrites) {
           write = write.withWindowedWrites();
         }
-        return input.apply("Write", write);
+        return input.apply("WriteFiles", write);
       }
 
       @Override

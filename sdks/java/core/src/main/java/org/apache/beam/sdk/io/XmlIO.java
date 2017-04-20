@@ -35,8 +35,8 @@ import org.apache.beam.sdk.values.PDone;
 public class XmlIO {
   // CHECKSTYLE.OFF: JavadocStyle
   /**
-   * Reads XML files. This source reads one or more XML files and
-   * creates a {@link PCollection} of a given type. Please note the example given below.
+   * Reads XML files. This source reads one or more XML files and creates a {@link PCollection} of a
+   * given type. Please note the example given below.
    *
    * <p>The XML file must be of the following form, where {@code root} and {@code record} are XML
    * element names that are defined by the user:
@@ -88,7 +88,8 @@ public class XmlIO {
    * Apache Beam.
    *
    * <h3>Permissions</h3>
-   * Permission requirements depend on the {@link org.apache.beam.sdk.runners.PipelineRunner
+   *
+   * <p>Permission requirements depend on the {@link org.apache.beam.sdk.runners.PipelineRunner
    * PipelineRunner} that is used to execute the Beam pipeline. Please refer to the documentation of
    * corresponding {@link PipelineRunner PipelineRunners} for more details.
    *
@@ -105,8 +106,8 @@ public class XmlIO {
 
   // CHECKSTYLE.OFF: JavadocStyle
   /**
-   * A {@link Sink} that outputs records as XML-formatted elements. Writes a {@link PCollection} of
-   * records from JAXB-annotated classes to a single file location.
+   * A {@link FileBasedSink} that outputs records as XML-formatted elements. Writes a {@link
+   * PCollection} of records from JAXB-annotated classes to a single file location.
    *
    * <p>Given a PCollection containing records of type T that can be marshalled to XML elements,
    * this Sink will produce a single file consisting of a single root element that contains all of
@@ -268,6 +269,7 @@ public class XmlIO {
 
       /**
        * Determine if a given filename matches a compression type based on its extension.
+       *
        * @param filename the filename to match
        * @return true iff the filename ends with the compression type's known extension.
        */
@@ -277,8 +279,8 @@ public class XmlIO {
     }
 
     /**
-     * Reads a single XML file or a set of XML files defined by a Java "glob"
-     * file pattern. Each XML file should be of the form defined in {@link #read}.
+     * Reads a single XML file or a set of XML files defined by a Java "glob" file pattern. Each XML
+     * file should be of the form defined in {@link #read}.
      */
     public Read<T> from(String fileOrPatternSpec) {
       return toBuilder().setFileOrPatternSpec(fileOrPatternSpec).build();
@@ -322,9 +324,9 @@ public class XmlIO {
     /**
      * Decompresses all input files using the specified compression type.
      *
-     * <p>If no compression type is specified, the default is {@link CompressionType#AUTO}.
-     * In this mode, the compression type of the file is determined by its extension.
-     * Supports .gz, .bz2, .zip and .deflate compression.
+     * <p>If no compression type is specified, the default is {@link CompressionType#AUTO}. In this
+     * mode, the compression type of the file is determined by its extension. Supports .gz, .bz2,
+     * .zip and .deflate compression.
      */
     public Read<T> withCompressionType(CompressionType compressionType) {
       return toBuilder().setCompressionType(compressionType).build();
@@ -415,7 +417,6 @@ public class XmlIO {
       abstract Write<T> build();
     }
 
-
     /**
      * Writes to files with the given path prefix.
      *
@@ -435,9 +436,7 @@ public class XmlIO {
       return toBuilder().setRecordClass(recordClass).build();
     }
 
-    /**
-     * Sets the enclosing root element for the generated XML files.
-     */
+    /** Sets the enclosing root element for the generated XML files. */
     public Write<T> withRootElement(String rootElement) {
       return toBuilder().setRootElement(rootElement).build();
     }
@@ -456,7 +455,7 @@ public class XmlIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      return input.apply(org.apache.beam.sdk.io.Write.to(createSink()));
+      return input.apply(org.apache.beam.sdk.io.WriteFiles.to(createSink()));
     }
 
     @VisibleForTesting
@@ -468,10 +467,10 @@ public class XmlIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       createSink().populateFileBasedDisplayData(builder);
       builder
-          .addIfNotNull(DisplayData.item("rootElement", getRootElement())
-              .withLabel("XML Root Element"))
-          .addIfNotNull(DisplayData.item("recordClass", getRecordClass())
-              .withLabel("XML Record Class"));
+          .addIfNotNull(
+              DisplayData.item("rootElement", getRootElement()).withLabel("XML Root Element"))
+          .addIfNotNull(
+              DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"));
     }
   }
 }
