@@ -233,7 +233,6 @@ class Environment(object):
       options_dict = {k: v
                       for k, v in sdk_pipeline_options.iteritems()
                       if v is not None}
-      options_dict['_options_id'] = 0  # TODO(BEAM-1999): Remove.
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))

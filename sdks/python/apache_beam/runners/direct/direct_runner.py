@@ -85,13 +85,11 @@ class DirectRunner(PipelineRunner):
     executor = Executor(self.consumer_tracking_visitor.value_to_consumers,
                         TransformEvaluatorRegistry(evaluation_context),
                         evaluation_context)
+    # DirectRunner does not support injecting
+    # PipelineOptions values at runtime
+    RuntimeValueProvider.set_runtime_options({})
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
-
-    if pipeline.options:
-      # DirectRunner does not support RuntimeValueProviders.
-      RuntimeValueProvider.set_runtime_options(None, {})
-
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
