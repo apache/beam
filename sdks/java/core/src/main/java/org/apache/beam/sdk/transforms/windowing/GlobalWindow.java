@@ -19,7 +19,9 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.coders.AtomicCoder;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -62,7 +64,7 @@ public class GlobalWindow extends BoundedWindow {
   /**
    * {@link Coder} for encoding and decoding {@code GlobalWindow}s.
    */
-  public static class Coder extends AtomicCoder<GlobalWindow> {
+  public static class Coder extends StandardCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();
 
     @Override
@@ -86,6 +88,17 @@ public class GlobalWindow extends BoundedWindow {
       return CloudObject.forClassName("kind:global_window");
     }
 
+    @Override
+    public final List<org.apache.beam.sdk.coders.Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
+
+    /**
+     * Returns an empty list. The Global Window Coder has no components.
+     */
+    public static <T> List<Object> getInstanceComponents(T exampleValue) {
+      return Collections.emptyList();
+    }
     private Coder() {}
   }
 }

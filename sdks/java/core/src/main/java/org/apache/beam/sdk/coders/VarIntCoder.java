@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,9 +30,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
  * integers that are known to often be large or negative.
  */
-public class VarIntCoder extends AtomicCoder<Integer> {
+public class VarIntCoder extends CustomCoder<Integer> {
 
-  @JsonCreator
   public static VarIntCoder of() {
     return INSTANCE;
   }
@@ -66,6 +64,9 @@ public class VarIntCoder extends AtomicCoder<Integer> {
     }
   }
 
+  @Override
+  public void verifyDeterministic() {}
+
   /**
    * {@inheritDoc}
    *
@@ -74,6 +75,11 @@ public class VarIntCoder extends AtomicCoder<Integer> {
   @Override
   public boolean consistentWithEquals() {
     return true;
+  }
+
+  @Override
+  public String getEncodingId() {
+    return "";
   }
 
   /**

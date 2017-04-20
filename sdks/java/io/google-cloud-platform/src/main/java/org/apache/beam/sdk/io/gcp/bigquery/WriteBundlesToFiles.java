@@ -26,8 +26,8 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -67,7 +67,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   /**
    * a coder for the {@link Result} class.
    */
-  public static class ResultCoder extends AtomicCoder<Result> {
+  public static class ResultCoder extends CustomCoder<Result> {
     private static final ResultCoder INSTANCE = new ResultCoder();
     private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
     private static final VarLongCoder longCoder = VarLongCoder.of();
@@ -98,8 +98,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
+    public void verifyDeterministic() {}
   }
 
   WriteBundlesToFiles(String tempFilePrefix) {
