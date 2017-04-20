@@ -16,7 +16,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-for i in job_*.groovy
+for i in *
 do
   echo "Replacing COMMON_JOB_PROPERTIES_REPLACEMENT in file $i."
   sed -i -e '/COMMON_JOB_PROPERTIES_REPLACEMENT/ r common_job_properties.groovy' -e s/COMMON_JOB_PROPERTIES_REPLACEMENT// "$i"
