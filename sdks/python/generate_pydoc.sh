@@ -44,6 +44,8 @@ python $(type -p sphinx-apidoc) -f -o target/docs/source apache_beam \
 # Remove Cython modules from doc template; they won't load
 sed -i -e '/.. automodule:: apache_beam.coders.stream/d' \
     target/docs/source/apache_beam.coders.rst
+sed -i -e '/.. automodule:: apache_beam.runners.worker.statesampler/d' \
+    target/docs/source/apache_beam.runners.worker.rst
 
 # Create the configuration and index files
 cat > target/docs/source/conf.py <<'EOF'
