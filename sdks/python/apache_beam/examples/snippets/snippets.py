@@ -576,6 +576,7 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.transforms.core import PTransform
 from apache_beam.utils.pipeline_options import PipelineOptions
 
+
 # Defining a new source.
 # [START model_custom_source_new_source]
 class CountingSource(iobase.BoundedSource):
@@ -618,6 +619,7 @@ class CountingSource(iobase.BoundedSource):
                                 stop_position=bundle_stop)
       bundle_start = bundle_stop
 # [END model_custom_source_new_source]
+
 
 def model_custom_source(count):
   """Demonstrates creating a new custom source and using it in a pipeline.
