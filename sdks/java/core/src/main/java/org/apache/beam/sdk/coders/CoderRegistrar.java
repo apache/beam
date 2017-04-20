@@ -20,6 +20,7 @@ package org.apache.beam.sdk.coders;
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * {@link Coder} creators have the ability to automatically have their
@@ -29,6 +30,7 @@ import java.util.ServiceLoader;
  * <p>It is optional but recommended to use one of the many build time tools such as
  * {@link AutoService} to generate the necessary META-INF files automatically.
  */
+@Experimental
 public interface CoderRegistrar {
   /**
    * Returns a mapping of {@link Class classes} to {@link CoderFactory coder factories} which

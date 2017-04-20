@@ -47,7 +47,7 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
 @Experimental(Kind.STATE)
 public class StateTags {
 
-  private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
+  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   /** @deprecated for migration purposes only */
   @Deprecated

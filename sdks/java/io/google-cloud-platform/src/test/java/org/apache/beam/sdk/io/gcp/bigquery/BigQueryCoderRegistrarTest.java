@@ -30,11 +30,11 @@ import org.junit.runners.JUnit4;
 public class BigQueryCoderRegistrarTest {
   @Test
   public void testTableRowCoderIsRegistered() throws Exception {
-    new CoderRegistry().getDefaultCoder(TableRow.class);
+    CoderRegistry.createDefault().getDefaultCoder(TableRow.class);
   }
 
   @Test
   public void testTableRowInfoCoderIsRegistered() throws Exception {
-    new CoderRegistry().getDefaultCoder(TableRowInfo.class);
+    CoderRegistry.createDefault().getDefaultCoder(TableRowInfo.class);
   }
 }

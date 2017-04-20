@@ -92,9 +92,7 @@ public class CoderRegistry implements CoderProvider {
   private static final Map<Class<?>, CoderFactory> REGISTERED_CODER_FACTORIES_PER_CLASS;
 
   static {
-    Set<CoderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
-    registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(CoderRegistrar.class, ReflectHelpers.findClassLoader())));
+    // Register the standard coders first so they are choosen as the default
     Multimap<Class<?>, CoderFactory> codersToRegister = HashMultimap.create();
     codersToRegister.put(Byte.class, CoderFactories.fromStaticMethods(ByteCoder.class));
     codersToRegister.put(ByteString.class, CoderFactories.fromStaticMethods(ByteStringCoder.class));
@@ -114,6 +112,10 @@ public class CoderRegistry implements CoderProvider {
     codersToRegister.put(byte[].class, CoderFactories.fromStaticMethods(ByteArrayCoder.class));
     codersToRegister.put(IntervalWindow.class, CoderFactories.forCoder(IntervalWindow.getCoder()));
 
+    // Enumerate all the CoderRegistrars in a deterministic order, adding all coders to register
+    Set<CoderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(CoderRegistrar.class, ReflectHelpers.findClassLoader())));
     for (CoderRegistrar registrar : registrars) {
       for (Map.Entry<Class<?>, CoderFactory> entry
           : registrar.getCoderFactoriesToUseForClasses().entrySet()) {
@@ -121,7 +123,7 @@ public class CoderRegistry implements CoderProvider {
       }
     }
 
-    // Warn the user if multiple coders have been registered for the same class
+    // Warn the user if multiple coders want to be registered for the same class
     Map<Class<?>, Collection<CoderFactory>> multipleRegistrations =
         Maps.filterValues(codersToRegister.asMap(), new Predicate<Collection<CoderFactory>>() {
       @Override
@@ -134,6 +136,7 @@ public class CoderRegistry implements CoderProvider {
           entry.getKey(), entry.getValue(), entry.getValue().iterator().next());
     }
 
+    // Build a map choosing the first coder within the multimap as the default
     ImmutableMap.Builder<Class<?>, CoderFactory> registeredCoderFactoriesPerClassBuilder =
         ImmutableMap.builder();
     for (Map.Entry<Class<?>, Collection<CoderFactory>> entry
@@ -144,12 +147,26 @@ public class CoderRegistry implements CoderProvider {
     REGISTERED_CODER_FACTORIES_PER_CLASS = registeredCoderFactoriesPerClassBuilder.build();
   }
 
-  public CoderRegistry() {
+  /**
+   * Creates a CoderRegistry containing registrations for all standard coders part of the core Java
+   * Apache Beam SDK and also any registrations provided by {@link CoderRegistrar coder registrars}.
+   *
+   * <p>Multiple registrations for the same class result in the (in order of precedence):
+   * <ul>
+   *   <li>Standard coder part of the core Apache Beam Java SDK being used.</li>
+   *   <li>The coder from the {@link CoderRegistrar} with the lexicographically smallest
+   *   {@link Class#getName() class name} being used.</li>
+   * </ul>
+   */
+  public static CoderRegistry createDefault() {
+    return new CoderRegistry();
+  }
+
+  private CoderRegistry() {
     coderFactoryMap = new HashMap<>(REGISTERED_CODER_FACTORIES_PER_CLASS);
     setFallbackCoderProvider(
         CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
   }
-
 
   /**
    * Registers {@code coderClazz} as the default {@link Coder} class to handle encoding and

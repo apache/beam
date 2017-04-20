@@ -40,7 +40,7 @@ public class DefaultCoderTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  public CoderRegistry registry = new CoderRegistry();
+  public CoderRegistry registry = CoderRegistry.createDefault();
 
   @DefaultCoder(AvroCoder.class)
   private static class AvroRecord {

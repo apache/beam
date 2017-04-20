@@ -158,7 +158,7 @@ public class StateTagTest {
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Test
   public void testCombiningValueWithContextEquality() {
-    CoderRegistry registry = new CoderRegistry();
+    CoderRegistry registry = CoderRegistry.createDefault();
 
     Combine.BinaryCombineIntegerFn maxFn = Max.ofIntegers();
     Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();

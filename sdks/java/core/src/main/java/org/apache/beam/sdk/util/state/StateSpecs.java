@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 @Experimental(Kind.STATE)
 public class StateSpecs {
 
-  private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
+  private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
 
   private StateSpecs() {}
 
