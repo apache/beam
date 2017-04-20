@@ -159,7 +159,6 @@ public class StateTagTest {
   @Test
   public void testCombiningValueWithContextEquality() {
     CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
 
     Combine.BinaryCombineIntegerFn maxFn = Max.ofIntegers();
     Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();

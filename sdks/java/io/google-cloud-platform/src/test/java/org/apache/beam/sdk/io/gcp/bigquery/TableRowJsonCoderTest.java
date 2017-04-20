@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;

@@ -113,7 +113,6 @@ public class SparkRuntimeContext implements Serializable {
   public CoderRegistry getCoderRegistry() {
     if (coderRegistry == null) {
       coderRegistry = new CoderRegistry();
-      coderRegistry.registerStandardCoders();
     }
     return coderRegistry;
   }

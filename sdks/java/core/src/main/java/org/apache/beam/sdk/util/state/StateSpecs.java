@@ -40,10 +40,6 @@ public class StateSpecs {
 
   private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
 
-  static {
-    STANDARD_REGISTRY.registerStandardCoders();
-  }
-
   private StateSpecs() {}
 
   /** Create a simple state spec for values of type {@code T}. */

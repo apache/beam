@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.base.MoreObjects;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -129,13 +130,13 @@ public final class CoderFactories {
     // Method to create a coder given component coders
     // For a Coder class of kind * -> * -> ... n times ... -> *
     // this has type Coder<?> -> Coder<?> -> ... n times ... -> Coder<T>
-    private Method factoryMethod;
+    private final Method factoryMethod;
 
     // Method to decompose a value of type T into its parts.
     // For a Coder class of kind * -> * -> ... n times ... -> *
     // this has type T -> List<Object>
     // where the list has n elements.
-    private Method getComponentsMethod;
+    private final Method getComponentsMethod;
 
     /**
      * Returns a CoderFactory that invokes the given static factory method
@@ -248,6 +249,14 @@ public final class CoderFactories {
           "cannot build CoderFactory from class " + coderType
           + ": does not implement Coder<T> for any T.");
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("factoryMethod", factoryMethod)
+          .add("getComponentsMethod", getComponentsMethod)
+          .toString();
+    }
   }
 
   /**
@@ -255,7 +264,7 @@ public final class CoderFactories {
    * {@link CoderFactory}.
    */
   private static class CoderFactoryForCoder<T> implements CoderFactory {
-    private Coder<T> coder;
+    private final Coder<T> coder;
 
     public CoderFactoryForCoder(Coder<T> coder) {
       this.coder = coder;
@@ -269,6 +278,13 @@ public final class CoderFactories {
     @Override
     public List<Object> getInstanceComponents(Object value) {
       return Collections.emptyList();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("coder", coder)
+          .toString();
     }
   }
 }

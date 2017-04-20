@@ -49,10 +49,6 @@ public class StateTags {
 
   private static final CoderRegistry STANDARD_REGISTRY = new CoderRegistry();
 
-  static {
-    STANDARD_REGISTRY.registerStandardCoders();
-  }
-
   /** @deprecated for migration purposes only */
   @Deprecated
   private static <K> StateBinder<K> adaptTagBinder(final StateTag.StateBinder<K> binder) {

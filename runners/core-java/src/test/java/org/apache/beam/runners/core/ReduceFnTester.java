@@ -181,7 +181,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
 
     CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -208,7 +207,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       throws Exception {
 
     CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -231,7 +229,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           SideInputReader sideInputReader)
           throws Exception {
     CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -255,7 +252,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       SideInputReader sideInputReader)
       throws Exception {
     CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
