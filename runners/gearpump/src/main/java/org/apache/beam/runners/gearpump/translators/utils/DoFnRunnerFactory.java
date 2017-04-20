@@ -28,6 +28,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -78,7 +79,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
     DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
         options, fn, sideInputReader, outputManager, mainOutputTag,
         sideOutputTags, stepContext, aggregatorFactory, windowingStrategy);
-    return PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
+    return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
 
 }

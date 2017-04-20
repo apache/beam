@@ -133,7 +133,8 @@ public class GroupByKeyTranslatorTest {
             PaneInfo.NO_FIRING);
 
     KV<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>> result1 =
-        merge.fold(KV.of(null, null), KV.of(key1, value1));
+        merge.fold(KV.<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>>of(
+            null, null), KV.of(key1, value1));
     assertThat(result1.getKey(), equalTo(key1));
     assertThat(result1.getValue().getValue().getValue(), equalTo(Lists.newArrayList("value1")));
 

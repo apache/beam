@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Iterables;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
@@ -31,7 +30,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
@@ -71,20 +70,20 @@ public class TranslationContext {
     }
   }
 
-  public List<TaggedPValue> getInputs() {
+  public Map<TupleTag<?>, PValue> getInputs() {
     return getCurrentTransform().getInputs();
   }
 
   public PValue getInput() {
-    return Iterables.getOnlyElement(getInputs()).getValue();
+    return Iterables.getOnlyElement(getInputs().values());
   }
 
-  public List<TaggedPValue> getOutputs() {
+  public Map<TupleTag<?>, PValue> getOutputs() {
     return getCurrentTransform().getOutputs();
   }
 
   public PValue getOutput() {
-    return Iterables.getOnlyElement(getOutputs()).getValue();
+    return Iterables.getOnlyElement(getOutputs().values());
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {

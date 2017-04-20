@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
@@ -55,11 +55,10 @@ public class ParDoMultiOutputTranslator<InputT, OutputT> implements
     Map<String, PCollectionView<?>> tagsToSideInputs =
         TranslatorUtils.getTagsToSideInputs(sideInputs);
 
-    List<TaggedPValue> outputs = context.getOutputs();
+    Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     final TupleTag<OutputT> mainOutput = transform.getMainOutputTag();
     List<TupleTag<?>> sideOutputs = new ArrayList<>(outputs.size() - 1);
-    for (TaggedPValue output: outputs) {
-      TupleTag<?> tag = output.getTag();
+    for (TupleTag<?> tag: outputs.keySet()) {
       if (tag != null && !tag.getId().equals(mainOutput.getId())) {
         sideOutputs.add(tag);
       }
@@ -78,9 +77,9 @@ public class ParDoMultiOutputTranslator<InputT, OutputT> implements
                 tagsToSideInputs,
                 mainOutput,
                 sideOutputs), transform.getName());
-    for (TaggedPValue output: outputs) {
+    for (Map.Entry<TupleTag<?>, PValue> output: outputs.entrySet()) {
       JavaStream<WindowedValue<OutputT>> taggedStream = outputStream
-          .filter(new FilterByOutputTag(output.getTag().getId()),
+          .filter(new FilterByOutputTag(output.getKey().getId()),
               "filter_by_output_tag")
           .map(new TranslatorUtils.FromRawUnionValue<OutputT>(), "from_RawUnionValue");
       context.setOutputStream(output.getValue(), taggedStream);
