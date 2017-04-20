@@ -162,7 +162,7 @@ public class CoderRegistry implements CoderProvider {
     return new CoderRegistry();
   }
 
-  private CoderRegistry() {
+  public CoderRegistry() {
     coderFactoryMap = new HashMap<>(REGISTERED_CODER_FACTORIES_PER_CLASS);
     setFallbackCoderProvider(
         CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
