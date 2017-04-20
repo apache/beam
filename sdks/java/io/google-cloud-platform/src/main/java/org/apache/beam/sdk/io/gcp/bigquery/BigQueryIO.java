@@ -49,7 +49,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
-import org.apache.beam.sdk.coders.TableSchemaJsonCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -580,8 +579,8 @@ public class BigQueryIO {
         // Apply the DoFn version.
         final TupleTag<String> filesTag =
             new TupleTag<String>(){};
-        final TupleTag<TableSchema> tableSchemaTag =
-            new TupleTag<TableSchema>(){};
+        final TupleTag<String> tableSchemaTag =
+            new TupleTag<String>(){};
         PCollectionTuple tuple = jobIdTokenCollection.apply("RunCreateJob", ParDo
             .of(
                 new DoFn<String, String>() {
@@ -591,7 +590,8 @@ public class BigQueryIO {
                     String jobUuid = c.element();
                     BigQuerySourceBase source = applySourceTransform(
                         c.getPipelineOptions(), jobUuid, extractDestinationDir);
-                    TableSchema schema = source.getSchema(c.getPipelineOptions());
+                    String schema = BigQueryHelpers.toJsonString(
+                        source.getSchema(c.getPipelineOptions()));
                     c.output(tableSchemaTag, schema);
                     List<String> files = source.extractFiles(c.getPipelineOptions());
                     for (String file : files) {
@@ -600,9 +600,8 @@ public class BigQueryIO {
                   }
                 })
             .withOutputTags(filesTag, TupleTagList.of(tableSchemaTag)));
-        final PCollectionView<TableSchema> schemaView = tuple.get(tableSchemaTag)
-            .setCoder(TableSchemaJsonCoder.of())
-            .apply(View.<TableSchema>asSingleton());
+        final PCollectionView<String> schemaView = tuple.get(tableSchemaTag)
+            .apply(View.<String>asSingleton());
         rows = tuple.get(filesTag)
             .apply(WithKeys.of(new SerializableFunction<String, String>() {
                 public String apply(String s) {
@@ -616,7 +615,8 @@ public class BigQueryIO {
                   @ProcessElement
                   public void processElement(ProcessContext c)
                       throws Exception {
-                    TableSchema schema = c.sideInput(schemaView);
+                    TableSchema schema = BigQueryHelpers.fromJsonString(
+                        c.sideInput(schemaView), TableSchema.class);
                     BigQuerySourceBase source = applySourceTransform(
                         c.getPipelineOptions(), "unused", "unused");
                     List<BoundedSource<TableRow>> sources =
