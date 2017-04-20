@@ -21,9 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
@@ -32,7 +31,7 @@ import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
  * A {@link Coder} that serializes and deserializes the {@link Result} objects using {@link
  * ProtobufUtil}.
  */
-class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
+class HBaseResultCoder extends CustomCoder<Result> implements Serializable {
   private static final HBaseResultCoder INSTANCE = new HBaseResultCoder();
 
   private HBaseResultCoder() {}

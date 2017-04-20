@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,9 +27,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link ByteCoder} encodes {@link Byte} values in 1 byte using Java serialization.
  */
-public class ByteCoder extends AtomicCoder<Byte> {
+public class ByteCoder extends CustomCoder<Byte> {
 
-  @JsonCreator
   public static ByteCoder of() {
     return INSTANCE;
   }
@@ -85,6 +83,11 @@ public class ByteCoder extends AtomicCoder<Byte> {
   @Override
   public boolean consistentWithEquals() {
     return true;
+  }
+
+  @Override
+  public String getEncodingId() {
+    return "";
   }
 
   /**

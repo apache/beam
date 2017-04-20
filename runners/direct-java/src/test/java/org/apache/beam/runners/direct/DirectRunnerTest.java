@@ -44,9 +44,9 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -530,7 +530,6 @@ public class DirectRunnerTest implements Serializable {
     p.run();
   }
 
-
   @Test
   public void testAggregatorNotPresentInGraph() throws AggregatorRetrievalException {
     Pipeline p = getPipeline();
@@ -560,7 +559,7 @@ public class DirectRunnerTest implements Serializable {
     }
   }
 
-  private static class LongNoDecodeCoder extends AtomicCoder<Long> {
+  private static class LongNoDecodeCoder extends CustomCoder<Long> {
     @Override
     public void encode(
         Long value, OutputStream outStream, Context context) throws IOException {
