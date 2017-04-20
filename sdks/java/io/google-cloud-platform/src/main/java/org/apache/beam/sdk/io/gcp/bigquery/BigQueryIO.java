@@ -421,10 +421,9 @@ public class BigQueryIO {
     }
 
     private BigQuerySourceBase applySourceTransform(
-        Pipeline p, String jobUuid, String extractDestinationDir) {
+        PipelineOptions options, String jobUuid, String extractDestinationDir) {
       BigQuerySourceBase source;
-      BigQueryOptions bqOptions = p.getOptions().as(BigQueryOptions.class);
-      final BigQueryServices bqServices = getBigQueryServices();
+      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       final String executingProject = bqOptions.getProject();
       if (getQuery() != null
           && (!getQuery().isAccessible() || !Strings.isNullOrEmpty(getQuery().get()))) {
@@ -532,7 +531,7 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
-      final Pipeline p = input.getPipeline();
+      Pipeline p = input.getPipeline();
       String jobUuid = BigQueryHelpers.randomUUIDString();
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       final String executingProject = bqOptions.getProject();
@@ -552,7 +551,7 @@ public class BigQueryIO {
         // Create a singleton job ID token at construction time.
         jobIdTokenView = p
             .apply("TriggerIdCreation", Create.of(jobUuid))
-            .apply(View.<String>asSingleton());
+            .apply("ViewId", View.<String>asSingleton());
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection = p
@@ -565,7 +564,7 @@ public class BigQueryIO {
                   }
                 }));
         jobIdTokenView = jobIdTokenCollection
-            .apply(View.<String>asSingleton());
+            .apply("ViewId", View.<String>asSingleton());
       }
 
       PCollection<TableRow> rows;
@@ -573,7 +572,7 @@ public class BigQueryIO {
         // Apply the traditional Source model.
         rows = p.apply(
             org.apache.beam.sdk.io.Read.from(applySourceTransform(
-                p, jobUuid, extractDestinationDir)))
+                p.getOptions(), jobUuid, extractDestinationDir)))
             .setCoder(getDefaultOutputCoder());
       } else {
         // Apply the DoFn version.
@@ -589,10 +588,10 @@ public class BigQueryIO {
                       throws Exception {
                     String jobUuid = c.element();
                     BigQuerySourceBase source = applySourceTransform(
-                        p, jobUuid, extractDestinationDir);
-                    TableSchema schema = source.getSchema(p.getOptions());
+                        c.getPipelineOptions(), jobUuid, extractDestinationDir);
+                    TableSchema schema = source.getSchema(c.getPipelineOptions());
                     c.output(tableSchemaTag, schema);
-                    List<String> files = source.extractFiles(p.getOptions());
+                    List<String> files = source.extractFiles(c.getPipelineOptions());
                     for (String file : files) {
                       c.output(file);
                     }
@@ -615,12 +614,13 @@ public class BigQueryIO {
                   public void processElement(ProcessContext c)
                       throws Exception {
                     TableSchema schema = c.sideInput(schemaView);
-                    BigQuerySourceBase source = applySourceTransform(p, "unused", "unused");
+                    BigQuerySourceBase source = applySourceTransform(
+                        c.getPipelineOptions(), "unused", "unused");
                     List<BoundedSource<TableRow>> sources =
                     source.createSources(ImmutableList.of(c.element()), schema);
                     for (BoundedSource<TableRow> avroSource : sources) {
                       BoundedSource.BoundedReader<TableRow> reader =
-                          avroSource.createReader(p.getOptions());
+                          avroSource.createReader(c.getPipelineOptions());
                       if (reader.start()) {
                         c.output(reader.getCurrent());
                         while (reader.advance()) {

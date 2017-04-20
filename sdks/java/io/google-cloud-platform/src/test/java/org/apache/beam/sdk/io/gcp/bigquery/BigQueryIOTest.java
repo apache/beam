@@ -403,6 +403,7 @@ public class BigQueryIOTest implements Serializable {
   public void testReadFromTable() throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
+    bqOptions.setUseNewSource(Boolean.TRUE);
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
     Job job = new Job();
