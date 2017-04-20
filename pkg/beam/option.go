@@ -2,6 +2,7 @@ package beam
 
 import (
 	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 )
 
@@ -23,6 +24,12 @@ type Option interface {
 type SideInput struct {
 	Kind  SideInputKind
 	Input PCollection
+
+	// TODO(wcn): better types for these?
+	// Motivating code snippet is
+	// https://paste.googleplex.com/6748543817613312
+	WindowFn interface{}
+	ViewFn   interface{}
 }
 
 func (s SideInput) apply(edge *graph.MultiEdge) error {
