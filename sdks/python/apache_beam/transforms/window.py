@@ -388,13 +388,15 @@ class SlidingWindows(NonMergingWindowFn):
       raise ValueError('The size parameter must be strictly positive.')
     self.size = Duration.of(size)
     self.period = Duration.of(period)
-    self.offset = Timestamp.of(offset) % size
+    self.offset = Timestamp.of(offset) % period
 
   def assign(self, context):
     timestamp = context.timestamp
-    start = timestamp - (timestamp - self.offset) % self.period
-    return [IntervalWindow(Timestamp.of(s), Timestamp.of(s) + self.size)
-            for s in range(start, start - self.size, -self.period)]
+    start = timestamp - ((timestamp - self.offset) % self.period)
+    return [
+        IntervalWindow(Timestamp(micros=s), Timestamp(micros=s) + self.size)
+        for s in range(start.micros, timestamp.micros - self.size.micros,
+                       -self.period.micros)]
 
   def __eq__(self, other):
     if type(self) == type(other) == SlidingWindows:
