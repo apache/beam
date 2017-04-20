@@ -16,7 +16,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-for i in $(find ".test-infra/jenkins/test/" -name "job_*.groovy")
+for i in $(find ".test-infra/jenkins/" -name "job_*.groovy")
 do
   echo "Replacing COMMON_JOB_PROPERTIES_REPLACEMENT in file $i."
   sed -i -e '/COMMON_JOB_PROPERTIES_REPLACEMENT/ r common_job_properties.groovy' -e s/COMMON_JOB_PROPERTIES_REPLACEMENT// "$i"
