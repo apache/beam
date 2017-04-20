@@ -35,6 +35,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Messages;
 import com.google.api.services.dataflow.model.Job;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.Collections;
@@ -154,11 +155,10 @@ public class DataflowPipelineJobTest {
     when(mockMessages.list(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(listRequest);
     when(listRequest.setPageToken(eq((String) null))).thenReturn(listRequest);
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     State state = job.waitUntilFinish(
         Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
@@ -177,11 +177,10 @@ public class DataflowPipelineJobTest {
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
@@ -245,11 +244,10 @@ public class DataflowPipelineJobTest {
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
@@ -266,11 +264,10 @@ public class DataflowPipelineJobTest {
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
@@ -289,13 +286,11 @@ public class DataflowPipelineJobTest {
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
-
     FastNanoClockAndFuzzySleeper clock = new FastNanoClockAndFuzzySleeper();
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
     long startTime = clock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
     assertEquals(null, state);
@@ -315,11 +310,9 @@ public class DataflowPipelineJobTest {
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
 
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
-
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     assertEquals(
         State.RUNNING,
@@ -333,11 +326,10 @@ public class DataflowPipelineJobTest {
 
     when(mockJobs.get(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenThrow(IOException.class);
-    DataflowAggregatorTransforms dataflowAggregatorTransforms =
-        mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options,
+            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     long startTime = fastClock.nanoTime();
     assertEquals(
