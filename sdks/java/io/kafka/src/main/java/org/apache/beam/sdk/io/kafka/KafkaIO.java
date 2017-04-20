@@ -561,8 +561,8 @@ public class KafkaIO {
 
     @Override
     public PCollection<KV<K, V>> expand(PBegin begin) {
-      return read
-          .expand(begin)
+      return begin
+          .apply(read)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
                 @ProcessElement
