@@ -137,15 +137,15 @@ class ReadFromDatastore(PTransform):
     #   outputs a ``PCollection[Entity]``.
 
     queries = (pcoll.pipeline
-               | 'User Query' >> Create([self._query])
-               | 'Split Query' >> ParDo(ReadFromDatastore.SplitQueryFn(
+               | 'UserQuery' >> Create([self._query])
+               | 'SplitQuery' >> ParDo(ReadFromDatastore.SplitQueryFn(
                    self._project, self._query, self._datastore_namespace,
                    self._num_splits)))
 
     sharded_queries = (queries
                        | GroupByKey()
                        | Values()
-                       | 'flatten' >> FlatMap(lambda x: x))
+                       | 'Flatten' >> FlatMap(lambda x: x))
 
     entities = sharded_queries | 'Read' >> ParDo(
         ReadFromDatastore.ReadFn(self._project, self._datastore_namespace))

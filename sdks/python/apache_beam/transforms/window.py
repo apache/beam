@@ -49,6 +49,8 @@ WindowFn.
 
 from __future__ import absolute_import
 
+import abc
+
 from google.protobuf import struct_pb2
 from google.protobuf import wrappers_pb2
 
@@ -93,6 +95,8 @@ class OutputTimeFn(object):
 class WindowFn(object):
   """An abstract windowing function defining a basic assign and merge."""
 
+  __metaclass__ = abc.ABCMeta
+
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
 
@@ -100,6 +104,7 @@ class WindowFn(object):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
 
+  @abc.abstractmethod
   def assign(self, assign_context):
     """Associates a timestamp to an element."""
     raise NotImplementedError
@@ -113,6 +118,7 @@ class WindowFn(object):
     def merge(self, to_be_merged, merge_result):
       raise NotImplementedError
 
+  @abc.abstractmethod
   def merge(self, merge_context):
     """Returns a window that is the result of merging a set of windows."""
     raise NotImplementedError
@@ -121,8 +127,9 @@ class WindowFn(object):
     """Returns whether this WindowFn merges windows."""
     return True
 
+  @abc.abstractmethod
   def get_window_coder(self):
-    return coders.WindowCoder()
+    raise NotImplementedError
 
   def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
@@ -344,6 +351,9 @@ class FixedWindows(NonMergingWindowFn):
     start = timestamp - (timestamp - self.offset) % self.size
     return [IntervalWindow(start, start + self.size)]
 
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
+
   def __eq__(self, other):
     if type(self) == type(other) == FixedWindows:
       return self.size == other.size and self.offset == other.offset
@@ -398,6 +408,9 @@ class SlidingWindows(NonMergingWindowFn):
         for s in range(start.micros, timestamp.micros - self.size.micros,
                        -self.period.micros)]
 
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
+
   def __eq__(self, other):
     if type(self) == type(other) == SlidingWindows:
       return (self.size == other.size
@@ -442,6 +455,9 @@ class Sessions(WindowFn):
   def assign(self, context):
     timestamp = context.timestamp
     return [IntervalWindow(timestamp, timestamp + self.gap_size)]
+
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
 
   def merge(self, merge_context):
     to_merge = []
