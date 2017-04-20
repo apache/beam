@@ -89,7 +89,6 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = BigQueryIO.getExtractJobId(jobIdToken.get());
     List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
-    cleanupTempResource(bqOptions);
     return tempFiles;
   }
 
@@ -106,9 +105,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       JobService jobService = bqServices.getJobService(bqOptions);
       String extractJobId = BigQueryIO.getExtractJobId(jobIdToken.get());
       List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
-
-      TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
-          .getTable(tableToExtract).getSchema();
+      TableSchema tableSchema = getSchema(options);
 
       cleanupTempResource(bqOptions);
       cachedSplitResult = checkNotNull(createSources(tempFiles, tableSchema));

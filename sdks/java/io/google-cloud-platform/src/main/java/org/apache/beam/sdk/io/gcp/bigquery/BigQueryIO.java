@@ -77,8 +77,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -597,14 +602,20 @@ public class BigQueryIO {
         final PCollectionView<TableSchema> schemaView = tuple.get(tableSchemaTag)
             .apply(View.<TableSchema>asSingleton());
         rows = tuple.get(filesTag)
-            //.apply(Reshuffle.<String, String>of())
+            .apply(WithKeys.of(new SerializableFunction<String, String>() {
+                public String apply(String s) {
+                  return s;
+                }
+              }))
+            .apply(Reshuffle.<String, String>of())
+            .apply(Values.<String>create())
             .apply("ReadFiles", ParDo.of(
                 new DoFn<String, TableRow>() {
                   @ProcessElement
                   public void processElement(ProcessContext c)
                       throws Exception {
                     TableSchema schema = c.sideInput(schemaView);
-                    BigQuerySourceBase source = applySourceTransform(p, null, null);
+                    BigQuerySourceBase source = applySourceTransform(p, "unused", "unused");
                     List<BoundedSource<TableRow>> sources =
                     source.createSources(ImmutableList.of(c.element()), schema);
                     for (BoundedSource<TableRow> avroSource : sources) {
