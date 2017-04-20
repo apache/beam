@@ -100,8 +100,7 @@ public class SourceInputFormat<T>
   public SourceInputSplit<T>[] createInputSplits(int numSplits) throws IOException {
     try {
       long desiredSizeBytes = initialSource.getEstimatedSizeBytes(options) / numSplits;
-      List<? extends Source<T>> shards =
-          initialSource.split(desiredSizeBytes, options);
+      List<? extends Source<T>> shards = initialSource.split(desiredSizeBytes, options);
       int numShards = shards.size();
       SourceInputSplit<T>[] sourceInputSplits = new SourceInputSplit[numShards];
       for (int i = 0; i < numShards; i++) {

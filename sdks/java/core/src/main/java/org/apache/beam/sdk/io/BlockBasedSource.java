@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 
 /**
  * A {@code BlockBasedSource} is a {@link FileBasedSource} where a file consists of blocks of
@@ -64,7 +66,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * {@link FileBasedSource} for more information.
    */
   public BlockBasedSource(String fileOrPatternSpec, long minBundleSize) {
-    super(fileOrPatternSpec, minBundleSize);
+    super(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
   }
 
   /**
@@ -72,8 +74,8 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    * when implementing {@link BlockBasedSource#createForSubrangeOfFile}. See documentation in
    * {@link FileBasedSource}.
    */
-  public BlockBasedSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
-    super(fileName, minBundleSize, startOffset, endOffset);
+  public BlockBasedSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset) {
+    super(metadata, minBundleSize, startOffset, endOffset);
   }
 
   /**
@@ -81,7 +83,7 @@ public abstract class BlockBasedSource<T> extends FileBasedSource<T> {
    */
   @Override
   protected abstract BlockBasedSource<T> createForSubrangeOfFile(
-      String fileName, long start, long end);
+      Metadata metadata, long start, long end);
 
   /**
    * Creates a {@code BlockBasedReader}.

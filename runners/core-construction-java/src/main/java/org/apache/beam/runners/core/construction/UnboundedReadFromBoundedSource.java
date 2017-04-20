@@ -61,8 +61,7 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link PTransform} that converts a {@link BoundedSource} as an {@link UnboundedSource}.
  *
- * <p>{@link BoundedSource} is read directly without calling
- * {@link BoundedSource#split},
+ * <p>{@link BoundedSource} is read directly without calling {@link BoundedSource#split},
  * and element timestamps are propagated. While any elements remain, the watermark is the beginning
  * of time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, and after all elements have been produced
  * the watermark goes to the end of time {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.

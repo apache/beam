@@ -23,6 +23,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -68,7 +69,7 @@ import javax.annotation.Nullable;
  * "http://docs.oracle.com/javase/tutorial/essential/io/pathOps.html"
  * >Java Tutorials: Path Operations</a>
  */
-public class GcsPath implements Path {
+public class GcsPath implements Path, Serializable {
 
   public static final String SCHEME = "gs";
 
@@ -176,7 +177,7 @@ public class GcsPath implements Path {
   }
 
   @Nullable
-  private FileSystem fs;
+  private transient FileSystem fs;
   @Nonnull
   private final String bucket;
   @Nonnull

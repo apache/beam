@@ -42,7 +42,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.JAXBCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.codehaus.stax2.XMLInputFactory2;
 
@@ -54,18 +56,18 @@ public class XmlSource<T> extends FileBasedSource<T> {
   private final XmlIO.Read<T> spec;
 
   XmlSource(XmlIO.Read<T> spec) {
-    super(spec.getFileOrPatternSpec(), spec.getMinBundleSize());
+    super(StaticValueProvider.of(spec.getFileOrPatternSpec()), spec.getMinBundleSize());
     this.spec = spec;
   }
 
-  private XmlSource(XmlIO.Read<T> spec, long startOffset, long endOffset) {
-    super(spec.getFileOrPatternSpec(), spec.getMinBundleSize(), startOffset, endOffset);
+  private XmlSource(XmlIO.Read<T> spec, Metadata metadata, long startOffset, long endOffset) {
+    super(metadata, spec.getMinBundleSize(), startOffset, endOffset);
     this.spec = spec;
   }
 
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
-    return new XmlSource<T>(spec.from(fileName), start, end);
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
+    return new XmlSource<T>(spec.from(metadata.toString()), metadata, start, end);
   }
 
   @Override

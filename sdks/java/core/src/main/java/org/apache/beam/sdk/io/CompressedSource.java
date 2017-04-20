@@ -36,6 +36,7 @@ import java.util.zip.ZipInputStream;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -287,16 +288,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   private final DecompressingChannelFactory channelFactory;
 
   /**
-   * Creates a {@link Read} transform that reads from that reads from the underlying
-   * {@link FileBasedSource} {@code sourceDelegate} after decompressing it with a {@link
-   * DecompressingChannelFactory}.
-   */
-  public static <T> Read.Bounded<T> readFromSource(
-      FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    return Read.from(new CompressedSource<>(sourceDelegate, channelFactory));
-  }
-
-  /**
    * Creates a {@code CompressedSource} from an underlying {@code FileBasedSource}. The type
    * of compression used will be based on the file name extension unless explicitly
    * configured via {@link CompressedSource#withDecompression}.
@@ -329,12 +320,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * CompressedSource#createForSubrangeOfFile}.
    */
   private CompressedSource(FileBasedSource<T> sourceDelegate,
-      DecompressingChannelFactory channelFactory, String filePatternOrSpec, long minBundleSize,
+      DecompressingChannelFactory channelFactory, Metadata metadata, long minBundleSize,
       long startOffset, long endOffset) {
-    super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
+    super(metadata, minBundleSize, startOffset, endOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
-    boolean splittable = false;
+    boolean splittable;
     try {
       splittable = isSplittable();
     } catch (Exception e) {
@@ -342,7 +333,8 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     }
     checkArgument(
         splittable || startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
+        "CompressedSources must start reading at offset 0. Requested offset: %s",
+        startOffset);
   }
 
   /**
@@ -361,9 +353,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * source for a single file.
    */
   @Override
-  protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
-    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
-        channelFactory, fileName, sourceDelegate.getMinBundleSize(), start, end);
+  protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
+    return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(metadata, start, end),
+        channelFactory, metadata, sourceDelegate.getMinBundleSize(), start, end);
   }
 
   /**
