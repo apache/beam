@@ -30,7 +30,7 @@ public abstract class MetricResults {
   /**
    * Query for all metric values that match a given filter.
    *
-   * The {@code filter} may filter based on the namespace and/or name of the metric, as well as
+   * <p>The {@code filter} may filter based on the namespace and/or name of the metric, as well as
    * the step that reported the metric.
    *
    * <p>For each type of metric, the result contains an iterable of all metrics of that type that
