@@ -28,8 +28,11 @@ import java.util.List;
  *
  * @param <T> the type of the values being transcoded
  */
-public abstract class AtomicCoder<T> extends DeterministicStandardCoder<T> {
+public abstract class AtomicCoder<T> extends StandardCoder<T> {
   protected AtomicCoder() { }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException { }
 
   @Override
   public final List<Coder<?>> getCoderArguments() {
