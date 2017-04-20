@@ -821,7 +821,11 @@ public class FlinkStateInternals<K> implements StateInternals {
                 flinkStateDescriptor);
 
         AccumT accum = state.value();
-        return combineFn.extractOutput(accum, context);
+        if (accum != null) {
+          return combineFn.extractOutput(accum, context);
+        } else {
+          return combineFn.extractOutput(combineFn.createAccumulator(context), context);
+        }
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
