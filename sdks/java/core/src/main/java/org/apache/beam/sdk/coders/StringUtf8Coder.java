@@ -127,7 +127,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
    * the byte size of the encoding plus the encoded length prefix.
    */
   @Override
-  protected long getEncodedElementByteSize(String value, Context context)
+  public long getEncodedElementByteSize(String value, Context context)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");

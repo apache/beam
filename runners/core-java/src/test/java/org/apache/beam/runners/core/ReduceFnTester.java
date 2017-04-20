@@ -180,8 +180,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           Coder<OutputT> outputCoder)
           throws Exception {
 
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -207,8 +206,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       Coder<OutputT> outputCoder)
       throws Exception {
 
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -230,8 +228,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           PipelineOptions options,
           SideInputReader sideInputReader)
           throws Exception {
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
@@ -254,8 +251,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       PipelineOptions options,
       SideInputReader sideInputReader)
       throws Exception {
-    CoderRegistry registry = new CoderRegistry();
-    registry.registerStandardCoders();
+    CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
         AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));

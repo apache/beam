@@ -39,7 +39,6 @@ public class SdkCoreApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam",
             "com.google.api.client",
-            "com.google.api.services.bigquery",
             "com.google.api.services.storage",
             "com.google.protobuf",
             "com.fasterxml.jackson.annotation",
