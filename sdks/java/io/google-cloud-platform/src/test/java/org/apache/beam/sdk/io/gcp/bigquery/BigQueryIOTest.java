@@ -1641,6 +1641,7 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(query),
         true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
 
+    PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
 
     List<TableRow> read = convertBigDecimaslToLong(
@@ -1723,9 +1724,9 @@ public class BigQueryIOTest implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(DoFn.ProcessContext c) throws Exception {
             // no-op
-          }}));
+          }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
 
@@ -1738,9 +1739,9 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
           @Override
-          void cleanup(PipelineOptions options) throws Exception {
+          void cleanup(DoFn.ProcessContext c) throws Exception {
             throw new RuntimeException("cleanup executed");
-          }}));
+          }}, p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("cleanup executed");

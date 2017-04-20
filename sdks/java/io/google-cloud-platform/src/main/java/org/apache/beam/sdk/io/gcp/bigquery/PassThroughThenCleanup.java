@@ -21,7 +21,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -41,9 +40,12 @@ import org.apache.beam.sdk.values.TupleTagList;
 class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   private CleanupOperation cleanupOperation;
+  private PCollectionView<String> sideInput;
 
-  PassThroughThenCleanup(CleanupOperation cleanupOperation) {
+  PassThroughThenCleanup(CleanupOperation cleanupOperation,
+      PCollectionView<String> sideInput) {
     this.cleanupOperation = cleanupOperation;
+    this.sideInput = sideInput;
   }
 
   @Override
@@ -64,9 +66,9 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
               @ProcessElement
               public void processElement(ProcessContext c)
                   throws Exception {
-                c.element().cleanup(c.getPipelineOptions());
+                c.element().cleanup(c);
               }
-            }).withSideInputs(cleanupSignalView));
+            }).withSideInputs(sideInput, cleanupSignalView));
 
     return outputs.get(mainOutput);
   }
@@ -79,6 +81,6 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   abstract static class CleanupOperation implements Serializable {
-    abstract void cleanup(PipelineOptions options) throws Exception;
+    abstract void cleanup(DoFn.ProcessContext options) throws Exception;
   }
 }
