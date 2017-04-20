@@ -33,7 +33,6 @@ import java.util.NoSuchElementException;
 
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.options.BigQueryOptions;
 
 
