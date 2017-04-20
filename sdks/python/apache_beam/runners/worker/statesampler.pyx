@@ -151,7 +151,6 @@ cdef class StateSampler(object):
           last_nsecs += elapsed_nsecs
         finally:
           pythread.PyThread_release_lock(self.lock)
-    self.end_time = time.time()
 
   def start(self):
     assert not self.started
