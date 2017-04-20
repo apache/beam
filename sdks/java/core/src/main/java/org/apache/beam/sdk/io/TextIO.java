@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
@@ -35,15 +34,14 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -111,9 +109,6 @@ import org.apache.beam.sdk.values.PDone;
  * }</pre>
  */
 public class TextIO {
-  /** The default coder, which returns each line of the input file as a string. */
-  public static final Coder<String> DEFAULT_TEXT_CODER = StringUtf8Coder.of();
-
   /**
    * A {@link PTransform} that reads from a text file (or multiple text
    * files matching a pattern) and returns a {@link PCollection} containing
@@ -316,7 +311,7 @@ public class TextIO {
 
       @Override
       protected Coder<String> getDefaultOutputCoder() {
-        return DEFAULT_TEXT_CODER;
+        return StringUtf8Coder.of();
       }
 
       public String getFilepattern() {
@@ -871,7 +866,7 @@ public class TextIO {
     /** The Coder to use to decode each line. */
     @VisibleForTesting
     TextSource(String fileSpec) {
-      super(fileSpec, 1L);
+      super(StaticValueProvider.of(fileSpec), 1L);
     }
 
     @VisibleForTesting
@@ -879,16 +874,16 @@ public class TextIO {
       super(fileSpec, 1L);
     }
 
-    private TextSource(String fileName, long start, long end) {
-      super(fileName, 1L, start, end);
+    private TextSource(Metadata metadata, long start, long end) {
+      super(metadata, 1L, start, end);
     }
 
     @Override
     protected FileBasedSource<String> createForSubrangeOfFile(
-        String fileName,
+        Metadata metadata,
         long start,
         long end) {
-      return new TextSource(fileName, start, end);
+      return new TextSource(metadata, start, end);
     }
 
     @Override
@@ -898,7 +893,7 @@ public class TextIO {
 
     @Override
     public Coder<String> getDefaultOutputCoder() {
-      return DEFAULT_TEXT_CODER;
+      return StringUtf8Coder.of();
     }
 
     /**

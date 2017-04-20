@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
  *
  * <p>TODO: add examples for how ResourceId is constructed and used.
  */
-public interface ResourceId {
+public interface ResourceId extends Serializable {
 
   /**
    * Returns a child {@code ResourceId} under {@code this}.

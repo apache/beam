@@ -643,7 +643,7 @@ public class HadoopInputFormatIOTest {
    * {@link HadoopInputFormatBoundedSource#createReader(PipelineOptions)}
    * createReader()} method when
    * {@link HadoopInputFormatBoundedSource#split(long, PipelineOptions)}
-   * split()} is not called.
+   * is not called.
    */
   @Test
   public void testCreateReaderIfSplitNotCalled() throws Exception {

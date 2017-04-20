@@ -53,6 +53,7 @@ import org.apache.beam.sdk.io.AvroSource.AvroReader;
 import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -433,8 +434,9 @@ public class AvroSourceTest {
     List<Bird> birds = createRandomRecords(100);
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
+    String schemaA = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
@@ -451,14 +453,15 @@ public class AvroSourceTest {
     List<Bird> birds = createRandomRecords(100);
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
-    String schemaA = AvroUtils.readMetadataFromFile(filename).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(filename).getSchemaString();
+    Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
+    String schemaA = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaA).createForSubrangeOfFile(filename, 0L, 0L);
+        .withSchema(schemaA).createForSubrangeOfFile(fileMetadata, 0L, 0L);
     AvroSource<GenericRecord> sourceB = (AvroSource<GenericRecord>) AvroSource.from(filename)
-        .withSchema(schemaB).createForSubrangeOfFile(filename, 0L, 0L);
+        .withSchema(schemaB).createForSubrangeOfFile(fileMetadata, 0L, 0L);
     assertSame(sourceA.getReadSchema(), sourceA.getFileSchema());
     assertSame(sourceA.getReadSchema(), sourceB.getReadSchema());
     assertSame(sourceA.getReadSchema(), sourceB.getFileSchema());

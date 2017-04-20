@@ -33,6 +33,8 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,7 +85,9 @@ public class AvroUtilsTest {
     for (String codec : codecs) {
       String filename = generateTestFile(
           codec, expected, AvroCoder.of(Bird.class), codec);
-      AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
+
+      Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+      AvroMetadata metadata = AvroUtils.readMetadataFromFile(fileMeta.resourceId());
       assertEquals(codec, metadata.getCodec());
     }
   }
@@ -94,7 +98,8 @@ public class AvroUtilsTest {
     String codec = DataFileConstants.NULL_CODEC;
     String filename = generateTestFile(
         codec, expected, AvroCoder.of(Bird.class), codec);
-    AvroMetadata metadata = AvroUtils.readMetadataFromFile(filename);
+    Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+    AvroMetadata metadata = AvroUtils.readMetadataFromFile(fileMeta.resourceId());
     // By default, parse validates the schema, which is what we want.
     Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
     assertEquals(8, schema.getFields().size());

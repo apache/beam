@@ -31,12 +31,13 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
-
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,7 +47,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -108,6 +108,34 @@ public class FileSystems {
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+  }
+
+  /**
+   * Returns the {@link Metadata} for a single file resource. Expects a resource specification
+   * {@code spec} that matches a single result.
+   *
+   * @param spec a resource specification that matches exactly one result.
+   * @return the {@link Metadata} for the specified resource.
+   * @throws IOException in the event of an error in the inner call to {@link #match},
+   * or if the given spec does not match exactly 1 result.
+   */
+  public static Metadata matchSingleFileSpec(String spec) throws IOException {
+    List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
+    MatchResult matchResult = Iterables.getOnlyElement(matches);
+    if (matchResult.status() != Status.OK) {
+      throw new IOException(
+          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+    }
+    Metadata[] metadata = matchResult.metadata();
+    if (metadata.length != 1) {
+      throw new IOException(
+        String.format(
+            "Expecting spec %s to match exactly one file, but matched %s: %s",
+            spec,
+            metadata.length,
+            Arrays.toString(metadata)));
+    }
+    return metadata[0];
   }
 
   /**

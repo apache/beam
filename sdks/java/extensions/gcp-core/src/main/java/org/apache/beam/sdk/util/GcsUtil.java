@@ -636,9 +636,8 @@ public class GcsUtil {
     return batches;
   }
 
-  public void copy(Iterable<String> srcFilenames,
-                   Iterable<String> destFilenames) throws
-      IOException {
+  public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
+      throws IOException {
     executeBatches(makeCopyBatches(srcFilenames, destFilenames));
   }
 
