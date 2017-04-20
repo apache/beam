@@ -108,6 +108,20 @@ class WindowTest(unittest.TestCase):
     self.assertEqual(expected, windowfn.assign(context('v', 8)))
     self.assertEqual(expected, windowfn.assign(context('v', 11)))
 
+  def test_sliding_windows_assignment_fraction(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=1.5)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 3)))
+
+  def test_sliding_windows_assignment_fraction_large_offset(self):
+    windowfn = SlidingWindows(size=3.5, period=2.5, offset=4.0)
+    self.assertEqual([IntervalWindow(1.5, 5.0), IntervalWindow(-1.0, 2.5)],
+                     windowfn.assign(context('v', 1.7)))
+    self.assertEqual([IntervalWindow(4.0, 7.5), IntervalWindow(1.5, 5.0)],
+                     windowfn.assign(context('v', 4.5)))
+
   def test_sessions_merging(self):
     windowfn = Sessions(10)
 
