@@ -25,7 +25,6 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,12 +40,7 @@ public class DefaultCoderTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  public CoderRegistry registry = new CoderRegistry();
-
-  @Before
-  public void registerStandardCoders() {
-    registry.registerStandardCoders();
-  }
+  public CoderRegistry registry = CoderRegistry.createDefault();
 
   @DefaultCoder(AvroCoder.class)
   private static class AvroRecord {

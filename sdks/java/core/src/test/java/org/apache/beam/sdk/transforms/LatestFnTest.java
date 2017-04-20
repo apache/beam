@@ -196,7 +196,7 @@ public class LatestFnTest {
   public void testDefaultCoderHandlesNull() throws CannotProvideCoderException {
     Latest.LatestFn<Long> fn = new Latest.LatestFn<>();
 
-    CoderRegistry registry = new CoderRegistry();
+    CoderRegistry registry = CoderRegistry.createDefault();
     TimestampedValue.TimestampedValueCoder<Long> inputCoder =
         TimestampedValue.TimestampedValueCoder.of(VarLongCoder.of());
 
