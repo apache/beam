@@ -38,7 +38,7 @@ from dataflow_worker.fn_harness import beam_fn_api_pb2
 from dataflow_worker.fn_harness.data_plane import GrpcClientDataChannelFactory
 import dill
 
-from google3.google.protobuf import wrappers_pb2
+from google.protobuf import wrappers_pb2
 
 
 DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'

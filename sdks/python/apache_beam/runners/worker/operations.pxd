@@ -15,8 +15,8 @@
 cimport cython
 
 from apache_beam.runners.common cimport Receiver
+from apache_beam.runners.worker cimport opcounters
 from apache_beam.utils.windowed_value cimport WindowedValue
-from dataflow_worker cimport opcounters
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 

@@ -19,11 +19,10 @@ import math
 import random
 import unittest
 
-import google3
 from apache_beam import coders
+from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.counters import CounterFactory
-from dataflow_worker.opcounters import OperationCounters
 
 
 # Classes to test that we can handle a variety of objects.

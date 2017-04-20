@@ -125,8 +125,11 @@ setuptools.setup(
     ext_modules=cythonize([
         '**/*.pyx',
         'apache_beam/coders/coder_impl.py',
-        'apache_beam/runners/common.py',
         'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',

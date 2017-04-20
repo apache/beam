@@ -18,10 +18,8 @@ import logging
 import time
 import unittest
 
-import google3
-
+from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
-from dataflow_worker import statesampler
 
 
 class StateSamplerTest(unittest.TestCase):
