@@ -248,7 +248,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file(path, FOO_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -261,7 +261,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -274,7 +274,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -287,7 +287,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
