@@ -79,9 +79,9 @@ class DataflowMetrics extends MetricResults {
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
     String fullStepName = metricUpdate.getName().getContext().get("step");
-    fullStepName = (dataflowPipelineJob.aggregatorTransforms != null
-        ? dataflowPipelineJob.aggregatorTransforms
-            .getAppliedTransformForStepName(fullStepName).getFullName() : fullStepName);
+    fullStepName = (dataflowPipelineJob.transformStepNames != null
+        ? dataflowPipelineJob.transformStepNames
+        .inverse().get(fullStepName).getFullName() : fullStepName);
     return MetricKey.create(
         fullStepName,
         MetricName.named(

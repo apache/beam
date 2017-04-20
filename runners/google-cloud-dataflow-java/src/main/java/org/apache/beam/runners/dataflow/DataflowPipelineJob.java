@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -26,9 +27,11 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
-import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
@@ -42,7 +45,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -89,7 +92,7 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   private DataflowPipelineJob replacedByJob = null;
 
-  protected DataflowAggregatorTransforms aggregatorTransforms;
+  protected BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames;
 
   /**
    * The Metric Updates retrieved after the job was in a terminal state.
@@ -126,16 +129,17 @@ public class DataflowPipelineJob implements PipelineResult {
    *
    * @param jobId the job id
    * @param dataflowOptions used to configure the client for the Dataflow Service
-   * @param aggregatorTransforms a mapping from aggregators to PTransforms
+   * @param transformStepNames a mapping from AppliedPTransforms to Step Names
    */
   public DataflowPipelineJob(
       String jobId,
       DataflowPipelineOptions dataflowOptions,
-      DataflowAggregatorTransforms aggregatorTransforms) {
+      Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
     this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
-    this.aggregatorTransforms = aggregatorTransforms;
+    this.transformStepNames = HashBiMap.create(
+        firstNonNull(transformStepNames, ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of()));
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
@@ -456,7 +460,7 @@ public class DataflowPipelineJob implements PipelineResult {
         if (currentState.isTerminal()) {
           terminalState = currentState;
           replacedByJob = new DataflowPipelineJob(
-              job.getReplacedByJobId(), dataflowOptions, aggregatorTransforms);
+              job.getReplacedByJobId(), dataflowOptions, transformStepNames);
         }
         return job;
       } catch (IOException exn) {
@@ -487,28 +491,5 @@ public class DataflowPipelineJob implements PipelineResult {
   @Override
   public MetricResults metrics() {
     return dataflowMetrics;
-  }
-
-  private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
-      throws IOException {
-    if (aggregatorTransforms.contains(aggregator)) {
-      List<MetricUpdate> metricUpdates;
-      if (terminalMetricUpdates != null) {
-        metricUpdates = terminalMetricUpdates;
-      } else {
-        boolean terminal = getState().isTerminal();
-        JobMetrics jobMetrics = dataflowClient.getJobMetrics(jobId);
-        metricUpdates = jobMetrics.getMetrics();
-        if (terminal && jobMetrics.getMetrics() != null) {
-          terminalMetricUpdates = metricUpdates;
-        }
-      }
-
-      return DataflowMetricUpdateExtractor.fromMetricUpdates(
-          aggregator, aggregatorTransforms, metricUpdates);
-    } else {
-      throw new IllegalArgumentException(
-          "Aggregator " + aggregator + " is not used in this pipeline");
-    }
   }
 }
