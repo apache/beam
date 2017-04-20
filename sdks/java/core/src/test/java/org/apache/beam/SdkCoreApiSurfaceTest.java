@@ -40,7 +40,6 @@ public class SdkCoreApiSurfaceTest {
             "org.apache.beam",
             "com.google.api.client",
             "com.google.api.services.bigquery",
-            "com.google.api.services.storage",
             "com.google.protobuf",
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
