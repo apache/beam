@@ -273,7 +273,8 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   void throwNotFound(String format, Object... args) throws IOException {
     throw new IOException(
-        new GoogleJsonResponseException.Builder(404,
-            String.format(format, args), new HttpHeaders()).build());
+        String.format(format, args),
+        new GoogleJsonResponseException.Builder(404, String.format(format, args), new HttpHeaders())
+            .build());
   }
 }
