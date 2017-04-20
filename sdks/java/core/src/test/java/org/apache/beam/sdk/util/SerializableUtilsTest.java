@@ -29,7 +29,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.DeterministicStandardCoder;
+import org.apache.beam.sdk.coders.StandardCoder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -87,7 +87,7 @@ public class SerializableUtilsTest {
   }
 
   /** A {@link Coder} that is not serializable by Java. */
-  private static class UnserializableCoderByJava extends DeterministicStandardCoder<Object> {
+  private static class UnserializableCoderByJava extends StandardCoder<Object> {
     private final Object unserializableField = new Object();
 
     @Override
@@ -105,6 +105,9 @@ public class SerializableUtilsTest {
     public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of();
     }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   @Test
@@ -115,7 +118,7 @@ public class SerializableUtilsTest {
   }
 
   /** A {@link Coder} that is not serializable by Jackson. */
-  private static class UnserializableCoderByJackson extends DeterministicStandardCoder<Object> {
+  private static class UnserializableCoderByJackson extends StandardCoder<Object> {
     private final SerializableByJava unserializableField;
 
     public UnserializableCoderByJackson(SerializableByJava unserializableField) {
@@ -150,6 +153,9 @@ public class SerializableUtilsTest {
     public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of();
     }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   @Test

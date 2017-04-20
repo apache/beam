@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -115,7 +114,7 @@ public class CoderRegistryTest {
   }
 
   @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
-  private class MyListCoder extends DeterministicStandardCoder<List> {
+  private class MyListCoder extends StandardCoder<List> {
     @Override
     public void encode(List value, OutputStream outStream, Context context)
         throws CoderException, IOException {
@@ -131,6 +130,9 @@ public class CoderRegistryTest {
     public List<Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   @Test
@@ -456,7 +458,7 @@ public class CoderRegistryTest {
 
   private static class MyValue { }
 
-  private static class MyValueCoder implements Coder<MyValue> {
+  private static class MyValueCoder extends CustomCoder<MyValue> {
 
     private static final MyValueCoder INSTANCE = new MyValueCoder();
     private static final TypeDescriptor<MyValue> TYPE_DESCRIPTOR = TypeDescriptor.of(MyValue.class);
@@ -480,16 +482,6 @@ public class CoderRegistryTest {
     public MyValue decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       return new MyValue();
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return null;
-    }
-
-    @Override
-    public CloudObject asCloudObject() {
-      return null;
     }
 
     @Override
