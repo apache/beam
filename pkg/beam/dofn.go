@@ -44,6 +44,13 @@ func (e ExampleDoFn) ProcessElement(
 }
 
 // OnTimer is an example of a callback invoked when the timer for the DoFn fires.
+// TODO(wcn): open challenge here. A DoFn can have many timers. How do we register
+// the callbacks in a remote-execution environment?
+// In a local environment, we could do something like this.
+// beam.NewTimer("name_of_timer", e.OnTimer)
+// The typechecker can verify that the type signature is correct, but we're passing
+// a method on a particular instance around as a function. That almost certainly
+// won't serialize. So how can we do this?
 func (e ExampleDoFn) OnTimer(
 /* context.Context (optional)
 BeamTypes (OA)
