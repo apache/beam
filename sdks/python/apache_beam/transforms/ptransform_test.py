@@ -223,7 +223,7 @@ class PTransformTest(unittest.TestCase):
         self.received_records.inc()
 
     pipeline = TestPipeline()
-    pcoll = pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn())
+    (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
     res = pipeline.run()
     res.wait_until_finish()
     metric_results = res.metrics().query(MetricsFilter()
@@ -232,6 +232,7 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(outputs_counter.key.step, 'Read')
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)
+    self.assertEqual(outputs_counter.attempted, 100)
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
