@@ -656,7 +656,12 @@ public class DataflowPipelineTranslator {
 
       Map<String, Object> outputInfo = new HashMap<>();
       addString(outputInfo, PropertyNames.OUTPUT_NAME, Long.toString(id));
-      addString(outputInfo, PropertyNames.USER_NAME, value.getName());
+
+      String stepName = getString(properties, PropertyNames.USER_NAME);
+      String generatedName = String.format(
+          "%s.out%d", stepName, outputInfoList.size());
+
+      addString(outputInfo, PropertyNames.USER_NAME, generatedName);
       if (value instanceof PCollection
           && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value)) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
