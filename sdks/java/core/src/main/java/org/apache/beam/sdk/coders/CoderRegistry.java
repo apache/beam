@@ -168,6 +168,9 @@ public class CoderRegistry implements CoderProvider {
         CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
   }
 
+  public void registerStandardCoders() {
+  }
+
   /**
    * Registers {@code coderClazz} as the default {@link Coder} class to handle encoding and
    * decoding instances of {@code clazz}, overriding prior registrations if any exist.
