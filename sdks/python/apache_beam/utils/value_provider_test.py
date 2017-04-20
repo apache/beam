@@ -131,8 +131,8 @@ class ValueProviderTests(unittest.TestCase):
 
     # provide values at job-execution time
     # (options not provided here will use their default, if they have one)
-    RuntimeValueProvider.set_runtime_options(
-        None, {'vp_arg': 'abc', 'vp_pos_arg':'3.2'})
+    RuntimeValueProvider.set_runtime_options({'vp_arg': 'abc',
+                                              'vp_pos_arg':'3.2'})
     self.assertTrue(options.vp_arg.is_accessible())
     self.assertEqual(options.vp_arg.get(), 'abc')
     self.assertTrue(options.vp_arg2.is_accessible())

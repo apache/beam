@@ -87,11 +87,7 @@ class DirectRunner(PipelineRunner):
                         evaluation_context)
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
-
-    if pipeline.options:
-      # DirectRunner does not support RuntimeValueProviders.
-      RuntimeValueProvider.set_runtime_options(None, {})
-
+    RuntimeValueProvider.set_runtime_options({})
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
