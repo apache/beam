@@ -4,14 +4,14 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.runners.portability import worker_runner_base_test
 from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability import maptask_executor_runner
 
 
-class SdkWorkerRunnerTest(worker_runner_base_test.MapTaskExecutorRunner):
+class FnApiRunnerTest(maptask_executor_runner.MapTaskExecutorRunner):
 
   def create_pipeline(self):
-    return beam.Pipeline(runner=sdk_harness_runner.SdkWorkerRunner())
+    return beam.Pipeline(runner=fn_api_runner.FnApiRunner())
 
   def test_combine_per_key(self):
     # TODO(robertwb): Implement PGBKCV operation.
