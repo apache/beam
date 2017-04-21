@@ -153,7 +153,63 @@
       <div class="row">
         <h1 id="using-the-apache-apex-runner">Using the Apache Apex Runner</h1>
 
-<p>This page is under construction (<a href="https://issues.apache.org/jira/browse/BEAM-825">BEAM-825</a>).</p>
+<p>The Apex Runner executes Apache Beam pipelines using <a href="http://apex.apache.org/">Apache Apex</a> as an underlying engine. The runner has broad support for the <a href="/documentation/runners/capability-matrix/">Beam model and supports streaming and batch pipelines</a>.</p>
+
+<p><a href="http://apex.apache.org/">Apache Apex</a> is a stream processing platform and framework for low-latency, high-throughput and fault-tolerant analytics applications on Apache Hadoop. Apex has a unified streaming architecture and can be used for real-time and batch processing.</p>
+
+<h2 id="apex-runner-prerequisites">Apex Runner prerequisites</h2>
+
+<p>You may set up your own Hadoop cluster. Beam does not require anything extra to launch the pipelines on YARN.
+An optional Apex installation may be useful for monitoring and troubleshooting.
+The Apex CLI can be <a href="http://apex.apache.org/docs/apex/apex_development_setup/">built</a> or
+obtained as <a href="http://www.atrato.io/blog/2017/04/08/apache-apex-cli/">binary build</a>.
+For more download options see <a href="http://apex.apache.org/downloads.html">distribution information on the Apache Apex website</a>.</p>
+
+<h2 id="running-wordcount-using-apex-runner">Running wordcount using Apex Runner</h2>
+
+<p>Put data for processing into HDFS:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>hdfs dfs -mkdir -p /tmp/input/
+hdfs dfs -put pom.xml /tmp/input/
+</code></pre>
+</div>
+
+<p>The output directory should not exist on HDFS:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>hdfs dfs -rm -r -f /tmp/output/
+</code></pre>
+</div>
+
+<p>Run the wordcount example (<em>example project needs to be modified to include HDFS file provider</em>)</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/tmp/input/pom.xml --output=/tmp/output/ --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
+</code></pre>
+</div>
+
+<p>The application will run asynchronously. Check status with <code class="highlighter-rouge">yarn application -list -appStates ALL</code></p>
+
+<p>The configuration file is optional, it can be used to influence how Apex operators are deployed into YARN containers.
+The following example will reduce the number of required containers by collocating the operators into the same container
+and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>dt.application.*.operator.*.attr.MEMORY_MB=64
+dt.stream.*.prop.locality=CONTAINER_LOCAL
+dt.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
+</code></pre>
+</div>
+
+<h2 id="checking-output">Checking output</h2>
+
+<p>Check the output of the pipeline in the HDFS location.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>hdfs dfs -ls /tmp/output/
+</code></pre>
+</div>
+
+<h2 id="montoring-progress-of-your-job">Montoring progress of your job</h2>
+
+<p>Depending on your installation, you may be able to monitor the progress of your job on the Hadoop cluster. Alternatively, you have following options:</p>
+
+<ul>
+  <li>YARN : Using YARN web UI generally running on 8088 on the node running resource manager.</li>
+  <li>Apex command-line interface: <a href="http://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands">Using the Apex CLI to get running application information</a>.</li>
+</ul>
 
 
       </div>
