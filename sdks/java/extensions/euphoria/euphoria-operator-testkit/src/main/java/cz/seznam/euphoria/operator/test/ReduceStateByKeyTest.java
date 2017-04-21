@@ -196,7 +196,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         // map (window, key) -> list(data)
         Map<Pair<Integer, Integer>, List<WPair<Integer, Integer, Integer>>>
             windowKeyMap = first.stream()
-            .collect(Collectors.groupingBy(p -> Pair.of(p.getWindow(), p.getKey())));
+            .collect(Collectors.groupingBy(p -> Pair.of(p.getWindow(), p.getFirst())));
 
         // two windows, three keys
         assertEquals(6, windowKeyMap.size());

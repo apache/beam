@@ -19,12 +19,12 @@ import java.util.Comparator;
 import java.util.Objects;
 
 /**
- * Pair of any types. The pair has to fit in memory and is read-only.
+ * A pair, i.e. a tuple of two elements.
  *
- * @param <K> the type of the key - first element of the pair
- * @param <V> the type of the value - second element of the pair
+ * @param <K> the type of the first element of the pair
+ * @param <V> the type of the second element of the pair
  */
-public class Pair<K, V> implements java.util.Map.Entry<K, V> {
+public class Pair<K, V> {
 
   private static final Comparator<Pair> CMP_BY_FIRST =
           (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
@@ -107,20 +107,6 @@ public class Pair<K, V> implements java.util.Map.Entry<K, V> {
   @Override
   public String toString() {
     return "Pair{first='" + first + "', second='" + second + "'}";
-  }
-
-  // ~ Map.Entry implementation -----------------------------------------------------
-
-  @Override
-  public K getKey() { return first; }
-
-  @Override
-  public V getValue() { return second; }
-
-  /** Always throws {@link java.lang.UnsupportedOperationException}. */
-  @Override
-  public V setValue(V value) {
-    throw new UnsupportedOperationException("Read-only entry!");
   }
 
   @Override
