@@ -74,6 +74,14 @@ public class GlobalWindow extends BoundedWindow {
     }
 
     @Override
+    public void verifyDeterministic() {}
+
+    @Override
+    public boolean consistentWithEquals() {
+      return true;
+    }
+
+    @Override
     protected CloudObject initializeCloudObject() {
       return CloudObject.forClassName("kind:global_window");
     }
