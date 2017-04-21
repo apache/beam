@@ -66,7 +66,7 @@ public class V1WriteIT {
     Pipeline p = Pipeline.create(options);
 
     // Write to datastore
-    p.apply(GenerateSequence.fromTo(0, numEntities))
+    p.apply(GenerateSequence.from(0).to(numEntities))
         .apply(ParDo.of(new CreateEntityFn(
             options.getKind(), options.getNamespace(), ancestor)))
         .apply(DatastoreIO.v1().write().withProjectId(project));

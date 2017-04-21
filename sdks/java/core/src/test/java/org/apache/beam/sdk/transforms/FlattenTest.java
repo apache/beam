@@ -138,9 +138,9 @@ public class FlattenTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testFlattenInputMultipleCopies() {
     int count = 5;
-    PCollection<Long> longs = p.apply("mkLines", GenerateSequence.fromTo(0, count));
+    PCollection<Long> longs = p.apply("mkLines", GenerateSequence.from(0).to(count));
     PCollection<Long> biggerLongs =
-        p.apply("mkOtherLines", GenerateSequence.fromTo(0, count))
+        p.apply("mkOtherLines", GenerateSequence.from(0).to(count))
             .apply(
                 MapElements.via(
                     new SimpleFunction<Long, Long>() {
@@ -175,7 +175,7 @@ public class FlattenTest implements Serializable {
             Create.of(0L, 1L, 2L, 3L, null, 4L, 5L, null, 6L, 7L, 8L, null, 9L)
                 .withCoder(NullableCoder.of(BigEndianLongCoder.of())));
     PCollection<Long> varLongs =
-        p.apply("VarLengthLongs", GenerateSequence.fromTo(0, 5)).setCoder(VarLongCoder.of());
+        p.apply("VarLengthLongs", GenerateSequence.from(0).to(5)).setCoder(VarLongCoder.of());
 
     PCollection<Long> flattened =
         PCollectionList.of(bigEndianLongs)

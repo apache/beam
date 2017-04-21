@@ -135,7 +135,7 @@ public final class PCollectionTupleTest implements Serializable {
     TupleTag<Long> longTag = new TupleTag<>();
 
     Pipeline p = TestPipeline.create();
-    PCollection<Long> longs = p.apply(GenerateSequence.fromTo(0, 100));
+    PCollection<Long> longs = p.apply(GenerateSequence.from(0).to(100));
     PCollection<String> strs = p.apply(Create.of("foo", "bar", "baz"));
     PCollection<Integer> ints = longs.apply(MapElements.via(new SimpleFunction<Long, Integer>() {
       @Override

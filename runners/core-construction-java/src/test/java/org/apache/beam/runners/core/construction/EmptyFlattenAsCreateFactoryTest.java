@@ -72,7 +72,7 @@ public class EmptyFlattenAsCreateFactoryTest {
   public void getInputNonEmptyThrows() {
     PCollectionList<Long> nonEmpty =
         PCollectionList.of(pipeline.apply("unbounded", GenerateSequence.from(0)))
-            .and(pipeline.apply("bounded", GenerateSequence.fromTo(0, 100)));
+            .and(pipeline.apply("bounded", GenerateSequence.from(0).to(100)));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(nonEmpty.expand().toString());
     thrown.expectMessage(EmptyFlattenAsCreateFactory.class.getSimpleName());

@@ -68,7 +68,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
     PCollection<String> result = p
-        .apply(GenerateSequence.fromTo(0, 10))
+        .apply(GenerateSequence.from(0).to(10))
         .apply(ParDo.of(new DoFn<Long, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

@@ -513,7 +513,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromBoundedRead() throws Exception {
     Pipeline p = getPipeline();
-    p.apply(GenerateSequence.fromTo(0, 10)).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0).to(10)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
