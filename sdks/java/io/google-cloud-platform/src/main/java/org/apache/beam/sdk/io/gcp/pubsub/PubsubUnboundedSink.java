@@ -21,7 +21,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,7 +52,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.AfterFirst;
@@ -62,7 +60,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -84,7 +81,7 @@ import org.joda.time.Duration;
  * to dedup messages.
  * </ul>
  */
-public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
+public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubMessage>, PDone> {
   /**
    * Default maximum number of messages per publish.
    */
@@ -157,33 +154,22 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * Convert elements to messages and shard them.
    */
-  private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn extends DoFn<PubsubIO.PubsubMessage, KV<Integer, OutgoingMessage>> {
     private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
-    private final Coder<T> elementCoder;
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
-    private final SimpleFunction<T, PubsubIO.PubsubMessage> formatFn;
 
-    ShardFn(Coder<T> elementCoder, int numShards,
-            SimpleFunction<T, PubsubIO.PubsubMessage> formatFn, RecordIdMethod recordIdMethod) {
-      this.elementCoder = elementCoder;
+    ShardFn(int numShards, RecordIdMethod recordIdMethod) {
       this.numShards = numShards;
-      this.formatFn = formatFn;
       this.recordIdMethod = recordIdMethod;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.inc();
-      byte[] elementBytes = null;
-      Map<String, String> attributes = ImmutableMap.<String, String>of();
-      if (formatFn != null) {
-        PubsubIO.PubsubMessage message = formatFn.apply(c.element());
-        elementBytes = message.getMessage();
-        attributes = message.getAttributeMap();
-      } else {
-        elementBytes = CoderUtils.encodeToByteArray(elementCoder, c.element());
-      }
+      PubsubIO.PubsubMessage message = c.element();
+      byte[] elementBytes = message.getMessage();
+      Map<String, String> attributes = message.getAttributeMap();
 
       long timestampMsSinceEpoch = c.timestamp().getMillis();
       @Nullable String recordId = null;
@@ -335,12 +321,6 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private final ValueProvider<TopicPath> topic;
 
   /**
-   * Coder for elements. It is the responsibility of the underlying Pubsub transport to
-   * re-encode element bytes if necessary, eg as Base64 strings.
-   */
-  private final Coder<T> elementCoder;
-
-  /**
    * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
@@ -383,49 +363,37 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private final RecordIdMethod recordIdMethod;
 
-  /**
-   * In order to publish attributes, a formatting function is used to format the output into
-   * a {@link PubsubIO.PubsubMessage}.
-   */
-  private final SimpleFunction<T, PubsubIO.PubsubMessage> formatFn;
-
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
-      Coder<T> elementCoder,
       String timestampAttribute,
       String idAttribute,
       int numShards,
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
-      SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
       RecordIdMethod recordIdMethod) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
-    this.elementCoder = elementCoder;
     this.timestampAttribute = timestampAttribute;
     this.idAttribute = idAttribute;
     this.numShards = numShards;
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
-    this.formatFn = formatFn;
     this.recordIdMethod = idAttribute == null ? RecordIdMethod.NONE : recordIdMethod;
   }
 
   public PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
-      Coder<T> elementCoder,
       String timestampAttribute,
       String idAttribute,
-      SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
       int numShards) {
-    this(pubsubFactory, topic, elementCoder, timestampAttribute, idAttribute, numShards,
+    this(pubsubFactory, topic, timestampAttribute, idAttribute, numShards,
          DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
-         formatFn, RecordIdMethod.RANDOM);
+         RecordIdMethod.RANDOM);
   }
 
   /**
@@ -458,37 +426,31 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     return idAttribute;
   }
 
-  /**
-   * Get the format function used for PubSub attributes.
-   */
-  @Nullable
-  public SimpleFunction<T, PubsubIO.PubsubMessage> getFormatFn() {
-    return formatFn;
-  }
-
-  /**
-   * Get the Coder used to encode output elements.
-   */
-  public Coder<T> getElementCoder() {
-    return elementCoder;
-  }
-
   @Override
-  public PDone expand(PCollection<T> input) {
-    input.apply("PubsubUnboundedSink.Window", Window.<T>into(new GlobalWindows())
-        .triggering(
-            Repeatedly.forever(
-                AfterFirst.of(AfterPane.elementCountAtLeast(publishBatchSize),
-                    AfterProcessingTime.pastFirstElementInPane()
-                    .plusDelayOf(maxLatency))))
-            .discardingFiredPanes())
-         .apply("PubsubUnboundedSink.Shard",
-             ParDo.of(new ShardFn<T>(elementCoder, numShards, formatFn, recordIdMethod)))
-         .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
-         .apply(GroupByKey.<Integer, OutgoingMessage>create())
-         .apply("PubsubUnboundedSink.Writer",
-             ParDo.of(new WriterFn(pubsubFactory, topic, timestampAttribute, idAttribute,
-                 publishBatchSize, publishBatchBytes)));
+  public PDone expand(PCollection<PubsubIO.PubsubMessage> input) {
+    input
+        .apply(
+            "PubsubUnboundedSink.Window",
+            Window.<PubsubIO.PubsubMessage>into(new GlobalWindows())
+                .triggering(
+                    Repeatedly.forever(
+                        AfterFirst.of(
+                            AfterPane.elementCountAtLeast(publishBatchSize),
+                            AfterProcessingTime.pastFirstElementInPane().plusDelayOf(maxLatency))))
+                .discardingFiredPanes())
+        .apply("PubsubUnboundedSink.Shard", ParDo.of(new ShardFn(numShards, recordIdMethod)))
+        .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
+        .apply(GroupByKey.<Integer, OutgoingMessage>create())
+        .apply(
+            "PubsubUnboundedSink.Writer",
+            ParDo.of(
+                new WriterFn(
+                    pubsubFactory,
+                    topic,
+                    timestampAttribute,
+                    idAttribute,
+                    publishBatchSize,
+                    publishBatchBytes)));
     return PDone.in(input.getPipeline());
   }
 }
