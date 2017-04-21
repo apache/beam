@@ -20,7 +20,7 @@ and new data sources or destinations - idealy just by configuration.
    the same code
  * Avoids vendor lock-in - migrating between different engines is
    matter of configuration
- * Declarative Java API using Java 8 Lamda expressions
+ * Declarative Java API using Java 8 Lambda expressions
  * Support for different notions of time (_event time, ingestion
    time_)
  * Flexible windowing (_Time, TimeSliding, Session, Count_)
