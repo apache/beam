@@ -27,11 +27,12 @@ import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -53,7 +54,9 @@ public class StreamingSourceMetricsTest implements Serializable {
 
     final long numElements = 1000;
 
-    pipeline.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
+    pipeline.apply(
+        // Use maxReadTime to force unbounded mode.
+        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
 
     PipelineResult pipelineResult = pipeline.run();
 

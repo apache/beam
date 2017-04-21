@@ -37,7 +37,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -425,7 +425,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalse() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that("Vals should have been empty", vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -439,7 +439,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalseDefaultReasonString() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that(vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -447,14 +447,14 @@ public class PAssertTest implements Serializable {
     String message = thrown.getMessage();
 
     assertThat(message,
-        containsString("CountingInput.BoundedCountingInput/Read(BoundedCountingSource).out"));
+        containsString("GenerateSequence/Read(BoundedCountingSource).out"));
     assertThat(message, containsString("Expected: iterable over [] in any order"));
   }
 
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -473,7 +473,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithoutMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);

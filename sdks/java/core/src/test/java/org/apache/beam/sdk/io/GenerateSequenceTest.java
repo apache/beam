@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -44,36 +43,29 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link CountingInput}.
- */
+/** Tests for {@link GenerateSequence}. */
 @RunWith(JUnit4.class)
-public class CountingInputTest {
+public class GenerateSequenceTest {
   public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
     // Count == numElements
-    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
-        .isEqualTo(end - start);
+    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(end - start);
     // Unique count == numElements
     PAssert.thatSingleton(
-            input
-                .apply(Distinct.<Long>create())
-                .apply("UniqueCount", Count.<Long>globally()))
+            input.apply(Distinct.<Long>create()).apply("UniqueCount", Count.<Long>globally()))
         .isEqualTo(end - start);
     // Min == start
     PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(start);
     // Max == end-1
-    PAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
-        .isEqualTo(end - 1);
+    PAssert.thatSingleton(input.apply("Max", Max.<Long>globally())).isEqualTo(end - 1);
   }
 
-  @Rule
-  public TestPipeline p = TestPipeline.create();
+  @Rule public TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(ValidatesRunner.class)
   public void testBoundedInput() {
     long numElements = 1000;
-    PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
+    PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
 
     addCountingAsserts(input, 0, numElements);
     p.run();
@@ -82,7 +74,7 @@ public class CountingInputTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyBoundedInput() {
-    PCollection<Long> input = p.apply(CountingInput.upTo(0));
+    PCollection<Long> input = p.apply(GenerateSequence.from(0).to(0));
 
     PAssert.that(input).empty();
     p.run();
@@ -91,19 +83,18 @@ public class CountingInputTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyBoundedInputSubrange() {
-    PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
+    PCollection<Long> input = p.apply(GenerateSequence.from(42).to(42));
 
     PAssert.that(input).empty();
     p.run();
   }
-
 
   @Test
   @Category(ValidatesRunner.class)
   public void testBoundedInputSubrange() {
     long start = 10;
     long end = 1000;
-    PCollection<Long> input = p.apply(CountingInput.forSubrange(start, end));
+    PCollection<Long> input = p.apply(GenerateSequence.from(start).to(end));
 
     addCountingAsserts(input, start, end);
     p.run();
@@ -111,28 +102,18 @@ public class CountingInputTest {
 
   @Test
   public void testBoundedDisplayData() {
-    PTransform<?, ?> input = CountingInput.upTo(1234);
+    PTransform<?, ?> input = GenerateSequence.from(0).to(1234);
     DisplayData displayData = DisplayData.from(input);
-    assertThat(displayData, hasDisplayItem("upTo", 1234));
+    assertThat(displayData, hasDisplayItem("from", 0));
+    assertThat(displayData, hasDisplayItem("to", 1234));
   }
 
   @Test
   public void testBoundedDisplayDataSubrange() {
-    PTransform<?, ?> input = CountingInput.forSubrange(12, 1234);
+    PTransform<?, ?> input = GenerateSequence.from(12).to(1234);
     DisplayData displayData = DisplayData.from(input);
-    assertThat(displayData, hasDisplayItem("startAt", 12));
-    assertThat(displayData, hasDisplayItem("upTo", 1234));
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testUnboundedInput() {
-    long numElements = 1000;
-
-    PCollection<Long> input = p.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
-
-    addCountingAsserts(input, 0, numElements);
-    p.run();
+    assertThat(displayData, hasDisplayItem("from", 12));
+    assertThat(displayData, hasDisplayItem("to", 1234));
   }
 
   @Test
@@ -143,10 +124,7 @@ public class CountingInputTest {
     long elemsPerPeriod = 10L;
     Duration periodLength = Duration.millis(8);
     PCollection<Long> input =
-        p.apply(
-            CountingInput.unbounded()
-                .withRate(elemsPerPeriod, periodLength)
-                .withMaxNumRecords(numElements));
+        p.apply(GenerateSequence.from(0).to(numElements).withRate(elemsPerPeriod, periodLength));
 
     addCountingAsserts(input, 0, numElements);
     long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
@@ -169,10 +147,7 @@ public class CountingInputTest {
     long numElements = 1000;
 
     PCollection<Long> input =
-        p.apply(
-            CountingInput.unbounded()
-                .withTimestampFn(new ValueAsTimestampFn())
-                .withMaxNumRecords(numElements));
+        p.apply(GenerateSequence.from(0).to(numElements).withTimestampFn(new ValueAsTimestampFn()));
     addCountingAsserts(input, 0, numElements);
 
     PCollection<Long> diffs =
@@ -188,29 +163,27 @@ public class CountingInputTest {
   @Test
   public void testUnboundedDisplayData() {
     Duration maxReadTime = Duration.standardHours(5);
-    SerializableFunction<Long, Instant> timestampFn = new SerializableFunction<Long, Instant>() {
-      @Override
-      public Instant apply(Long input) {
-        return Instant.now();
-      }
-    };
+    SerializableFunction<Long, Instant> timestampFn =
+        new SerializableFunction<Long, Instant>() {
+          @Override
+          public Instant apply(Long input) {
+            return Instant.now();
+          }
+        };
 
-    PTransform<?, ?> input = CountingInput.unbounded()
-        .withMaxNumRecords(1234)
-        .withMaxReadTime(maxReadTime)
-        .withTimestampFn(timestampFn);
+    PTransform<?, ?> input =
+        GenerateSequence.from(0).to(1234).withMaxReadTime(maxReadTime).withTimestampFn(timestampFn);
 
     DisplayData displayData = DisplayData.from(input);
 
-    assertThat(displayData, hasDisplayItem("maxRecords", 1234));
     assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
     assertThat(displayData, hasDisplayItem("timestampFn", timestampFn.getClass()));
   }
 
   /**
    * A timestamp function that uses the given value as the timestamp. Because the input values will
-   * not wrap, this function is non-decreasing and meets the timestamp function criteria laid out
-   * in {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)}.
+   * not wrap, this function is non-decreasing and meets the timestamp function criteria laid out in
+   * {@link GenerateSequence#withTimestampFn(SerializableFunction)}.
    */
   private static class ValueAsTimestampFn implements SerializableFunction<Long, Instant> {
     @Override
