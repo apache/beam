@@ -1090,6 +1090,13 @@
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
+              <!-- 
+                Compile any non-empty package-info.java so Maven does not 
+                rebuild spuriously. Note that prior to JDK 8, the 
+                -Xpkginfo:always flag throws a NullPointerException 
+                (compiler bug) so it cannot be used.
+              -->
+              <arg>-Xpkginfo:nonempty</arg>
             </compilerArgs>
             <showWarnings>true</showWarnings>
             <!-- Another temp override, to be set to true in due course. -->

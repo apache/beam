@@ -64,6 +64,11 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <excludes>
+            <exclude>src/main/resources/sdk.properties</exclude>
+          </excludes>
+        </configuration>
       </plugin>
 
       <plugin>
