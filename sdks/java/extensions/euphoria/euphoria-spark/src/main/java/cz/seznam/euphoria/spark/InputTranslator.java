@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.hadoop.input.DataSourceInputFormat;
@@ -45,7 +45,7 @@ class InputTranslator implements SparkOperatorTranslator<FlowUnfolder.InputOpera
               Object.class);
 
       // map values to WindowedElement
-      return pairs.values().map(v -> new SparkElement<>(Batch.BatchWindow.get(), 0L,  v));
+      return pairs.values().map(v -> new SparkElement<>(GlobalWindowing.Window.get(), 0L,  v));
 
     } catch (IOException e) {
       throw new RuntimeException(e);
