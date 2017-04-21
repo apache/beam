@@ -772,6 +772,100 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
+   * Test that in translation the name for a collection (in this case just a Create output) is
+   * overriden to be what the Dataflow service expects.
+   */
+  @Test
+  public void testNamesOverridden() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline.apply("Jazzy", Create.of(3)).setName("foobizzle");
+
+    runner.replaceTransforms(pipeline);
+
+    Job job = translator.translate(pipeline,
+        runner,
+        Collections.<DataflowPackage>emptyList()).getJob();
+
+    // The Create step
+    Step step = job.getSteps().get(0);
+
+    // This is the name that is "set by the user" that the Dataflow translator must override
+    String userSpecifiedName =
+        Structs.getString(
+            Structs.getListOfMaps(
+                step.getProperties(),
+                PropertyNames.OUTPUT_INFO,
+                null).get(0),
+        PropertyNames.USER_NAME);
+
+    // This is the calculated name that must actually be used
+    String calculatedName = getString(step.getProperties(), PropertyNames.USER_NAME) + ".out0";
+
+    assertThat(userSpecifiedName, equalTo(calculatedName));
+  }
+
+  /**
+   * Test that in translation the name for collections of a multi-output ParDo - a special case
+   * because the user can name tags - are overridden to be what the Dataflow service expects.
+   */
+  @Test
+  public void testTaggedNamesOverridden() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    TupleTag<Integer> tag1 = new TupleTag<Integer>("frazzle") {};
+    TupleTag<Integer> tag2 = new TupleTag<Integer>("bazzle") {};
+    TupleTag<Integer> tag3 = new TupleTag<Integer>() {};
+
+    PCollectionTuple outputs =
+        pipeline
+            .apply(Create.of(3))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void drop() {}
+                        })
+                    .withOutputTags(tag1, TupleTagList.of(tag2).and(tag3)));
+
+    outputs.get(tag1).setName("bizbazzle");
+    outputs.get(tag2).setName("gonzaggle");
+    outputs.get(tag3).setName("froonazzle");
+
+    runner.replaceTransforms(pipeline);
+
+    Job job = translator.translate(pipeline,
+        runner,
+        Collections.<DataflowPackage>emptyList()).getJob();
+
+    // The ParDo step
+    Step step = job.getSteps().get(1);
+    String stepName = Structs.getString(step.getProperties(), PropertyNames.USER_NAME);
+
+    List<Map<String, Object>> outputInfos =
+        Structs.getListOfMaps(step.getProperties(), PropertyNames.OUTPUT_INFO, null);
+
+    assertThat(outputInfos.size(), equalTo(3));
+
+    // The names set by the user _and_ the tags _must_ be ignored, or metrics will not show up.
+    for (int i = 0; i < outputInfos.size(); ++i) {
+      assertThat(
+          Structs.getString(outputInfos.get(i), PropertyNames.USER_NAME),
+          equalTo(String.format("%s.out%s", stepName, i)));
+    }
+  }
+
+  /**
    * Smoke test to fail fast if translation of a stateful ParDo
    * in batch breaks.
    */
