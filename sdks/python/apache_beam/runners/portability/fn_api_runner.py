@@ -91,10 +91,10 @@ OLDE_SOURCE_SPLITTABLE_DOFN_DATA = pickler.dumps(
      beam.transforms.core.Windowing(GlobalWindows())))
 
 
-class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
+class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   def __init__(self):
-    super(SdkHarnessRunner, self).__init__()
+    super(FnApiRunner, self).__init__()
     self._last_uid = -1
 
   def has_metrics_support(self):
@@ -343,9 +343,9 @@ class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   def execute_map_tasks(self, ordered_map_tasks, direct=True):
     if direct:
-      controller = SdkHarnessRunner.DirectController()
+      controller = FnApiRunner.DirectController()
     else:
-      controller = SdkHarnessRunner.GrpcController()
+      controller = FnApiRunner.GrpcController()
 
     try:
       for _, map_task in ordered_map_tasks:
@@ -385,7 +385,7 @@ class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     def __init__(self):
       self._responses = []
-      self.state_handler = SdkHarnessRunner.SimpleState()
+      self.state_handler = FnApiRunner.SimpleState()
       self.control_handler = self
       self.data_plane_handler = data_plane.InMemoryDataChannel()
       self.worker = sdk_worker.SdkWorker(
@@ -414,7 +414,7 @@ class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
     """An grpc based controller for fn API control, state and data planes."""
 
     def __init__(self):
-      self.state_handler = SdkHarnessRunner.SimpleState()
+      self.state_handler = FnApiRunner.SimpleState()
       self.control_server = grpc.server(
           futures.ThreadPoolExecutor(max_workers=10))
       self.control_port = portpicker.pick_unused_port()
