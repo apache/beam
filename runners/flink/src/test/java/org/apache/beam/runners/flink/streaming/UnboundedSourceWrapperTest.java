@@ -111,7 +111,7 @@ public class UnboundedSourceWrapperTest {
       // elements later.
       TestCountingSource source = new TestCountingSource(numElements);
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-          new UnboundedSourceWrapper<>(options, source, numSplits);
+          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
 
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
@@ -179,7 +179,7 @@ public class UnboundedSourceWrapperTest {
       // elements later.
       TestCountingSource source = new TestCountingSource(numElements);
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-          new UnboundedSourceWrapper<>(options, source, numSplits);
+          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
 
       assertEquals(numSplits, flinkWrapper.getSplitSources().size());
 
@@ -270,7 +270,7 @@ public class UnboundedSourceWrapperTest {
       TestCountingSource restoredSource = new TestCountingSource(numElements);
       UnboundedSourceWrapper<
           KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-          new UnboundedSourceWrapper<>(options, restoredSource, numSplits);
+          new UnboundedSourceWrapper<>("stepName", options, restoredSource, numSplits);
 
       assertEquals(numSplits, restoredFlinkWrapper.getSplitSources().size());
 
@@ -343,7 +343,7 @@ public class UnboundedSourceWrapperTest {
         }
       };
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-          new UnboundedSourceWrapper<>(options, source, numSplits);
+          new UnboundedSourceWrapper<>("stepName", options, source, numSplits);
 
       OperatorStateStore backend = mock(OperatorStateStore.class);
 
@@ -370,7 +370,7 @@ public class UnboundedSourceWrapperTest {
 
       UnboundedSourceWrapper<
           KV<Integer, Integer>, TestCountingSource.CounterMark> restoredFlinkWrapper =
-          new UnboundedSourceWrapper<>(options, new TestCountingSource(numElements),
+          new UnboundedSourceWrapper<>("stepName", options, new TestCountingSource(numElements),
               numSplits);
 
       StreamSource restoredSourceOperator = new StreamSource<>(flinkWrapper);
@@ -429,7 +429,7 @@ public class UnboundedSourceWrapperTest {
 
       TestCountingSource source = new TestCountingSource(numElements);
       UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> flinkWrapper =
-          new UnboundedSourceWrapper<>(options, source, parallelism);
+          new UnboundedSourceWrapper<>("stepName", options, source, parallelism);
 
       InstantiationUtil.serializeObject(flinkWrapper);
     }

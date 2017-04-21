@@ -25,6 +25,7 @@ import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -112,6 +113,8 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
                         flinkRunner)))
             .build();
 
+    // Ensure all outputs of all reads are consumed.
+    UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.replaceAll(transformOverrides);
     super.translate(pipeline);
   }
