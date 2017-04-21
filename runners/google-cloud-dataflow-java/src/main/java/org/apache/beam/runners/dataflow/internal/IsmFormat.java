@@ -403,7 +403,7 @@ public class IsmFormat {
     }
 
     @Override
-    public Object structuralValue(IsmRecord<V> record) throws Exception {
+    public Object structuralValue(IsmRecord<V> record) {
       checkNotNull(record);
       checkState(record.getKeyComponents().size() == keyComponentCoders.size(),
           "Expected the number of key component coders %s "

@@ -114,7 +114,7 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
   }
 
   @Override
-  public Object structuralValue(KV<K, V> kv) throws Exception {
+  public Object structuralValue(KV<K, V> kv) {
     if (consistentWithEquals()) {
       return kv;
     } else {
