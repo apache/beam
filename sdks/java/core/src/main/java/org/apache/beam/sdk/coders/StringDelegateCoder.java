@@ -118,7 +118,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public Object structuralValue(T value) throws Exception {
+  public Object structuralValue(T value) {
     return delegateCoder.structuralValue(value);
   }
 

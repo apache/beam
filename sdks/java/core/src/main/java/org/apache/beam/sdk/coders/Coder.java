@@ -198,7 +198,7 @@ public interface Coder<T> extends Serializable {
    *
    * <p>See also {@link #consistentWithEquals()}.
    */
-  Object structuralValue(T value) throws Exception;
+  Object structuralValue(T value);
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to

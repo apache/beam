@@ -124,7 +124,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public Object structuralValue(@Nullable T value) throws Exception {
+  public Object structuralValue(@Nullable T value) {
     if (value == null) {
       return Optional.absent();
     }
