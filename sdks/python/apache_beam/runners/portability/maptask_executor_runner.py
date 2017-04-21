@@ -17,7 +17,10 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operation_specs as maptask
 from apache_beam.runners.worker import operations
-from apache_beam.runners.worker import statesampler
+try:
+  from apache_beam.runners.worker import statesampler
+except ImportError:
+  from apache_beam.runners.worker import statesampler_fake as statesampler
 from apache_beam.typehints import typehints
 from apache_beam.utils import pipeline_options
 from apache_beam.utils import profiler

@@ -15,18 +15,20 @@
 # limitations under the License.
 #
 
-import contextlib
-import socket
+
+class StateSampler(object):
+
+  def __init__(*args, **kwargs):
+    pass
+
+  def scoped_state(self, name):
+    return _FakeScopedState()
 
 
-def pick_unused_port():
-  """Attempts to return an unused port.
+class _FakeScopedState(object):
 
-  There is a window where the port could get re-used after it is closed
-  but before the caller has a chance to bind it again, but that's the
-  best we can do for libraries expecting a port number.
-  """
-  with contextlib.closing(
-      socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-    s.bind(('localhost', 0))
-    return s.getsockname()[1]
+  def __enter__(self):
+    pass
+
+  def __exit__(self, *unused_args):
+    pass

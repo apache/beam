@@ -18,7 +18,6 @@ import logging
 import time
 import unittest
 
-from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
 
 
@@ -82,6 +81,13 @@ class StateSamplerTest(unittest.TestCase):
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
     self.assertLess(overhead_us, 10.0)
+
+
+try:
+  from apache_beam.runners.worker import statesampler
+except ImportError:
+  # No compiler.
+  del StateSamplerTest
 
 
 if __name__ == '__main__':

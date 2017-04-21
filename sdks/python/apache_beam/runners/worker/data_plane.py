@@ -32,6 +32,7 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
   """A Outputstream for use with CoderImpls that has a close() method."""
 
   def __init__(self, close_callback=None):
+    super(ClosableOutputStream, self).__init__()
     self._close_callback = close_callback
 
   def close(self):

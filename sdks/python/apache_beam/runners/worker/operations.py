@@ -29,6 +29,7 @@ from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import logger
+from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.transforms import combiners
@@ -38,7 +39,17 @@ from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
-import cython
+
+# Allow some "pure mode" declarations.
+try:
+  import cython
+except ImportError:
+  class FakeCython(object):
+    @staticmethod
+    def cast(type, value):
+      return value
+  globals()['cython'] = FakeCython()
+
 
 _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
