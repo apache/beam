@@ -33,6 +33,25 @@ class GCSFileSystem(FileSystem):
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
 
+  def join(self, basepath, *paths):
+    """Join two or more pathname components for the filesystem
+
+    Args:
+      basepath: string path of the first component of the path
+      paths: path components to be added
+
+    Returns: full path after combining all the passed components
+    """
+    if not basepath.startswith('gs://'):
+      raise ValueError('Basepath %r must be GCS path.', basepath)
+    path = basepath
+    for p in paths:
+      if path == '' or path.endswith('/'):
+        path += p
+      else:
+        path += '/' + p
+    return path
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 

@@ -24,18 +24,47 @@ import filecmp
 import os
 import shutil
 import tempfile
+import mock
+
 from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.localfilesystem import LocalFileSystem
+from apache_beam.io import localfilesystem
+
+
+def _gen_fake_join(separator):
+  """Returns a callable that joins paths with the given separator."""
+
+  def _join(first_path, *paths):
+    return separator.join((first_path,) + paths)
+
+  return _join
 
 
 class LocalFileSystemTest(unittest.TestCase):
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
-    self.fs = LocalFileSystem()
+    self.fs = localfilesystem.LocalFileSystem()
 
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_unix_path_join(self, *unused_mocks):
+    # Test joining of Unix paths.
+    localfilesystem.os.path.join.side_effect = _gen_fake_join('/')
+    self.assertEqual('/tmp/path/to/file',
+                     self.fs.join('/tmp/path', 'to', 'file'))
+    self.assertEqual('/tmp/path/to/file',
+                     self.fs.join('/tmp/path', 'to/file'))
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_windows_path_join(self, *unused_mocks):
+    # Test joining of Windows paths.
+    localfilesystem.os.path.join.side_effect = _gen_fake_join('\\')
+    self.assertEqual(r'C:\tmp\path\to\file',
+                     self.fs.join(r'C:\tmp\path', 'to', 'file'))
+    self.assertEqual(r'C:\tmp\path\to\file',
+                     self.fs.join(r'C:\tmp\path', r'to\file'))
 
   def test_mkdirs(self):
     path = os.path.join(self.tmpdir, 't1/t2')
