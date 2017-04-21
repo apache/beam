@@ -24,7 +24,7 @@ import Queue as queue
 import threading
 
 from apache_beam.coders import coder_impl
-from dataflow_worker.fn_harness import beam_fn_api_pb2
+from apache_beam.runners.api import beam_fn_api_pb2
 import grpc
 
 

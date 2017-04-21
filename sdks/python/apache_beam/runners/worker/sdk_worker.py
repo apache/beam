@@ -26,19 +26,19 @@ import threading
 import traceback
 import zlib
 
+import dill
+from google.protobuf import wrappers_pb2
+
 from apache_beam.coders import coder_impl
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.internal import pickler
 from apache_beam.runners.dataflow.native_io import iobase
 from apache_beam.utils import counters
-from dataflow_worker import operation_specs
-from dataflow_worker import operations
-from dataflow_worker import statesampler
-from dataflow_worker.fn_harness import beam_fn_api_pb2
-from dataflow_worker.fn_harness.data_plane import GrpcClientDataChannelFactory
-import dill
-
-from google.protobuf import wrappers_pb2
+from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
+from apache_beam.runners.worker import statesampler
+from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
 
 
 DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'

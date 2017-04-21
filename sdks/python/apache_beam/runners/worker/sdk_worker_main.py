@@ -18,12 +18,12 @@ import logging
 import os
 import sys
 
-from dataflow_worker.fn_harness import beam_fn_api_pb2
-from dataflow_worker.fn_harness.log_handler import FnApiLogRecordHandler
-from dataflow_worker.fn_harness.sdk_harness import SdkHarness
 import grpc
-
 from google.protobuf import text_format
+
+from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
+from apache_beam.runners.worker.sdk_worker import SdkHarness
 
 
 def main(unused_argv):

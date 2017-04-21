@@ -14,11 +14,12 @@
 import logging
 import unittest
 
-from concurrent import futures
-from dataflow_worker.fn_harness import beam_fn_api_pb2
-from dataflow_worker.fn_harness import log_handler
 import grpc
-import portpicker
+from concurrent import futures
+
+from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.worker import log_handler
+from apache_beam.utils import portpicker
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2.BeamFnLoggingServicer):

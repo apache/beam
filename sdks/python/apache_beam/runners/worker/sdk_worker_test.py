@@ -21,14 +21,15 @@ from __future__ import print_function
 import logging
 import unittest
 
+import grpc
+from concurrent import futures
+
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle
-from concurrent import futures
-from dataflow_worker.fn_harness import beam_fn_api_pb2
-from dataflow_worker.fn_harness import sdk_harness
-from dataflow_worker.fn_harness.data_plane import GrpcClientDataChannelFactory
-import grpc
-import portpicker
+from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
+from apache_beam.utils import portpicker
 
 
 class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
@@ -81,7 +82,7 @@ class SdkHarnessTest(unittest.TestCase):
     server.start()
 
     channel = grpc.insecure_channel("localhost:%s" % test_port)
-    harness = sdk_harness.SdkHarness(channel)
+    harness = sdk_worker.SdkHarness(channel)
     harness.run()
     self.assertEqual(
         harness.worker.fns,
