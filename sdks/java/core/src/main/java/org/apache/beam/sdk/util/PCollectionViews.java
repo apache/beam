@@ -341,8 +341,10 @@ public class PCollectionViews {
   /**
    * A class for {@link PCollectionView} implementations, with additional type parameters
    * that are not visible at pipeline assembly time when the view is used as a side input.
+   *
+   * <p>For internal use only.
    */
-  private static class SimplePCollectionView<ElemT, ViewT, W extends BoundedWindow>
+  public static class SimplePCollectionView<ElemT, ViewT, W extends BoundedWindow>
       extends PValueBase
       implements PCollectionView<ViewT> {
     /** The {@link PCollection} this view was originally created from. */
