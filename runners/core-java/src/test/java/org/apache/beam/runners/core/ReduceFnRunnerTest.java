@@ -218,7 +218,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            Sum.ofIntegers().<String>asKeyedFn(),
+            Sum.ofIntegers(),
             VarIntCoder.of());
 
     injectElement(tester, 2);
@@ -291,7 +291,7 @@ public class ReduceFnRunnerTest {
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
         ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+            .combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.injectElements(TimestampedValue.of(13, elementTimestamp));
 
@@ -323,7 +323,7 @@ public class ReduceFnRunnerTest {
         ReduceFnTester.combining(
             strategy,
             mockTriggerStateMachine,
-            Sum.ofIntegers().<String>asKeyedFn(),
+            Sum.ofIntegers(),
             VarIntCoder.of());
 
     injectElement(tester, 1);
@@ -387,9 +387,14 @@ public class ReduceFnRunnerTest {
             });
 
     SumAndVerifyContextFn combineFn = new SumAndVerifyContextFn(mockView, expectedValue);
-    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
-        mainInputWindowingStrategy, mockTriggerStateMachine, combineFn.<String>asKeyedFn(),
-        VarIntCoder.of(), options, mockSideInputReader);
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(
+            mainInputWindowingStrategy,
+            mockTriggerStateMachine,
+            combineFn,
+            VarIntCoder.of(),
+            options,
+            mockSideInputReader);
 
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(true);
     for (int i = 0; i < 8; ++i) {
@@ -1062,12 +1067,13 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
-    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
-        WindowingStrategy.of(
-            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
-        .withTrigger(AfterWatermark.pastEndOfWindow())
-        .withAllowedLateness(Duration.millis(1000)),
-        Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
+        ReduceFnTester.combining(
+            WindowingStrategy.of(SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
+                .withTrigger(AfterWatermark.pastEndOfWindow())
+                .withAllowedLateness(Duration.millis(1000)),
+            Sum.ofIntegers(),
+            VarIntCoder.of());
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
@@ -1209,8 +1215,7 @@ public class ReduceFnRunnerTest {
             .withAllowedLateness(Duration.millis(100));
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
-        ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));
@@ -1265,8 +1270,7 @@ public class ReduceFnRunnerTest {
             .withAllowedLateness(Duration.millis(100));
 
     ReduceFnTester<Integer, Integer, IntervalWindow> tester =
-        ReduceFnTester
-            .combining(strategy, Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        ReduceFnTester.combining(strategy, Sum.ofIntegers(), VarIntCoder.of());
 
     tester.advanceInputWatermark(new Instant(0));
     tester.advanceProcessingTime(new Instant(0));

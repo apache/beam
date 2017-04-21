@@ -26,8 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.state.BagState;
@@ -90,22 +89,12 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombining(
+      CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
               String id,
               StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
-              KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-        return binder.bindKeyedCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
-      }
-
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningWithContext(
-              String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-              Coder<AccumT> accumCoder,
-              KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-        return binder.bindKeyedCombiningValueWithContext(
+              CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+        return binder.bindCombiningValueWithContext(
             tagForSpec(id, spec), accumCoder, combineFn);
       }
 
@@ -162,29 +151,17 @@ public class StateTags {
   }
 
   /**
-   * Create a state tag for values that use a {@link KeyedCombineFn} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}.
-   */
-  public static <K, InputT, AccumT,
-      OutputT> StateTag<K, CombiningState<InputT, AccumT, OutputT>>
-      keyedCombiningValue(String id, Coder<AccumT> accumCoder,
-          KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombining(accumCoder, combineFn));
-  }
-
-  /**
-   * Create a state tag for values that use a {@link KeyedCombineFnWithContext} to automatically
+   * Create a state tag for values that use a {@link CombineFnWithContext} to automatically
    * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
-  public static <K, InputT, AccumT, OutputT>
-      StateTag<K, CombiningState<InputT, AccumT, OutputT>>
-      keyedCombiningValueWithContext(
+  public static <InputT, AccumT, OutputT>
+      StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
+      combiningValueWithContext(
           String id,
           Coder<AccumT> accumCoder,
-          KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
+          CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombiningWithContext(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
   }
 
   /**

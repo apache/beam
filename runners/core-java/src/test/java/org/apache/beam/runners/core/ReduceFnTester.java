@@ -53,8 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -170,13 +169,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and
-   * {@link KeyedCombineFn}, creating a {@link TriggerStateMachine} from the
+   * {@link CombineFn}, creating a {@link TriggerStateMachine} from the
    * {@link Trigger} in the {@link WindowingStrategy}.
    */
   public static <W extends BoundedWindow, AccumT, OutputT>
       ReduceFnTester<Integer, OutputT, W> combining(
           WindowingStrategy<?, W> strategy,
-          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+          CombineFn<Integer, AccumT, OutputT> combineFn,
           Coder<OutputT> outputCoder)
           throws Exception {
 
@@ -194,7 +193,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy},
-   * {@link KeyedCombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
+   * {@link CombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
    * between {@link ReduceFnRunner} and the {@link TriggerStateMachine}.
    * Ignores the {@link Trigger} in the {@link WindowingStrategy}.
    */
@@ -202,7 +201,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   ReduceFnTester<Integer, OutputT, W> combining(
       WindowingStrategy<?, W> strategy,
       TriggerStateMachine triggerStateMachine,
-      KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+      CombineFn<Integer, AccumT, OutputT> combineFn,
       Coder<OutputT> outputCoder)
       throws Exception {
 
@@ -223,7 +222,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public static <W extends BoundedWindow, AccumT, OutputT>
       ReduceFnTester<Integer, OutputT, W> combining(
           WindowingStrategy<?, W> strategy,
-          KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+          CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
           Coder<OutputT> outputCoder,
           PipelineOptions options,
           SideInputReader sideInputReader)
@@ -246,7 +245,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   ReduceFnTester<Integer, OutputT, W> combining(
       WindowingStrategy<?, W> strategy,
       TriggerStateMachine triggerStateMachine,
-      KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+      CombineFnWithContext<Integer, AccumT, OutputT> combineFn,
       Coder<OutputT> outputCoder,
       PipelineOptions options,
       SideInputReader sideInputReader)

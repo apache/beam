@@ -23,8 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -100,17 +99,10 @@ public interface StateTag<K, StateT extends State> extends Serializable {
         CombineFn<InputT, AccumT, OutputT> combineFn);
 
     <InputT, AccumT, OutputT>
-    CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT>
-    CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
-            combineFn);
+        CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
+            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+            Coder<AccumT> accumCoder,
+            CombineFnWithContext<InputT, AccumT, OutputT> combineFn);
 
     /**
      * Bind to a watermark {@link StateSpec}.

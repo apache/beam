@@ -205,7 +205,7 @@ public class View {
    * PCollection<KV<K, V>> input = ...
    * CombineFn<V, OutputT> yourCombineFn = ...
    * PCollectionView<Map<K, OutputT>> output = input
-   *     .apply(Combine.perKey(yourCombineFn.<K>asKeyedFn()))
+   *     .apply(Combine.perKey(yourCombineFn))
    *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *

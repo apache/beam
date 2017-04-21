@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
 public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, AccumT>>, WindowedValue<KV<K, OutputT>>> {
 
-  protected final CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> combineFn;
+  protected final CombineFnBase.GlobalCombineFn<?, AccumT, OutputT> combineFn;
 
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
@@ -51,12 +51,12 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
   protected final SerializedPipelineOptions serializedOptions;
 
   public FlinkReduceFunction(
-      CombineFnBase.PerKeyCombineFn<K, ?, AccumT, OutputT> keyedCombineFn,
+      CombineFnBase.GlobalCombineFn<?, AccumT, OutputT> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
-    this.combineFn = keyedCombineFn;
+    this.combineFn = combineFn;
 
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -83,15 +83,13 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
     } else {
       reduceRunner = new SortingFlinkCombineRunner<>();
     }
-
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.FinalFlinkCombiner<>(combineFn),
+        new AbstractFlinkCombineRunner.FinalFlinkCombiner<K, AccumT, OutputT>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,
         elements,
         out);
-
   }
 
 }

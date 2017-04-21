@@ -162,17 +162,17 @@ public class StateTagTest {
     Coder<int[]> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
     Coder<int[]> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());
 
-    StateTag<?, ?> fooCoder1Max1 = StateTags.keyedCombiningValueWithContext(
-            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).<String>asKeyedFn());
-    StateTag<?, ?> fooCoder1Max2 = StateTags.keyedCombiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
-    StateTag<?, ?> fooCoder1Min = StateTags.keyedCombiningValueWithContext(
-        "foo", accum1, CombineFnUtil.toFnWithContext(minFn).asKeyedFn());
+    StateTag<?, ?> fooCoder1Max1 = StateTags.combiningValueWithContext(
+            "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?, ?> fooCoder1Max2 = StateTags.combiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?, ?> fooCoder1Min = StateTags.combiningValueWithContext(
+        "foo", accum1, CombineFnUtil.toFnWithContext(minFn));
 
-    StateTag<?, ?> fooCoder2Max = StateTags.keyedCombiningValueWithContext(
-        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
-    StateTag<?, ?> barCoder1Max = StateTags.keyedCombiningValueWithContext(
-        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn).asKeyedFn());
+    StateTag<?, ?> fooCoder2Max = StateTags.combiningValueWithContext(
+        "foo", accum2, CombineFnUtil.toFnWithContext(maxFn));
+    StateTag<?, ?> barCoder1Max = StateTags.combiningValueWithContext(
+        "bar", accum1, CombineFnUtil.toFnWithContext(maxFn));
 
     // Same name, coder and combineFn
     assertEquals(fooCoder1Max1, fooCoder1Max2);
