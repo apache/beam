@@ -524,6 +524,7 @@ public class DirectRunnerTest implements Serializable {
   }
 
   private static class LongNoDecodeCoder extends CustomCoder<Long> {
+
     @Override
     public void encode(
         Long value, OutputStream outStream, Context context) throws IOException {

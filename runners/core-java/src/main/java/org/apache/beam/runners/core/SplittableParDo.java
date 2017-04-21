@@ -353,7 +353,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
      * completes.
      */
-    private static final StateTag<Object, WatermarkHoldState> watermarkHoldTag =
+    private static final StateTag<WatermarkHoldState> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
             StateTags.<GlobalWindow>watermarkStateInternal(
                 "hold", TimestampCombiner.LATEST));
@@ -363,13 +363,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      * DoFn.ProcessElement} call and read during subsequent calls in response to timer firings, when
      * the original element is no longer available.
      */
-    private final StateTag<Object, ValueState<WindowedValue<InputT>>> elementTag;
+    private final StateTag<ValueState<WindowedValue<InputT>>> elementTag;
 
     /**
      * The state cell containing a restriction representing the unprocessed part of work for this
      * element.
      */
-    private StateTag<Object, ValueState<RestrictionT>> restrictionTag;
+    private StateTag<ValueState<RestrictionT>> restrictionTag;
 
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
@@ -453,7 +453,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(final ProcessContext c) {
       String key = c.element().key();
-      StateInternals<String> stateInternals =
+      StateInternals stateInternals =
           stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 

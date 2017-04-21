@@ -47,7 +47,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
    */
   public static <K, T, W extends BoundedWindow> SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>
       buffering(final Coder<T> inputCoder) {
-    final StateTag<Object, BagState<T>> bufferTag =
+    final StateTag<BagState<T>> bufferTag =
         StateTags.makeSystemTagInternal(StateTags.bag(BUFFER_NAME, inputCoder));
     return new SystemReduceFn<K, T, Iterable<T>, Iterable<T>, W>(bufferTag) {
       @Override
@@ -70,7 +70,7 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
       AccumT, OutputT, W>
       combining(
           final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
-    final StateTag<Object, CombiningState<InputT, AccumT, OutputT>> bufferTag;
+    final StateTag<CombiningState<InputT, AccumT, OutputT>> bufferTag;
     if (combineFn.getFn() instanceof CombineFnWithContext) {
       bufferTag = StateTags.makeSystemTagInternal(
           StateTags.<InputT, AccumT, OutputT>combiningValueWithContext(
@@ -96,10 +96,10 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     };
   }
 
-  private StateTag<? super K, ? extends GroupingState<InputT, OutputT>> bufferTag;
+  private StateTag<? extends GroupingState<InputT, OutputT>> bufferTag;
 
   public SystemReduceFn(
-      StateTag<? super K, ? extends GroupingState<InputT, OutputT>> bufferTag) {
+      StateTag<? extends GroupingState<InputT, OutputT>> bufferTag) {
     this.bufferTag = bufferTag;
   }
 

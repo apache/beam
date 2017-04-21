@@ -55,7 +55,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
       ImmutableList.<SerializableFunction<Instant, Instant>>of();
 
-  protected static final StateTag<Object, CombiningState<Instant,
+  protected static final StateTag<CombiningState<Instant,
                                                 Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "delayed", InstantCoder.of(), Min.<Instant>naturalOrder()));

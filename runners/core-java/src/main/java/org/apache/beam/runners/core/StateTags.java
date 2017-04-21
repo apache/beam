@@ -50,29 +50,29 @@ public class StateTags {
 
   /** @deprecated for migration purposes only */
   @Deprecated
-  private static <K> StateBinder<K> adaptTagBinder(final StateTag.StateBinder<K> binder) {
-    return new StateBinder<K>() {
+  private static StateBinder adaptTagBinder(final StateTag.StateBinder binder) {
+    return new StateBinder() {
       @Override
       public <T> ValueState<T> bindValue(
-          String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+          String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
         return binder.bindValue(tagForSpec(id, spec), coder);
       }
 
       @Override
       public <T> BagState<T> bindBag(
-          String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+          String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
         return binder.bindBag(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
       public <T> SetState<T> bindSet(
-          String id, StateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+          String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
         return binder.bindSet(tagForSpec(id, spec), elemCoder);
       }
 
       @Override
       public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-          String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec,
+          String id, StateSpec<MapState<KeyT, ValueT>> spec,
           Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
         return binder.bindMap(tagForSpec(id, spec), mapKeyCoder, mapValueCoder);
       }
@@ -81,7 +81,7 @@ public class StateTags {
       public <InputT, AccumT, OutputT>
       CombiningState<InputT, AccumT, OutputT> bindCombining(
               String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+              StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               CombineFn<InputT, AccumT, OutputT> combineFn) {
         return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
@@ -91,7 +91,7 @@ public class StateTags {
       public <InputT, AccumT, OutputT>
       CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
               String id,
-              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+              StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
         return binder.bindCombiningValueWithContext(
@@ -99,9 +99,9 @@ public class StateTags {
       }
 
       @Override
-      public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
+      public WatermarkHoldState bindWatermark(
           String id,
-          StateSpec<? super K, WatermarkHoldState> spec,
+          StateSpec<WatermarkHoldState> spec,
           TimestampCombiner timestampCombiner) {
         return binder.bindWatermark(tagForSpec(id, spec), timestampCombiner);
       }
@@ -121,20 +121,20 @@ public class StateTags {
 
   private StateTags() { }
 
-  private interface SystemStateTag<K, StateT extends State> {
-    StateTag<K, StateT> asKind(StateKind kind);
+  private interface SystemStateTag<StateT extends State> {
+    StateTag<StateT> asKind(StateKind kind);
   }
 
   /** Create a state tag for the given id and spec. */
-  public static <K, StateT extends State> StateTag<K, StateT> tagForSpec(
-      String id, StateSpec<K, StateT> spec) {
+  public static <StateT extends State> StateTag<StateT> tagForSpec(
+      String id, StateSpec<StateT> spec) {
     return new SimpleStateTag<>(new StructuredId(id), spec);
   }
 
   /**
    * Create a simple state tag for values of type {@code T}.
    */
-  public static <T> StateTag<Object, ValueState<T>> value(String id, Coder<T> valueCoder) {
+  public static <T> StateTag<ValueState<T>> value(String id, Coder<T> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.value(valueCoder));
   }
 
@@ -143,7 +143,7 @@ public class StateTags {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-    StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
+    StateTag<CombiningState<InputT, AccumT, OutputT>>
     combiningValue(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
@@ -155,7 +155,7 @@ public class StateTags {
    * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
+      StateTag<CombiningState<InputT, AccumT, OutputT>>
       combiningValueWithContext(
           String id,
           Coder<AccumT> accumCoder,
@@ -172,7 +172,7 @@ public class StateTags {
    * should only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
+      StateTag<CombiningState<InputT, AccumT, OutputT>>
       combiningValueFromInputInternal(
           String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
@@ -183,21 +183,21 @@ public class StateTags {
    * Create a state tag that is optimized for adding values frequently, and
    * occasionally retrieving all the values that have been added.
    */
-  public static <T> StateTag<Object, BagState<T>> bag(String id, Coder<T> elemCoder) {
+  public static <T> StateTag<BagState<T>> bag(String id, Coder<T> elemCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.bag(elemCoder));
   }
 
   /**
    * Create a state spec that supporting for {@link java.util.Set} like access patterns.
    */
-  public static <T> StateTag<Object, SetState<T>> set(String id, Coder<T> elemCoder) {
+  public static <T> StateTag<SetState<T>> set(String id, Coder<T> elemCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.set(elemCoder));
   }
 
   /**
    * Create a state spec that supporting for {@link java.util.Map} like access patterns.
    */
-  public static <K, V> StateTag<Object, MapState<K, V>> map(
+  public static <K, V> StateTag<MapState<K, V>> map(
       String id, Coder<K> keyCoder, Coder<V> valueCoder) {
     return new SimpleStateTag<>(new StructuredId(id), StateSpecs.map(keyCoder, valueCoder));
   }
@@ -205,7 +205,7 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <W extends BoundedWindow> StateTag<Object, WatermarkHoldState>
+  public static <W extends BoundedWindow> StateTag<WatermarkHoldState>
       watermarkStateInternal(String id, TimestampCombiner timestampCombiner) {
     return new SimpleStateTag<>(
         new StructuredId(id), StateSpecs.watermarkStateInternal(timestampCombiner));
@@ -215,20 +215,20 @@ public class StateTags {
    * Convert an arbitrary {@link StateTag} to a system-internal tag that is guaranteed not to
    * collide with any user tags.
    */
-  public static <K, StateT extends State> StateTag<K, StateT> makeSystemTagInternal(
-      StateTag<K, StateT> tag) {
+  public static <StateT extends State> StateTag<StateT> makeSystemTagInternal(
+      StateTag<StateT> tag) {
     if (!(tag instanceof SystemStateTag)) {
       throw new IllegalArgumentException("Expected subclass of SimpleStateTag, got " + tag);
     }
     // Checked above
     @SuppressWarnings("unchecked")
-    SystemStateTag<K, StateT> typedTag = (SystemStateTag<K, StateT>) tag;
+    SystemStateTag<StateT> typedTag = (SystemStateTag<StateT>) tag;
     return typedTag.asKind(StateKind.SYSTEM);
   }
 
-  public static <K, InputT, AccumT, OutputT> StateTag<Object, BagState<AccumT>>
+  public static <InputT, AccumT, OutputT> StateTag<BagState<AccumT>>
       convertToBagTagInternal(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> combiningTag) {
+          StateTag<CombiningState<InputT, AccumT, OutputT>> combiningTag) {
     return new SimpleStateTag<>(
         new StructuredId(combiningTag.getId()),
         StateSpecs.convertToBagSpecInternal(combiningTag.getSpec()));
@@ -291,20 +291,20 @@ public class StateTags {
   /**
    * A basic {@link StateTag} implementation that manages the structured ids.
    */
-  private static class SimpleStateTag<K, StateT extends State>
-      implements StateTag<K, StateT>, SystemStateTag<K, StateT> {
+  private static class SimpleStateTag<StateT extends State>
+      implements StateTag<StateT>, SystemStateTag<StateT> {
 
-    private final StateSpec<K, StateT> spec;
+    private final StateSpec<StateT> spec;
     private final StructuredId id;
 
-    public SimpleStateTag(StructuredId id, StateSpec<K, StateT> spec) {
+    public SimpleStateTag(StructuredId id, StateSpec<StateT> spec) {
       this.id = id;
       this.spec = spec;
     }
 
     @Override
     @Deprecated
-    public StateT bind(StateTag.StateBinder<? extends K> binder) {
+    public StateT bind(StateTag.StateBinder binder) {
       return spec.bind(
           this.id.getRawId(), adaptTagBinder(binder));
     }
@@ -315,7 +315,7 @@ public class StateTags {
     }
 
     @Override
-    public StateSpec<K, StateT> getSpec() {
+    public StateSpec<StateT> getSpec() {
       return spec;
     }
 
@@ -332,7 +332,7 @@ public class StateTags {
     }
 
     @Override
-    public StateTag<K, StateT> asKind(StateKind kind) {
+    public StateTag<StateT> asKind(StateKind kind) {
       return new SimpleStateTag<>(id.asKind(kind), spec);
     }
 
@@ -342,7 +342,7 @@ public class StateTags {
         return false;
       }
 
-      SimpleStateTag<?, ?> otherTag = (SimpleStateTag<?, ?>) other;
+      SimpleStateTag<?> otherTag = (SimpleStateTag<?>) other;
       return Objects.equals(this.getId(), otherTag.getId())
           && Objects.equals(this.getSpec(), otherTag.getSpec());
     }

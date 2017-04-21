@@ -53,7 +53,7 @@ import org.joda.time.Instant;
  * and for running tests that need state.
  */
 @Experimental(Kind.STATE)
-public class InMemoryStateInternals<K> implements StateInternals<K> {
+public class InMemoryStateInternals<K> implements StateInternals {
 
   public static <K> InMemoryStateInternals<K> forKey(K key) {
     return new InMemoryStateInternals<>(key);
@@ -79,10 +79,10 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     T copy();
   }
 
-  protected final StateTable<K> inMemoryState = new StateTable<K>() {
+  protected final StateTable inMemoryState = new StateTable() {
     @Override
-    protected StateBinder<K> binderForNamespace(StateNamespace namespace, StateContext<?> c) {
-      return new InMemoryStateBinder<K>(key, c);
+    protected StateBinder binderForNamespace(StateNamespace namespace, StateContext<?> c) {
+      return new InMemoryStateBinder(c);
     }
   };
 
@@ -99,48 +99,46 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
+  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
     return inMemoryState.get(namespace, address, StateContexts.nullContext());
   }
 
   @Override
   public <T extends State> T state(
-      StateNamespace namespace, StateTag<? super K, T> address, final StateContext<?> c) {
+      StateNamespace namespace, StateTag<T> address, final StateContext<?> c) {
     return inMemoryState.get(namespace, address, c);
   }
 
   /**
    * A {@link StateBinder} that returns In Memory {@link State} objects.
    */
-  public static class InMemoryStateBinder<K> implements StateBinder<K> {
-    private final K key;
+  public static class InMemoryStateBinder implements StateBinder {
     private final StateContext<?> c;
 
-    public InMemoryStateBinder(K key, StateContext<?> c) {
-      this.key = key;
+    public InMemoryStateBinder(StateContext<?> c) {
       this.c = c;
     }
 
     @Override
     public <T> ValueState<T> bindValue(
-        StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+        StateTag<ValueState<T>> address, Coder<T> coder) {
       return new InMemoryValue<T>();
     }
 
     @Override
     public <T> BagState<T> bindBag(
-        final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+        final StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new InMemoryBag<T>();
     }
 
     @Override
-    public <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+    public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
       return new InMemorySet<>();
     }
 
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
       return new InMemoryMap<>();
     }
@@ -148,23 +146,23 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new InMemoryCombiningState<>(combineFn);
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-        StateTag<? super K, WatermarkHoldState> address,
+    public WatermarkHoldState bindWatermark(
+        StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
-      return new InMemoryWatermarkHold<W>(timestampCombiner);
+      return new InMemoryWatermarkHold(timestampCombiner);
     }
 
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValueWithContext(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return bindCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));

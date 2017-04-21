@@ -70,7 +70,7 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
-    private CopyOnAccessInMemoryStateInternals<?> state;
+    private CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
     private final Set<OutputType> producedOutputs;
@@ -109,7 +109,7 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
       return this;
     }
 
-    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
+    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals state) {
       this.state = state;
       return this;
     }

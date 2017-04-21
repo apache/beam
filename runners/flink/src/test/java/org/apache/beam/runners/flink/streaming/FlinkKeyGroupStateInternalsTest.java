@@ -64,7 +64,7 @@ public class FlinkKeyGroupStateInternalsTest {
   private static final StateNamespace NAMESPACE_2 = new StateNamespaceForTest("ns2");
   private static final StateNamespace NAMESPACE_3 = new StateNamespaceForTest("ns3");
 
-  private static final StateTag<Object, BagState<String>> STRING_BAG_ADDR =
+  private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
 
   FlinkKeyGroupStateInternals<String> underTest;

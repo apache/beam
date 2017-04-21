@@ -236,12 +236,12 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
     private final DoFn<?, ?> fn;
     private final DoFnSignature signature;
-    private final StateInternals<?> stateInternals;
+    private final StateInternals stateInternals;
     private final Coder<W> windowCoder;
 
     public StateInternalsStateCleaner(
         DoFn<?, ?> fn,
-        StateInternals<?> stateInternals,
+        StateInternals stateInternals,
         Coder<W> windowCoder) {
       this.fn = fn;
       this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -254,7 +254,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       for (Map.Entry<String, DoFnSignature.StateDeclaration> entry :
           signature.stateDeclarations().entrySet()) {
         try {
-          StateSpec<?, ?> spec = (StateSpec<?, ?>) entry.getValue().field().get(fn);
+          StateSpec<?> spec = (StateSpec<?>) entry.getValue().field().get(fn);
           State state = stateInternals.state(StateNamespaces.window(windowCoder, window),
               StateTags.tagForSpec(entry.getKey(), (StateSpec) spec));
           state.clear();

@@ -42,7 +42,7 @@ public class StateMerging {
    * in {@code context}.
    */
   public static <K, StateT extends State, W extends BoundedWindow> void clear(
-      MergingStateAccessor<K, W> context, StateTag<? super K, StateT> address) {
+      MergingStateAccessor<K, W> context, StateTag<StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
       state.clear();
     }
@@ -54,7 +54,7 @@ public class StateMerging {
    * blindly append to.
    */
   public static <K, T, W extends BoundedWindow> void prefetchBags(
-      MergingStateAccessor<K, W> context, StateTag<? super K, BagState<T>> address) {
+      MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
     Map<W, BagState<T>> map = context.accessInEachMergingWindow(address);
     if (map.isEmpty()) {
       // Nothing to prefetch.
@@ -73,7 +73,7 @@ public class StateMerging {
    * Merge all bag state in {@code address} across all windows under merge.
    */
   public static <K, T, W extends BoundedWindow> void mergeBags(
-      MergingStateAccessor<K, W> context, StateTag<? super K, BagState<T>> address) {
+      MergingStateAccessor<K, W> context, StateTag<BagState<T>> address) {
     mergeBags(context.accessInEachMergingWindow(address).values(), context.access(address));
   }
 
@@ -116,7 +116,7 @@ public class StateMerging {
    * Merge all set state in {@code address} across all windows under merge.
    */
   public static <K, T, W extends BoundedWindow> void mergeSets(
-      MergingStateAccessor<K, W> context, StateTag<? super K, SetState<T>> address) {
+      MergingStateAccessor<K, W> context, StateTag<SetState<T>> address) {
     mergeSets(context.accessInEachMergingWindow(address).values(), context.access(address));
   }
 
@@ -161,7 +161,7 @@ public class StateMerging {
    */
   public static <K, StateT extends GroupingState<?, ?>, W extends BoundedWindow> void
       prefetchCombiningValues(MergingStateAccessor<K, W> context,
-          StateTag<? super K, StateT> address) {
+          StateTag<StateT> address) {
     for (StateT state : context.accessInEachMergingWindow(address).values()) {
       prefetchRead(state);
     }
@@ -172,7 +172,7 @@ public class StateMerging {
    */
   public static <K, InputT, AccumT, OutputT, W extends BoundedWindow> void mergeCombiningValues(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address) {
+      StateTag<CombiningState<InputT, AccumT, OutputT>> address) {
     mergeCombiningValues(
         context.accessInEachMergingWindow(address).values(), context.access(address));
   }
@@ -218,7 +218,7 @@ public class StateMerging {
    */
   public static <K, W extends BoundedWindow> void prefetchWatermarks(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, WatermarkHoldState> address) {
+      StateTag<WatermarkHoldState> address) {
     Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(address);
     WatermarkHoldState result = context.access(address);
     if (map.isEmpty()) {
@@ -250,7 +250,7 @@ public class StateMerging {
    */
   public static <K, W extends BoundedWindow> void mergeWatermarks(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, WatermarkHoldState> address,
+      StateTag<WatermarkHoldState> address,
       W mergeResult) {
     mergeWatermarks(
         context.accessInEachMergingWindow(address).values(), context.access(address), mergeResult);

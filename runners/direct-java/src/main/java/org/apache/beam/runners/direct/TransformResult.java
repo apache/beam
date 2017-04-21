@@ -85,7 +85,7 @@ public interface TransformResult<InputT> {
    * <p>If this evaluation did not access state, this may return null.
    */
   @Nullable
-  CopyOnAccessInMemoryStateInternals<?> getState();
+  CopyOnAccessInMemoryStateInternals getState();
 
   /**
    * Returns a TimerUpdateBuilder that was produced as a result of this evaluation. If the

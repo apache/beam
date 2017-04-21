@@ -103,7 +103,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
   private static class DummyStatefulDoFn extends DoFn<KV<Integer, Integer>, Integer> {
 
     @StateId("foo")
-    private final StateSpec<Object, ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
+    private final StateSpec<ValueState<Integer>> spec = StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
     public void processElem(ProcessContext c) {

@@ -314,14 +314,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.<StateTag<?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(
+        ImmutableSet.<StateTag<?>>of(
             TriggerStateMachineRunner.FINISHED_BITS_TAG,
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
@@ -331,14 +331,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public final void assertHasOnlyGlobalState() {
     assertHasOnlyGlobalAndAllowedTags(
-        Collections.<W>emptySet(), Collections.<StateTag<? super String, ?>>emptySet());
+        Collections.<W>emptySet(), Collections.<StateTag<?>>emptySet());
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(
+        ImmutableSet.<StateTag<?>>of(
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
                 objectStrategy.getTimestampCombiner()),
@@ -350,30 +350,30 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * {@code expectedWindows} and that each of these windows has only tags from {@code allowedTags}.
    */
   private void assertHasOnlyGlobalAndAllowedTags(
-      Set<W> expectedWindows, Set<StateTag<? super String, ?>> allowedTags) {
+      Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
     }
-    Map<StateNamespace, Set<StateTag<? super String, ?>>> actualWindows = new HashMap<>();
+    Map<StateNamespace, Set<StateTag<?>>> actualWindows = new HashMap<>();
 
     for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
       if (namespace instanceof StateNamespaces.GlobalNamespace) {
         continue;
       } else if (namespace instanceof StateNamespaces.WindowNamespace) {
-        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         if (tagsInUse.isEmpty()) {
           continue;
         }
         actualWindows.put(namespace, tagsInUse);
-        Set<StateTag<? super String, ?>> unexpected = Sets.difference(tagsInUse, allowedTags);
+        Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
         if (unexpected.isEmpty()) {
           continue;
         } else {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
-        Set<StateTag<? super String, ?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
         assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
       } else {
         fail("Unrecognized namespace " + namespace);

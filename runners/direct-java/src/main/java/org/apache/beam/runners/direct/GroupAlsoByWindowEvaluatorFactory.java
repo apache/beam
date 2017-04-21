@@ -164,8 +164,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               (PCollection<KV<K, Iterable<V>>>)
                   Iterables.getOnlyElement(application.getOutputs().values()));
       outputBundles.add(bundle);
-      CopyOnAccessInMemoryStateInternals<K> stateInternals =
-          (CopyOnAccessInMemoryStateInternals<K>) stepContext.stateInternals();
+      CopyOnAccessInMemoryStateInternals stateInternals =
+          (CopyOnAccessInMemoryStateInternals) stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
       ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
           new ReduceFnRunner<>(
@@ -191,7 +191,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public TransformResult<KeyedWorkItem<K, V>> finishBundle() throws Exception {
       // State is initialized within the constructor. It can never be null.
-      CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
+      CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
       return StepTransformResult.<KeyedWorkItem<K, V>>withHold(
               application, state.getEarliestWatermarkHold())
           .withState(state)

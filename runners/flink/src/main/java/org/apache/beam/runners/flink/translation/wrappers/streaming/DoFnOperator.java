@@ -133,7 +133,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient long currentOutputWatermark;
 
-  private transient StateTag<Object, BagState<WindowedValue<InputT>>> pushedBackTag;
+  private transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
 
   protected transient FlinkStateInternals<?> stateInternals;
 
@@ -149,7 +149,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   protected transient FlinkTimerInternals timerInternals;
 
-  private transient StateInternals<?> pushbackStateInternals;
+  private transient StateInternals pushbackStateInternals;
 
   private transient Optional<Long> pushedBackWatermark;
 
@@ -673,7 +673,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     @Override
-    public StateInternals<?> stateInternals() {
+    public StateInternals stateInternals() {
       return stateInternals;
     }
 
