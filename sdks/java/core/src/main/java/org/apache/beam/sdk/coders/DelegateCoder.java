@@ -107,8 +107,14 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    *         coder.
    */
   @Override
-  public Object structuralValue(T value) throws Exception {
-    return coder.structuralValue(toFn.apply(value));
+  public Object structuralValue(T value) {
+    try {
+      IntermediateT intermediate = toFn.apply(value);
+      return coder.structuralValue(intermediate);
+    } catch (Exception exn) {
+      throw new IllegalArgumentException(
+          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+    }
   }
 
   @Override

@@ -102,7 +102,7 @@ public class KafkaRecordCoder<K, V> extends StandardCoder<KafkaRecord<K, V>> {
 
   @SuppressWarnings("unchecked")
   @Override
-  public Object structuralValue(KafkaRecord<K, V> value) throws Exception {
+  public Object structuralValue(KafkaRecord<K, V> value) {
     if (consistentWithEquals()) {
       return value;
     } else {
