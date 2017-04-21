@@ -54,6 +54,16 @@ class DirectMetrics extends MetricResults {
   // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
   private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
 
+  private final boolean metricsEnabled;
+
+  DirectMetrics(boolean metricsEnabled) {
+    this.metricsEnabled = metricsEnabled;
+  }
+
+  public boolean isMetricsEnabled() {
+    return metricsEnabled;
+  }
+
   private interface MetricAggregation<UpdateT, ResultT> {
     UpdateT zero();
     UpdateT combine(Iterable<UpdateT> updates);

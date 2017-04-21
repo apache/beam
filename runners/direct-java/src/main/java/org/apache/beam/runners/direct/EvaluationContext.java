@@ -127,7 +127,7 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
-    this.metrics = new DirectMetrics();
+    this.metrics = new DirectMetrics(options.getMetricsEnabled());
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());

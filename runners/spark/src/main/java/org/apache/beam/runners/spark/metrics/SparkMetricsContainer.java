@@ -44,13 +44,23 @@ import org.slf4j.LoggerFactory;
 public class SparkMetricsContainer implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(SparkMetricsContainer.class);
 
+  private final boolean metricsEnabled;
+
   private transient volatile LoadingCache<String, MetricsContainer> metricsContainers;
 
   private final Map<MetricKey, MetricUpdate<Long>> counters = new HashMap<>();
   private final Map<MetricKey, MetricUpdate<DistributionData>> distributions = new HashMap<>();
   private final Map<MetricKey, MetricUpdate<GaugeData>> gauges = new HashMap<>();
 
+  public SparkMetricsContainer(boolean metricsEnabled) {
+    this.metricsEnabled = metricsEnabled;
+  }
+
   public MetricsContainer getContainer(String stepName) {
+    if (!metricsEnabled) {
+      return null;
+    }
+
     if (metricsContainers == null) {
       synchronized (this) {
         if (metricsContainers == null) {
@@ -64,6 +74,10 @@ public class SparkMetricsContainer implements Serializable {
       LOG.error("Error while creating metrics container", e);
       return null;
     }
+  }
+
+  boolean isMetricsEnabled() {
+    return metricsEnabled;
   }
 
   static Collection<MetricUpdate<Long>> getCounters() {

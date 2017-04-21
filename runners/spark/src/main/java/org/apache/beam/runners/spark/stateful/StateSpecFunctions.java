@@ -101,7 +101,9 @@ public class StateSpecFunctions {
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, State<Tuple2<byte[], Instant>>,
       Tuple2<Iterable<byte[]>, Metadata>> mapSourceFunction(
-           final SparkRuntimeContext runtimeContext, final String stepName) {
+      final SparkRuntimeContext runtimeContext,
+      final String stepName,
+      final boolean metricsEnabled) {
 
     return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>,
         State<Tuple2<byte[], Instant>>, Tuple2<Iterable<byte[]>, Metadata>>() {
@@ -112,7 +114,7 @@ public class StateSpecFunctions {
           scala.Option<CheckpointMarkT> startCheckpointMark,
           State<Tuple2<byte[], Instant>> state) {
 
-        SparkMetricsContainer sparkMetricsContainer = new SparkMetricsContainer();
+        SparkMetricsContainer sparkMetricsContainer = new SparkMetricsContainer(metricsEnabled);
         MetricsContainer metricsContainer = sparkMetricsContainer.getContainer(stepName);
 
         // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
