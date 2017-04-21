@@ -356,7 +356,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     finally:
       controller.close()
 
-  class SimpleState(beam_fn_api_pb2.SimpleBeamFnStateServicer):
+  class SimpleState(object):  # TODO(robertwb): Inherit from GRPC servicer.
 
     def __init__(self):
       self._all = collections.defaultdict(list)
