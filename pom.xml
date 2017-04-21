@@ -1193,6 +1193,9 @@
               <exclude>**/.factorypath</exclude>
               <exclude>**/.project</exclude>
               <exclude>**/.settings/**/*</exclude>
+
+              <!-- Proto/grpc generated wrappers -->
+              <exclude>**/sdks/python/apache_beam/runners/api/*.py</exclude>
             </excludes>
           </configuration>
         </plugin>
