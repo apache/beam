@@ -15,8 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -24,7 +23,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 
 import java.util.Collections;
 
-public class AttachedWindowing<T, WID extends Window> implements Windowing<T, WID> {
+public class AttachedWindowing<T, WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window> implements Windowing<T, WID> {
 
   @Override
   @SuppressWarnings("unchecked")
@@ -37,13 +36,13 @@ public class AttachedWindowing<T, WID extends Window> implements Windowing<T, WI
     return new AttachedWindowTrigger<>();
   }
 
-  private static class AttachedWindowTrigger<WID extends Window> implements Trigger<WID> {
+  private static class AttachedWindowTrigger<WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window> implements Trigger<WID> {
 
     @Override
     public TriggerResult onElement(long time, WID window, TriggerContext ctx) {
       // FIXME batch window shouldn't be used in stream flow in the future
       // issue #38 on GitHub
-      if (window instanceof Batch.BatchWindow) return TriggerResult.NOOP;
+      if (window instanceof GlobalWindowing.Window) return TriggerResult.NOOP;
 
       ctx.registerTimer(time, window);
       return TriggerResult.NOOP;

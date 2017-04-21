@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
@@ -671,7 +671,7 @@ public class InMemExecutorTest {
           }
           return grp;
         })
-        .windowBy(Batch.get())
+        .windowBy(GlobalWindowing.get())
         .output();
 
     // explode it back to the original input (maybe reordered)

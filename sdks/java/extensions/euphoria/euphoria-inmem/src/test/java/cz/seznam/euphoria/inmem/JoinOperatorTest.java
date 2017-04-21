@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -107,7 +107,7 @@ public class JoinOperatorTest {
   @Test
   public void testInnerJoinOnBatch() throws Exception {
     testJoin(false,
-        Batch.get(),
+        GlobalWindowing.get(),
         null,
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
@@ -131,7 +131,7 @@ public class JoinOperatorTest {
   @Test
   public void testOuterJoinOnBatch() throws Exception {
     testJoin(true,
-        Batch.get(),
+        GlobalWindowing.get(),
         null,
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),
@@ -156,7 +156,7 @@ public class JoinOperatorTest {
   @Test
   public void testOneArmLongerJoin() throws Exception {
     testJoin(false,
-        Batch.get(),
+        GlobalWindowing.get(),
         null,
         asList("one 1",  "two 1", "one 22",  "one 44"),
         asList("one 10", "two 20", "one 33", "three 55", "one 66"),

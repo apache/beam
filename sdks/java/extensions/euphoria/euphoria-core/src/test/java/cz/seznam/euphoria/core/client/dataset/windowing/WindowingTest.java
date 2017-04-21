@@ -70,8 +70,8 @@ public class WindowingTest {
   }
 
   <W extends Window, T> Iterable<W> assignWindows(Windowing<T, W> windowing,
-                                             T elem,
-                                             UnaryFunction<T, Long> eventTimeAssigner) {
+                                                  T elem,
+                                                  UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
             new Elem<W, T>(null, elem, eventTimeAssigner.apply(elem)));
   }
@@ -145,7 +145,7 @@ public class WindowingTest {
     for (long event : data) {
       Iterable<TimeInterval> labels = windowing
           .assignWindowsToElement(new Elem<>(
-              Batch.BatchWindow.get(), event, eventTimeAssigner.apply(event)));
+              GlobalWindowing.Window.get(), event, eventTimeAssigner.apply(event)));
       // verify window count
       assertEquals(3, Iterables.size(labels));
       // verify that each window contains the original event

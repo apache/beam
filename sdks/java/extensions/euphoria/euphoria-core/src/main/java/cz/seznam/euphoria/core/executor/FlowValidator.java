@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.executor;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
@@ -103,7 +103,7 @@ class FlowValidator {
     if (operator instanceof WindowWiseOperator) {
       Windowing windowing = ((WindowWiseOperator) operator).getWindowing();
       if (windowing != null) {
-        return windowing instanceof Batch;
+        return windowing instanceof GlobalWindowing;
       }
     }
     List<Node<Operator<?, ?>>> parents = node.getParents();

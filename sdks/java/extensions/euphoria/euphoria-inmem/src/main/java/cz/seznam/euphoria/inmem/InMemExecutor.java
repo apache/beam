@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -113,7 +113,7 @@ public class InMemExecutor implements Executor {
       Object next = this.reader.next();
       // we assign it to batch
       // which means null group, and batch label
-      return Datum.of(Batch.BatchWindow.get(), next,
+      return Datum.of(GlobalWindowing.Window.get(), next,
           // ingestion time
           System.currentTimeMillis());
     }

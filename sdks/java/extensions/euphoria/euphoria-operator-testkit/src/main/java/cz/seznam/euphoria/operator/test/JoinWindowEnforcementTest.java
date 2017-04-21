@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -44,19 +44,19 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
     Object[][] params = {
         /* left-windowing, right-windowing, join-windowing, expected-failure */
         {null, null, null, false},
-        {Batch.get(), Batch.get(), null, false},
-        {Batch.get(), null, null, false},
-        {null, Batch.get(), null, false},
+        {GlobalWindowing.get(), GlobalWindowing.get(), null, false},
+        {GlobalWindowing.get(), null, null, false},
+        {null, GlobalWindowing.get(), null, false},
         {Time.of(Duration.ofMinutes(1)), null, null, true},
         {null, Time.of(Duration.ofMinutes(1)), null, true},
         {Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), null, true},
-        {Batch.get(), Time.of(Duration.ofMinutes(1)), null, true},
-        {Time.of(Duration.ofMinutes(1)), Batch.get(), null, true},
+        {GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), null, true},
+        {Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), null, true},
         {Time.of(Duration.ofMinutes(1)), null, Time.of(Duration.ofHours(1)), false},
-        {Batch.get(), Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), false},
-        {null, Time.of(Duration.ofMinutes(1)), Batch.get(), false},
+        {GlobalWindowing.get(), Time.of(Duration.ofMinutes(1)), Time.of(Duration.ofMinutes(1)), false},
+        {null, Time.of(Duration.ofMinutes(1)), GlobalWindowing.get(), false},
         {Time.of(Duration.ofMinutes(1)), null, Count.of(10), false},
-        {Time.of(Duration.ofMinutes(1)), Count.of(11), Batch.get(), false},
+        {Time.of(Duration.ofMinutes(1)), Count.of(11), GlobalWindowing.get(), false},
         {Time.of(Duration.ofMinutes(1)), Count.of(11), Time.of(Duration.ofMinutes(1)), false}
     };
     return Arrays.asList(params);
