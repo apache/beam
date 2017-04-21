@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.xml;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -24,6 +24,10 @@ import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.CompressedSource;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -75,17 +79,6 @@ public class XmlIO {
    *
    * <p>Currently, only XML files that use single-byte characters are supported. Using a file that
    * contains multi-byte characters may result in data loss or duplication.
-   *
-   * <p>To use this method:
-   *
-   * <ol>
-   * <li>Explicitly declare a dependency on org.codehaus.woodstox:stax2-api
-   * <li>Include a compatible implementation on the classpath at run-time, such as
-   *     org.codehaus.woodstox:woodstox-core-asl
-   * </ol>
-   *
-   * <p>These dependencies have been declared as optional in the sdks/java/core/pom.xml file of
-   * Apache Beam.
    *
    * <h3>Permissions</h3>
    *

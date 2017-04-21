@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.xml;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -36,8 +36,8 @@ import java.util.List;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
-import org.apache.beam.sdk.io.XmlSink.XmlWriteOperation;
-import org.apache.beam.sdk.io.XmlSink.XmlWriter;
+import org.apache.beam.sdk.io.xml.XmlSink.XmlWriteOperation;
+import org.apache.beam.sdk.io.xml.XmlSink.XmlWriter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -136,7 +136,7 @@ public class XmlSinkTest {
             .createSink();
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writeOp.tempDirectory.get()).toPath();
+    Path tempPath = new File(writeOp.getTemporaryDirectory()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
         tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
@@ -157,7 +157,7 @@ public class XmlSinkTest {
             .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writer.getWriteOperation().tempDirectory.get()).toPath();
+    Path tempPath = new File(writer.getWriteOperation().getTemporaryDirectory()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
         tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
