@@ -131,7 +131,7 @@ public class HadoopSink<K, V>
     @Override
     public void write(Pair<K, V> record) throws IOException {
       try {
-        hadoopWriter.write(record.getKey(), record.getValue());
+        hadoopWriter.write(record.getFirst(), record.getSecond());
       } catch (InterruptedException e) {
         throw new IOException(e);
       }

@@ -194,7 +194,7 @@ public class RBKAttachedWindowingTest {
   static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
     HashMap<K, V> m = new HashMap<>();
     for (Pair<K, V> p : ps) {
-      m.put(p.getKey(), p.getValue());
+      m.put(p.getFirst(), p.getSecond());
     }
     return m;
   }

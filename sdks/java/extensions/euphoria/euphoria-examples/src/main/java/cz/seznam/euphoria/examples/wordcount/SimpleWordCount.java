@@ -117,7 +117,7 @@ public class SimpleWordCount {
     // format output
     MapElements.named("FORMAT")
         .of(counted)
-        .using(p -> p.getKey() + "\t" + p.getSecond())
+        .using(p -> p.getFirst() + "\t" + p.getSecond())
         .output()
         .persist(output);
 
