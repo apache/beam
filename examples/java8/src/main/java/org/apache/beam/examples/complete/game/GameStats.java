@@ -253,7 +253,7 @@ public class GameStats extends LeaderBoard {
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
         .apply(PubsubIO.<String>read()
-            .timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic())
+            .withTimestampLabel(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic())
             .withCoder(StringUtf8Coder.of()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 

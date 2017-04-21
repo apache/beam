@@ -192,7 +192,7 @@ public class LeaderBoard extends HourlyTeamScore {
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents = pipeline
         .apply(PubsubIO.<String>read()
-            .timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic())
+            .withTimestampLabel(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic())
             .withCoder(StringUtf8Coder.of()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 

@@ -519,14 +519,14 @@ public class PubsubIO {
      * some arbitrary portion of the data.  Most likely, separate readers should
      * use their own subscriptions.
      */
-    public Read<T> subscription(String subscription) {
-      return subscription(StaticValueProvider.of(subscription));
+    public Read<T> fromSubscription(String subscription) {
+      return fromSubscription(StaticValueProvider.of(subscription));
     }
 
     /**
      * Like {@code subscription()} but with a {@link ValueProvider}.
      */
-    public Read<T> subscription(ValueProvider<String> subscription) {
+    public Read<T> fromSubscription(ValueProvider<String> subscription) {
       if (subscription.isAccessible()) {
         // Validate.
         PubsubSubscription.fromPath(subscription.get());
@@ -541,7 +541,7 @@ public class PubsubIO {
 
     /**
      * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
-     * with {@link #subscription(String)}.
+     * with {@link #fromSubscription(String)}.
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
      * of the {@code topic} string.
@@ -550,14 +550,14 @@ public class PubsubIO {
      * pipeline is started. Any data published on the topic before the pipeline is started will
      * not be read by the runner.
      */
-    public Read<T> topic(String topic) {
-      return topic(StaticValueProvider.of(topic));
+    public Read<T> fromTopic(String topic) {
+      return fromTopic(StaticValueProvider.of(topic));
     }
 
     /**
      * Like {@code topic()} but with a {@link ValueProvider}.
      */
-    public Read<T> topic(ValueProvider<String> topic) {
+    public Read<T> fromTopic(ValueProvider<String> topic) {
       if (topic.isAccessible()) {
         // Validate.
         PubsubTopic.fromPath(topic.get());
@@ -598,7 +598,7 @@ public class PubsubIO {
      *
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
-    public Read<T> timestampLabel(String timestampLabel) {
+    public Read<T> withTimestampLabel(String timestampLabel) {
       return toBuilder().setTimestampLabel(timestampLabel).build();
     }
 
@@ -611,7 +611,7 @@ public class PubsubIO {
      * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
      * be delivered, and deduplication of the stream will be strictly best effort.
      */
-    public Read<T> idLabel(String idLabel) {
+    public Read<T> withIdLabel(String idLabel) {
       return toBuilder().setIdLabel(idLabel).build();
     }
 
@@ -628,7 +628,7 @@ public class PubsubIO {
      * A Coder for the output type T must be registered or set on the output via
      * {@link PCollection#setCoder(Coder)}.
      */
-    public Read<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
+    public Read<T> withParseFn(SimpleFunction<PubsubMessage, T> parseFn) {
       return toBuilder().setParseFn(parseFn).build();
     }
 
@@ -760,7 +760,7 @@ public class PubsubIO {
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
      * <p>If the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#timestampLabel(String)} can be used to ensure the other source reads
+     * {@link PubsubIO.Read#withTimestampLabel(String)} can be used to ensure the other source reads
      * these timestamps from the appropriate attribute.
      */
     public Write<T> timestampLabel(String timestampLabel) {
@@ -773,7 +773,7 @@ public class PubsubIO {
      * opaque string.
      *
      * <p>If the the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#idLabel(String)} can be used to ensure that* the other source reads
+     * {@link PubsubIO.Read#withIdLabel(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
     public Write<T> idLabel(String idLabel) {

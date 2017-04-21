@@ -50,19 +50,19 @@ public class PubsubIOTest {
   @Test
   public void testPubsubIOGetName() {
     assertEquals("PubsubIO.Read",
-        PubsubIO.<String>read().topic("projects/myproject/topics/mytopic").getName());
+        PubsubIO.<String>read().fromTopic("projects/myproject/topics/mytopic").getName());
     assertEquals("PubsubIO.Write",
         PubsubIO.<String>write().topic("projects/myproject/topics/mytopic").getName());
   }
 
   @Test
   public void testTopicValidationSuccess() throws Exception {
-    PubsubIO.<String>read().topic("projects/my-project/topics/abc");
-    PubsubIO.<String>read().topic("projects/my-project/topics/ABC");
-    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-DeF");
-    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-1234");
-    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
-    PubsubIO.<String>read().topic(new StringBuilder()
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/abc");
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/ABC");
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/AbC-DeF");
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/AbC-1234");
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
+    PubsubIO.<String>read().fromTopic(new StringBuilder()
         .append("projects/my-project/topics/A-really-long-one-")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
@@ -73,13 +73,13 @@ public class PubsubIOTest {
   @Test
   public void testTopicValidationBadCharacter() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    PubsubIO.<String>read().topic("projects/my-project/topics/abc-*-abc");
+    PubsubIO.<String>read().fromTopic("projects/my-project/topics/abc-*-abc");
   }
 
   @Test
   public void testTopicValidationTooLong() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    PubsubIO.<String>read().topic(new StringBuilder().append
+    PubsubIO.<String>read().fromTopic(new StringBuilder().append
         ("projects/my-project/topics/A-really-long-one-")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
@@ -93,9 +93,9 @@ public class PubsubIOTest {
     String subscription = "projects/project/subscriptions/subscription";
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.<String>read()
-        .topic(StaticValueProvider.of(topic))
-        .timestampLabel("myTimestamp")
-        .idLabel("myId");
+        .fromTopic(StaticValueProvider.of(topic))
+        .withTimestampLabel("myTimestamp")
+        .withIdLabel("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -110,9 +110,9 @@ public class PubsubIOTest {
     String subscription = "projects/project/subscriptions/subscription";
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.<String>read()
-        .subscription(StaticValueProvider.of(subscription))
-        .timestampLabel("myTimestamp")
-        .idLabel("myId");
+        .fromSubscription(StaticValueProvider.of(subscription))
+        .withTimestampLabel("myTimestamp")
+        .withIdLabel("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
@@ -125,7 +125,7 @@ public class PubsubIOTest {
   public void testNullTopic() {
     String subscription = "projects/project/subscriptions/subscription";
     PubsubIO.Read<String> read = PubsubIO.<String>read()
-        .subscription(StaticValueProvider.of(subscription));
+        .fromSubscription(StaticValueProvider.of(subscription));
     assertNull(read.getTopicProvider());
     assertNotNull(read.getSubscriptionProvider());
     assertNotNull(DisplayData.from(read));
@@ -135,7 +135,7 @@ public class PubsubIOTest {
   public void testNullSubscription() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Read<String> read = PubsubIO.<String>read()
-        .topic(StaticValueProvider.of(topic));
+        .fromTopic(StaticValueProvider.of(topic));
     assertNotNull(read.getTopicProvider());
     assertNull(read.getSubscriptionProvider());
     assertNotNull(DisplayData.from(read));
@@ -149,13 +149,13 @@ public class PubsubIOTest {
     PubsubIO.Read<String> read = PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
 
     // Reading from a subscription.
-    read = read.subscription("projects/project/subscriptions/subscription");
+    read = read.fromSubscription("projects/project/subscriptions/subscription");
     displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the subscription in its primitive display data",
         displayData, hasItem(hasDisplayItem("subscription")));
 
     // Reading from a topic.
-    read = read.topic("projects/project/topics/topic");
+    read = read.fromTopic("projects/project/topics/topic");
     displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the topic in its primitive display data",
         displayData, hasItem(hasDisplayItem("topic")));
