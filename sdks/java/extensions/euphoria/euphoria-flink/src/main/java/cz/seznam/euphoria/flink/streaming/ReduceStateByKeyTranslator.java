@@ -127,7 +127,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       reduced = reduced.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              p -> p.getElement().getKey());
+              p -> p.getElement().getFirst());
     }
 
     return reduced;

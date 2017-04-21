@@ -115,7 +115,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
                   (KeySelector<BatchElement<?, Pair>, Comparable>)
-                      (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getKey(),
+                      (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
