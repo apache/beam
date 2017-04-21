@@ -6,6 +6,9 @@ import logging
 import Queue as queue
 import threading
 
+import grpc
+from concurrent import futures
+
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders.coder_impl import create_InputStream
@@ -14,14 +17,12 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.transforms.window import GlobalWindows
-from concurrent import futures
-from dataflow_worker import operation_specs
-from dataflow_worker import worker_runner_base
-from dataflow_worker.fn_harness import beam_fn_api_pb2
-from dataflow_worker.fn_harness import data_plane
-from dataflow_worker.fn_harness import sdk_harness
-import grpc
-import portpicker
+from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.portability import maptask_executor_runner
+from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import sdk_worker
+from apache_beam.utils import portpicker
 
 
 def streaming_rpc_handler(cls, method_name):
@@ -90,14 +91,14 @@ OLDE_SOURCE_SPLITTABLE_DOFN_DATA = pickler.dumps(
      beam.transforms.core.Windowing(GlobalWindows())))
 
 
-class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
+class SdkHarnessRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   def __init__(self):
     super(SdkHarnessRunner, self).__init__()
     self._last_uid = -1
 
-  def _set_metrics_support(self):
-    MetricsEnvironment.set_metrics_supported(False)
+  def has_metrics_support(self):
+    return False
 
   def _next_uid(self):
     self._last_uid += 1
@@ -116,9 +117,9 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
     def coder_id(coder):
       if coder not in coders:
         coders[coder] = beam_fn_api_pb2.Coder(
-            function_spec=sdk_harness.pack_function_spec_data(
+            function_spec=sdk_worker.pack_function_spec_data(
                 json.dumps(coder.as_cloud_object()),
-                sdk_harness.PYTHON_CODER_URN, id=self._next_uid()))
+                sdk_worker.PYTHON_CODER_URN, id=self._next_uid()))
 
       return coders[coder].function_spec.id
 
@@ -148,7 +149,7 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
       transform_id = transform_index_to_id[op_ix] = self._next_uid()
       if isinstance(operation, operation_specs.WorkerInMemoryWrite):
         # Write this data back to the runner.
-        fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_harness.DATA_OUTPUT_URN,
+        fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_worker.DATA_OUTPUT_URN,
                                           id=self._next_uid())
         if data_operation_spec:
           fn.data.Pack(data_operation_spec)
@@ -173,7 +174,7 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
             element_coder.encode_to_stream(element, output_stream, True)
           target_name = '%s' % self._next_uid()
           input_data[(transform_id, target_name)] = output_stream.get()
-          fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_harness.DATA_INPUT_URN,
+          fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_worker.DATA_INPUT_URN,
                                             id=self._next_uid())
           if data_operation_spec:
             fn.data.Pack(data_operation_spec)
@@ -193,7 +194,7 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
           input_ptransform = beam_fn_api_pb2.PrimitiveTransform(
               id=input_transform_id,
               function_spec=beam_fn_api_pb2.FunctionSpec(
-                  urn=sdk_harness.DATA_INPUT_URN,
+                  urn=sdk_worker.DATA_INPUT_URN,
                   id=self._next_uid()),
               # TODO(robertwb): Possible name collision.
               step_name=stage_name + '/inject_source',
@@ -208,9 +209,9 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
           transforms.append(input_ptransform)
 
           # Read the elements out of the source.
-          fn = sdk_harness.pack_function_spec_data(
+          fn = sdk_worker.pack_function_spec_data(
               OLDE_SOURCE_SPLITTABLE_DOFN_DATA,
-              sdk_harness.PYTHON_DOFN_URN,
+              sdk_worker.PYTHON_DOFN_URN,
               id=self._next_uid())
           inputs = {
               'ignored_input_tag':
@@ -223,9 +224,9 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
           side_inputs = {}
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
-        fn = sdk_harness.pack_function_spec_data(
+        fn = sdk_worker.pack_function_spec_data(
             operation.serialized_fn,
-            sdk_harness.PYTHON_DOFN_URN,
+            sdk_worker.PYTHON_DOFN_URN,
             id=self._next_uid())
         inputs = as_target(operation.input)
         # Store the contents of each side input for state access.
@@ -235,8 +236,8 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
           view_id = self._next_uid()
           # TODO(robertwb): Actually flesh out the ViewFn API.
           side_inputs[si.tag] = beam_fn_api_pb2.SideInput(
-              view_fn=sdk_harness.serialize_and_pack_py_fn(
-                  element_coder, urn=sdk_harness.PYTHON_ITERABLE_VIEWFN_URN,
+              view_fn=sdk_worker.serialize_and_pack_py_fn(
+                  element_coder, urn=sdk_worker.PYTHON_ITERABLE_VIEWFN_URN,
                   id=view_id))
           # Re-encode the elements in the nested context and
           # concatenate them together
@@ -253,9 +254,9 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
                   state_key=state_key, data=[elements_data]))
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
-        fn = sdk_harness.pack_function_spec_data(
+        fn = sdk_worker.pack_function_spec_data(
             operation.serialized_fn,
-            sdk_harness.IDENTITY_DOFN_URN,
+            sdk_worker.IDENTITY_DOFN_URN,
             id=self._next_uid())
         inputs = {
             'ignored_input_tag':
@@ -387,7 +388,7 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
       self.state_handler = SdkHarnessRunner.SimpleState()
       self.control_handler = self
       self.data_plane_handler = data_plane.InMemoryDataChannel()
-      self.worker = sdk_harness.SdkWorker(
+      self.worker = sdk_worker.SdkWorker(
           self.state_handler, data_plane.InMemoryDataChannelFactory(
               self.data_plane_handler.inverse()))
 
@@ -437,7 +438,7 @@ class SdkHarnessRunner(worker_runner_base.WorkerRunnerBase):
       self.data_server.start()
       self.control_server.start()
 
-      self.worker = sdk_harness.SdkHarness(
+      self.worker = sdk_worker.SdkHarness(
           grpc.insecure_channel('localhost:%s' % self.control_port))
       self.worker_thread = threading.Thread(target=self.worker.run)
       logging.info('starting worker')

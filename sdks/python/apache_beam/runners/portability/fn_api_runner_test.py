@@ -3,18 +3,15 @@
 import logging
 import unittest
 
-import google3
-
 import apache_beam as beam
-from dataflow_worker import worker_runner_base_test
-from dataflow_worker.fn_harness import sdk_harness_runner
-import faulthandler
+from apache_beam.runners.portability import worker_runner_base_test
+from apache_beam.runners.portability import fn_api_runner
 
 
-class SdkHarnessRunnerTest(worker_runner_base_test.WorkerRunnerBaseTest):
+class SdkWorkerRunnerTest(worker_runner_base_test.MapTaskExecutorRunner):
 
   def create_pipeline(self):
-    return beam.Pipeline(runner=sdk_harness_runner.SdkHarnessRunner())
+    return beam.Pipeline(runner=sdk_harness_runner.SdkWorkerRunner())
 
   def test_combine_per_key(self):
     # TODO(robertwb): Implement PGBKCV operation.
@@ -25,5 +22,4 @@ class SdkHarnessRunnerTest(worker_runner_base_test.WorkerRunnerBaseTest):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  faulthandler.enable()
   unittest.main()
