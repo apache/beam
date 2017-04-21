@@ -52,7 +52,7 @@ public class PubsubIOTest {
     assertEquals("PubsubIO.Read",
         PubsubIO.<String>read().fromTopic("projects/myproject/topics/mytopic").getName());
     assertEquals("PubsubIO.Write",
-        PubsubIO.<String>write().topic("projects/myproject/topics/mytopic").getName());
+        PubsubIO.<String>write().to("projects/myproject/topics/mytopic").getName());
   }
 
   @Test
@@ -168,9 +168,9 @@ public class PubsubIOTest {
   public void testWriteDisplayData() {
     String topic = "projects/project/topics/topic";
     PubsubIO.Write<?> write = PubsubIO.<String>write()
-        .topic(topic)
-        .timestampLabel("myTimestamp")
-        .idLabel("myId");
+        .to(topic)
+        .withTimestampLabel("myTimestamp")
+        .withIdLabel("myId");
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -183,7 +183,7 @@ public class PubsubIOTest {
   @Category(ValidatesRunner.class)
   public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PubsubIO.Write<?> write = PubsubIO.<String>write().topic("projects/project/topics/topic");
+    PubsubIO.Write<?> write = PubsubIO.<String>write().to("projects/project/topics/topic");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("PubsubIO.Write should include the topic in its primitive display data",

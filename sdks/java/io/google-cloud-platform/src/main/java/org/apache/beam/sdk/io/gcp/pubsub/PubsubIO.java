@@ -742,14 +742,14 @@ public class PubsubIO {
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
      * {@code topic} string.
      */
-    public Write<T> topic(String topic) {
-      return topic(StaticValueProvider.of(topic));
+    public Write<T> to(String topic) {
+      return to(StaticValueProvider.of(topic));
     }
 
     /**
      * Like {@code topic()} but with a {@link ValueProvider}.
      */
-    public Write<T> topic(ValueProvider<String> topic) {
+    public Write<T> to(ValueProvider<String> topic) {
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
           .build();
@@ -765,7 +765,7 @@ public class PubsubIO {
      * {@link PubsubIO.Read#withTimestampLabel(String)} can be used to ensure the other source reads
      * these timestamps from the appropriate attribute.
      */
-    public Write<T> timestampLabel(String timestampLabel) {
+    public Write<T> withTimestampLabel(String timestampLabel) {
       return toBuilder().setTimestampLabel(timestampLabel).build();
     }
 
@@ -777,7 +777,7 @@ public class PubsubIO {
      * {@link PubsubIO.Read#withIdLabel(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
-    public Write<T> idLabel(String idLabel) {
+    public Write<T> withIdLabel(String idLabel) {
       return toBuilder().setIdLabel(idLabel).build();
     }
 
@@ -794,7 +794,7 @@ public class PubsubIO {
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
      */
-    public Write<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
+    public Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
       return toBuilder().setFormatFn(formatFn).build();
     }
 
