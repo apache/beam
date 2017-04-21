@@ -25,19 +25,22 @@ import java.util.Collections;
  * Windowing with single window across the whole dataset. Suitable for
  * batch processing.
  */
-public final class Batch<T>
-    implements Windowing<T, Batch.BatchWindow> {
+public final class GlobalWindowing<T>
+    implements Windowing<T, GlobalWindowing.Window> {
 
-  public static final class BatchWindow extends Window implements Comparable<BatchWindow> {
-    static final BatchWindow INSTANCE = new BatchWindow();
+  public static final class Window
+      extends cz.seznam.euphoria.core.client.dataset.windowing.Window
+      implements Comparable<Window> {
 
-    public static BatchWindow get() { return INSTANCE; }
+    static final Window INSTANCE = new Window();
 
-    private BatchWindow() {}
+    public static Window get() { return INSTANCE; }
+
+    private Window() {}
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof BatchWindow;
+      return other instanceof GlobalWindowing.Window;
     }
 
     @Override
@@ -50,27 +53,30 @@ public final class Batch<T>
     }
 
     @Override
-    public int compareTo(BatchWindow o) {
+    public int compareTo(GlobalWindowing.Window o) {
       return 0;
     }
   } // ~ end of Label
 
-  private final static Batch<?> INSTANCE = new Batch<>();
-  private Batch() {}
+  private final static GlobalWindowing<?> INSTANCE = new GlobalWindowing<>();
+  private final static Iterable<Window> INSTANCE_ITER =
+      Collections.singleton(Window.INSTANCE);
+
+  private GlobalWindowing() {}
 
   @Override
-  public Iterable<BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
-    return Collections.singleton(BatchWindow.INSTANCE);
+  public Iterable<Window> assignWindowsToElement(WindowedElement<?, T> el) {
+    return INSTANCE_ITER;
   }
 
   @Override
-  public Trigger<BatchWindow> getTrigger() {
+  public Trigger<Window> getTrigger() {
     return NoopTrigger.get();
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Batch<T> get() {
-    return (Batch) INSTANCE;
+  public static <T> GlobalWindowing<T> get() {
+    return (GlobalWindowing) INSTANCE;
   }
 
   private Object readResolve() throws ObjectStreamException {

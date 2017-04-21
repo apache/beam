@@ -23,7 +23,7 @@ import static java.util.Collections.singleton;
 /**
  * Count tumbling windowing.
  */
-public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
+public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
 
   private final int maxCount;
 
@@ -32,12 +32,12 @@ public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
   }
 
   @Override
-  public Iterable<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
-    return singleton(Batch.BatchWindow.get());
+  public Iterable<GlobalWindowing.Window> assignWindowsToElement(WindowedElement<?, T> el) {
+    return singleton(GlobalWindowing.Window.get());
   }
 
   @Override
-  public Trigger<Batch.BatchWindow> getTrigger() {
+  public Trigger<GlobalWindowing.Window> getTrigger() {
     return new CountTrigger<>(maxCount);
   }
 

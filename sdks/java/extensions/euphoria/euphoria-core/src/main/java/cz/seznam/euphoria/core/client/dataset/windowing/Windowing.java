@@ -29,7 +29,7 @@ public interface Windowing<T, W extends Window> extends Serializable {
    * Assign a set of windows to a given input element. The input element
    * provides its so-far assigned window, i.e. a window the element was
    * assigned at some point earlier. Note: elements read directly from
-   * an input source are assigned the {@link cz.seznam.euphoria.core.client.dataset.windowing.Batch.BatchWindow}
+   * an input source are assigned the {@link GlobalWindowing.Window}
    * by default.
    *
    * @param el The element to which windows should be assigned.

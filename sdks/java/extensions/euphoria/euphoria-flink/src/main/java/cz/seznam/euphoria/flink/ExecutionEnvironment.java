@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -139,7 +139,7 @@ public class ExecutionEnvironment {
     HashSet<Class<?>> ret = Sets.newHashSet(registeredClasses);
 
     // register all types of used windows
-    ret.add(Batch.BatchWindow.class);
+    ret.add(GlobalWindowing.Window.class);
     ret.add(TimeInterval.class);
     ret.add(TimeSliding.SlidingWindowSet.class);
 
