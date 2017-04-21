@@ -43,8 +43,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>This method of encoding is not designed for ease of evolution of {@code Clazz};
  * it should only be used in cases where the class is stable or the encoding is not
- * important. If evolution of the class is important, see {@link ProtoCoder}, {@link AvroCoder},
- * or {@link JAXBCoder}.
+ * important. If evolution of the class is important, see {@link ProtoCoder} or {@link AvroCoder}.
  *
  * @param <T> The type of objects coded.
  */

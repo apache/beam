@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * For example usages, see the unit tests of classes such as
  * {@link org.apache.beam.sdk.io.AvroSource} or
- * {@link org.apache.beam.sdk.io.XmlSource}.
+ * {@link org.apache.beam.sdk.io.TextIO TextIO.TextSource}.
  *
  * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
