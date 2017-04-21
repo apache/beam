@@ -4,8 +4,6 @@ import logging
 import tempfile
 import unittest
 
-import google3
-
 import apache_beam as beam
 
 from apache_beam.metrics import Metrics
@@ -18,7 +16,7 @@ from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import BeamAssertException
 from apache_beam.transforms.util import equal_to
 from apache_beam.transforms.window import TimestampedValue
-from dataflow_worker import worker_runner_base
+from apache_beam.runners.portability import worker_runner_base
 
 
 class WorkerRunnerBaseTest(unittest.TestCase):

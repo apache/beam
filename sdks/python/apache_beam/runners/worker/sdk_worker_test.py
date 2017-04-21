@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for dataflow_worker.fn_harness.sdk_harness."""
+"""Tests for apache_beam.runners.worker.sdk_worker."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -59,7 +59,7 @@ class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
                        (self.instruction_ids - set(self.responses.keys())))
 
 
-class SdkHarnessTest(unittest.TestCase):
+class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
 
