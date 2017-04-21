@@ -398,7 +398,7 @@
 </code></pre>
 </div>
 
-<p>Because Beam uses a generic <code class="highlighter-rouge">apply</code> method for <code class="highlighter-rouge">PCollection</code>, you can both chain transforms sequentially and also apply transforms that contain other transforms nested within (called <strong>composite transforms</strong> in the Beam SDKs).</p>
+<p>Because Beam uses a generic <code class="highlighter-rouge">apply</code> method for <code class="highlighter-rouge">PCollection</code>, you can both chain transforms sequentially and also apply transforms that contain other transforms nested within (called <a href="#transforms-composite">composite transforms</a> in the Beam SDKs).</p>
 
 <p>How you apply your pipeline’s transforms determines the structure of your pipeline. The best way to think of your pipeline is as a directed acyclic graph, where the nodes are <code class="highlighter-rouge">PCollection</code>s and the edges are transforms. For example, you can chain transforms to create a sequential pipeline, like this one:</p>
 
@@ -434,7 +434,7 @@
 
 <p>[Branching Graph Graphic]</p>
 
-<p>You can also build your own composite transforms that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.</p>
+<p>You can also build your own <a href="#transforms-composite">composite transforms</a> that nest multiple sub-steps inside a single, larger transform. Composite transforms are particularly useful for building a reusable sequence of simple steps that get used in a lot of different places.</p>
 
 <h3 id="transforms-in-the-beam-sdk">Transforms in the Beam SDK</h3>
 
@@ -1242,9 +1242,99 @@ guest, [[], [order4]]
 
 <h2 id="a-nametransforms-compositeacomposite-transforms"><a name="transforms-composite"></a>Composite Transforms</h2>
 
-<blockquote>
-  <p><strong>Note:</strong> This section is in progress (<a href="https://issues.apache.org/jira/browse/BEAM-1452">BEAM-1452</a>).</p>
-</blockquote>
+<p>Transforms can have a nested structure, where a complex transform performs multiple simpler transforms (such as more than one <code class="highlighter-rouge">ParDo</code>, <code class="highlighter-rouge">Combine</code>, <code class="highlighter-rouge">GroupByKey</code>, or even other composite transforms). These transforms are called composite transforms. Nesting multiple transforms inside a single composite transform can make your code more modular and easier to understand.</p>
+
+<p>The Beam SDK comes packed with many useful composite transforms. See the API reference pages for a list of transforms:</p>
+<ul>
+  <li><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
+  <li><a href="/documentation/sdks/pydoc/0.6.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
+</ul>
+
+<h3 id="an-example-of-a-composite-transform">An example of a composite transform</h3>
+
+<p>The <code class="highlighter-rouge">CountWords</code> transform in the <a href="/get-started/wordcount-example/">WordCount example program</a> is an example of a composite transform. <code class="highlighter-rouge">CountWords</code> is a <code class="highlighter-rouge">PTransform</code> subclass that consists of multiple nested transforms.</p>
+
+<p>In its <code class="highlighter-rouge">expand</code> method, the <code class="highlighter-rouge">CountWords</code> transform applies the following transform operations:</p>
+
+<ol>
+  <li>It applies a <code class="highlighter-rouge">ParDo</code> on the input <code class="highlighter-rouge">PCollection</code> of text lines, producing an output <code class="highlighter-rouge">PCollection</code> of individual words.</li>
+  <li>It applies the Beam SDK library transform <code class="highlighter-rouge">Count</code> on the <code class="highlighter-rouge">PCollection</code> of words, producing a <code class="highlighter-rouge">PCollection</code> of key/value pairs. Each key represents a word in the text, and each value represents the number of times that word appeared in the original data.</li>
+</ol>
+
+<p>Note that this is also an example of nested composite transforms, as <code class="highlighter-rouge">Count</code> is, by itself, a composite transform.</p>
+
+<p>Your composite transform’s parameters and return value must match the initial input type and final return type for the entire transform, even if the transform’s intermediate data changes type multiple times.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CountWords</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span>
+      <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span><span class="o">)</span> <span class="o">{</span>
+
+      <span class="c1">// Convert lines of text into individual words.</span>
+      <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+          <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ExtractWordsFn</span><span class="o">()));</span>
+
+      <span class="c1">// Count the number of times each word occurs.</span>
+      <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">wordCounts</span> <span class="o">=</span>
+          <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">());</span>
+
+      <span class="k">return</span> <span class="n">wordCounts</span><span class="o">;</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h3 id="creating-a-composite-transform">Creating a composite transform</h3>
+
+<p>To create your own composite transform, create a subclass of the <code class="highlighter-rouge">PTransform</code> class and override the <code class="highlighter-rouge">expand</code> method to specify the actual processing logic. You can then use this transform just as you would a built-in transform from the Beam SDK.</p>
+
+<p class="language-java">For the <code class="highlighter-rouge">PTransform</code> class type parameters, you pass the <code class="highlighter-rouge">PCollection</code> types that your transform takes as input, and produces as output. To take multiple <code class="highlighter-rouge">PCollection</code>s as input, or produce multiple <code class="highlighter-rouge">PCollection</code>s as output, use one of the multi-collection types for the relevant type parameter.</p>
+
+<p>The following code sample shows how to declare a <code class="highlighter-rouge">PTransform</code> that accepts a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">String</code>s for input, and outputs a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Integer</code>s:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
+    <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+    <span class="o">...</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h4 id="overriding-the-expand-method">Overriding the expand method</h4>
+
+<p>Within your <code class="highlighter-rouge">PTransform</code> subclass, you’ll need to override the <code class="highlighter-rouge">expand</code> method. The <code class="highlighter-rouge">expand</code> method is where you add the processing logic for the <code class="highlighter-rouge">PTransform</code>. Your override of <code class="highlighter-rouge">expand</code> must accept the appropriate type of input <code class="highlighter-rouge">PCollection</code> as a parameter, and specify the output <code class="highlighter-rouge">PCollection</code> as the return value.</p>
+
+<p>The following code sample shows how to override <code class="highlighter-rouge">expand</code> for the <code class="highlighter-rouge">ComputeWordLengths</code> class declared in the previous example:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengths</span>
+      <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;)</span> <span class="o">{</span>
+      <span class="o">...</span>
+      <span class="c1">// transform logic goes here</span>
+      <span class="o">...</span>
+    <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<p>As long as you override the <code class="highlighter-rouge">expand</code> method in your <code class="highlighter-rouge">PTransform</code> subclass to accept the appropriate input <code class="highlighter-rouge">PCollection</code>(s) and return the corresponding output <code class="highlighter-rouge">PCollection</code>(s), you can include as many transforms as you want. These transforms can include core transforms, composite transforms, or the transforms included in the Beam SDK libraries.</p>
+
+<p><strong>Note:</strong> The <code class="highlighter-rouge">expand</code> method of a <code class="highlighter-rouge">PTransform</code> is not meant to be invoked directly by the user of a transform. Instead, you should call the <code class="highlighter-rouge">apply</code> method on the <code class="highlighter-rouge">PCollection</code> itself, with the transform as an argument. This allows transforms to be nested within the structure of your pipeline.</p>
+
+<h4 id="ptransform-style-guide">PTransform Style Guide</h4>
+
+<p>When you create a new <code class="highlighter-rouge">PTransform</code>, be sure to read the <a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a>. The guide contains additional helpful information such as style guidelines, logging and testing guidance, and language-specific considerations.</p>
 
 <h2 id="a-nameioapipeline-io"><a name="io"></a>Pipeline I/O</h2>
 
