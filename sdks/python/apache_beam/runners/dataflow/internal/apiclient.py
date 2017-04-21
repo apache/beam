@@ -448,8 +448,7 @@ class DataflowApplicationClient(object):
     job.proto.environment = Environment(
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
-    # TODO(silviuc): Remove the debug logging eventually.
-    logging.info('JOB: %s', job)
+    logging.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):
