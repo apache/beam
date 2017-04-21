@@ -450,13 +450,6 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   MAX_ELEMENT_PER_BUNDLE = None
 
-  class _GroupByKeyOnlyEvaluatorState(object):
-
-    def __init__(self):
-      # output: {} key -> [values]
-      self.output = collections.defaultdict(list)
-      self.completed = False
-
   def __init__(self, evaluation_context, applied_ptransform,
                input_committed_bundle, side_inputs, scoped_metrics_container):
     assert not side_inputs
@@ -464,15 +457,8 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         evaluation_context, applied_ptransform, input_committed_bundle,
         side_inputs, scoped_metrics_container)
 
-  @property
-  def _is_final_bundle(self):
-    return (self._execution_context.watermarks.input_watermark
-            == WatermarkManager.WATERMARK_POS_INF)
-
   def start_bundle(self):
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state
-                  else _GroupByKeyOnlyEvaluator._GroupByKeyOnlyEvaluatorState())
+    self.gbk_items = collections.defaultdict(list)
 
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
@@ -484,47 +470,32 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def process_element(self, element):
     print '[!] GBK process_element', element
-    assert not self.state.completed
     if (isinstance(element, WindowedValue)
         and isinstance(element.value, collections.Iterable)
         and len(element.value) == 2):
       k, v = element.value
-      self.state.output[self.key_coder.encode(k)].append(v)
+      self.gbk_items[self.key_coder.encode(k)].append(v)
     else:
       raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
                            'windowed key-value pairs. Instead received: %r.'
                            % element)
 
   def finish_bundle(self):
-    if self._is_final_bundle:
-      if self.state.completed:
-        # Ignore empty bundles after emitting output. (This may happen because
-        # empty bundles do not affect input watermarks.)
-        bundles = []
-      else:
-        gbk_result = (
-            map(GlobalWindows.windowed_value, (
-                (self.key_coder.decode(k), v)
-                for k, v in self.state.output.iteritems())))
+    gbk_result = (
+        map(GlobalWindows.windowed_value, (
+            (self.key_coder.decode(k), v)
+            for k, v in self.gbk_items.iteritems())))
 
-        def len_element_fn(element):
-          _, v = element.value
-          return len(v)
+    def len_element_fn(element):
+      _, v = element.value
+      return len(v)
 
-        bundles = self._split_list_into_bundles(
-            self.output_pcollection, gbk_result,
-            _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
-
-      self.state.completed = True
-      state = self.state
-      hold = WatermarkManager.WATERMARK_POS_INF
-    else:
-      bundles = []
-      state = self.state
-      hold = WatermarkManager.WATERMARK_NEG_INF
+    bundles = self._split_list_into_bundles(
+        self.output_pcollection, gbk_result,
+        _GroupByKeyOnlyEvaluator.MAX_ELEMENT_PER_BUNDLE, len_element_fn)
 
     return TransformResult(
-        self._applied_ptransform, bundles, [], state, None, None, hold)
+        self._applied_ptransform, bundles, [], None, None, None, None)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):

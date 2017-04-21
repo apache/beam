@@ -32,6 +32,7 @@ class StreamingTest(unittest.TestCase):
         .add_elements(['a', 'b', 'c'])
         .advance_watermark_to(20)
         .add_elements(['d'])
+        .add_elements(['e'])
         .advance_processing_time(10)
         .advance_watermark_to(300)
         .add_elements([window.TimestampedValue('late', 12)]))
