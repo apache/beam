@@ -77,7 +77,7 @@ public class FlowUnfolderTest {
         .output();
 
     Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
-        .by(e -> e, Pair::getKey)
+        .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Context<Long> c) -> c.collect(r.getSecond()))
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
@@ -160,7 +160,7 @@ public class FlowUnfolderTest {
         .output();
 
     Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
-        .by(e -> e, Pair::getKey)
+        .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Context<Long> c) -> {
           c.collect(r.getSecond());
         })

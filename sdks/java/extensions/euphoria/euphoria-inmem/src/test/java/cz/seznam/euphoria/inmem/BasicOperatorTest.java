@@ -353,10 +353,10 @@ public class BasicOperatorTest {
     ImmutableMap<String, Pair<String, Long>> idx =
         Maps.uniqueIndex(f.getOutput(0), Pair::getFirst);
     assertEquals(4, idx.size());
-    assertEquals((long) idx.get("one").getValue(), 4L);
-    assertEquals((long) idx.get("two").getValue(), 3L);
-    assertEquals((long) idx.get("three").getValue(), 2L);
-    assertEquals((long) idx.get("four").getValue(), 1L);
+    assertEquals((long) idx.get("one").getSecond(), 4L);
+    assertEquals((long) idx.get("two").getSecond(), 3L);
+    assertEquals((long) idx.get("three").getSecond(), 2L);
+    assertEquals((long) idx.get("four").getSecond(), 1L);
   }
 
   @Test

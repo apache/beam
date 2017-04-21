@@ -71,7 +71,7 @@ public class KafkaSink implements DataSink<Pair<byte[], byte[]>> {
     @Override
     public void write(Pair<byte[], byte[]> elem) throws IOException {
       final ProducerRecord r =
-          new ProducerRecord(topicId, partition, elem.getKey(), elem.getValue());
+          new ProducerRecord(topicId, partition, elem.getFirst(), elem.getSecond());
       fs.addLast(producer.send(r));
 
       // ~ try to consume already finished futures ... preventing the pool of futures

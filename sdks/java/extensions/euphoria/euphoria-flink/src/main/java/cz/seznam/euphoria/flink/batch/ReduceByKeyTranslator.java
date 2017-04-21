@@ -124,7 +124,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
                   (KeySelector<BatchElement<Window, Pair>, Comparable>)
-                      (BatchElement<Window, Pair> we) -> (Comparable) we.getElement().getKey(),
+                      (BatchElement<Window, Pair> we) -> (Comparable) we.getElement().getFirst(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -145,7 +145,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     public Tuple2<Comparable, Comparable> getKey(
             BatchElement<Window, Pair> value) {
 
-      return new Tuple2(value.getWindow(), value.getElement().getKey());
+      return new Tuple2(value.getWindow(), value.getElement().getFirst());
     }
   }
 
@@ -167,7 +167,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
               wid,
               Math.max(p1.getTimestamp(), p2.getTimestamp()),
               Pair.of(
-                      p1.getElement().getKey(),
+                      p1.getElement().getFirst(),
                       reducer.apply(Arrays.asList(p1.getElement().getSecond(), p2.getElement().getSecond()))));
     }
   }

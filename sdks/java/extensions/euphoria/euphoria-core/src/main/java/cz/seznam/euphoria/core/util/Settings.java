@@ -90,7 +90,7 @@ public class Settings implements Serializable {
         .stream()
         .filter(e -> e.getKey().startsWith(prefix))
         .map(e -> Pair.of(e.getKey().substring(prefix.length()), e.getValue()))
-        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
   }
 
   public boolean contains(String key) {
@@ -108,7 +108,7 @@ public class Settings implements Serializable {
 
   public String getString(String key, String def) {
     String skey = skey(requireNonNull(key));
-    return map.containsKey(skey) ? map.get(skey) : def;
+    return map.getOrDefault(skey, def);
   }
 
   public String getString(String key) {
