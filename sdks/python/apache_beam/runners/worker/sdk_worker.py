@@ -204,8 +204,8 @@ class SdkHarness(object):
 
   def run(self):
     contol_stub = beam_fn_api_pb2.BeamFnControlStub(self._control_channel)
-    state_stub = beam_fn_api_pb2.SimpleBeamFnStateStub(
-        self._control_channel)
+    # TODO(robertwb): Wire up to new state api.
+    state_stub = None
     self.worker = SdkWorker(state_stub, self._data_channel_factory)
 
     responses = queue.Queue()
