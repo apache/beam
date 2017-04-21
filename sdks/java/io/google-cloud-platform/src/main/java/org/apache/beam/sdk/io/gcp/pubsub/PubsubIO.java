@@ -529,8 +529,13 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static <T> Write<T> write() {
+  private static <T> Write<T> write() {
     return new AutoValue_PubsubIO_Write.Builder<T>().build();
+  }
+
+  /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
+  public static Write<PubsubMessage> writePubsubMessages() {
+    return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
   /**
