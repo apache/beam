@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io;
+package org.apache.beam.sdk.io.xml;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Marshaller;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -93,6 +95,11 @@ class XmlSink<T> extends FileBasedSink<T> {
     @Override
     public XmlSink<T> getSink() {
       return (XmlSink<T>) super.getSink();
+    }
+
+    @VisibleForTesting
+    String getTemporaryDirectory() {
+      return this.tempDirectory.get();
     }
   }
 

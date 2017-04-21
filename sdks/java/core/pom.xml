@@ -244,36 +244,7 @@
       <artifactId>joda-time</artifactId>
     </dependency>
 
-    <!-- 
-    To use org.apache.beam.io.XmlSource: 
-
-    1. Explicitly declare the following dependency for the stax2 API.
-    2. Include a stax2 implementation on the classpath. One example
-       is given below as an optional runtime dependency on woodstox-core-asl
-    -->
-    <dependency>
-      <groupId>org.codehaus.woodstox</groupId>
-      <artifactId>stax2-api</artifactId>
-      <version>${stax2.version}</version>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.codehaus.woodstox</groupId>
-      <artifactId>woodstox-core-asl</artifactId>
-      <version>${woodstox.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
-      <exclusions>
-        <!-- javax.xml.stream:stax-api is included in JDK 1.6+ -->
-        <exclusion>
-          <groupId>javax.xml.stream</groupId>
-          <artifactId>stax-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly 
+    <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly
       declare this dependency to include org.tukaani:xz on the classpath at runtime. -->
     <dependency>
       <groupId>org.tukaani</groupId>
