@@ -122,8 +122,7 @@
             <id>validates-runner-tests</id>
             <configuration>
               <excludedGroups>
-                org.apache.beam.sdk.testing.UsesAttemptedMetrics,
-                org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                org.apache.beam.sdk.testing.UsesDistributionMetrics,
                 org.apache.beam.sdk.testing.UsesSetState,
                 org.apache.beam.sdk.testing.UsesMapState,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
