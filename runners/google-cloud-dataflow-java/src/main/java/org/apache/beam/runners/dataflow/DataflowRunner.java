@@ -960,26 +960,27 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we
-   * can instead defer to Windmill's implementation.
+   * Suppress application of {@link PubsubUnboundedSink#expand} in streaming mode so that we can
+   * instead defer to Windmill's implementation.
    */
-  private static class StreamingPubsubIOWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final PubsubUnboundedSink<T> transform;
+  private static class StreamingPubsubIOWrite
+      extends PTransform<PCollection<PubsubIO.PubsubMessage>, PDone> {
+    private final PubsubUnboundedSink transform;
 
     /**
      * Builds an instance of this class from the overridden transform.
      */
     public StreamingPubsubIOWrite(
-        DataflowRunner runner, PubsubUnboundedSink<T> transform) {
+        DataflowRunner runner, PubsubUnboundedSink transform) {
       this.transform = transform;
     }
 
-    PubsubUnboundedSink<T> getOverriddenTransform() {
+    PubsubUnboundedSink getOverriddenTransform() {
       return transform;
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public PDone expand(PCollection<PubsubIO.PubsubMessage> input) {
       return PDone.in(input.getPipeline());
     }
 
@@ -990,23 +991,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator<>());
+          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOWriteTranslator<T> implements
-      TransformTranslator<StreamingPubsubIOWrite<T>> {
+  private static class StreamingPubsubIOWriteTranslator implements
+      TransformTranslator<StreamingPubsubIOWrite> {
 
     @Override
     public void translate(
-        StreamingPubsubIOWrite<T> transform,
+        StreamingPubsubIOWrite transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
                     "StreamingPubsubIOWrite is only for streaming pipelines.");
-      PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
+      PubsubUnboundedSink overriddenTransform = transform.getOverriddenTransform();
       StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider().isAccessible()) {
@@ -1025,19 +1026,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         stepContext.addInput(
             PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
       }
-      if (overriddenTransform.getFormatFn() != null) {
-        stepContext.addInput(
-            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
-            byteArrayToJsonString(serializeToByteArray(overriddenTransform.getFormatFn())));
-        // No coder is needed in this case since the formatFn formats directly into a byte[],
-        // however the Dataflow backend require a coder to be set.
-        stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(VoidCoder.of()));
-      } else if (overriddenTransform.getElementCoder() != null) {
-        stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
-            overriddenTransform.getElementCoder()));
-      }
-      PCollection<T> input = context.getInput(transform);
-      stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+      // No coder is needed in this case since the collection being written is already of
+      // PubsubMessage, however the Dataflow backend require a coder to be set.
+      stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(VoidCoder.of()));
+      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 
@@ -1331,8 +1323,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  private class StreamingPubsubIOWriteOverrideFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, PubsubUnboundedSink<T>> {
+  private class StreamingPubsubIOWriteOverrideFactory
+      implements PTransformOverrideFactory<
+          PCollection<PubsubIO.PubsubMessage>, PDone, PubsubUnboundedSink> {
     private final DataflowRunner runner;
 
     private StreamingPubsubIOWriteOverrideFactory(DataflowRunner runner) {
@@ -1340,11 +1333,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PDone, PubsubUnboundedSink<T>> transform) {
+    public PTransformReplacement<PCollection<PubsubIO.PubsubMessage>, PDone>
+        getReplacementTransform(
+            AppliedPTransform<PCollection<PubsubIO.PubsubMessage>, PDone, PubsubUnboundedSink>
+                transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new StreamingPubsubIOWrite<>(runner, transform.getTransform()));
+          new StreamingPubsubIOWrite(runner, transform.getTransform()));
     }
 
     @Override
