@@ -144,18 +144,6 @@
       <artifactId>google-http-client</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcsio</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>util</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
     <!-- Required by com.google.apis:google-api-services-datastore-protobuf, but 
       the version they depend on differs from our api-client versions -->
     <dependency>
