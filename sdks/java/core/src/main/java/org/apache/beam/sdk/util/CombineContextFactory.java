@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -82,8 +85,14 @@ public class CombineContextFactory {
           throw new IllegalArgumentException("calling sideInput() with unknown view");
         }
 
+        checkArgument(
+            view instanceof SimplePCollectionView,
+            "Unknown %s type: %s",
+            PCollectionView.class.getSimpleName(),
+            view.getClass().getName());
+        SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
         BoundedWindow sideInputWindow =
-            view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+            simpleView.getWindowMappingFn().getSideInputWindow(mainInputWindow);
         return sideInputReader.get(view, sideInputWindow);
       }
     };

@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -96,7 +97,7 @@ import org.mockito.stubbing.Answer;
 public class ReduceFnRunnerTest {
   @Mock private SideInputReader mockSideInputReader;
   private TriggerStateMachine mockTriggerStateMachine;
-  private PCollectionView<Integer> mockView;
+  private SimplePCollectionView<?, Integer, ?> mockView;
 
   private IntervalWindow firstWindow;
 
@@ -114,8 +115,8 @@ public class ReduceFnRunnerTest {
     mockTriggerStateMachine = mock(TriggerStateMachine.class, withSettings().serializable());
 
     @SuppressWarnings("unchecked")
-    PCollectionView<Integer> mockViewUnchecked =
-        mock(PCollectionView.class, withSettings().serializable());
+    SimplePCollectionView<?, Integer, ?> mockViewUnchecked =
+        mock(SimplePCollectionView.class, withSettings().serializable());
     mockView = mockViewUnchecked;
     firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
   }

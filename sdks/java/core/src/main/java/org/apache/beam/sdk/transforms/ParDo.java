@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
@@ -664,7 +665,13 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+        checkArgument(
+            sideInput instanceof SimplePCollectionView,
+            "Unknown %s type: %s",
+            PCollectionView.class.getSimpleName(),
+            sideInput.getClass().getName());
+        SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) sideInput;
+        additionalInputs.put(simpleView.getTagInternal(), simpleView.getPCollection());
       }
       return additionalInputs.build();
     }
@@ -809,7 +816,13 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
       for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
+        checkArgument(
+            sideInput instanceof SimplePCollectionView,
+            "Unknown %s type: %s",
+            PCollectionView.class.getSimpleName(),
+            sideInput.getClass().getName());
+        SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) sideInput;
+        additionalInputs.put(simpleView.getTagInternal(), simpleView.getPCollection());
       }
       return additionalInputs.build();
     }

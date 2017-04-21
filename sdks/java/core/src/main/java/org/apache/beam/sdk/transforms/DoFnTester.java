@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -43,6 +44,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -647,9 +649,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
       Map<BoundedWindow, ?> viewValues = sideInputs.get(view);
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
       if (viewValues != null) {
         BoundedWindow sideInputWindow =
-            view.getWindowMappingFn()
+            simpleView.getWindowMappingFn()
                 .getSideInputWindow(element.getWindow());
         @SuppressWarnings("unchecked")
         T windowValue = (T) viewValues.get(sideInputWindow);
@@ -657,7 +665,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           return windowValue;
         }
       }
-      return view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
+      return simpleView.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
     }
 
     @Override

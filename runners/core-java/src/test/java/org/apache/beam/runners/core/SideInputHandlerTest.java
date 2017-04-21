@@ -24,17 +24,21 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,11 +52,15 @@ public class SideInputHandlerTest {
   private static final long WINDOW_MSECS_1 = 100;
   private static final long WINDOW_MSECS_2 = 500;
 
+  @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PCollection<String> pcollection = pipeline.apply(Create.of("foo", "bar"));
+
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy1 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_1)));
 
   private PCollectionView<Iterable<String>> view1 =
       PCollectionViewTesting.testingView(
+          pcollection,
           new TupleTag<Iterable<WindowedValue<String>>>() {},
           new PCollectionViewTesting.IdentityViewFn<String>(),
           StringUtf8Coder.of(),
@@ -63,6 +71,7 @@ public class SideInputHandlerTest {
 
   private PCollectionView<Iterable<String>> view2 =
       PCollectionViewTesting.testingView(
+          pcollection,
           new TupleTag<Iterable<WindowedValue<String>>>() {},
           new PCollectionViewTesting.IdentityViewFn<String>(),
           StringUtf8Coder.of(),

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
@@ -24,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -91,8 +94,14 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
       return false;
     }
     for (PCollectionView<?> view : views) {
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view;
       BoundedWindow sideInputWindow =
-          view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+          simpleView.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }
