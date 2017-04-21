@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.gearpump;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,13 +27,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.gearpump.translators.CreateGearpumpPCollectionViewTranslator;
 import org.apache.beam.runners.gearpump.translators.CreatePCollectionViewTranslator;
 import org.apache.beam.runners.gearpump.translators.FlattenPCollectionsTranslator;
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator;
-import org.apache.beam.runners.gearpump.translators.ParDoBoundMultiTranslator;
-import org.apache.beam.runners.gearpump.translators.ParDoBoundTranslator;
+import org.apache.beam.runners.gearpump.translators.ParDoMultiOutputTranslator;
+import org.apache.beam.runners.gearpump.translators.ParDoSingleOutputTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadBoundedTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.gearpump.translators.TransformTranslator;
@@ -45,9 +46,9 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.runners.PTransformMatcher;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -72,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * into Gearpump {@link Graph}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
+public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   private static final Logger LOG = LoggerFactory.getLogger(
       GearpumpPipelineTranslator.class);
@@ -88,13 +89,13 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
 
   static {
     // register TransformTranslators
-    registerTransformTranslator(ParDo.Bound.class, new ParDoBoundTranslator());
+    registerTransformTranslator(ParDo.SingleOutput.class, new ParDoSingleOutputTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
     registerTransformTranslator(Flatten.PCollections.class,
         new FlattenPCollectionsTranslator());
-    registerTransformTranslator(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
+    registerTransformTranslator(ParDo.MultiOutput.class, new ParDoMultiOutputTranslator());
     registerTransformTranslator(Window.Assign.class, new WindowAssignTranslator());
     registerTransformTranslator(View.CreatePCollectionView.class,
         new CreatePCollectionViewTranslator());
@@ -107,27 +108,30 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
   }
 
   public void translate(Pipeline pipeline) {
-    Map<PTransformMatcher, PTransformOverrideFactory> overrides =
-        ImmutableMap.<PTransformMatcher, PTransformOverrideFactory>builder()
-            .put(PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+    List<PTransformOverride> overrides =
+        ImmutableList.<PTransformOverride>builder()
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsMap.class),
+                new ReflectiveOneToOneOverrideFactory(StreamingViewAsMap.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsMultimap.class),
+                new ReflectiveOneToOneOverrideFactory(StreamingViewAsMultimap.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsSingleton.class),
+                new ReflectiveOneToOneOverrideFactory(StreamingViewAsSingleton.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsList.class),
+                new ReflectiveOneToOneOverrideFactory(StreamingViewAsList.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.AsIterable.class),
+                new ReflectiveOneToOneOverrideFactory(StreamingViewAsIterable.class)))
+            .add(PTransformOverride.of(
+                PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
                 new ReflectiveOneToOneOverrideFactory(
-                    StreamingCombineGloballyAsSingletonView.class))
-            .put(PTransformMatchers.classEqualTo(View.AsMap.class),
-                new ReflectiveOneToOneOverrideFactory(StreamingViewAsMap.class))
-            .put(PTransformMatchers.classEqualTo(View.AsMultimap.class),
-                new ReflectiveOneToOneOverrideFactory(StreamingViewAsMultimap.class))
-            .put(PTransformMatchers.classEqualTo(View.AsSingleton.class),
-                new ReflectiveOneToOneOverrideFactory(StreamingViewAsSingleton.class))
-            .put(PTransformMatchers.classEqualTo(View.AsList.class),
-                new ReflectiveOneToOneOverrideFactory(StreamingViewAsList.class))
-            .put(PTransformMatchers.classEqualTo(View.AsIterable.class),
-                new ReflectiveOneToOneOverrideFactory(StreamingViewAsIterable.class))
+                    StreamingCombineGloballyAsSingletonView.class)))
             .build();
 
-    for (Map.Entry<PTransformMatcher, PTransformOverrideFactory> override :
-        overrides.entrySet()) {
-      pipeline.replace(override.getKey(), override.getValue());
-    }
+    pipeline.replaceAll(overrides);
     pipeline.traverseTopologically(this);
   }
 
@@ -185,22 +189,27 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
 
   // The following codes are forked from DataflowRunner for View translator
   private static class ReflectiveOneToOneOverrideFactory<
-      InputT extends PValue,
-      OutputT extends PValue,
-      TransformT extends PTransform<InputT, OutputT>>
-      extends SingleInputOutputOverrideFactory<InputT, OutputT, TransformT> {
-    private final Class<PTransform<InputT, OutputT>> replacement;
+          InputT, OutputT, TransformT extends PTransform<PCollection<InputT>, PCollection<OutputT>>>
+      extends SingleInputOutputOverrideFactory<
+          PCollection<InputT>, PCollection<OutputT>, TransformT> {
+    private final Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement;
 
     private ReflectiveOneToOneOverrideFactory(
-        Class<PTransform<InputT, OutputT>> replacement) {
+        Class<PTransform<PCollection<InputT>, PCollection<OutputT>>> replacement) {
       this.replacement = replacement;
     }
 
     @Override
-    public PTransform<InputT, OutputT> getReplacementTransform(TransformT transform) {
-      return InstanceBuilder.ofType(replacement)
-          .withArg((Class<PTransform<InputT, OutputT>>) transform.getClass(), transform)
-          .build();
+    public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
+        AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          InstanceBuilder.ofType(replacement)
+              .withArg(
+                  (Class<PTransform<PCollection<InputT>, PCollection<OutputT>>>)
+                      transform.getTransform().getClass(),
+                  transform.getTransform())
+              .build());
     }
   }
 
@@ -220,7 +229,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -259,7 +268,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -298,7 +307,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -328,7 +337,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     public PCollectionView<List<T>> expand(PCollection<T> input) {
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
-              input.getPipeline(),
+              input,
               input.getWindowingStrategy(),
               input.getCoder());
 
@@ -341,6 +350,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
       return "StreamingViewAsList";
     }
   }
+
   private static class StreamingCombineGloballyAsSingletonView<InputT, OutputT>
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
 
@@ -360,7 +370,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
               .withFanout(transform.getFanout()));
 
       PCollectionView<OutputT> view = PCollectionViews.singletonView(
-          combined.getPipeline(),
+          combined,
           combined.getWindowingStrategy(),
           transform.getInsertDefault(),
           transform.getInsertDefault()

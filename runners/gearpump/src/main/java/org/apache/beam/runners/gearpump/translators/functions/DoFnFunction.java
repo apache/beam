@@ -156,7 +156,7 @@ public class DoFnFunction<InputT, OutputT> extends
       for (WindowedValue<InputT> value : pushedBackValues) {
         for (BoundedWindow win: value.getWindows()) {
           BoundedWindow sideInputWindow =
-              sideInput.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(win);
+              sideInput.getWindowMappingFn().getSideInputWindow(win);
           if (!sideInputReader.isReady(sideInput, sideInputWindow)) {
             Object emptyValue = WindowedValue.of(
                 Lists.newArrayList(), value.getTimestamp(), sideInputWindow, value.getPane());

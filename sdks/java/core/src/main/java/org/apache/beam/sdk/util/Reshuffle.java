@@ -22,9 +22,11 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 
 /**
@@ -55,28 +57,31 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
     // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
-    Window.Bound<KV<K, V>> rewindow =
-        Window.<KV<K, V>>into(
-                new IdentityWindowFn<>(
-                    originalStrategy.getWindowFn().windowCoder()))
+    // The OutputTimeFn is set to ensure the GroupByKey does not shift elements forwards in time.
+    // Because this outputs as fast as possible, this should not hold the watermark.
+    Window<KV<K, V>> rewindow =
+        Window.<KV<K, V>>into(new IdentityWindowFn<>(originalStrategy.getWindowFn().windowCoder()))
             .triggering(new ReshuffleTrigger<>())
             .discardingFiredPanes()
+            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
             .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
     return input.apply(rewindow)
-        .apply(GroupByKey.<K, V>create())
+        .apply("ReifyOriginalTimestamps", ReifyTimestamps.<K, V>inValues())
+        .apply(GroupByKey.<K, TimestampedValue<V>>create())
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
         .apply("ExpandIterable", ParDo.of(
-            new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
+            new DoFn<KV<K, Iterable<TimestampedValue<V>>>, KV<K, TimestampedValue<V>>>() {
               @ProcessElement
               public void processElement(ProcessContext c) {
                 K key = c.element().getKey();
-                for (V value : c.element().getValue()) {
+                for (TimestampedValue<V> value : c.element().getValue()) {
                   c.output(KV.of(key, value));
                 }
               }
-            }));
+            }))
+        .apply("RestoreOriginalTimestamps", ReifyTimestamps.<K, V>extractFromValues());
   }
 }

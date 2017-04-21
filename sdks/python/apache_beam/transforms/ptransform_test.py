@@ -45,6 +45,8 @@ from apache_beam.utils.pipeline_options import TypeOptions
 
 
 class PTransformTest(unittest.TestCase):
+  # Enable nose tests running in parallel
+  _multiprocess_can_split_ = True
 
   def assertStartswith(self, msg, prefix):
     self.assertTrue(msg.startswith(prefix),
@@ -56,7 +58,7 @@ class PTransformTest(unittest.TestCase):
 
     pa = TestPipeline()
     res = pa | 'ALabel' >> beam.Create([1, 2])
-    self.assertEqual('AppliedPTransform(ALabel, Create)',
+    self.assertEqual('AppliedPTransform(ALabel/Read, Read)',
                      str(res.producer))
 
     pc = TestPipeline()
@@ -64,7 +66,7 @@ class PTransformTest(unittest.TestCase):
     inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
     self.assertEqual(
-        """<Create(PTransform) label=[Create] inputs=('ci',)>""",
+        """<Read(PTransform) label=[Read] inputs=('ci',)>""",
         str(inputs_tr))
 
     pd = TestPipeline()
@@ -72,12 +74,12 @@ class PTransformTest(unittest.TestCase):
     side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
     self.assertEqual(
-        '<Create(PTransform) label=[Create] side_inputs=(4,)>',
+        '<Read(PTransform) label=[Read] side_inputs=(4,)>',
         str(side_tr))
 
     inputs_tr.side_inputs = ('cs',)
     self.assertEqual(
-        """<Create(PTransform) label=[Create] """
+        """<Read(PTransform) label=[Read] """
         """inputs=('ci',) side_inputs=('cs',)>""",
         str(inputs_tr))
 
@@ -157,7 +159,7 @@ class PTransformTest(unittest.TestCase):
                              'is discouraged.')
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
-  def test_do_with_side_outputs_maintains_unique_name(self):
+  def test_do_with_multiple_outputs_maintains_unique_name(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
     r1 = pcoll | 'A' >> beam.FlatMap(lambda x: [x + 1]).with_outputs(main='m')
@@ -174,9 +176,9 @@ class PTransformTest(unittest.TestCase):
       def process(self, element):
         yield element
         if element % 2 == 0:
-          yield pvalue.SideOutputValue('even', element)
+          yield pvalue.OutputValue('even', element)
         else:
-          yield pvalue.SideOutputValue('odd', element)
+          yield pvalue.OutputValue('odd', element)
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -191,9 +193,8 @@ class PTransformTest(unittest.TestCase):
   def test_par_do_with_multiple_outputs_and_using_return(self):
     def some_fn(v):
       if v % 2 == 0:
-        return [v, pvalue.SideOutputValue('even', v)]
-      else:
-        return [v, pvalue.SideOutputValue('odd', v)]
+        return [v, pvalue.OutputValue('even', v)]
+      return [v, pvalue.OutputValue('odd', v)]
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -205,12 +206,12 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_undeclared_side_outputs(self):
+  def test_undeclared_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
-                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
+                   pvalue.OutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
@@ -218,12 +219,12 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_empty_side_outputs(self):
+  def test_multiple_empty_outputs(self):
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
-                   pvalue.SideOutputValue('even' if x % 2 == 0 else 'odd', x)]
+                   pvalue.OutputValue('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 3, 5]))
     assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
@@ -431,6 +432,12 @@ class PTransformTest(unittest.TestCase):
       () | 'PipelineArgMissing' >> beam.Flatten()
     result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
     assert_that(result, equal_to([]))
+    pipeline.run()
+
+  def test_flatten_same_pcollections(self):
+    pipeline = TestPipeline()
+    pc = pipeline | beam.Create(['a', 'b'])
+    assert_that((pc, pc, pc) | beam.Flatten(), equal_to(['a', 'b'] * 3))
     pipeline.run()
 
   def test_flatten_pcollections_in_iterable(self):
@@ -681,7 +688,7 @@ class PTransformLabelsTest(unittest.TestCase):
   def check_label(self, ptransform, expected_label):
     pipeline = TestPipeline()
     pipeline | 'Start' >> beam.Create([('a', 1)]) | ptransform
-    actual_label = sorted(pipeline.applied_labels - {'Start'})[0]
+    actual_label = sorted(pipeline.applied_labels - {'Start', 'Start/Read'})[0]
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))
 
   def test_default_labels(self):
@@ -699,7 +706,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
     self.check_label(beam.ParDo(MyDoFn()), r'ParDo(MyDoFn)')
 
-  def test_lable_propogation(self):
+  def test_label_propogation(self):
     self.check_label('TestMap' >> beam.Map(len), r'TestMap')
     self.check_label('TestLambda' >> beam.Map(lambda x: x), r'TestLambda')
     self.check_label('TestFlatMap' >> beam.FlatMap(list), r'TestFlatMap')
@@ -1050,7 +1057,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # aliased to Tuple[int, str].
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
-       | (beam.Create(range(5))
+       | (beam.Create([[1], [2]])
           .with_output_types(typehints.Iterable[int]))
        | 'T' >> beam.GroupByKey())
 

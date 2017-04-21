@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.List;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -57,14 +58,14 @@ import org.slf4j.LoggerFactory;
 public class ElasticsearchIOIT {
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOIT.class);
   private static TransportClient client;
-  private static ElasticsearchTestOptions options;
+  private static IOTestPipelineOptions options;
   private static ElasticsearchIO.ConnectionConfiguration readConnectionConfiguration;
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    PipelineOptionsFactory.register(ElasticsearchTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(ElasticsearchTestOptions.class);
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
     client = ElasticsearchTestDataSet.getClient(options);
     readConnectionConfiguration =
         ElasticsearchTestDataSet.getConnectionConfiguration(
@@ -87,7 +88,7 @@ public class ElasticsearchIOIT {
     // as many bundles as ES shards and bundle size is shard size
     long desiredBundleSizeBytes = 0;
     List<? extends BoundedSource<String>> splits =
-        initialSource.splitIntoBundles(desiredBundleSizeBytes, options);
+        initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     //this is the number of ES shards
     // (By default, each index in Elasticsearch is allocated 5 primary shards)

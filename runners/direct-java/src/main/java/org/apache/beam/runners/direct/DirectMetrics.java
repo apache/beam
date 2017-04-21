@@ -20,12 +20,10 @@ package org.apache.beam.runners.direct;
 import static java.util.Arrays.asList;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -35,9 +33,11 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeData;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -195,6 +195,28 @@ class DirectMetrics extends MetricResults {
         }
       };
 
+  private static final MetricAggregation<GaugeData, GaugeResult> GAUGE =
+      new MetricAggregation<GaugeData, GaugeResult>() {
+        @Override
+        public GaugeData zero() {
+          return GaugeData.empty();
+        }
+
+        @Override
+        public GaugeData combine(Iterable<GaugeData> updates) {
+          GaugeData result = GaugeData.empty();
+          for (GaugeData update : updates) {
+            result = result.combine(update);
+          }
+          return result;
+        }
+
+        @Override
+        public GaugeResult extract(GaugeData data) {
+          return data.extractResult();
+        }
+      };
+
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
       new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
@@ -212,13 +234,23 @@ class DirectMetrics extends MetricResults {
           return new DirectMetric<>(DISTRIBUTION);
         }
       });
+  private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
+      new MetricsMap<>(
+          new MetricsMap.Factory<MetricKey, DirectMetric<GaugeData, GaugeResult>>() {
+            @Override
+            public DirectMetric<GaugeData, GaugeResult> createInstance(
+                MetricKey unusedKey) {
+              return new DirectMetric<>(GAUGE);
+            }
+          });
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {
     public static MetricQueryResults create(
         Iterable<MetricResult<Long>> counters,
-        Iterable<MetricResult<DistributionResult>> distributions) {
-      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters, distributions);
+        Iterable<MetricResult<DistributionResult>> distributions,
+        Iterable<MetricResult<GaugeResult>> gauges) {
+      return new AutoValue_DirectMetrics_DirectMetricQueryResults(counters, distributions, gauges);
     }
   }
 
@@ -250,85 +282,28 @@ class DirectMetrics extends MetricResults {
         : distributions.entries()) {
       maybeExtractResult(filter, distributionResults, distribution);
     }
+    ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults =
+        ImmutableList.builder();
+    for (Entry<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauge
+        : gauges.entries()) {
+      maybeExtractResult(filter, gaugeResults, gauge);
+    }
 
-    return DirectMetricQueryResults.create(counterResults.build(), distributionResults.build());
+    return DirectMetricQueryResults.create(counterResults.build(), distributionResults.build(),
+        gaugeResults.build());
   }
 
   private <ResultT> void maybeExtractResult(
       MetricsFilter filter,
       ImmutableList.Builder<MetricResult<ResultT>> resultsBuilder,
       Map.Entry<MetricKey, ? extends DirectMetric<?, ResultT>> entry) {
-    if (matches(filter, entry.getKey())) {
+    if (MetricFiltering.matches(filter, entry.getKey())) {
       resultsBuilder.add(DirectMetricResult.create(
           entry.getKey().metricName(),
           entry.getKey().stepName(),
           entry.getValue().extractCommitted(),
           entry.getValue().extractLatestAttempted()));
     }
-  }
-
-  // Matching logic is implemented here rather than in MetricsFilter because we would like
-  // MetricsFilter to act as a "dumb" value-object, with the possibility of replacing it with
-  // a Proto/JSON/etc. schema object.
-  private boolean matches(MetricsFilter filter, MetricKey key) {
-    return matchesName(key.metricName(), filter.names())
-        && matchesScope(key.stepName(), filter.steps());
-  }
-
-  /**
-  * {@code subPathMatches(haystack, needle)} returns true if {@code needle}
-  * represents a path within {@code haystack}. For example, "foo/bar" is in "a/foo/bar/b",
-  * but not "a/fool/bar/b" or "a/foo/bart/b".
-  */
-  public boolean subPathMatches(String haystack, String needle) {
-    int location = haystack.indexOf(needle);
-    int end = location + needle.length();
-    if (location == -1) {
-      return false;  // needle not found
-    } else if (location != 0 && haystack.charAt(location - 1) != '/') {
-      return false; // the first entry in needle wasn't exactly matched
-    } else if (end != haystack.length() && haystack.charAt(end) != '/') {
-      return false; // the last entry in needle wasn't exactly matched
-    } else {
-      return true;
-    }
-  }
-
-  /**
-   * {@code matchesScope(actualScope, scopes)} returns true if the scope of a metric is matched
-   * by any of the filters in {@code scopes}. A metric scope is a path of type "A/B/D". A
-   * path is matched by a filter if the filter is equal to the path (e.g. "A/B/D", or
-   * if it represents a subpath within it (e.g. "A/B" or "B/D", but not "A/D"). */
-  public boolean matchesScope(String actualScope, Set<String> scopes) {
-    if (scopes.isEmpty() || scopes.contains(actualScope)) {
-      return true;
-    }
-
-    // If there is no perfect match, a stage name-level match is tried.
-    // This is done by a substring search over the levels of the scope.
-    // e.g. a scope "A/B/C/D" is matched by "A/B", but not by "A/C".
-    for (String scope : scopes) {
-      if (subPathMatches(actualScope, scope)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private boolean matchesName(MetricName metricName, Set<MetricNameFilter> nameFilters) {
-    if (nameFilters.isEmpty()) {
-      return true;
-    }
-
-    for (MetricNameFilter nameFilter : nameFilters) {
-      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.name()))
-          && Objects.equal(metricName.namespace(), nameFilter.getNamespace())) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   /** Apply metric updates that represent physical counter deltas to the current metric values. */
@@ -340,6 +315,10 @@ class DirectMetrics extends MetricResults {
       distributions.get(distribution.getKey())
           .updatePhysical(bundle, distribution.getUpdate());
     }
+    for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
+      gauges.get(gauge.getKey())
+          .updatePhysical(bundle, gauge.getUpdate());
+    }
   }
 
   public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
@@ -349,6 +328,10 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
       distributions.get(distribution.getKey())
           .commitPhysical(bundle, distribution.getUpdate());
+    }
+    for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
+      gauges.get(gauge.getKey())
+          .commitPhysical(bundle, gauge.getUpdate());
     }
   }
 
@@ -360,6 +343,10 @@ class DirectMetrics extends MetricResults {
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
       distributions.get(distribution.getKey())
           .commitLogical(bundle, distribution.getUpdate());
+    }
+    for (MetricUpdate<GaugeData> gauge : updates.gaugeUpdates()) {
+      gauges.get(gauge.getKey())
+          .commitLogical(bundle, gauge.getUpdate());
     }
   }
 }

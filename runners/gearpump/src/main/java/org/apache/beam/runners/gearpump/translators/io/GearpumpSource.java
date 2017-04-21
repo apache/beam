@@ -46,6 +46,7 @@ public abstract class GearpumpSource<T> implements DataSource {
 
   private Source.Reader<T> reader;
   private boolean available = false;
+  private long count = 0L;
 
   GearpumpSource(PipelineOptions options) {
     try {
@@ -112,7 +113,7 @@ public abstract class GearpumpSource<T> implements DataSource {
       }
     } else {
       if (available) {
-        return TranslatorUtils.jodaTimeToJava8Time(reader.getCurrentTimestamp());
+        return Watermark.MIN();
       } else {
         return Watermark.MAX();
       }

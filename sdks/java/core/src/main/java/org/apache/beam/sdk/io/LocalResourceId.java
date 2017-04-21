@@ -116,7 +116,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public String toString() {
-    return String.format("LocalResourceId: [%s]", path);
+    return path.toString();
   }
 
   @Override

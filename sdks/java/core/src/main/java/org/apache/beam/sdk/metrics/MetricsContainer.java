@@ -57,6 +57,14 @@ public class MetricsContainer {
         }
       });
 
+  private MetricsMap<MetricName, GaugeCell> gauges =
+      new MetricsMap<>(new MetricsMap.Factory<MetricName, GaugeCell>() {
+        @Override
+        public GaugeCell createInstance(MetricName unusedKey) {
+          return new GaugeCell();
+        }
+      });
+
   /**
    * Create a new {@link MetricsContainer} associated with the given {@code stepName}.
    */
@@ -72,8 +80,20 @@ public class MetricsContainer {
     return counters.get(metricName);
   }
 
+  /**
+   * Return the {@link DistributionCell} that should be used for implementing the given
+   * {@code metricName} in this container.
+   */
   public DistributionCell getDistribution(MetricName metricName) {
     return distributions.get(metricName);
+  }
+
+  /**
+   * Return the {@link GaugeCell} that should be used for implementing the given
+   * {@code metricName} in this container.
+   */
+  public GaugeCell getGauge(MetricName metricName) {
+    return gauges.get(metricName);
   }
 
   private <UpdateT, CellT extends MetricCell<?, UpdateT>>
@@ -96,7 +116,8 @@ public class MetricsContainer {
   public MetricUpdates getUpdates() {
     return MetricUpdates.create(
         extractUpdates(counters),
-        extractUpdates(distributions));
+        extractUpdates(distributions),
+        extractUpdates(gauges));
   }
 
   private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?, ?>> cells) {
@@ -132,6 +153,7 @@ public class MetricsContainer {
   public MetricUpdates getCumulative() {
     return MetricUpdates.create(
         extractCumulatives(counters),
-        extractCumulatives(distributions));
+        extractCumulatives(distributions),
+        extractCumulatives(gauges));
   }
 }

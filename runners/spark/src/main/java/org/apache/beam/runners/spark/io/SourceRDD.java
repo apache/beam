@@ -20,26 +20,33 @@ package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.Accumulator;
 import org.apache.spark.Dependency;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.Partition;
+import org.apache.spark.Partitioner;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
+import scala.Option;
 
 /**
  * Classes implementing Beam {@link Source} {@link RDD}s.
@@ -57,15 +64,19 @@ public class SourceRDD {
     private final BoundedSource<T> source;
     private final SparkRuntimeContext runtimeContext;
     private final int numPartitions;
+    private final String stepName;
+    private final Accumulator<SparkMetricsContainer> metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
         scala.collection.JavaConversions
           .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
-    public Bounded(SparkContext sc,
-                   BoundedSource<T> source,
-                   SparkRuntimeContext runtimeContext) {
+    public Bounded(
+        SparkContext sc,
+        BoundedSource<T> source,
+        SparkRuntimeContext runtimeContext,
+        String stepName) {
       super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
       this.source = source;
       this.runtimeContext = runtimeContext;
@@ -77,6 +88,8 @@ public class SourceRDD {
       // ** the configuration "spark.default.parallelism" takes precedence over all of the above **
       this.numPartitions = sc.defaultParallelism();
       checkArgument(this.numPartitions > 0, "Number of partitions must be greater than zero.");
+      this.stepName = stepName;
+      this.metricsAccum = MetricsAccumulator.getInstance();
     }
 
     private static final long DEFAULT_BUNDLE_SIZE = 64 * 1024 * 1024;
@@ -92,7 +105,7 @@ public class SourceRDD {
             + "size of {} bytes.", source, DEFAULT_BUNDLE_SIZE);
       }
       try {
-        List<? extends Source<T>> partitionedSources = source.splitIntoBundles(desiredSizeBytes,
+        List<? extends Source<T>> partitionedSources = source.split(desiredSizeBytes,
             runtimeContext.getPipelineOptions());
         Partition[] partitions = new SourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
@@ -108,6 +121,8 @@ public class SourceRDD {
     @Override
     public scala.collection.Iterator<WindowedValue<T>> compute(final Partition split,
                                                                TaskContext context) {
+      final MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
+
       final Iterator<WindowedValue<T>> iter = new Iterator<WindowedValue<T>>() {
         @SuppressWarnings("unchecked")
         SourcePartition<T> partition = (SourcePartition<T>) split;
@@ -119,21 +134,27 @@ public class SourceRDD {
 
         @Override
         public boolean hasNext() {
-          try {
-            if (!started) {
-              started = true;
-              finished = !reader.start();
-            } else {
-              finished = !reader.advance();
-            }
-            if (finished) {
-              // safely close the reader if there are no more elements left to read.
+          // Add metrics container to the scope of org.apache.beam.sdk.io.Source.Reader methods
+          // since they may report metrics.
+          try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
+            try {
+              if (!started) {
+                started = true;
+                finished = !reader.start();
+              } else {
+                finished = !reader.advance();
+              }
+              if (finished) {
+                // safely close the reader if there are no more elements left to read.
+                closeIfNotClosed();
+              }
+              return !finished;
+            } catch (IOException e) {
               closeIfNotClosed();
+              throw new RuntimeException("Failed to read from reader.", e);
             }
-            return !finished;
           } catch (IOException e) {
-            closeIfNotClosed();
-            throw new RuntimeException("Failed to read from reader.", e);
+            throw new RuntimeException(e);
           }
         }
 
@@ -213,8 +234,10 @@ public class SourceRDD {
    */
   public static class Unbounded<T, CheckpointMarkT extends
         UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
+
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
     private final SparkRuntimeContext runtimeContext;
+    private final Partitioner partitioner;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
@@ -222,18 +245,20 @@ public class SourceRDD {
             .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(SparkContext sc,
-                     SparkRuntimeContext runtimeContext,
-                     MicrobatchSource<T, CheckpointMarkT> microbatchSource) {
+        SparkRuntimeContext runtimeContext,
+        MicrobatchSource<T, CheckpointMarkT> microbatchSource,
+        int initialNumPartitions) {
       super(sc, NIL,
           JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
       this.runtimeContext = runtimeContext;
       this.microbatchSource = microbatchSource;
+      this.partitioner = new HashPartitioner(initialNumPartitions);
     }
 
     @Override
     public Partition[] getPartitions() {
       try {
-        List<? extends Source<T>> partitionedSources = microbatchSource.splitIntoBundles(
+        List<? extends Source<T>> partitionedSources = microbatchSource.split(
             -1 /* ignored */, runtimeContext.getPipelineOptions());
         Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
@@ -244,6 +269,13 @@ public class SourceRDD {
       } catch (Exception e) {
         throw new RuntimeException("Failed to create partitions.", e);
       }
+    }
+
+    @Override
+    public Option<Partitioner> partitioner() {
+      // setting the partitioner helps to "keep" the same partitioner in the following
+      // mapWithState read for Read.Unbounded, preventing a post-mapWithState shuffle.
+      return scala.Some.apply(partitioner);
     }
 
     @Override

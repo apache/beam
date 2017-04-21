@@ -21,17 +21,17 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-import base64
 import logging
 import threading
 import time
 import traceback
 
+from apache_beam import error
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
-from apache_beam.pvalue import PCollectionView
+from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -93,8 +93,7 @@ class DataflowRunner(PipelineRunner):
         return -1
       elif 'Traceback' in msg:
         return 1
-      else:
-        return 0
+      return 0
 
     job_id = result.job_id()
     while True:
@@ -150,12 +149,85 @@ class DataflowRunner(PipelineRunner):
     result._job = response
     runner.last_error_msg = last_error_msg
 
+  @staticmethod
+  def group_by_key_input_visitor():
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class GroupByKeyInputVisitor(PipelineVisitor):
+      """A visitor that replaces `Any` element type for input `PCollection` of
+      a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
+
+      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
+      we could directly replace the coder instead of mutating the element type.
+      """
+
+      def visit_transform(self, transform_node):
+        # Imported here to avoid circular dependencies.
+        # pylint: disable=wrong-import-order, wrong-import-position
+        from apache_beam import GroupByKey, GroupByKeyOnly
+        if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
+          pcoll = transform_node.inputs[0]
+          input_type = pcoll.element_type
+          # If input_type is not specified, then treat it as `Any`.
+          if not input_type:
+            input_type = typehints.Any
+
+          if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
+            if isinstance(input_type, typehints.AnyTypeConstraint):
+              # `Any` type needs to be replaced with a KV[Any, Any] to
+              # force a KV coder as the main output coder for the pcollection
+              # preceding a GroupByKey.
+              pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
+            else:
+              # TODO: Handle other valid types,
+              # e.g. Union[KV[str, int], KV[str, float]]
+              raise ValueError(
+                  "Input to GroupByKey must be of Tuple or Any type. "
+                  "Found %s for %s" % (input_type, pcoll))
+
+    return GroupByKeyInputVisitor()
+
+  @staticmethod
+  def flatten_input_visitor():
+    # Imported here to avoid circular dependencies.
+    from apache_beam.pipeline import PipelineVisitor
+
+    class FlattenInputVisitor(PipelineVisitor):
+      """A visitor that replaces the element type for input ``PCollections``s of
+       a ``Flatten`` transform with that of the output ``PCollection``.
+      """
+
+      def visit_transform(self, transform_node):
+        # Imported here to avoid circular dependencies.
+        # pylint: disable=wrong-import-order, wrong-import-position
+        from apache_beam import Flatten
+        if isinstance(transform_node.transform, Flatten):
+          output_pcoll = transform_node.outputs[None]
+          for input_pcoll in transform_node.inputs:
+            input_pcoll.element_type = output_pcoll.element_type
+
+    return FlattenInputVisitor()
+
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.runners.dataflow.internal import apiclient
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.runners.dataflow.internal import apiclient
+    except ImportError:
+      raise ImportError(
+          'Google Cloud Dataflow runner not available, '
+          'please install apache_beam[gcp]')
     self.job = apiclient.Job(pipeline.options)
+
+    # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
+    # here.
+    pipeline.visit(self.group_by_key_input_visitor())
+
+    # Dataflow runner requires output type of the Flatten to be the same as the
+    # inputs, hence we enforce that here.
+    pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
@@ -174,7 +246,7 @@ class DataflowRunner(PipelineRunner):
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
-    self._metrics = DataflowMetrics(self.dataflow_client, result)
+    self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
 
@@ -190,8 +262,7 @@ class DataflowRunner(PipelineRunner):
       return coders.WindowedValueCoder(
           coders.registry.get_coder(typehint),
           window_coder=window_coder)
-    else:
-      return coders.registry.get_coder(typehint)
+    return coders.registry.get_coder(typehint)
 
   def _get_cloud_encoding(self, coder):
     """Returns an encoding based on a coder object."""
@@ -219,9 +290,9 @@ class DataflowRunner(PipelineRunner):
   def _get_encoded_output_coder(self, transform_node, window_value=True):
     """Returns the cloud encoding of the coder for the output of a transform."""
     if (len(transform_node.outputs) == 1
-        and transform_node.outputs[0].element_type is not None):
+        and transform_node.outputs[None].element_type is not None):
       # TODO(robertwb): Handle type hints for multi-output transforms.
-      element_type = transform_node.outputs[0].element_type
+      element_type = transform_node.outputs[None].element_type
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -229,7 +300,7 @@ class DataflowRunner(PipelineRunner):
       element_type = typehints.Any
     if window_value:
       window_coder = (
-          transform_node.outputs[0].windowing.windowfn.get_window_coder())
+          transform_node.outputs[None].windowing.windowfn.get_window_coder())
     else:
       window_coder = None
     return self._get_typehint_based_encoding(
@@ -261,46 +332,26 @@ class DataflowRunner(PipelineRunner):
 
     return step
 
-  def run_Create(self, transform_node):
-    transform = transform_node.transform
-    step = self._add_step(TransformNames.CREATE_PCOLLECTION,
-                          transform_node.full_label, transform_node)
-    # TODO(silviuc): Eventually use a coder based on typecoders.
-    # Note that we base64-encode values here so that the service will accept
-    # the values.
-    element_coder = coders.PickleCoder()
-    step.add_property(
-        PropertyNames.ELEMENT,
-        [base64.b64encode(element_coder.encode(v))
-         for v in transform.value])
-    # The service expects a WindowedValueCoder here, so we wrap the actual
-    # encoding in a WindowedValueCoder.
-    step.encoding = self._get_cloud_encoding(
-        coders.WindowedValueCoder(element_coder))
-    step.add_property(
-        PropertyNames.OUTPUT_INFO,
-        [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-
-  def run_CreatePCollectionView(self, transform_node):
-    step = self._add_step(TransformNames.COLLECTION_TO_SINGLETON,
-                          transform_node.full_label, transform_node)
-    input_tag = transform_node.inputs[0].tag
-    input_step = self._cache.get_pvalue(transform_node.inputs[0])
+  def _add_singleton_step(self, label, full_label, tag, input_step):
+    """Creates a CollectionToSingleton step used to handle ParDo side inputs."""
+    # Import here to avoid adding the dependency for local running scenarios.
+    from apache_beam.runners.dataflow.internal import apiclient
+    step = apiclient.Step(TransformNames.COLLECTION_TO_SINGLETON, label)
+    self.job.proto.steps.append(step.proto)
+    step.add_property(PropertyNames.USER_NAME, full_label)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
-         PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
+         PropertyNames.OUTPUT_NAME: input_step.get_output(tag)})
     step.encoding = self._get_side_input_encoding(input_step.encoding)
     step.add_property(
         PropertyNames.OUTPUT_INFO,
         [{PropertyNames.USER_NAME: (
-            '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
+            '%s.%s' % (full_label, PropertyNames.OUTPUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
+    return step
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,
@@ -371,21 +422,27 @@ class DataflowRunner(PipelineRunner):
     si_dict = {}
     # We must call self._cache.get_pvalue exactly once due to refcounting.
     si_labels = {}
-    for side_pval in transform_node.side_inputs:
-      si_labels[side_pval] = self._cache.get_pvalue(side_pval).step_name
     lookup_label = lambda side_pval: si_labels[side_pval]
     for side_pval in transform_node.side_inputs:
-      assert isinstance(side_pval, PCollectionView)
-      si_label = lookup_label(side_pval)
+      assert isinstance(side_pval, AsSideInput)
+      si_label = 'SideInput-' + self._get_unique_step_name()
+      si_full_label = '%s/%s' % (transform_node.full_label, si_label)
+      self._add_singleton_step(
+          si_label, si_full_label, side_pval.pvalue.tag,
+          self._cache.get_pvalue(side_pval.pvalue))
       si_dict[si_label] = {
           '@type': 'OutputReference',
           PropertyNames.STEP_NAME: si_label,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
+      si_labels[side_pval] = si_label
 
     # Now create the step for the ParDo transform being handled.
     step = self._add_step(
-        TransformNames.DO, transform_node.full_label, transform_node,
-        transform_node.transform.side_output_tags)
+        TransformNames.DO,
+        transform_node.full_label + (
+            '/Do' if transform_node.side_inputs else ''),
+        transform_node,
+        transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
     step.add_property(
@@ -396,7 +453,7 @@ class DataflowRunner(PipelineRunner):
     # Add side inputs if any.
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
-    # Generate description for main output and side outputs. The output names
+    # Generate description for the outputs. The output names
     # will be 'out' for main output and 'out_<tag>' for a tagged output.
     # Using 'out' as a tag will not clash with the name for main since it will
     # be transformed into 'out_out' internally.
@@ -409,8 +466,8 @@ class DataflowRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
-    for side_tag in transform.side_output_tags:
-      # The assumption here is that side outputs will have the same typehint
+    for side_tag in transform.output_tags:
+      # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
       outputs.append(
@@ -491,6 +548,11 @@ class DataflowRunner(PipelineRunner):
             'estimated_size_bytes': json_value.get_typed_value_descriptor(
                 transform.source.estimate_size())
         }
+      except error.RuntimeValueProviderError:
+        # Size estimation is best effort, and this error is by value provider.
+        logging.info(
+            'Could not estimate size of source %r due to ' + \
+            'RuntimeValueProviderError', transform.source)
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(

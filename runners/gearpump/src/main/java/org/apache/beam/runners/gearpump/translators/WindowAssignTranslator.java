@@ -36,7 +36,7 @@ import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import org.joda.time.Instant;
 
 /**
- * {@link Window.Bound} is translated to Gearpump flatMap function.
+ * {@link Window.Assign} is translated to Gearpump flatMap function.
  */
 @SuppressWarnings("unchecked")
 public class WindowAssignTranslator<T> implements TransformTranslator<Window.Assign<T>> {

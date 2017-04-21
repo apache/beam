@@ -158,8 +158,8 @@ class WindowFn(object):
 
   def to_runner_api(self, context):
     urn, typed_param = self.to_runner_api_parameter(context)
-    return beam_runner_api_pb2.FunctionSpec(
-        spec=beam_runner_api_pb2.UrnWithParameter(
+    return beam_runner_api_pb2.SdkFunctionSpec(
+        spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
             parameter=proto_utils.pack_Any(typed_param)))
 
@@ -245,6 +245,11 @@ class TimestampedValue(object):
   def __init__(self, value, timestamp):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
+
+  def __cmp__(self, other):
+    if type(self) is not type(other):
+      return cmp(type(self), type(other))
+    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
 
 
 class GlobalWindow(BoundedWindow):

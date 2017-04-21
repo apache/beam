@@ -19,8 +19,11 @@ package org.apache.beam.runners.direct;
 
 import java.util.Collection;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.joda.time.Duration;
 
 /**
  * An executor that schedules and executes {@link AppliedPTransform AppliedPTransforms} for both
@@ -40,8 +43,24 @@ interface PipelineExecutor {
    * root {@link AppliedPTransform AppliedPTransforms} have completed, and all
    * {@link CommittedBundle Bundles} have been consumed. Jobs may also terminate abnormally.
    *
-   * @throws Throwable whenever an executor thread throws anything, transfers the throwable to the
+   * <p>Waits for up to the provided duration, or forever if the provided duration is less than or
+   * equal to zero.
+   *
+   * @return The terminal state of the Pipeline.
+   * @throws Exception whenever an executor thread throws anything, transfers to the
    *                   waiting thread and rethrows it
    */
-  void awaitCompletion() throws Exception;
+  State waitUntilFinish(Duration duration) throws Exception;
+
+  /**
+   * Gets the current state of the {@link Pipeline}.
+   */
+  State getPipelineState();
+
+  /**
+   * Shuts down the executor.
+   *
+   * <p>The executor may continue to run for a short time after this method returns.
+   */
+  void stop();
 }

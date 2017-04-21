@@ -78,9 +78,11 @@ def get_players(descriptor):
   return Player(name), int(points)
 
 
-def run(argv=sys.argv[1:]):
+def run(args=None):
   """Runs the workflow computing total points from a collection of matches."""
 
+  if args is None:
+    args = sys.argv[1:]
   parser = argparse.ArgumentParser()
   parser.add_argument('--input',
                       required=True,
@@ -88,7 +90,7 @@ def run(argv=sys.argv[1:]):
   parser.add_argument('--output',
                       required=True,
                       help='Output file to write results to.')
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  known_args, pipeline_args = parser.parse_known_args(args)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)

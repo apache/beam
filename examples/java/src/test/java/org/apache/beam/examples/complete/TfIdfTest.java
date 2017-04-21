@@ -21,8 +21,8 @@ import java.net.URI;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Keys;
@@ -45,7 +45,7 @@ public class TfIdfTest {
 
   /** Test that the example runs. */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTfIdf() throws Exception {
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));

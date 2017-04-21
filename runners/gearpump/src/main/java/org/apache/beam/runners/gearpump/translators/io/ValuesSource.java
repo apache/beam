@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
@@ -68,7 +69,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> generateInitialSplits(
+  public java.util.List<? extends UnboundedSource<T, CheckpointMark>> split(
       int desiredNumSplits, PipelineOptions options) throws Exception {
     return Collections.singletonList(this);
   }

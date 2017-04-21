@@ -64,9 +64,11 @@
   </dependencyManagement>
 
   <modules>
+    <module>common</module>
     <module>elasticsearch</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
+    <module>hadoop</module>
     <module>hbase</module>
     <module>hdfs</module>
     <module>jdbc</module>
@@ -113,5 +115,4 @@
       </properties>
     </profile>
   </profiles>
-
 </project>

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.runWindowFn;
 import static org.apache.beam.sdk.testing.WindowFnTestUtils.set;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -152,28 +153,33 @@ public class SlidingWindowsTest {
   }
 
   @Test
-  public void testGetSideInputWindow() {
+  public void testDefaultWindowMappingFn() {
     // [40, 1040), [340, 1340), [640, 1640) ...
     SlidingWindows slidingWindows = SlidingWindows.of(new Duration(1000))
         .every(new Duration(300)).withOffset(new Duration(40));
+    WindowMappingFn<?> mapping =
+        slidingWindows.getDefaultWindowMappingFn();
+
+    assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
+
     // Prior
     assertEquals(
         new IntervalWindow(new Instant(340), new Instant(1340)),
-        slidingWindows.getSideInputWindow(
+        mapping.getSideInputWindow(
             new IntervalWindow(new Instant(0), new Instant(1041))));
     assertEquals(
         new IntervalWindow(new Instant(340), new Instant(1340)),
-        slidingWindows.getSideInputWindow(
+        mapping.getSideInputWindow(
             new IntervalWindow(new Instant(0), new Instant(1339))));
     // Align
     assertEquals(
         new IntervalWindow(new Instant(340), new Instant(1340)),
-        slidingWindows.getSideInputWindow(
+        mapping.getSideInputWindow(
             new IntervalWindow(new Instant(0), new Instant(1340))));
     // After
     assertEquals(
         new IntervalWindow(new Instant(640), new Instant(1640)),
-        slidingWindows.getSideInputWindow(
+        mapping.getSideInputWindow(
             new IntervalWindow(new Instant(0), new Instant(1341))));
   }
 

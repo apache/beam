@@ -491,7 +491,7 @@ public class AutoComplete {
 
       toWrite
         .apply(ParDo.of(new FormatForBigquery()))
-        .apply(BigQueryIO.Write
+        .apply(BigQueryIO.writeTableRows()
                .to(tableRef)
                .withSchema(FormatForBigquery.getSchema())
                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)

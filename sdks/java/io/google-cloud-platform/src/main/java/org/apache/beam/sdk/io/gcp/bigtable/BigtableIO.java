@@ -29,14 +29,12 @@ import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
-import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
-import io.grpc.Status;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
@@ -71,7 +69,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A bounded source and sink for Google Cloud Bigtable.
  *
- * <p>For more information, see the online documentation at
+ * <p>For more information about Cloud Bigtable, see the online documentation at
  * <a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable</a>.
  *
  * <h3>Reading from Cloud Bigtable</h3>
@@ -143,13 +141,13 @@ import org.slf4j.LoggerFactory;
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
- * backwards-incompatible changes in future versions of the Cloud Dataflow SDK. Cloud Bigtable is
+ * backwards-incompatible changes in future versions of the Apache Beam SDK. Cloud Bigtable is
  * in Beta, and thus it may introduce breaking changes in future revisions of its service or APIs.
  *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding
+ * pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  */
 @Experimental
@@ -213,21 +211,11 @@ public class BigtableIO {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions options = optionsBuilder.build();
-      RetryOptions retryOptions = options.getRetryOptions();
 
-      // Set data channel count to one because there is only 1 scanner in this session
-      // Use retryOptionsToBuilder because absent in Bigtable library
-      // TODO: replace with RetryOptions.toBuilder() when added to Bigtable library
-      // Set batch size because of bug (incorrect initialization) in Bigtable library
-      // TODO: remove setRetryOptions when fixed in Bigtable library
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
-          .setDataChannelCount(1)
-          .setRetryOptions(
-              retryOptionsToBuilder(retryOptions)
-                  .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
-                      retryOptions.getStreamingBufferSize() / 2))
-                  .build());
-      BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
+          .setUseCachedDataPool(true);
+      BigtableOptions optionsWithAgent =
+          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
 
       return new Read(optionsWithAgent, tableId, keyRange, filter, bigtableService);
     }
@@ -454,24 +442,16 @@ public class BigtableIO {
       checkNotNull(optionsBuilder, "optionsBuilder");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions options = optionsBuilder.build();
-      RetryOptions retryOptions = options.getRetryOptions();
 
       // Set useBulkApi to true for enabling bulk writes
-      // Use retryOptionsToBuilder because absent in Bigtable library
-      // TODO: replace with RetryOptions.toBuilder() when added to Bigtable library
-      // Set batch size because of bug (incorrect initialization) in Bigtable library
-      // TODO: remove setRetryOptions when fixed in Bigtable library
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
           .setBulkOptions(
               options.getBulkOptions().toBuilder()
                   .setUseBulkApi(true)
                   .build())
-          .setRetryOptions(
-              retryOptionsToBuilder(retryOptions)
-                  .setStreamingBatchSize(Math.min(retryOptions.getStreamingBatchSize(),
-                      retryOptions.getStreamingBufferSize() / 2))
-                  .build());
-      BigtableOptions optionsWithAgent = clonedBuilder.setUserAgent(getUserAgent()).build();
+          .setUseCachedDataPool(true);
+      BigtableOptions optionsWithAgent =
+          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
       return new Write(optionsWithAgent, tableId, bigtableService);
     }
 
@@ -744,7 +724,7 @@ public class BigtableIO {
     }
 
     @Override
-    public List<BigtableSource> splitIntoBundles(
+    public List<BigtableSource> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       // Update the desiredBundleSizeBytes in order to limit the
       // number of splits to maximumNumberOfSplits.
@@ -754,11 +734,11 @@ public class BigtableIO {
           Math.max(sizeEstimate / maximumNumberOfSplits, desiredBundleSizeBytes);
 
       // Delegate to testable helper.
-      return splitIntoBundlesBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
+      return splitBasedOnSamples(desiredBundleSizeBytes, getSampleRowKeys(options));
     }
 
     /** Helper that splits this source into bundles based on Cloud Bigtable sampled row keys. */
-    private List<BigtableSource> splitIntoBundlesBasedOnSamples(
+    private List<BigtableSource> splitBasedOnSamples(
         long desiredBundleSizeBytes, List<SampleRowKeysResponse> sampleRowKeys) {
       // There are no regions, or no samples available. Just scan the entire range.
       if (sampleRowKeys.isEmpty()) {
@@ -1020,19 +1000,32 @@ public class BigtableIO {
     }
 
     @Override
+    @Nullable
     public final synchronized BigtableSource splitAtFraction(double fraction) {
       ByteKey splitKey;
       try {
         splitKey = rangeTracker.getRange().interpolateKey(fraction);
-      } catch (IllegalArgumentException e) {
+      } catch (RuntimeException e) {
         LOG.info(
-            "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction);
+            "{}: Failed to interpolate key for fraction {}.", rangeTracker.getRange(), fraction, e);
         return null;
       }
       LOG.debug(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
-      BigtableSource primary = source.withEndKey(splitKey);
-      BigtableSource residual = source.withStartKey(splitKey);
+      BigtableSource primary;
+      BigtableSource residual;
+      try {
+         primary = source.withEndKey(splitKey);
+         residual =  source.withStartKey(splitKey);
+      } catch (RuntimeException e) {
+        LOG.info(
+            "{}: Interpolating for fraction {} yielded invalid split key {}.",
+            rangeTracker.getRange(),
+            fraction,
+            splitKey,
+            e);
+        return null;
+      }
       if (!rangeTracker.trySplitAtPosition(splitKey)) {
         return null;
       }
@@ -1056,40 +1049,16 @@ public class BigtableIO {
   }
 
   /**
-   * A helper function to produce a Cloud Bigtable user agent string.
+   * A helper function to produce a Cloud Bigtable user agent string. This need only include
+   * information about the Apache Beam SDK itself, because Bigtable will automatically append
+   * other relevant system and Bigtable client-specific version information.
+   *
+   * @see com.google.cloud.bigtable.config.BigtableVersionInfo
    */
-  private static String getUserAgent() {
-    String javaVersion = System.getProperty("java.specification.version");
+  private static String getBeamSdkPartOfUserAgent() {
     ReleaseInfo info = ReleaseInfo.getReleaseInfo();
-    return String.format(
-        "%s/%s (%s); %s",
-        info.getName(),
-        info.getVersion(),
-        javaVersion,
-        "0.3.0" /* TODO get Bigtable client version directly from jar. */);
-  }
-
-  /**
-   * A helper function to convert a RetryOptions into a RetryOptions.Builder.
-   */
-  private static RetryOptions.Builder retryOptionsToBuilder(RetryOptions options) {
-    RetryOptions.Builder builder = new RetryOptions.Builder();
-    builder.setEnableRetries(options.enableRetries());
-    builder.setInitialBackoffMillis(options.getInitialBackoffMillis());
-    builder.setBackoffMultiplier(options.getBackoffMultiplier());
-    builder.setMaxElapsedBackoffMillis(options.getMaxElaspedBackoffMillis());
-    builder.setStreamingBufferSize(options.getStreamingBufferSize());
-    builder.setStreamingBatchSize(options.getStreamingBatchSize());
-    builder.setReadPartialRowTimeoutMillis(options.getReadPartialRowTimeoutMillis());
-    builder.setMaxScanTimeoutRetries(options.getMaxScanTimeoutRetries());
-    builder.setAllowRetriesWithoutTimestamp(options.allowRetriesWithoutTimestamp());
-
-    for (Status.Code code : Status.Code.values()) {
-      if (options.isRetryable(code)) {
-        builder.addStatusToRetryOn(code);
-      }
-    }
-
-    return builder;
+    return
+        String.format("%s/%s", info.getName(), info.getVersion())
+            .replace(" ", "_");
   }
 }

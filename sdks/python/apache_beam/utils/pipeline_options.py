@@ -20,6 +20,73 @@
 import argparse
 
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.utils.value_provider import ValueProvider
+
+
+def _static_value_provider_of(value_type):
+  """"Helper function to plug a ValueProvider into argparse.
+
+  Args:
+    value_type: the type of the value. Since the type param of argparse's
+                add_argument will always be ValueProvider, we need to
+                preserve the type of the actual value.
+  Returns:
+    A partially constructed StaticValueProvider in the form of a function.
+
+  """
+  def _f(value):
+    _f.func_name = value_type.__name__
+    return StaticValueProvider(value_type, value)
+  return _f
+
+
+class BeamArgumentParser(argparse.ArgumentParser):
+  """An ArgumentParser that supports ValueProvider options.
+
+  Example Usage::
+
+    class TemplateUserOptions(PipelineOptions):
+      @classmethod
+
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--vp-arg1', default='start')
+        parser.add_value_provider_argument('--vp-arg2')
+        parser.add_argument('--non-vp-arg')
+
+  """
+  def add_value_provider_argument(self, *args, **kwargs):
+    """ValueProvider arguments can be either of type keyword or positional.
+    At runtime, even positional arguments will need to be supplied in the
+    key/value form.
+    """
+    # Extract the option name from positional argument ['pos_arg']
+    assert args != () and len(args[0]) >= 1
+    if args[0][0] != '-':
+      option_name = args[0]
+      if kwargs.get('nargs') is None:  # make them optionally templated
+        kwargs['nargs'] = '?'
+    else:
+      # or keyword arguments like [--kw_arg, -k, -w] or [--kw-arg]
+      option_name = [i.replace('--', '') for i in args if i[:2] == '--'][0]
+
+    # reassign the type to make room for using
+    # StaticValueProvider as the type for add_argument
+    value_type = kwargs.get('type') or str
+    kwargs['type'] = _static_value_provider_of(value_type)
+
+    # reassign default to default_value to make room for using
+    # RuntimeValueProvider as the default for add_argument
+    default_value = kwargs.get('default')
+    kwargs['default'] = RuntimeValueProvider(
+        option_name=option_name,
+        value_type=value_type,
+        default_value=default_value
+    )
+
+    # have add_argument do most of the work
+    self.add_argument(*args, **kwargs)
 
 
 class PipelineOptions(HasDisplayData):
@@ -49,7 +116,6 @@ class PipelineOptions(HasDisplayData):
   By default the options classes will use command line arguments to initialize
   the options.
   """
-
   def __init__(self, flags=None, **kwargs):
     """Initialize an options class.
 
@@ -67,7 +133,8 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    parser = argparse.ArgumentParser()
+    parser = BeamArgumentParser()
+
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -119,13 +186,12 @@ class PipelineOptions(HasDisplayData):
 
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
-    parser = argparse.ArgumentParser()
     subset = {}
+    parser = BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
-
     known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
 
@@ -133,7 +199,9 @@ class PipelineOptions(HasDisplayData):
     for k in result.keys():
       if k in self._all_options:
         result[k] = self._all_options[k]
-      if drop_default and parser.get_default(k) == result[k]:
+      if (drop_default and
+          parser.get_default(k) == result[k] and
+          not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
 
     return result
@@ -277,13 +345,15 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
-    parser.add_argument('--service_account_name',
-                        default=None,
-                        help='Name of the service account for Google APIs.')
-    parser.add_argument('--service_account_key_file',
-                        default=None,
-                        help='Path to a file containing the P12 service '
-                        'credentials.')
+    # The Cloud Dataflow service does not yet honor this setting. However, once
+    # service support is added then users of this SDK will be able to control
+    # the region. Default is up to the Dataflow service. See
+    # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
+    # list of valid options/
+    parser.add_argument('--region',
+                        default='us-central1',
+                        help='The Google Compute Engine region for creating '
+                        'Dataflow job.')
     parser.add_argument('--service_account_email',
                         default=None,
                         help='Identity to run virtual machines as.')
@@ -336,7 +406,7 @@ class WorkerOptions(PipelineOptions):
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
         help=
-        ('If and how to auotscale the workerpool.'))
+        ('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         dest='machine_type',
@@ -473,11 +543,11 @@ class SetupOptions(PipelineOptions):
         '--sdk_location',
         default='default',
         help=
-        ('Override the default GitHub location from where Dataflow SDK is '
-         'downloaded. It can be an URL, a GCS path, or a local path to an '
-         'SDK tarball. Workflow submissions will download or copy an SDK '
-         'tarball from here. If the string "default", '
-         'a standard SDK location is used. If empty, no SDK is copied.'))
+        ('Override the default location from where the Beam SDK is downloaded. '
+         'It can be a URL, a GCS path, or a local path to an SDK tarball. '
+         'Workflow submissions will download or copy an SDK tarball from here. '
+         'If set to the string "default", a standard SDK location is used. If '
+         'empty, no SDK is copied.'))
     parser.add_argument(
         '--extra_package', '--extra_packages',
         dest='extra_packages',

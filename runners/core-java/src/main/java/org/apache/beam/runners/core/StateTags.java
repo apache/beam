@@ -30,8 +30,8 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
 import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
 import org.apache.beam.sdk.util.state.SetState;
 import org.apache.beam.sdk.util.state.State;
@@ -84,9 +84,9 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+      CombiningState<InputT, AccumT, OutputT> bindCombining(
               String id,
-              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               CombineFn<InputT, AccumT, OutputT> combineFn) {
         return binder.bindCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
@@ -94,9 +94,9 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombining(
               String id,
-              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
         return binder.bindKeyedCombiningValue(tagForSpec(id, spec), accumCoder, combineFn);
@@ -104,9 +104,9 @@ public class StateTags {
 
       @Override
       public <InputT, AccumT, OutputT>
-          AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningWithContext(
               String id,
-              StateSpec<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+              StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
               Coder<AccumT> accumCoder,
               KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
         return binder.bindKeyedCombiningValueWithContext(
@@ -158,11 +158,11 @@ public class StateTags {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <InputT, AccumT, OutputT>
-    StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+    StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
     combiningValue(
       String id, Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combiningValue(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.combining(accumCoder, combineFn));
   }
 
   /**
@@ -170,11 +170,11 @@ public class StateTags {
    * multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT,
-      OutputT> StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+      OutputT> StateTag<K, CombiningState<InputT, AccumT, OutputT>>
       keyedCombiningValue(String id, Coder<AccumT> accumCoder,
           KeyedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombiningValue(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.keyedCombining(accumCoder, combineFn));
   }
 
   /**
@@ -182,13 +182,13 @@ public class StateTags {
    * merge multiple {@code InputT}s into a single {@code OutputT}.
    */
   public static <K, InputT, AccumT, OutputT>
-      StateTag<K, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+      StateTag<K, CombiningState<InputT, AccumT, OutputT>>
       keyedCombiningValueWithContext(
           String id,
           Coder<AccumT> accumCoder,
           KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.keyedCombiningValueWithContext(accumCoder, combineFn));
+        new StructuredId(id), StateSpecs.keyedCombiningWithContext(accumCoder, combineFn));
   }
 
   /**
@@ -199,11 +199,11 @@ public class StateTags {
    * should only be used to initialize static values.
    */
   public static <InputT, AccumT, OutputT>
-      StateTag<Object, AccumulatorCombiningState<InputT, AccumT, OutputT>>
+      StateTag<Object, CombiningState<InputT, AccumT, OutputT>>
       combiningValueFromInputInternal(
           String id, Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.combiningValueFromInputInternal(inputCoder, combineFn));
+        new StructuredId(id), StateSpecs.combiningFromInputInternal(inputCoder, combineFn));
   }
 
   /**
@@ -255,7 +255,7 @@ public class StateTags {
 
   public static <K, InputT, AccumT, OutputT> StateTag<Object, BagState<AccumT>>
       convertToBagTagInternal(
-          StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> combiningTag) {
+          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> combiningTag) {
     return new SimpleStateTag<>(
         new StructuredId(combiningTag.getId()),
         StateSpecs.convertToBagSpecInternal(combiningTag.getSpec()));

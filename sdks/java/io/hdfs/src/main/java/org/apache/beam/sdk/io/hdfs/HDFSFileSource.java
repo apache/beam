@@ -30,7 +30,6 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.URI;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.ListIterator;
@@ -40,6 +39,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -91,7 +91,7 @@ import org.slf4j.LoggerFactory;
  * {@code
  * HDFSFileSource<K, V> source = HDFSFileSource.from(path, MyInputFormat.class,
  *   MyKey.class, MyValue.class);
- * PCollection<KV<MyKey, MyValue>> records = Read.from(mySource);
+ * PCollection<KV<MyKey, MyValue>> records = pipeline.apply(Read.from(mySource));
  * }
  * </pre>
  *
@@ -105,6 +105,7 @@ import org.slf4j.LoggerFactory;
  * @param <V> the type of values to be read from the source via {@link FileInputFormat}.
  */
 @AutoValue
+@Experimental
 public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
   private static final long serialVersionUID = 0L;
 
@@ -264,7 +265,7 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
   // =======================================================================
 
   @Override
-  public List<? extends BoundedSource<T>> splitIntoBundles(
+  public List<? extends BoundedSource<T>> split(
       final long desiredBundleSizeBytes,
       PipelineOptions options) throws Exception {
     if (serializableSplit() == null) {
@@ -295,8 +296,8 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
     long size = 0;
 
     try {
-      // If this source represents a split from splitIntoBundles, then return the size of the split,
-      // rather then the entire input
+      // If this source represents a split from split,
+      // then return the size of the split, rather then the entire input
       if (serializableSplit() != null) {
         return serializableSplit().getSplit().getLength();
       }
@@ -338,9 +339,10 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
         UGIHelper.getBestUGI(username()).doAs(new PrivilegedExceptionAction<Void>() {
               @Override
               public Void run() throws Exception {
-                FileSystem fs = FileSystem.get(new URI(filepattern()),
+                final Path pathPattern = new Path(filepattern());
+                FileSystem fs = FileSystem.get(pathPattern.toUri(),
                     SerializableConfiguration.newConfiguration(serializableConfiguration()));
-                FileStatus[] fileStatuses = fs.globStatus(new Path(filepattern()));
+                FileStatus[] fileStatuses = fs.globStatus(pathPattern);
                 checkState(
                     fileStatuses != null && fileStatuses.length > 0,
                     "Unable to find any files matching %s", filepattern());

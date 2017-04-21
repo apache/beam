@@ -108,9 +108,12 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   @Override
   public Collection<IntervalWindow> assignWindows(AssignContext c) {
+    return assignWindows(c.timestamp());
+  }
+
+  public Collection<IntervalWindow> assignWindows(Instant timestamp) {
     List<IntervalWindow> windows =
         new ArrayList<>((int) (size.getMillis() / period.getMillis()));
-    Instant timestamp = c.timestamp();
     long lastStart = lastStartFor(timestamp);
     for (long start = lastStart;
          start > timestamp.minus(size).getMillis();
@@ -121,16 +124,22 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
   }
 
   /**
-   * Return the earliest window that contains the end of the main-input window.
+   * Return a {@link WindowMappingFn} that returns the earliest window that contains the end of the
+   * main-input window.
    */
   @Override
-  public IntervalWindow getSideInputWindow(final BoundedWindow window) {
-    if (window instanceof GlobalWindow) {
-      throw new IllegalArgumentException(
-          "Attempted to get side input window for GlobalWindow from non-global WindowFn");
-    }
-    long lastStart = lastStartFor(window.maxTimestamp().minus(size));
-    return new IntervalWindow(new Instant(lastStart + period.getMillis()), size);
+  public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
+    return new WindowMappingFn<IntervalWindow>() {
+      @Override
+      public IntervalWindow getSideInputWindow(BoundedWindow mainWindow) {
+        if (mainWindow instanceof GlobalWindow) {
+          throw new IllegalArgumentException(
+              "Attempted to get side input window for GlobalWindow from non-global WindowFn");
+        }
+        long lastStart = lastStartFor(mainWindow.maxTimestamp().minus(size));
+        return new IntervalWindow(new Instant(lastStart + period.getMillis()), size);
+      }
+    };
   }
 
   @Override

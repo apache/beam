@@ -285,12 +285,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), tinyXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(
         new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
@@ -308,12 +310,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), xmlWithMultiByteChars.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(
         new Train("Thomas¥", Train.TRAIN_NUMBER_UNDEFINED, null, null),
@@ -334,12 +338,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), xmlWithMultiByteElementName.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("දුම්රියන්")
             .withRecordElement("දුම්රිය")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(
         new Train("Thomas", Train.TRAIN_NUMBER_UNDEFINED, null, null),
@@ -357,18 +363,20 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLTiny");
     Files.write(file.toPath(), tinyXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(50, null);
+            .withMinBundleSize(10)
+            .createSource();
+    List<? extends BoundedSource<Train>> splits = source.split(50, null);
 
     assertTrue(splits.size() > 2);
 
     List<Train> results = new ArrayList<>();
-    for (FileBasedSource<Train> split : splits) {
+    for (BoundedSource<Train> split : splits) {
       results.addAll(readEverythingFromReader(split.createReader(null)));
     }
 
@@ -394,12 +402,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
@@ -417,10 +427,12 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRecordElement("train")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
 
     exception.expect(NullPointerException.class);
     exception.expectMessage(
@@ -433,10 +445,12 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
 
     exception.expect(NullPointerException.class);
     exception.expectMessage(
@@ -449,10 +463,12 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
-            .withRecordElement("train");
+            .withRecordElement("train")
+            .createSource();
 
     exception.expect(NullPointerException.class);
     exception.expectMessage(
@@ -465,11 +481,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("something")
             .withRecordElement("train")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
 
     exception.expectMessage("Unexpected close tag </trains>; expected </something>.");
     readEverythingFromReader(source.createReader(null));
@@ -480,11 +498,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("something")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
 
     assertEquals(readEverythingFromReader(source.createReader(null)), new ArrayList<Train>());
   }
@@ -500,11 +520,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<WrongTrainType> source =
-        XmlSource.<WrongTrainType>from(file.toPath().toString())
+    BoundedSource<WrongTrainType> source =
+        XmlIO.<WrongTrainType>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
-            .withRecordClass(WrongTrainType.class);
+            .withRecordClass(WrongTrainType.class)
+            .createSource();
 
     exception.expect(RuntimeException.class);
 
@@ -525,11 +547,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
 
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
@@ -548,12 +572,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithEmptyTags.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(new Train("Thomas", 1, "blue", null),
         new Train("Henry", 3, "green", null), new Train("Toby", 7, "brown", null),
@@ -572,14 +598,15 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
-
-    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
+    PCollection<Train> output =
+        p.apply(
+            "ReadFileData",
+            XmlIO.<Train>read()
+                .from(file.toPath().toString())
+                .withRootElement("trains")
+                .withRecordElement("train")
+                .withRecordClass(Train.class)
+                .withMinBundleSize(1024));
 
     List<Train> expectedResults =
         ImmutableList.of(new Train("Thomas", 1, "blue", null), new Train("Henry", 3, "green", null),
@@ -595,12 +622,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAttributes.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(new Train("Thomas", 1, "blue", "small"),
         new Train("Henry", 3, "green", "big"), new Train("Toby", 7, "brown", "small"),
@@ -618,12 +647,14 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithSpaces.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     List<Train> expectedResults = ImmutableList.of(new Train("Thomas   ", 1, "blue", null),
         new Train("Henry", 3, "green", null), new Train("Toby", 7, "  brown  ", null),
@@ -642,12 +673,14 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
+            .withMinBundleSize(1024)
+            .createSource();
 
     assertThat(
         trainsToStrings(trains),
@@ -662,13 +695,15 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
+    PCollection<Train> output =
+        p.apply(
+            "ReadFileData",
+            XmlIO.<Train>read()
+                .from(file.toPath().toString())
+                .withRootElement("trains")
+                .withRecordElement("train")
+                .withRecordClass(Train.class)
+                .withMinBundleSize(1024));
 
     PAssert.that(output).containsInAnyOrder(trains);
     p.run();
@@ -680,18 +715,20 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(10);
     File file = createRandomTrainXML(fileName, trains);
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(100, null);
+            .withMinBundleSize(10)
+            .createSource();
+    List<? extends BoundedSource<Train>> splits = source.split(100, null);
 
     assertTrue(splits.size() > 2);
 
     List<Train> results = new ArrayList<>();
-    for (FileBasedSource<Train> split : splits) {
+    for (BoundedSource<Train> split : splits) {
       results.addAll(readEverythingFromReader(split.createReader(null)));
     }
 
@@ -704,19 +741,21 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(10);
-    List<? extends FileBasedSource<Train>> splits = source.splitIntoBundles(256, null);
+            .withMinBundleSize(10)
+            .createSource();
+    List<? extends BoundedSource<Train>> splits = source.split(256, null);
 
     // Not a trivial split
     assertTrue(splits.size() > 2);
 
     List<Train> results = new ArrayList<>();
-    for (FileBasedSource<Train> split : splits) {
+    for (BoundedSource<Train> split : splits) {
       results.addAll(readEverythingFromReader(split.createReader(null)));
     }
     assertThat(trainsToStrings(trains), containsInAnyOrder(trainsToStrings(results).toArray()));
@@ -729,15 +768,17 @@ public class XmlSourceTest {
     List<Train> trains = generateRandomTrainList(100);
     File file = createRandomTrainXML(fileName, trains);
 
-    XmlSource<Train> fileSource =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> fileSource =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(Train.class)
-            .withMinBundleSize(10);
+            .withMinBundleSize(10)
+            .createSource();
 
-    List<? extends FileBasedSource<Train>> splits =
-        fileSource.splitIntoBundles(file.length() / 3, null);
+    List<? extends BoundedSource<Train>> splits =
+        fileSource.split(file.length() / 3, null);
     for (BoundedSource<Train> splitSource : splits) {
       int numItems = readEverythingFromReader(splitSource.createReader(null)).size();
       // Should not split while unstarted.
@@ -771,11 +812,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAllFeaturesSingleByte.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("trains")
             .withRecordElement("train")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
     assertSplitAtFractionExhaustive(source, options);
   }
 
@@ -788,11 +831,13 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXMLWithAllFeaturesMultiByte.getBytes(StandardCharsets.UTF_8));
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.toPath().toString())
+    BoundedSource<Train> source =
+        XmlIO.<Train>read()
+            .from(file.toPath().toString())
             .withRootElement("දුම්රියන්")
             .withRecordElement("දුම්රිය")
-            .withRecordClass(Train.class);
+            .withRecordClass(Train.class)
+            .createSource();
     assertSplitAtFractionExhaustive(source, options);
   }
 
@@ -808,13 +853,15 @@ public class XmlSourceTest {
     generateRandomTrainList(8);
     createRandomTrainXML("otherfile.xml", trains1);
 
-    XmlSource<Train> source =
-        XmlSource.<Train>from(file.getParent() + "/" + "temp*.xml")
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .withMinBundleSize(1024);
-    PCollection<Train> output = p.apply("ReadFileData", Read.from(source));
+    PCollection<Train> output =
+        p.apply(
+            "ReadFileData",
+            XmlIO.<Train>read()
+                .from(file.getParent() + "/" + "temp*.xml")
+                .withRootElement("trains")
+                .withRecordElement("train")
+                .withRecordClass(Train.class)
+                .withMinBundleSize(1024));
 
     List<Train> expectedResults = new ArrayList<>();
     expectedResults.addAll(trains1);
@@ -827,15 +874,14 @@ public class XmlSourceTest {
 
   @Test
   public void testDisplayData() {
-
-
-    XmlSource<?> source = XmlSource
-        .<Integer>from("foo.xml")
-        .withRootElement("bird")
-        .withRecordElement("cat")
-        .withMinBundleSize(1234)
-        .withRecordClass(Integer.class);
-    DisplayData displayData = DisplayData.from(source);
+    DisplayData displayData =
+        DisplayData.from(
+            XmlIO.<Integer>read()
+                .from("foo.xml")
+                .withRootElement("bird")
+                .withRecordElement("cat")
+                .withMinBundleSize(1234)
+                .withRecordClass(Integer.class));
 
     assertThat(displayData, hasDisplayItem("filePattern", "foo.xml"));
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));

@@ -41,7 +41,7 @@ import org.hamcrest.Matchers;
  * documentation there. Values retained by a {@link SerializableMatcher} are required to be
  * serializable, either via Java serialization or via a provided {@link Coder}.
  *
- * <p>The following matchers are novel to Dataflow:
+ * <p>The following matchers are novel to Apache Beam:
  * <ul>
  * <li>{@link #kvWithKey} for matching just the key of a {@link KV}.
  * <li>{@link #kvWithValue} for matching just the value of a {@link KV}.
@@ -1044,7 +1044,7 @@ class SerializableMatchers implements Serializable {
    * with a {@link SerializableSupplier#get()} method that returns a fresh instance of the
    * {@link Matcher} desired. The resulting {@link SerializableMatcher} will behave according to
    * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
-   * during matching (which may occur on another machine, such as a Dataflow worker).
+   * during matching (which may occur on another machine).
    *
    * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {

@@ -30,4 +30,7 @@ public interface MetricQueryResults {
 
   /** Return the metric results for the distributions that matched the filter. */
   Iterable<MetricResult<DistributionResult>> distributions();
+
+  /** Return the metric results for the gauges that matched the filter. */
+  Iterable<MetricResult<GaugeResult>> gauges();
 }

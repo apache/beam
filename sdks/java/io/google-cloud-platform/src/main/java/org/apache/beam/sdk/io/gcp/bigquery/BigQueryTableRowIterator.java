@@ -139,8 +139,7 @@ class BigQueryTableRowIterator implements AutoCloseable {
     while (true) {
       if (iteratorOverCurrentBatch != null && iteratorOverCurrentBatch.hasNext()) {
         // Embed schema information into the raw row, so that values have an
-        // associated key.  This matches how rows are read when using the
-        // DataflowRunner.
+        // associated key.
         current = getTypedTableRow(schema.getFields(), iteratorOverCurrentBatch.next());
         return true;
       }

@@ -54,7 +54,6 @@ public abstract class MetricNameFilter {
   public static MetricNameFilter named(Class<?> namespace, String name) {
     checkNotNull(namespace, "Must specify a inNamespace");
     checkNotNull(name, "Must specify a name");
-    return new AutoValue_MetricNameFilter(namespace.getSimpleName(), name);
+    return new AutoValue_MetricNameFilter(namespace.getName(), name);
   }
 }
-

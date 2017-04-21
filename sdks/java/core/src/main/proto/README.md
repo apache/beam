@@ -17,9 +17,6 @@
     under the License.
 -->
 
-This directory contains the Protocol Buffer messages used in Google Cloud
-Dataflow.
-
 ## Protocol Buffers in Apache Beam
 
 This directory contains the Protocol Buffer messages used in Apache Beam.

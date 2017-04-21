@@ -34,7 +34,7 @@ import org.joda.time.Instant;
  *
  * <p>The operations are:
  * <ul>
- * <li>Splitting into bundles of given size: {@link #splitIntoBundles};
+ * <li>Splitting into sources that read bundles of given size: {@link #split};
  * <li>Size estimation: {@link #getEstimatedSizeBytes};
  * <li>The accompanying {@link BoundedReader reader} has additional functionality to enable runners
  * to dynamically adapt based on runtime conditions.
@@ -54,13 +54,25 @@ public abstract class BoundedSource<T> extends Source<T> {
   /**
    * Splits the source into bundles of approximately {@code desiredBundleSizeBytes}.
    */
-  public abstract List<? extends BoundedSource<T>> splitIntoBundles(
+  public abstract List<? extends BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception;
+
+  /**
+   * {@link BoundedSource#split(long, PipelineOptions)} old method name to be used with Dataflow.
+   */
+  @Deprecated
+  public List<? extends BoundedSource<T>> splitIntoBundles(
+      long desiredBundleSizeBytes, PipelineOptions options) throws Exception{
+      return split(desiredBundleSizeBytes, options);
+  }
 
   /**
    * An estimate of the total size (in bytes) of the data that would be read from this source.
    * This estimate is in terms of external storage size, before any decompression or other
    * processing done by the reader.
+   *
+   * <p>If there is no way to estimate the size of the source
+   * implementations MAY return 0L.
    */
   public abstract long getEstimatedSizeBytes(PipelineOptions options) throws Exception;
 
@@ -104,9 +116,7 @@ public abstract class BoundedSource<T> extends Source<T> {
    *
    * <p>Sources which support dynamic work rebalancing should use
    * {@link org.apache.beam.sdk.io.range.RangeTracker} to manage the (source-specific)
-   * range of positions that is being split. If your source supports dynamic work rebalancing,
-   * please use that class to implement it if possible; if not possible, please contact the team
-   * at <i>dataflow-feedback@google.com</i>.
+   * range of positions that is being split.
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public abstract static class BoundedReader<T> extends Source.Reader<T> {

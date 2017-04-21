@@ -120,13 +120,6 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
-    <Method name="reset" />
-    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
-    <!-- Explicitly handled in implementation. -->
-  </Match>
-
-  <Match>
     <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
     <Method name="readAll" />
     <Bug pattern="EI_EXPOSE_REP"/>
@@ -152,6 +145,40 @@
     <Method name="writeAndOwn" />
     <Bug pattern="EI_EXPOSE_REP"/>
     <!-- Takes ownership of input buffer -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$MonitorRunnable" />
+    <Method name="shouldShutdown" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+    <!-- visibleUpdates is a non-capacity-limited LinkedBlockingQueue, which
+      can never refuse an offered update -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$DirectBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
   </Match>
 
   <Match>
@@ -346,7 +373,7 @@
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningValueStateSpec"/>
+    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningStateSpec"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->

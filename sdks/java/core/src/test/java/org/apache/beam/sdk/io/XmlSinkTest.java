@@ -59,7 +59,6 @@ public class XmlSinkTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private Class<Bird> testClass = Bird.class;
   private String testRootElement = "testElement";
   private String testFilePrefix = "/path/to/testPrefix";
 
@@ -70,7 +69,12 @@ public class XmlSinkTest {
   public void testXmlWriter() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
-        XmlSink.writeOf(Bird.class, "birds", testFilePrefix).createWriteOperation(options);
+        XmlIO.<Bird>write()
+            .toFilenamePrefix(testFilePrefix)
+            .withRecordClass(Bird.class)
+            .withRootElement("birds")
+            .createSink()
+            .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
 
     List<Bird> bundle =
@@ -85,51 +89,37 @@ public class XmlSinkTest {
    * Builder methods correctly initialize an XML Sink.
    */
   @Test
-  public void testBuildXmlSink() {
-    XmlSink.Bound<Bird> sink =
-        XmlSink.write()
+  public void testBuildXmlWriteTransform() {
+    XmlIO.Write<Bird> write =
+        XmlIO.<Bird>write()
             .toFilenamePrefix(testFilePrefix)
-            .ofRecordClass(testClass)
+            .withRecordClass(Bird.class)
             .withRootElement(testRootElement);
-    assertEquals(testClass, sink.classToBind);
-    assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
+    assertEquals(Bird.class, write.getRecordClass());
+    assertEquals(testRootElement, write.getRootElement());
+    assertEquals(testFilePrefix, write.getFilenamePrefix());
   }
 
-  /**
-   * Alternate builder method correctly initializes an XML Sink.
-   */
+  /** Validation ensures no fields are missing. */
   @Test
-  public void testBuildXmlSinkDirect() {
-    XmlSink.Bound<Bird> sink =
-        XmlSink.writeOf(Bird.class, testRootElement, testFilePrefix);
-    assertEquals(testClass, sink.classToBind);
-    assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
+  public void testValidateXmlSinkMissingRecordClass() {
+    thrown.expect(NullPointerException.class);
+    XmlIO.<Bird>write()
+        .withRootElement(testRootElement)
+        .toFilenamePrefix(testFilePrefix)
+        .validate(null);
   }
 
-  /**
-   * Validation ensures no fields are missing.
-   */
   @Test
-  public void testValidateXmlSinkMissingFields() {
-    XmlSink.Bound<Bird> sink;
-    sink = XmlSink.writeOf(null, testRootElement, testFilePrefix);
-    validateAndFailIfSucceeds(sink, NullPointerException.class);
-    sink = XmlSink.writeOf(testClass, null, testFilePrefix);
-    validateAndFailIfSucceeds(sink, NullPointerException.class);
-    sink = XmlSink.writeOf(testClass, testRootElement, null);
-    validateAndFailIfSucceeds(sink, NullPointerException.class);
+  public void testValidateXmlSinkMissingRootElement() {
+    thrown.expect(NullPointerException.class);
+    XmlIO.<Bird>write().withRecordClass(Bird.class).toFilenamePrefix(testFilePrefix).validate(null);
   }
 
-  /**
-   * Call validate and fail if validation does not throw the expected exception.
-   */
-  private <T> void validateAndFailIfSucceeds(
-      XmlSink.Bound<T> sink, Class<? extends Exception> expected) {
-    thrown.expect(expected);
-    PipelineOptions options = PipelineOptionsFactory.create();
-    sink.validate(options);
+  @Test
+  public void testValidateXmlSinkMissingFilePrefix() {
+    thrown.expect(NullPointerException.class);
+    XmlIO.<Bird>write().withRecordClass(Bird.class).withRootElement(testRootElement).validate(null);
   }
 
   /**
@@ -138,13 +128,13 @@ public class XmlSinkTest {
   @Test
   public void testCreateWriteOperations() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    XmlSink.Bound<Bird> sink =
-        XmlSink.writeOf(testClass, testRootElement, testFilePrefix);
+    XmlSink<Bird> sink =
+        XmlIO.<Bird>write()
+            .withRecordClass(Bird.class)
+            .withRootElement(testRootElement)
+            .toFilenamePrefix(testFilePrefix)
+            .createSink();
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
-    assertEquals(testClass, writeOp.getSink().classToBind);
-    assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename.get());
-    assertEquals(testRootElement, writeOp.getSink().rootElementName);
-    assertEquals(XmlSink.XML_EXTENSION, writeOp.getSink().extension);
     Path outputPath = new File(testFilePrefix).toPath();
     Path tempPath = new File(writeOp.tempDirectory.get()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
@@ -159,7 +149,11 @@ public class XmlSinkTest {
   public void testCreateWriter() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
-        XmlSink.writeOf(testClass, testRootElement, testFilePrefix)
+        XmlIO.<Bird>write()
+            .withRecordClass(Bird.class)
+            .withRootElement(testRootElement)
+            .toFilenamePrefix(testFilePrefix)
+            .createSink()
             .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
     Path outputPath = new File(testFilePrefix).toPath();
@@ -167,18 +161,17 @@ public class XmlSinkTest {
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
         tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
-    assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
   }
 
   @Test
   public void testDisplayData() {
-    XmlSink.Bound<Integer> sink = XmlSink.write()
+    XmlIO.Write<Integer> write = XmlIO.<Integer>write()
         .toFilenamePrefix("foobar")
         .withRootElement("bird")
-        .ofRecordClass(Integer.class);
+        .withRecordClass(Integer.class);
 
-    DisplayData displayData = DisplayData.from(sink);
+    DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("fileNamePattern", "foobar-SSSSS-of-NNNNN.xml"));
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));

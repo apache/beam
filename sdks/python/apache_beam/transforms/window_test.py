@@ -62,6 +62,12 @@ reify_windows = core.ParDo(ReifyWindowsFn())
 
 class WindowTest(unittest.TestCase):
 
+  def test_timestamped_value_cmp(self):
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2))
+    self.assertEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.0))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('a', 2.1))
+    self.assertNotEqual(TimestampedValue('a', 2), TimestampedValue('b', 2))
+
   def test_global_window(self):
     self.assertEqual(GlobalWindow(), GlobalWindow())
     self.assertNotEqual(GlobalWindow(),
@@ -142,7 +148,7 @@ class WindowTest(unittest.TestCase):
 
   def timestamped_key_values(self, pipeline, key, *timestamps):
     return (pipeline | 'start' >> Create(timestamps)
-            | Map(lambda x: WindowedValue((key, x), x, [])))
+            | Map(lambda x: WindowedValue((key, x), x, [GlobalWindow()])))
 
   def test_sliding_windows(self):
     p = TestPipeline()

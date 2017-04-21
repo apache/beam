@@ -91,10 +91,6 @@ class CombiningValueStateTag(StateTag):
 
 class ListStateTag(StateTag):
   """StateTag pointing to a list of elements."""
-
-  def __init__(self, tag):
-    super(ListStateTag, self).__init__(tag)
-
   def __repr__(self):
     return 'ListStateTag(%s)' % self.tag
 
@@ -122,7 +118,7 @@ class WatermarkHoldStateTag(StateTag):
 class TriggerFn(object):
   """A TriggerFn determines when window (panes) are emitted.
 
-  See https://cloud.google.com/dataflow/model/triggers.
+  See https://beam.apache.org/documentation/programming-guide/#triggers
   """
   __metaclass__ = ABCMeta
 
@@ -192,7 +188,7 @@ class TriggerFn(object):
         'after_all': AfterAll,
         'after_any': AfterFirst,
         'after_each': AfterEach,
-        'after_end_of_widow': AfterWatermark,
+        'after_end_of_window': AfterWatermark,
         # after_processing_time, after_synchronized_processing_time
         # always
         'default': DefaultTrigger,
@@ -304,8 +300,7 @@ class AfterWatermark(TriggerFn):
     elif self.early:
       return self.early.should_fire(
           watermark, window, NestedContext(context, 'early'))
-    else:
-      return False
+    return False
 
   def on_fire(self, watermark, window, context):
     if self.is_late(context):
@@ -338,12 +333,12 @@ class AfterWatermark(TriggerFn):
   def from_runner_api(proto, context):
     return AfterWatermark(
         early=TriggerFn.from_runner_api(
-            proto.after_end_of_widow.early_firings, context)
-        if proto.after_end_of_widow.HasField('early_firings')
+            proto.after_end_of_window.early_firings, context)
+        if proto.after_end_of_window.HasField('early_firings')
         else None,
         late=TriggerFn.from_runner_api(
-            proto.after_end_of_widow.late_firings, context)
-        if proto.after_end_of_widow.HasField('late_firings')
+            proto.after_end_of_window.late_firings, context)
+        if proto.after_end_of_window.HasField('late_firings')
         else None)
 
   def to_runner_api(self, context):
@@ -352,7 +347,7 @@ class AfterWatermark(TriggerFn):
     late_proto = self.late.underlying.to_runner_api(
         context) if self.late else None
     return beam_runner_api_pb2.Trigger(
-        after_end_of_widow=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
+        after_end_of_window=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
             early_firings=early_proto,
             late_firings=late_proto))
 
@@ -493,8 +488,7 @@ class ParallelTriggerFn(TriggerFn):
         in proto.after_all.subtriggers or proto.after_any.subtriggers]
     if proto.after_all.subtriggers:
       return AfterAll(*subtriggers)
-    else:
-      return AfterFirst(*subtriggers)
+    return AfterFirst(*subtriggers)
 
   def to_runner_api(self, context):
     subtriggers = [
@@ -596,10 +590,6 @@ class AfterEach(TriggerFn):
 
 
 class OrFinally(AfterFirst):
-
-  def __init__(self, body_trigger, exit_trigger):
-    super(OrFinally, self).__init__(body_trigger, exit_trigger)
-
   @staticmethod
   def from_runner_api(proto, context):
     return OrFinally(
@@ -792,11 +782,11 @@ class MergeableStateAdapter(SimpleState):
   def _get_id(self, window):
     if window in self.window_ids:
       return self.window_ids[window][0]
-    else:
-      window_id = self._get_next_counter()
-      self.window_ids[window] = [window_id]
-      self._persist_window_ids()
-      return window_id
+
+    window_id = self._get_next_counter()
+    self.window_ids[window] = [window_id]
+    self._persist_window_ids()
+    return window_id
 
   def _get_ids(self, window):
     return self.window_ids.get(window, [])
@@ -849,7 +839,7 @@ class TriggerDriver(object):
 
 
 class _UnwindowedValues(observable.ObservableMixin):
-  """Exposes iterable of windowed values as interable of unwindowed values."""
+  """Exposes iterable of windowed values as iterable of unwindowed values."""
 
   def __init__(self, windowed_values):
     super(_UnwindowedValues, self).__init__()

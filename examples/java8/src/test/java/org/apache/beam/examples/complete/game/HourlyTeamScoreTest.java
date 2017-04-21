@@ -25,8 +25,8 @@ import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -45,7 +45,7 @@ import org.junit.runners.JUnit4;
  * Tests of HourlyTeamScore.
  * Because the pipeline was designed for easy readability and explanations, it lacks good
  * modularity for testing. See our testing documentation for better ideas:
- * https://cloud.google.com/dataflow/pipelines/testing-your-pipeline.
+ * https://beam.apache.org/documentation/pipelines/test-your-pipeline/
  */
 @RunWith(JUnit4.class)
 public class HourlyTeamScoreTest implements Serializable {
@@ -86,7 +86,7 @@ public class HourlyTeamScoreTest implements Serializable {
 
   /** Test the filtering. */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUserScoresFilter() throws Exception {
 
     final Instant startMinTimestamp = new Instant(1447965680000L);
@@ -101,9 +101,8 @@ public class HourlyTeamScoreTest implements Serializable {
               -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
       // run a map to access the fields in the result.
       .apply(MapElements
-          .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-          .withOutputType(
-              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+          .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
       PAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
 

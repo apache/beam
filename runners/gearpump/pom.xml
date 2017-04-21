@@ -43,13 +43,13 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <gearpump.version>0.8.3-SNAPSHOT</gearpump.version>
+    <gearpump.version>0.8.3</gearpump.version>
   </properties>
 
   <profiles>
     <profile>
-      <id>local-runnable-on-service-tests</id>
-      <activation><activeByDefault>true</activeByDefault></activation>
+      <id>local-validates-runner-tests</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>
@@ -63,14 +63,15 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
                   <excludedGroups>
                     org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
                     org.apache.beam.sdk.testing.UsesStatefulParDo,
                     org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesAttemptedMetrics,
-                    org.apache.beam.sdk.testing.UsesCommittedMetrics
+                    org.apache.beam.sdk.testing.UsesCommittedMetrics,
+                    org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>

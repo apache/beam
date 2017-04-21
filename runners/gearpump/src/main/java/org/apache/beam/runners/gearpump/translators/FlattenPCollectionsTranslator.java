@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
@@ -45,8 +45,8 @@ public class FlattenPCollectionsTranslator<T> implements
   public void translate(Flatten.PCollections<T> transform, TranslationContext context) {
     JavaStream<T> merged = null;
     Set<PCollection<T>> unique = new HashSet<>();
-    for (TaggedPValue input: context.getInputs()) {
-      PCollection<T> collection = (PCollection<T>) input.getValue();
+    for (PValue input: context.getInputs().values()) {
+      PCollection<T> collection = (PCollection<T>) input;
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
         merged = inputStream;

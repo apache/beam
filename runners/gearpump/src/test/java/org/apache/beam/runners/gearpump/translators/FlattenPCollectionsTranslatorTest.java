@@ -26,13 +26,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 import org.apache.gearpump.streaming.source.DataSource;
@@ -55,10 +57,10 @@ public class FlattenPCollectionsTranslatorTest {
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testTranslateWithEmptyCollection() {
-    PValue mockOutput = mock(PValue.class);
+    PCollection mockOutput = mock(PCollection.class);
     TranslationContext translationContext = mock(TranslationContext.class);
 
-    when(translationContext.getInputs()).thenReturn(Collections.EMPTY_LIST);
+    when(translationContext.getInputs()).thenReturn(Collections.EMPTY_MAP);
     when(translationContext.getOutput()).thenReturn(mockOutput);
 
     translator.translate(transform, translationContext);
@@ -71,11 +73,12 @@ public class FlattenPCollectionsTranslatorTest {
     JavaStream javaStream = mock(JavaStream.class);
     TranslationContext translationContext = mock(TranslationContext.class);
 
-    TaggedPValue mockInput = mock(TaggedPValue.class);
+    Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+    TupleTag tag = mock(TupleTag.class);
     PCollection mockCollection = mock(PCollection.class);
-    when(mockInput.getValue()).thenReturn(mockCollection);
+    inputs.put(tag, mockCollection);
 
-    when(translationContext.getInputs()).thenReturn(Lists.newArrayList(mockInput));
+    when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection)).thenReturn(javaStream);
 
     PValue mockOutput = mock(PValue.class);
@@ -93,22 +96,30 @@ public class FlattenPCollectionsTranslatorTest {
 
     JavaStream javaStream1 = mock(JavaStream.class);
     JavaStream javaStream2 = mock(JavaStream.class);
+    JavaStream mergedStream = mock(JavaStream.class);
     TranslationContext translationContext = mock(TranslationContext.class);
 
-    TaggedPValue mockInput1 = mock(TaggedPValue.class);
+    Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+    TupleTag tag1 = mock(TupleTag.class);
     PCollection mockCollection1 = mock(PCollection.class);
-    when(mockInput1.getValue()).thenReturn(mockCollection1);
+    inputs.put(tag1, mockCollection1);
 
-    TaggedPValue mockInput2 = mock(TaggedPValue.class);
+    TupleTag tag2 = mock(TupleTag.class);
     PCollection mockCollection2 = mock(PCollection.class);
-    when(mockInput2.getValue()).thenReturn(mockCollection2);
+    inputs.put(tag2, mockCollection2);
 
-    when(translationContext.getInputs()).thenReturn(Lists.newArrayList(mockInput1, mockInput2));
+    PCollection output = mock(PCollection.class);
+
+    when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
     when(translationContext.getInputStream(mockCollection2)).thenReturn(javaStream2);
+    when(javaStream1.merge(javaStream2, transformName)).thenReturn(mergedStream);
+    when(javaStream2.merge(javaStream1, transformName)).thenReturn(mergedStream);
+
+    when(translationContext.getOutput()).thenReturn(output);
 
     translator.translate(transform, translationContext);
-    verify(javaStream1).merge(javaStream2, transformName);
+    verify(translationContext).setOutputStream(output, mergedStream);
   }
 
   @Test
@@ -120,14 +131,15 @@ public class FlattenPCollectionsTranslatorTest {
     JavaStream javaStream1 = mock(JavaStream.class);
     TranslationContext translationContext = mock(TranslationContext.class);
 
+    Map<TupleTag<?>, PValue> inputs = new HashMap<>();
+    TupleTag tag1 = mock(TupleTag.class);
     PCollection mockCollection1 = mock(PCollection.class);
-    TaggedPValue mockInput1 = mock(TaggedPValue.class);
-    when(mockInput1.getValue()).thenReturn(mockCollection1);
+    inputs.put(tag1, mockCollection1);
 
-    TaggedPValue mockInput2 = mock(TaggedPValue.class);
-    when(mockInput2.getValue()).thenReturn(mockCollection1);
+    TupleTag tag2 = mock(TupleTag.class);
+    inputs.put(tag2, mockCollection1);
 
-    when(translationContext.getInputs()).thenReturn(Lists.newArrayList(mockInput1, mockInput2));
+    when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
 
     translator.translate(transform, translationContext);

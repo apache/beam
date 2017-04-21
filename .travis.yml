@@ -34,7 +34,7 @@ addons:
     - python2.7
 env:
   global:
-   - MAVEN_OVERRIDE="--settings=.travis/settings.xml"
+   - MAVEN_OVERRIDE="--settings=.test-infra/travis/settings.xml"
    - MAVEN_CONTAINER_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
 
 matrix:
@@ -68,7 +68,6 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
   - export BEAM_SUREFIRE_ARGLINE="-Xmx512m"
   # Python SDK environment settings.
-  - export TOX_ENV=py27
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export TOX_HOME=$HOME/Library/Python/2.7/bin; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then export TOX_HOME=$HOME/.local/bin; fi
 
@@ -81,8 +80,8 @@ install:
   - rm -rf "$HOME/.m2/repository/org/apache/gearpump"
 
 script:
-  - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -e $TOX_ENV -c sdks/python/tox.ini; fi
-  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .travis/test_wordcount.sh; fi
+  - if [ "$TEST_PYTHON" ]; then travis_retry $TOX_HOME/tox -c sdks/python/tox.ini; fi
+  - if [ ! "$TEST_PYTHON" ]; then travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates --threads 1C $MAVEN_OVERRIDE install && travis_retry bash -ex .test-infra/travis/test_wordcount.sh; fi
 
 cache:
   directories:

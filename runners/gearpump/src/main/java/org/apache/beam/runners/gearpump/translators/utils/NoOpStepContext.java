@@ -49,7 +49,8 @@ public class NoOpStepContext implements ExecutionContext.StepContext, Serializab
   }
 
   @Override
-  public void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output) {
+  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
+
   }
 
   @Override

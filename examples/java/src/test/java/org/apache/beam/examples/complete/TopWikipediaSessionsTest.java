@@ -20,8 +20,8 @@ package org.apache.beam.examples.complete;
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -38,7 +38,7 @@ public class TopWikipediaSessionsTest {
   public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testComputeTopUsers() {
 
     PCollection<String> output =

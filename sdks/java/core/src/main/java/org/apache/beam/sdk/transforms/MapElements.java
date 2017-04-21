@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -26,34 +29,27 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class MapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+  /**
+   * Temporarily stores the argument of {@link #into(TypeDescriptor)} until combined with the
+   * argument of {@link #via(SerializableFunction)} into the fully-specified {@link #fn}. Stays null
+   * if constructed using {@link #via(SimpleFunction)} directly.
+   */
+  @Nullable private final transient TypeDescriptor<OutputT> outputType;
 
   /**
-   * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
-   * returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns
-   * a {@code PCollection<OutputT>} containing {@code fn.apply(v)} for every element {@code v} in
-   * the input.
-   *
-   * <p>Example of use in Java 8:
-   * <pre>{@code
-   * PCollection<Integer> wordLengths = words.apply(
-   *     MapElements.via((String word) -> word.length())
-   *         .withOutputType(new TypeDescriptor<Integer>() {});
-   * }</pre>
-   *
-   * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
-   * descriptor need not be provided.
+   * Non-null on a fully specified transform - is null only when constructed using {@link
+   * #into(TypeDescriptor)}, until the fn is specified using {@link #via(SerializableFunction)}.
    */
-  public static <InputT, OutputT> MissingOutputTypeDescriptor<InputT, OutputT>
-  via(SerializableFunction<? super InputT, OutputT> fn) {
+  @Nullable private final SimpleFunction<InputT, OutputT> fn;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
-    // TypeDescriptor interacts poorly with the wildcards needed to correctly express
-    // covariance and contravariance in Java, so instead we cast it to an invariant
-    // function here.
-    @SuppressWarnings("unchecked") // safe covariant cast
-        SerializableFunction<InputT, OutputT> simplerFn =
-        (SerializableFunction<InputT, OutputT>) fn;
-
-    return new MissingOutputTypeDescriptor<>(simplerFn);
+  private MapElements(
+      @Nullable SimpleFunction<InputT, OutputT> fn,
+      @Nullable TypeDescriptor<OutputT> outputType,
+      @Nullable Class<?> fnClass) {
+    this.fn = fn;
+    this.outputType = outputType;
+    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
   }
 
   /**
@@ -77,41 +73,46 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT> via(
       final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, fn.getClass());
+    return new MapElements<>(fn, null, fn.getClass());
   }
 
   /**
-   * An intermediate builder for a {@link MapElements} transform. To complete the transform, provide
-   * an output type descriptor to {@link MissingOutputTypeDescriptor#withOutputType}. See
-   * {@link #via(SerializableFunction)} for a full example of use.
+   * Returns a new {@link MapElements} transform with the given type descriptor for the output
+   * type, but the mapping function yet to be specified using {@link #via(SerializableFunction)}.
    */
-  public static final class MissingOutputTypeDescriptor<InputT, OutputT> {
-
-    private final SerializableFunction<InputT, OutputT> fn;
-
-    private MissingOutputTypeDescriptor(SerializableFunction<InputT, OutputT> fn) {
-      this.fn = fn;
-    }
-
-    public MapElements<InputT, OutputT> withOutputType(final TypeDescriptor<OutputT> outputType) {
-      return new MapElements<>(
-          SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType), fn.getClass());
-    }
-
+  public static <OutputT> MapElements<?, OutputT>
+  into(final TypeDescriptor<OutputT> outputType) {
+    return new MapElements<>(null, outputType, null);
   }
 
-  ///////////////////////////////////////////////////////////////////
-
-  private final SimpleFunction<InputT, OutputT> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
-
-  private MapElements(SimpleFunction<InputT, OutputT> fn, Class<?> fnClass) {
-    this.fn = fn;
-    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
+  /**
+   * For a {@code SerializableFunction<InputT, OutputT>} {@code fn} and output type descriptor,
+   * returns a {@code PTransform} that takes an input {@code PCollection<InputT>} and returns a
+   * {@code PCollection<OutputT>} containing {@code fn.apply(v)} for every element {@code v} in the
+   * input.
+   *
+   * <p>Example of use in Java 8:
+   *
+   * <pre>{@code
+   * PCollection<Integer> wordLengths = words.apply(
+   *     MapElements.into(TypeDescriptors.integers())
+   *                .via((String word) -> word.length()));
+   * }</pre>
+   *
+   * <p>In Java 7, the overload {@link #via(SimpleFunction)} is more concise as the output type
+   * descriptor need not be provided.
+   */
+  public <NewInputT> MapElements<NewInputT, OutputT> via(
+      SerializableFunction<NewInputT, OutputT> fn) {
+    return new MapElements<>(
+        SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType),
+        null,
+        fn.getClass());
   }
 
   @Override
   public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    checkNotNull(fn, "Must specify a function on MapElements using .via()");
     return input.apply(
         "Map",
         ParDo.of(

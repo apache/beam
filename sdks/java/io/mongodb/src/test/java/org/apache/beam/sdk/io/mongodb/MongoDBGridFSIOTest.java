@@ -63,7 +63,6 @@ import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
 import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.WriteFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -80,7 +79,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +181,6 @@ public class MongoDBGridFSIOTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testFullRead() throws Exception {
 
     PCollection<String> output = pipeline.apply(
@@ -212,7 +209,6 @@ public class MongoDBGridFSIOTest implements Serializable {
 
 
   @Test
-  @Category(NeedsRunner.class)
   public void testReadWithParser() throws Exception {
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
@@ -271,7 +267,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     // make sure 2 files can fit in
     long desiredBundleSizeBytes = (src.getEstimatedSizeBytes(options) * 2L) / 5L + 1000;
-    List<? extends BoundedSource<ObjectId>> splits = src.splitIntoBundles(
+    List<? extends BoundedSource<ObjectId>> splits = src.split(
         desiredBundleSizeBytes, options);
 
     int expectedNbSplits = 3;
@@ -295,7 +291,6 @@ public class MongoDBGridFSIOTest implements Serializable {
 
 
   @Test
-  @Category(NeedsRunner.class)
   public void testWriteMessage() throws Exception {
 
     ArrayList<String> data = new ArrayList<>(100);
