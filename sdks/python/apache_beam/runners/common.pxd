@@ -31,7 +31,7 @@ cdef class Receiver(object):
 cdef class DoFnMethodWrapper(object):
   cdef public object args
   cdef public object defaults
-  cdef object _method_value
+  cdef public object method_value
 
   cpdef call(self, list args, dict kwargs)
 
@@ -45,9 +45,9 @@ cdef class DoFnSignature(object):
 
 cdef class DoFnInvoker(object):
 
-  cdef DoFnSignature signature
+  cdef public DoFnSignature signature
 
-  cpdef invoke_process(self, WindowedValue element, process_output_fn)
+  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
   cpdef invoke_start_bundle(self, process_output_fn)
   cpdef invoke_finish_bundle(self, process_output_fn)
 
@@ -55,17 +55,23 @@ cdef class DoFnInvoker(object):
 
 
 cdef class SimpleInvoker(DoFnInvoker):
-  pass
+
+  cdef object process_method
+
+  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
 
 
 cdef class PerWindowInvoker(DoFnInvoker):
 
   cdef list side_inputs
   cdef DoFnContext context
-  cdef list args
-  cdef dict kwargs
+  cdef list args_for_process
+  cdef dict kwargs_for_process
   cdef list placeholders
   cdef bint has_windowed_inputs
+  cdef object process_method
+
+  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
 
 
 cdef class DoFnRunner(Receiver):
@@ -80,7 +86,7 @@ cdef class DoFnRunner(Receiver):
   cdef Receiver main_receivers
   cdef DoFnInvoker do_fn_invoker
 
-  cpdef process(self, WindowedValue element)
+  cpdef process(self, WindowedValue windowed_value)
   @cython.locals(windowed_value=WindowedValue)
   cpdef _process_outputs(self, WindowedValue element, results)
 
