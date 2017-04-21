@@ -65,7 +65,7 @@ public class GenerateSequenceTest {
   @Category(ValidatesRunner.class)
   public void testBoundedInput() {
     long numElements = 1000;
-    PCollection<Long> input = p.apply(GenerateSequence.fromTo(0, numElements));
+    PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
 
     addCountingAsserts(input, 0, numElements);
     p.run();
@@ -74,7 +74,7 @@ public class GenerateSequenceTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyBoundedInput() {
-    PCollection<Long> input = p.apply(GenerateSequence.fromTo(0, 0));
+    PCollection<Long> input = p.apply(GenerateSequence.from(0).to(0));
 
     PAssert.that(input).empty();
     p.run();
@@ -83,7 +83,7 @@ public class GenerateSequenceTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyBoundedInputSubrange() {
-    PCollection<Long> input = p.apply(GenerateSequence.fromTo(42, 42));
+    PCollection<Long> input = p.apply(GenerateSequence.from(42).to(42));
 
     PAssert.that(input).empty();
     p.run();
@@ -94,7 +94,7 @@ public class GenerateSequenceTest {
   public void testBoundedInputSubrange() {
     long start = 10;
     long end = 1000;
-    PCollection<Long> input = p.apply(GenerateSequence.fromTo(start, end));
+    PCollection<Long> input = p.apply(GenerateSequence.from(start).to(end));
 
     addCountingAsserts(input, start, end);
     p.run();
@@ -102,7 +102,7 @@ public class GenerateSequenceTest {
 
   @Test
   public void testBoundedDisplayData() {
-    PTransform<?, ?> input = GenerateSequence.fromTo(0, 1234);
+    PTransform<?, ?> input = GenerateSequence.from(0).to(1234);
     DisplayData displayData = DisplayData.from(input);
     assertThat(displayData, hasDisplayItem("from", 0));
     assertThat(displayData, hasDisplayItem("to", 1234));
@@ -110,7 +110,7 @@ public class GenerateSequenceTest {
 
   @Test
   public void testBoundedDisplayDataSubrange() {
-    PTransform<?, ?> input = GenerateSequence.fromTo(12, 1234);
+    PTransform<?, ?> input = GenerateSequence.from(12).to(1234);
     DisplayData displayData = DisplayData.from(input);
     assertThat(displayData, hasDisplayItem("from", 12));
     assertThat(displayData, hasDisplayItem("to", 1234));
@@ -124,7 +124,7 @@ public class GenerateSequenceTest {
     long elemsPerPeriod = 10L;
     Duration periodLength = Duration.millis(8);
     PCollection<Long> input =
-        p.apply(GenerateSequence.fromTo(0, numElements).withRate(elemsPerPeriod, periodLength));
+        p.apply(GenerateSequence.from(0).to(numElements).withRate(elemsPerPeriod, periodLength));
 
     addCountingAsserts(input, 0, numElements);
     long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
@@ -147,7 +147,7 @@ public class GenerateSequenceTest {
     long numElements = 1000;
 
     PCollection<Long> input =
-        p.apply(GenerateSequence.fromTo(0, numElements).withTimestampFn(new ValueAsTimestampFn()));
+        p.apply(GenerateSequence.from(0).to(numElements).withTimestampFn(new ValueAsTimestampFn()));
     addCountingAsserts(input, 0, numElements);
 
     PCollection<Long> diffs =
@@ -172,7 +172,7 @@ public class GenerateSequenceTest {
         };
 
     PTransform<?, ?> input =
-        GenerateSequence.fromTo(0, 1234).withMaxReadTime(maxReadTime).withTimestampFn(timestampFn);
+        GenerateSequence.from(0).to(1234).withMaxReadTime(maxReadTime).withTimestampFn(timestampFn);
 
     DisplayData displayData = DisplayData.from(input);
 

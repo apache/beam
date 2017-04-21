@@ -106,7 +106,7 @@ public class BigtableWriteIT implements Serializable {
     createEmptyTable(instanceName, tableId);
 
     Pipeline p = Pipeline.create(options);
-    p.apply(GenerateSequence.fromTo(0, numRows))
+    p.apply(GenerateSequence.from(0).to(numRows))
         .apply(ParDo.of(new DoFn<Long, KV<ByteString, Iterable<Mutation>>>() {
           @ProcessElement
           public void processElement(ProcessContext c) {

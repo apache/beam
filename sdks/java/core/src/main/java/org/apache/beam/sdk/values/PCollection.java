@@ -39,10 +39,10 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * be passed as the inputs of other PTransforms.
  *
  * <p>Some root transforms produce bounded {@code PCollections} and others
- * produce unbounded ones. For example, {@link GenerateSequence#fromTo} produces a fixed set of
- * integers, so it produces a bounded {@link PCollection}. {@link GenerateSequence#from} without
- * a {@link GenerateSequence#to} produces all integers as an infinite stream, so it produces an
- * unbounded {@link PCollection}.
+ * produce unbounded ones. For example, {@link GenerateSequence#from} with
+ * {@link GenerateSequence#to} produces a fixed set of integers, so it produces a bounded
+ * {@link PCollection}. {@link GenerateSequence#from} without a {@link GenerateSequence#to}
+ * produces all integers as an infinite stream, so it produces an unbounded {@link PCollection}.
  *
  * <p>Each element in a {@link PCollection} has an associated timestamp. Readers assign timestamps
  * to elements when they create {@link PCollection PCollections}, and other

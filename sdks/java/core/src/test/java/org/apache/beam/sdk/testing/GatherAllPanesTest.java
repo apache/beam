@@ -54,7 +54,7 @@ public class GatherAllPanesTest implements Serializable {
   @Category(NeedsRunner.class)
   public void singlePaneSingleReifiedPane() {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
-        p.apply(GenerateSequence.fromTo(0, 20000))
+        p.apply(GenerateSequence.from(0).to(20000))
             .apply(
                 WithTimestamps.of(
                     new SerializableFunction<Long, Instant>() {
@@ -95,8 +95,8 @@ public class GatherAllPanesTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void multiplePanesMultipleReifiedPane() {
-    PCollection<Long> someElems = p.apply("someLongs", GenerateSequence.fromTo(0, 20000));
-    PCollection<Long> otherElems = p.apply("otherLongs", GenerateSequence.fromTo(0, 20000));
+    PCollection<Long> someElems = p.apply("someLongs", GenerateSequence.from(0).to(20000));
+    PCollection<Long> otherElems = p.apply("otherLongs", GenerateSequence.from(0).to(20000));
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         PCollectionList.of(someElems)
             .and(otherElems)

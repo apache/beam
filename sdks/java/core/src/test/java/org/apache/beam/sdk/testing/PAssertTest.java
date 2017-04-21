@@ -425,7 +425,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalse() throws Exception {
-    PCollection<Long> vals = pipeline.apply(GenerateSequence.fromTo(0, 5));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that("Vals should have been empty", vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -439,7 +439,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalseDefaultReasonString() throws Exception {
-    PCollection<Long> vals = pipeline.apply(GenerateSequence.fromTo(0, 5));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that(vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -454,7 +454,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(GenerateSequence.fromTo(0, 5));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -473,7 +473,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(GenerateSequence.fromTo(0, 5));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithoutMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);

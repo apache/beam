@@ -319,7 +319,7 @@ public class WindowTest implements Serializable {
 
     final PCollection<Long> initialWindows =
         pipeline
-            .apply(GenerateSequence.fromTo(0, 10))
+            .apply(GenerateSequence.from(0).to(10))
             .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
 
     // Sanity check the window assignment to demonstrate the baseline

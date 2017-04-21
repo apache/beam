@@ -83,7 +83,7 @@ public class PCollectionsTest {
             .apply("group", GroupByKey.<String, String>create());
     PCollection<Long> coderLongs =
         pipeline
-            .apply("counts with alternative coder", GenerateSequence.fromTo(0, 10))
+            .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
     PCollection<Integer> allCustomInts =
         pipeline

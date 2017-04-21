@@ -316,7 +316,7 @@ public class PipelineTest {
   public void testReplaceAll() {
     pipeline.enableAbandonedNodeEnforcement(false);
     pipeline.apply("unbounded", GenerateSequence.from(0));
-    pipeline.apply("bounded", GenerateSequence.fromTo(0, 100));
+    pipeline.apply("bounded", GenerateSequence.from(0).to(100));
 
     pipeline.replaceAll(
         ImmutableList.of(

@@ -56,7 +56,7 @@ public class StreamingSourceMetricsTest implements Serializable {
 
     pipeline.apply(
         // Use maxReadTime to force unbounded mode.
-        GenerateSequence.fromTo(0, numElements).withMaxReadTime(Duration.standardDays(1)));
+        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
 
     PipelineResult pipelineResult = pipeline.run();
 

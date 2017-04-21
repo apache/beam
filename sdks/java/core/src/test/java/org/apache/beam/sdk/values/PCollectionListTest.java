@@ -62,7 +62,7 @@ public class PCollectionListTest {
   public void testIterationOrder() {
     Pipeline p = TestPipeline.create();
     PCollection<Long> createOne = p.apply("CreateOne", Create.of(1L, 2L, 3L));
-    PCollection<Long> boundedCount = p.apply("CountBounded", GenerateSequence.fromTo(0, 23));
+    PCollection<Long> boundedCount = p.apply("CountBounded", GenerateSequence.from(0).to(23));
     PCollection<Long> unboundedCount = p.apply("CountUnbounded", GenerateSequence.from(0));
     PCollection<Long> createTwo = p.apply("CreateTwo", Create.of(-1L, -2L));
     PCollection<Long> maxReadTimeCount =

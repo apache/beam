@@ -92,7 +92,7 @@ public class ReadUnboundTranslatorTest {
     Pipeline p = Pipeline.create(options);
 
     Set<Long> expected = ContiguousSet.create(Range.closedOpen(0L, 10L), DiscreteDomain.longs());
-    p.apply(GenerateSequence.fromTo(0, 10))
+    p.apply(GenerateSequence.from(0).to(10))
         .apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();

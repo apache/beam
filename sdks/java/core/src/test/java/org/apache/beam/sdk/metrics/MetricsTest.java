@@ -236,7 +236,7 @@ public class MetricsTest implements Serializable {
   public void testBoundedSourceMetrics() {
     long numElements = 1000;
 
-    pipeline.apply(GenerateSequence.fromTo(0, numElements));
+    pipeline.apply(GenerateSequence.from(0).to(numElements));
 
     PipelineResult pipelineResult = pipeline.run();
 
@@ -260,7 +260,7 @@ public class MetricsTest implements Serializable {
 
     // Use withMaxReadTime to force unbounded mode.
     pipeline.apply(
-        GenerateSequence.fromTo(0, numElements).withMaxReadTime(Duration.standardDays(1)));
+        GenerateSequence.from(0).to(numElements).withMaxReadTime(Duration.standardDays(1)));
 
     PipelineResult pipelineResult = pipeline.run();
 

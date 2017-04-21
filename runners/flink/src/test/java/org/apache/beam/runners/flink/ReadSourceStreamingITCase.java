@@ -58,7 +58,7 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
     p
-      .apply(GenerateSequence.fromTo(0, 10))
+      .apply(GenerateSequence.from(0).to(10))
       .apply(ParDo.of(new DoFn<Long, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
