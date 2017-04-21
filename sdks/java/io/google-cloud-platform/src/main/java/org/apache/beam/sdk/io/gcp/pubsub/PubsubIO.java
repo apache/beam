@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -29,8 +30,11 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
@@ -459,6 +463,30 @@ public class PubsubIO {
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   public static <T> Read<T> read() {
     return new AutoValue_PubsubIO_Read.Builder<T>().build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads UTF-8 encoded strings from a Google Cloud
+   * Pub/Sub stream.
+   */
+  public static Read<String> readStrings() {
+    return PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads binary encoded protos of the given type
+   * from a Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
+    return PubsubIO.<T>read().withCoder(ProtoCoder.of(messageClass));
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the
+   * given type from a Google Cloud Pub/Sub stream.
+   */
+  public static <T extends Message> Read<T> readAvros(Class<T> clazz) {
+    return PubsubIO.<T>read().withCoder(AvroCoder.of(clazz));
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
