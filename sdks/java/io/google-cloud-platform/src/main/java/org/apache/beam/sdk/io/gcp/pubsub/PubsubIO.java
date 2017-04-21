@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
@@ -44,6 +46,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -461,8 +464,34 @@ public class PubsubIO {
   }
 
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
-  public static <T> Read<T> read() {
-    return new AutoValue_PubsubIO_Read.Builder<T>().build();
+  private static <T> Read<T> read() {
+    return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will only contain a {@link PubsubMessage#getMessage() payload}, but no {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setCoder(PubsubMessagePayloadOnlyCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(false)
+        .build();
+  }
+
+  /**
+   * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
+   * messages will contain both a {@link PubsubMessage#getMessage() payload} and {@link
+   * PubsubMessage#getAttributeMap() attributes}.
+   */
+  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+    return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
+        .setCoder(PubsubMessageWithAttributesCoder.of())
+        .setParseFn(new IdentityMessageFn())
+        .setNeedsAttributes(true)
+        .build();
   }
 
   /**
@@ -470,7 +499,8 @@ public class PubsubIO {
    * Pub/Sub stream.
    */
   public static Read<String> readStrings() {
-    return PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
+    return PubsubIO.<String>read().withCoderAndParseFn(
+        StringUtf8Coder.of(), new ParsePayloadAsUtf8());
   }
 
   /**
@@ -478,7 +508,11 @@ public class PubsubIO {
    * given type from a Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
-    return PubsubIO.<T>read().withCoder(ProtoCoder.of(messageClass));
+    // TODO: Stop using ProtoCoder and instead parse the payload directly.
+    // We should not be relying on the fact that ProtoCoder's wire format is identical to
+    // the protobuf wire format, as the wire format is not part of a coder's API.
+    ProtoCoder<T> coder = ProtoCoder.of(messageClass);
+    return PubsubIO.<T>read().withCoderAndParseFn(coder, new ParsePayloadUsingCoder<>(coder));
   }
 
   /**
@@ -486,7 +520,11 @@ public class PubsubIO {
    * given type from a Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Read<T> readAvros(Class<T> clazz) {
-    return PubsubIO.<T>read().withCoder(AvroCoder.of(clazz));
+    // TODO: Stop using AvroCoder and instead parse the payload directly.
+    // We should not be relying on the fact that AvroCoder's wire format is identical to
+    // the Avro wire format, as the wire format is not part of a coder's API.
+    AvroCoder<T> coder = AvroCoder.of(clazz);
+    return PubsubIO.<T>read().withCoderAndParseFn(coder, new ParsePayloadUsingCoder<>(coder));
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
@@ -543,6 +581,8 @@ public class PubsubIO {
     @Nullable
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
 
+    abstract boolean getNeedsAttributes();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -558,6 +598,8 @@ public class PubsubIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
+
+      abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
 
       abstract Read<T> build();
     }
@@ -665,20 +707,13 @@ public class PubsubIO {
     }
 
     /**
-     * Uses the given {@link Coder} to decode each record into a value of type {@code T}.
-     */
-    public Read<T> withCoder(Coder<T> coder) {
-      return toBuilder().setCoder(coder).build();
-    }
-
-    /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
      * given parsing function to transform the PubsubMessage into an output type.
      * A Coder for the output type T must be registered or set on the output via
      * {@link PCollection#setCoder(Coder)}.
      */
-    public Read<T> withParseFn(SimpleFunction<PubsubMessage, T> parseFn) {
-      return toBuilder().setParseFn(parseFn).build();
+    private Read<T> withCoderAndParseFn(Coder<T> coder, SimpleFunction<PubsubMessage, T> parseFn) {
+      return toBuilder().setCoder(coder).setParseFn(parseFn).build();
     }
 
     @Override
@@ -690,10 +725,6 @@ public class PubsubIO {
       if (getTopicProvider() != null && getSubscriptionProvider() != null) {
         throw new IllegalStateException(
             "Can't set both the topic and the subscription for " + "a PubsubIO.Read transform");
-      }
-      if (getCoder() == null) {
-        throw new IllegalStateException(
-            "PubsubIO.Read requires that a coder be set using " + "the withCoder method.");
       }
 
       @Nullable
@@ -711,17 +742,23 @@ public class PubsubIO {
           getSubscriptionProvider() == null
               ? null
               : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
-      PubsubUnboundedSource<T> source =
-          new PubsubUnboundedSource<T>(
+      PubsubUnboundedSource source =
+          new PubsubUnboundedSource(
               FACTORY,
               projectPath,
               topicPath,
               subscriptionPath,
-              getCoder(),
               getTimestampAttribute(),
               getIdAttribute(),
-              getParseFn());
-      return input.getPipeline().apply(source);
+              getNeedsAttributes());
+      return input
+          .getPipeline()
+          .apply(source)
+          .setCoder(
+              getNeedsAttributes()
+                  ? PubsubMessageWithAttributesCoder.of()
+                  : PubsubMessagePayloadOnlyCoder.of())
+          .apply(MapElements.via(getParseFn()));
     }
 
     @Override
@@ -847,7 +884,7 @@ public class PubsubIO {
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
      */
-    public Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
+    private Write<T> withFormatFn(SimpleFunction<T, PubsubMessage> formatFn) {
       return toBuilder().setFormatFn(formatFn).build();
     }
 
@@ -952,6 +989,37 @@ public class PubsubIO {
         super.populateDisplayData(builder);
         builder.delegate(Write.this);
       }
+    }
+  }
+
+  private static class ParsePayloadAsUtf8 extends SimpleFunction<PubsubMessage, String> {
+    @Override
+    public String apply(PubsubMessage input) {
+      return new String(input.getMessage(), StandardCharsets.UTF_8);
+    }
+  }
+
+  private static class ParsePayloadUsingCoder<T> extends SimpleFunction<PubsubMessage, T> {
+    private Coder<T> coder;
+
+    public ParsePayloadUsingCoder(Coder<T> coder) {
+      this.coder = coder;
+    }
+
+    @Override
+    public T apply(PubsubMessage input) {
+      try {
+        return CoderUtils.decodeFromByteArray(coder, input.getMessage());
+      } catch (CoderException e) {
+        throw new RuntimeException("Could not decode Pubsub message", e);
+      }
+    }
+  }
+
+  private static class IdentityMessageFn extends SimpleFunction<PubsubMessage, PubsubMessage> {
+    @Override
+    public PubsubMessage apply(PubsubMessage input) {
+      return input;
     }
   }
 }
