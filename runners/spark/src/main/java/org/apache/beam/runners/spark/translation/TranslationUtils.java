@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -50,7 +53,6 @@ import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
-
 import scala.Tuple2;
 
 /** A set of utilities to help translating Beam transformations into Spark transformations. */
@@ -273,9 +275,15 @@ public final class TranslationUtils {
           Maps.newHashMap();
       for (PCollectionView<?> view : views) {
         SideInputBroadcast helper = pviews.getPCollectionView(view, context);
-        WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
+        checkArgument(
+            view instanceof SimplePCollectionView,
+            "Unknown %s type: %s",
+            PCollectionView.class.getSimpleName(),
+            view.getClass().getName());
+        SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view;
+        WindowingStrategy<?, ?> windowingStrategy = simpleView.getWindowingStrategyInternal();
         sideInputs.put(
-            view.getTagInternal(),
+            simpleView.getTagInternal(),
             KV.<WindowingStrategy<?, ?>, SideInputBroadcast<?>>of(windowingStrategy, helper));
       }
       return sideInputs;

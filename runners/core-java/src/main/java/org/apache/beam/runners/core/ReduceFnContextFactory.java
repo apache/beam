@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timers;
@@ -512,10 +513,14 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
         @Override
         public <T> T sideInput(PCollectionView<T> view) {
+          checkArgument(
+              view instanceof SimplePCollectionView,
+              "Unknown %s type: %s",
+              PCollectionView.class.getSimpleName(),
+              view.getClass().getName());
+          SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
           return sideInputReader.get(
-              view,
-              view.getWindowMappingFn()
-                  .getSideInputWindow(mainInputWindow));
+              view, simpleView.getWindowMappingFn().getSideInputWindow(mainInputWindow));
         }
 
         @Override

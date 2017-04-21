@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -230,11 +231,17 @@ class FlinkStreamingTransformTranslators {
     Map<Integer, PCollectionView<?>> intToViewMapping = new HashMap<>();
     int count = 0;
     for (PCollectionView<?> sideInput: sideInputs) {
-      TupleTag<?> tag = sideInput.getTagInternal();
+      checkArgument(
+          sideInput instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          sideInput.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) sideInput;
+      TupleTag<?> tag = simpleView.getTagInternal();
       intToViewMapping.put(count, sideInput);
       tagToIntMapping.put(tag, count);
       count++;
-      Coder<Iterable<WindowedValue<?>>> coder = sideInput.getCoderInternal();
+      Coder<Iterable<WindowedValue<?>>> coder = simpleView.getCoderInternal();
     }
 
 
@@ -260,7 +267,13 @@ class FlinkStreamingTransformTranslators {
     DataStream<RawUnionValue> sideInputUnion = null;
 
     for (PCollectionView<?> sideInput: sideInputs) {
-      TupleTag<?> tag = sideInput.getTagInternal();
+      checkArgument(
+          sideInput instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          sideInput.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) sideInput;
+      TupleTag<?> tag = simpleView.getTagInternal();
       final int intTag = tagToIntMapping.get(tag);
       DataStream<Object> sideInputStream = context.getInputDataStream(sideInput);
       DataStream<RawUnionValue> unionValueStream =

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -29,6 +32,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -97,9 +101,11 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
     for (PCollectionView<?> sideInput: sideInputs) {
 
+      SimplePCollectionView<?, ?, ?> simpleView =
+          (SimplePCollectionView<?, ?, ?>) sideInput;
       @SuppressWarnings("unchecked")
       Coder<BoundedWindow> windowCoder =
-          (Coder<BoundedWindow>) sideInput
+          (Coder<BoundedWindow>) simpleView
               .getWindowingStrategyInternal()
               .getWindowFn()
               .windowCoder();
@@ -110,15 +116,15 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
                         BoundedWindow,
                         Set<BoundedWindow>,
                         Set<BoundedWindow>>> availableTag = StateTags.combiningValue(
-          "side-input-available-windows-" + sideInput.getTagInternal().getId(),
+          "side-input-available-windows-" + simpleView.getTagInternal().getId(),
           SetCoder.of(windowCoder),
           new WindowSetCombineFn());
 
       availableWindowsTags.put(sideInput, availableTag);
 
-      Coder<Iterable<WindowedValue<?>>> coder = sideInput.getCoderInternal();
+      Coder<Iterable<WindowedValue<?>>> coder = simpleView.getCoderInternal();
       StateTag<Object, ValueState<Iterable<WindowedValue<?>>>> stateTag =
-          StateTags.value("side-input-data-" + sideInput.getTagInternal().getId(), coder);
+          StateTags.value("side-input-data-" + simpleView.getTagInternal().getId(), coder);
       sideInputContentsTags.put(sideInput, stateTag);
     }
   }
@@ -131,10 +137,16 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   public void addSideInputValue(
       PCollectionView<?> sideInput,
       WindowedValue<Iterable<?>> value) {
+    checkState(
+        sideInput instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        sideInput.getClass().getName());
+    SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) sideInput;
 
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) sideInput
+        (Coder<BoundedWindow>) simpleView
             .getWindowingStrategyInternal()
             .getWindowFn()
             .windowCoder();
@@ -167,10 +179,16 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
       throw new IllegalStateException(
           "Side input " + sideInput + " is not ready for window " + window);
     }
+    checkArgument(
+        sideInput instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        sideInput.getClass().getName());
+    SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) sideInput;
 
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) sideInput
+        (Coder<BoundedWindow>) simpleView
             .getWindowingStrategyInternal()
             .getWindowFn()
             .windowCoder();
@@ -183,7 +201,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
     Iterable<WindowedValue<?>> elements = state.read();
 
-    return sideInput.getViewFn().apply(elements);
+    return simpleView.getViewFn().apply(elements);
   }
 
   @Override

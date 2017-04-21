@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -393,8 +395,14 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
               "sideInput called when main input element is in multiple windows");
         }
       }
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
       return context.sideInput(
-          view, view.getWindowMappingFn().getSideInputWindow(window));
+          view, simpleView.getWindowMappingFn().getSideInputWindow(window));
     }
 
     @Override
