@@ -126,8 +126,8 @@ public class PubsubIOTest {
     String subscription = "projects/project/subscriptions/subscription";
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .subscription(StaticValueProvider.of(subscription));
-    assertNull(read.getTopic());
-    assertNotNull(read.getSubscription());
+    assertNull(read.getTopicProvider());
+    assertNotNull(read.getSubscriptionProvider());
     assertNotNull(DisplayData.from(read));
   }
 
@@ -136,8 +136,8 @@ public class PubsubIOTest {
     String topic = "projects/project/topics/topic";
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .topic(StaticValueProvider.of(topic));
-    assertNotNull(read.getTopic());
-    assertNull(read.getSubscription());
+    assertNotNull(read.getTopicProvider());
+    assertNull(read.getSubscriptionProvider());
     assertNotNull(DisplayData.from(read));
   }
 
