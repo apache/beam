@@ -57,7 +57,7 @@ public class GroupAlsoByWindowViaOutputBufferDoFn<K, InputT, OutputT, W extends 
     InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
-    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
+    StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
         new ReduceFnRunner<>(

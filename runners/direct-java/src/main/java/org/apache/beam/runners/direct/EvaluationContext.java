@@ -90,7 +90,7 @@ class EvaluationContext {
   private final WatermarkCallbackExecutor callbackExecutor;
 
   /** The stateInternals of the world, by applied PTransform and key. */
-  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals<?>>
+  private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals>
       applicationStateInternals;
 
   private final SideInputContainer sideInputContainer;
@@ -179,9 +179,9 @@ class EvaluationContext {
       result.getAggregatorChanges().commit();
     }
     // Update state internals
-    CopyOnAccessInMemoryStateInternals<?> theirState = result.getState();
+    CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
-      CopyOnAccessInMemoryStateInternals<?> committedState = theirState.commit();
+      CopyOnAccessInMemoryStateInternals committedState = theirState.commit();
       StepAndKey stepAndKey =
           StepAndKey.of(
               result.getTransform(), completedBundle == null ? null : completedBundle.getKey());
@@ -331,7 +331,7 @@ class EvaluationContext {
     return new DirectExecutionContext(
         clock,
         key,
-        (CopyOnAccessInMemoryStateInternals<Object>) applicationStateInternals.get(stepAndKey),
+        (CopyOnAccessInMemoryStateInternals) applicationStateInternals.get(stepAndKey),
         watermarkManager.getWatermarks(application));
   }
 

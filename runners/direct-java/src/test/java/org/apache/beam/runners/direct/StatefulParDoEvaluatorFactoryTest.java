@@ -92,7 +92,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Mock private transient UncommittedBundle<Integer> mockUncommittedBundle;
 
   private static final String KEY = "any-key";
-  private transient StateInternals<Object> stateInternals =
+  private transient StateInternals stateInternals =
       CopyOnAccessInMemoryStateInternals.<Object>withUnderlying(KEY, null);
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
@@ -104,7 +104,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    when((StateInternals<Object>) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
             SideInputContainer.create(
@@ -133,7 +133,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                     ParDo.of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement
@@ -165,7 +165,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
         StateNamespaces.window(IntervalWindow.getCoder(), firstWindow);
     StateNamespace secondWindowNamespace =
         StateNamespaces.window(IntervalWindow.getCoder(), secondWindow);
-    StateTag<Object, ValueState<String>> tag =
+    StateTag<ValueState<String>> tag =
         StateTags.tagForSpec(stateId, StateSpecs.value(StringUtf8Coder.of()));
 
     // Set up non-empty state. We don't mock + verify calls to clear() but instead
@@ -247,7 +247,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
                         .of(
                             new DoFn<KV<String, Integer>, Integer>() {
                               @StateId(stateId)
-                              private final StateSpec<Object, ValueState<String>> spec =
+                              private final StateSpec<ValueState<String>> spec =
                                   StateSpecs.value(StringUtf8Coder.of());
 
                               @ProcessElement

@@ -57,7 +57,7 @@ import org.joda.time.Instant;
  */
 public class TriggerStateMachineRunner<W extends BoundedWindow> {
   @VisibleForTesting
-  public static final StateTag<Object, ValueState<BitSet>> FINISHED_BITS_TAG =
+  public static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
 
   private final ExecutableTriggerStateMachine rootTrigger;

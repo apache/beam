@@ -67,10 +67,10 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
    */
   private final ValueState<Map<W, Set<W>>> valueState;
 
-  public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals<?> state) {
+  public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
 
-    StateTag<Object, ValueState<Map<W, Set<W>>>> tag =
+    StateTag<ValueState<Map<W, Set<W>>>> tag =
         StateTags.makeSystemTagInternal(StateTags.value(
             "tree", MapCoder.of(windowFn.windowCoder(), SetCoder.of(windowFn.windowCoder()))));
     valueState = state.state(StateNamespaces.global(), tag);

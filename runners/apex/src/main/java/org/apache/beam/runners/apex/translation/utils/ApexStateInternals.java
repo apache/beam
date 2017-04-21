@@ -65,7 +65,7 @@ import org.joda.time.Instant;
  * <p>For fields that need to be serialized, use {@link ApexStateInternalsFactory}
  * or {@link StateInternalsProxy}
  */
-public class ApexStateInternals<K> implements StateInternals<K> {
+public class ApexStateInternals<K> implements StateInternals {
   private final K key;
   private final Table<String, String, byte[]> stateTable;
 
@@ -80,46 +80,44 @@ public class ApexStateInternals<K> implements StateInternals<K> {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
+  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
     return state(namespace, address, StateContexts.nullContext());
   }
 
   @Override
   public <T extends State> T state(
-      StateNamespace namespace, StateTag<? super K, T> address, final StateContext<?> c) {
-    return address.bind(new ApexStateBinder(key, namespace, address, c));
+      StateNamespace namespace, StateTag<T> address, final StateContext<?> c) {
+    return address.bind(new ApexStateBinder(namespace, address, c));
   }
 
   /**
    * A {@link StateBinder} that returns {@link State} wrappers for serialized state.
    */
-  private class ApexStateBinder implements StateBinder<K> {
-    private final K key;
+  private class ApexStateBinder implements StateBinder {
     private final StateNamespace namespace;
     private final StateContext<?> c;
 
-    private ApexStateBinder(K key, StateNamespace namespace, StateTag<? super K, ?> address,
+    private ApexStateBinder(StateNamespace namespace, StateTag<?> address,
         StateContext<?> c) {
-      this.key = key;
       this.namespace = namespace;
       this.c = c;
     }
 
     @Override
     public <T> ValueState<T> bindValue(
-        StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+        StateTag<ValueState<T>> address, Coder<T> coder) {
       return new ApexValueState<>(namespace, address, coder);
     }
 
     @Override
     public <T> BagState<T> bindBag(
-        final StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+        final StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new ApexBagState<>(namespace, address, elemCoder);
     }
 
     @Override
     public <T> SetState<T> bindSet(
-        StateTag<? super K, SetState<T>> address,
+        StateTag<SetState<T>> address,
         Coder<T> elemCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", SetState.class.getSimpleName()));
@@ -127,7 +125,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
 
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", MapState.class.getSimpleName()));
@@ -136,7 +134,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new ApexCombiningState<>(
@@ -149,8 +147,8 @@ public class ApexStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-        StateTag<? super K, WatermarkHoldState> address,
+    public WatermarkHoldState bindWatermark(
+        StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
       return new ApexWatermarkHoldState<>(namespace, address, timestampCombiner);
     }
@@ -158,7 +156,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValueWithContext(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return bindCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
@@ -167,12 +165,12 @@ public class ApexStateInternals<K> implements StateInternals<K> {
 
   private class AbstractState<T> {
     protected final StateNamespace namespace;
-    protected final StateTag<?, ? extends State> address;
+    protected final StateTag<? extends State> address;
     protected final Coder<T> coder;
 
     private AbstractState(
         StateNamespace namespace,
-        StateTag<?, ? extends State> address,
+        StateTag<? extends State> address,
         Coder<T> coder) {
       this.namespace = namespace;
       this.address = address;
@@ -233,7 +231,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
 
     private ApexValueState(
         StateNamespace namespace,
-        StateTag<?, ValueState<T>> address,
+        StateTag<ValueState<T>> address,
         Coder<T> coder) {
       super(namespace, address, coder);
     }
@@ -261,7 +259,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
 
     public ApexWatermarkHoldState(
         StateNamespace namespace,
-        StateTag<?, WatermarkHoldState> address,
+        StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
       super(namespace, address, InstantCoder.of());
       this.timestampCombiner = timestampCombiner;
@@ -312,7 +310,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private ApexCombiningState(StateNamespace namespace,
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
         K key, CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(namespace, address, coder);
@@ -376,7 +374,7 @@ public class ApexStateInternals<K> implements StateInternals<K> {
   private final class ApexBagState<T> extends AbstractState<List<T>> implements BagState<T> {
     private ApexBagState(
         StateNamespace namespace,
-        StateTag<?, BagState<T>> address,
+        StateTag<BagState<T>> address,
         Coder<T> coder) {
       super(namespace, address, ListCoder.of(coder));
     }

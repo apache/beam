@@ -169,7 +169,7 @@ public class PTransformMatchersTest implements Serializable {
         private final String stateId = "mystate";
 
         @StateId(stateId)
-        private final StateSpec<Object, ValueState<Integer>> intState =
+        private final StateSpec<ValueState<Integer>> intState =
             StateSpecs.value(VarIntCoder.of());
 
         @ProcessElement

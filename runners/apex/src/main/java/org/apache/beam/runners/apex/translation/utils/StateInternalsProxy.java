@@ -32,7 +32,7 @@ import org.apache.beam.sdk.util.state.StateContext;
  * @param <K>
  */
 @DefaultSerializer(JavaSerializer.class)
-public class StateInternalsProxy<K> implements StateInternals<K>, Serializable {
+public class StateInternalsProxy<K> implements StateInternals, Serializable {
 
   private final StateInternalsFactory<K> factory;
   private transient K currentKey;
@@ -55,12 +55,12 @@ public class StateInternalsProxy<K> implements StateInternals<K>, Serializable {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
+  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
     return factory.stateInternalsForKey(currentKey).state(namespace, address);
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address,
+  public <T extends State> T state(StateNamespace namespace, StateTag<T> address,
       StateContext<?> c) {
     return factory.stateInternalsForKey(currentKey).state(namespace, address, c);
   }

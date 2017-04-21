@@ -93,7 +93,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
     InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
-    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
+    StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
     GABWOutputWindowedValue<K, InputT> outputter = new GABWOutputWindowedValue<>();
 
     ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =

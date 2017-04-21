@@ -231,7 +231,7 @@ public class SplittableParDoTest {
       processFn.setStateInternalsFactory(
           new StateInternalsFactory<String>() {
             @Override
-            public StateInternals<String> stateInternalsForKey(String key) {
+            public StateInternals stateInternalsForKey(String key) {
               return stateInternals;
             }
           });

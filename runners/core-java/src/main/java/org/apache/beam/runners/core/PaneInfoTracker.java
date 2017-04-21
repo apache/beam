@@ -43,7 +43,7 @@ public class PaneInfoTracker {
   }
 
   @VisibleForTesting
-  static final StateTag<Object, ValueState<PaneInfo>> PANE_INFO_TAG =
+  static final StateTag<ValueState<PaneInfo>> PANE_INFO_TAG =
       StateTags.makeSystemTagInternal(StateTags.value("pane", PaneInfoCoder.INSTANCE));
 
   public void clear(StateAccessor<?> state) {

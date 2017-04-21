@@ -890,7 +890,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Integer>() {
                   @StateId("unused")
-                  final StateSpec<Object, ValueState<Integer>> stateSpec =
+                  final StateSpec<ValueState<Integer>> stateSpec =
                       StateSpecs.value(VarIntCoder.of());
 
                   @ProcessElement

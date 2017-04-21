@@ -37,5 +37,5 @@ public interface MergingStateAccessor<K, W extends BoundedWindow>
    * are known to have state.
    */
   <StateT extends State> Map<W, StateT> accessInEachMergingWindow(
-      StateTag<? super K, StateT> address);
+      StateTag<StateT> address);
 }

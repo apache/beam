@@ -114,7 +114,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     KeyedWorkItem<K, InputT> keyedWorkItem = c.element();
 
     K key = keyedWorkItem.key();
-    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
+    StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
     TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =

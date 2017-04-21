@@ -188,7 +188,7 @@ public class DoFnInvokersTest {
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)
-      private final StateSpec<Object, ValueState<Integer>> spec =
+      private final StateSpec<ValueState<Integer>> spec =
           StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
