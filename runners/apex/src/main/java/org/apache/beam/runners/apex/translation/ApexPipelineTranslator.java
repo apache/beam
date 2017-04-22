@@ -24,8 +24,8 @@ import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
-import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -59,8 +59,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
 
   static {
     // register TransformTranslators
-    registerTransformTranslator(ParDo.Bound.class, new ParDoBoundTranslator());
-    registerTransformTranslator(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator<>());
+    registerTransformTranslator(ParDo.MultiOutput.class, new ParDoTranslator<>());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());

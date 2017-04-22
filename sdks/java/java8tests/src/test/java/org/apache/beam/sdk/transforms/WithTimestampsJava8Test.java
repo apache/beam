@@ -19,8 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
@@ -40,7 +40,7 @@ public class WithTimestampsJava8Test implements Serializable {
   public final transient TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void withTimestampsLambdaShouldApplyTimestamps() {
 
     final String yearTwoThousand = "946684800000";

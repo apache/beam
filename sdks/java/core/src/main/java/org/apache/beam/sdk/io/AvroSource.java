@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -34,7 +33,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.zip.Inflater;
@@ -52,6 +50,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.AvroUtils;
@@ -84,15 +83,6 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * }
  * </pre>
  *
- * <p>The {@link AvroSource#readFromFileWithClass(String, Class)} method is a convenience method
- * that returns a read transform. For example:
- *
- * <pre>
- * {@code
- * PCollection<MyType> records = AvroSource.readFromFileWithClass(file.toPath(), MyType.class));
- * }
- * </pre>
- *
  * <p>This class's implementation is based on the <a
  * href="https://avro.apache.org/docs/1.7.7/spec.html">Avro 1.7.7</a> specification and implements
  * parsing of some parts of Avro Object Container Files. The rationale for doing so is that the Avro
@@ -109,7 +99,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * than the end offset of the source.
  *
  * <p>To use XZ-encoded Avro files, please include an explicit dependency on {@code xz-1.5.jar},
- * which has been marked as optional in the Maven {@code sdk/pom.xml} for Google Cloud Dataflow:
+ * which has been marked as optional in the Maven {@code sdk/pom.xml}.
  *
  * <pre>{@code
  * <dependency>
@@ -122,7 +112,7 @@ import org.apache.commons.compress.utils.CountingInputStream;
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  *
  * @param <T> The type of records to be read from the source.
@@ -163,15 +153,6 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   // Schema used to encode records, lazily initialized.
   private transient Schema readSchema;
-
-  /**
-   * Creates a {@link Read} transform that will read from an {@link AvroSource} that is configured
-   * to read records of the given type from a file pattern.
-   */
-  public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
-    return Read.from(new AvroSource<>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
-        ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
-  }
 
   /**
    * Creates an {@link AvroSource} that reads from the given file name or pattern ("glob"). The
@@ -237,9 +218,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     this.fileSchemaString = null;
   }
 
-  private AvroSource(String fileName, long minBundleSize, long startOffset, long endOffset,
+  private AvroSource(Metadata metadata, long minBundleSize, long startOffset, long endOffset,
       String schema, Class<T> type, String codec, byte[] syncMarker, String fileSchema) {
-    super(fileName, minBundleSize, startOffset, endOffset);
+    super(metadata, minBundleSize, startOffset, endOffset);
     this.readSchemaString = internSchemaString(schema);
     this.codec = codec;
     this.syncMarker = syncMarker;
@@ -254,8 +235,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     super.validate();
   }
 
+  @Deprecated // Added to let DataflowRunner migrate off of this; to be deleted.
+  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end)
+      throws IOException {
+    return createForSubrangeOfFile(FileSystems.matchSingleFileSpec(fileName), start, end);
+  }
+
   @Override
-  public BlockBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
+  public BlockBasedSource<T> createForSubrangeOfFile(Metadata fileMetadata, long start, long end) {
     byte[] syncMarker = this.syncMarker;
     String codec = this.codec;
     String readSchemaString = this.readSchemaString;
@@ -267,11 +254,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     if (codec == null || syncMarker == null || fileSchemaString == null) {
       AvroMetadata metadata;
       try {
-        Collection<String> files = FileBasedSource.expandFilePattern(fileName);
-        checkArgument(files.size() <= 1, "More than 1 file matched %s");
-        metadata = AvroUtils.readMetadataFromFile(fileName);
+        metadata = AvroUtils.readMetadataFromFile(fileMetadata.resourceId());
       } catch (IOException e) {
-        throw new RuntimeException("Error reading metadata from file " + fileName, e);
+        throw new RuntimeException("Error reading metadata from file " + fileMetadata, e);
       }
       codec = metadata.getCodec();
       syncMarker = metadata.getSyncMarker();
@@ -287,7 +272,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // readSchemaString. This allows for Java to have an efficient serialization since it
     // will only encode the schema once while just storing pointers to the encoded version
     // within this source.
-    return new AvroSource<>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
+    return new AvroSource<>(fileMetadata, getMinBundleSize(), start, end, readSchemaString, type,
         codec, syncMarker, fileSchemaString);
   }
 
@@ -389,7 +374,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     switch (getMode()) {
       case SINGLE_FILE_OR_SUBRANGE:
         return new AvroSource<>(
-            getFileOrPatternSpec(),
+            getSingleFileMetadata(),
             getMinBundleSize(),
             getStartOffset(),
             getEndOffset(),

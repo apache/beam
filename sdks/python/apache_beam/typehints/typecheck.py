@@ -22,7 +22,7 @@ import inspect
 import sys
 import types
 
-from apache_beam.pvalue import SideOutputValue
+from apache_beam.pvalue import OutputValue
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints import check_constraint
@@ -136,7 +136,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
     def type_check_output(o):
       # TODO(robertwb): Multi-output.
-      x = o.value if isinstance(o, (SideOutputValue, WindowedValue)) else o
+      x = o.value if isinstance(o, (OutputValue, WindowedValue)) else o
       self._type_check(self._output_type_hint, x, is_input=False)
 
     # If the return type is a generator, then we will need to interleave our
@@ -144,10 +144,9 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     # generator initially just by type-checking its yielded contents.
     if isinstance(transform_results, types.GeneratorType):
       return GeneratorWrapper(transform_results, type_check_output)
-    else:
-      for o in transform_results:
-        type_check_output(o)
-      return transform_results
+    for o in transform_results:
+      type_check_output(o)
+    return transform_results
 
   def _type_check(self, type_constraint, datum, is_input):
     """Typecheck a PTransform related datum according to a type constraint.

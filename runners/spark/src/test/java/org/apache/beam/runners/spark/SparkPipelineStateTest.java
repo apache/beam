@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -63,7 +62,7 @@ public class SparkPipelineStateTest implements Serializable {
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
 
-  private ParDo.Bound<String, String> printParDo(final String prefix) {
+  private ParDo.SingleOutput<String, String> printParDo(final String prefix) {
     return ParDo.of(new DoFn<String, String>() {
 
       @ProcessElement
@@ -141,7 +140,7 @@ public class SparkPipelineStateTest implements Serializable {
 
     result.waitUntilFinish(Duration.millis(1));
 
-    assertThat(result.getState(), nullValue());
+    assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 
     result.cancel();
   }
@@ -188,11 +187,10 @@ public class SparkPipelineStateTest implements Serializable {
     testCanceledPipeline(getBatchOptions());
   }
 
-  //TODO: fix this!
-//  @Test
-//  public void testStreamingPipelineFailedState() throws Exception {
-//    testFailedPipeline(getStreamingOptions());
-//  }
+  @Test
+  public void testStreamingPipelineFailedState() throws Exception {
+    testFailedPipeline(getStreamingOptions());
+  }
 
   @Test
   public void testBatchPipelineFailedState() throws Exception {

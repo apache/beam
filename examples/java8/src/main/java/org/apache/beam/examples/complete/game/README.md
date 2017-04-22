@@ -20,10 +20,10 @@
 # 'Gaming' examples
 
 
-This directory holds a series of example Dataflow pipelines in a simple 'mobile
+This directory holds a series of example Apache Beam pipelines in a simple 'mobile
 gaming' domain. They all require Java 8.  Each pipeline successively introduces
 new concepts, and gives some examples of using Java 8 syntax in constructing
-Dataflow pipelines. Other than usage of Java 8 lambda expressions, the concepts
+Beam pipelines. Other than usage of Java 8 lambda expressions, the concepts
 that are used apply equally well in Java 7.
 
 In the gaming scenario, many users play, as members of different teams, over
@@ -58,7 +58,7 @@ the day's cutoff point.
 
 The next pipeline in the series is `HourlyTeamScore`. This pipeline also
 processes data collected from gaming events in batch. It builds on `UserScore`,
-but uses [fixed windows](https://cloud.google.com/dataflow/model/windowing), by
+but uses [fixed windows](https://beam.apache.org/documentation/programming-guide/#windowing), by
 default an hour in duration. It calculates the sum of scores per team, for each
 window, optionally allowing specification of two timestamps before and after
 which data is filtered out. This allows a model where late data collected after

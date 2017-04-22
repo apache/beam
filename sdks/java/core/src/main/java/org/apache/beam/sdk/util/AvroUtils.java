@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -25,6 +28,8 @@ import java.util.Arrays;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
  * A set of utilities for working with Avro files.
@@ -43,9 +48,9 @@ public class AvroUtils {
     private String schemaString;
 
     AvroMetadata(byte[] syncMarker, String codec, String schemaString) {
-      this.syncMarker = syncMarker;
-      this.codec = codec;
-      this.schemaString = schemaString;
+      this.syncMarker = checkNotNull(syncMarker, "syncMarker");
+      this.codec = checkNotNull(codec, "codec");
+      this.schemaString = checkNotNull(schemaString, "schemaString");
     }
 
     /**
@@ -74,6 +79,11 @@ public class AvroUtils {
     }
   }
 
+  @Deprecated  // to be deleted
+  public static AvroMetadata readMetadataFromFile(String filename) throws IOException {
+    return readMetadataFromFile(FileSystems.matchSingleFileSpec(filename).resourceId());
+  }
+
   /**
    * Reads the {@link AvroMetadata} from the header of an Avro file.
    *
@@ -83,12 +93,11 @@ public class AvroUtils {
    *
    * @throws IOException if the file is an invalid format.
    */
-  public static AvroMetadata readMetadataFromFile(String fileName) throws IOException {
+  public static AvroMetadata readMetadataFromFile(ResourceId fileResource) throws IOException {
     String codec = null;
     String schemaString = null;
     byte[] syncMarker;
-    try (InputStream stream =
-        Channels.newInputStream(IOChannelUtils.getFactory(fileName).open(fileName))) {
+    try (InputStream stream = Channels.newInputStream(FileSystems.open(fileResource))) {
       BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(stream, null);
 
       // The header of an object container file begins with a four-byte magic number, followed
@@ -101,7 +110,7 @@ public class AvroUtils {
       byte[] magic = new byte[DataFileConstants.MAGIC.length];
       decoder.readFixed(magic);
       if (!Arrays.equals(magic, DataFileConstants.MAGIC)) {
-        throw new IOException("Missing Avro file signature: " + fileName);
+        throw new IOException("Missing Avro file signature: " + fileResource);
       }
 
       // Read the metadata to find the codec and schema.
@@ -132,6 +141,7 @@ public class AvroUtils {
       syncMarker = new byte[DataFileConstants.SYNC_SIZE];
       decoder.readFixed(syncMarker);
     }
+    checkState(schemaString != null, "No schema present in Avro file metadata %s", fileResource);
     return new AvroMetadata(syncMarker, codec, schemaString);
   }
 }

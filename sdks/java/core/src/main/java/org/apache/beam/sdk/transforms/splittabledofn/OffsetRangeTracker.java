@@ -19,6 +19,9 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
+import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
@@ -27,6 +30,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
   private OffsetRange range;
   private Long lastClaimedOffset = null;
+  private Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);
@@ -59,17 +63,40 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
    */
   public synchronized boolean tryClaim(long i) {
     checkArgument(
-        lastClaimedOffset == null || i > lastClaimedOffset,
-        "Trying to claim offset %s while last claimed was %s",
+        lastAttemptedOffset == null || i > lastAttemptedOffset,
+        "Trying to claim offset %s while last attempted was %s",
         i,
-        lastClaimedOffset);
+        lastAttemptedOffset);
     checkArgument(
         i >= range.getFrom(), "Trying to claim offset %s before start of the range %s", i, range);
+    lastAttemptedOffset = i;
     // No respective checkArgument for i < range.to() - it's ok to try claiming offsets beyond it.
     if (i >= range.getTo()) {
       return false;
     }
     lastClaimedOffset = i;
     return true;
+  }
+
+  /**
+   * Marks that there are no more offsets to be claimed in the range.
+   *
+   * <p>E.g., a {@link DoFn} reading a file and claiming the offset of each record in the file might
+   * call this if it hits EOF - even though the last attempted claim was before the end of the
+   * range, there are no more offsets to claim.
+   */
+  public synchronized void markDone() {
+    lastAttemptedOffset = Long.MAX_VALUE;
+  }
+
+  @Override
+  public synchronized void checkDone() throws IllegalStateException {
+    checkState(
+        lastAttemptedOffset >= range.getTo() - 1,
+        "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
+        lastAttemptedOffset,
+        range,
+        lastAttemptedOffset + 1,
+        range.getTo());
   }
 }

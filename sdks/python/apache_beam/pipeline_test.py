@@ -24,6 +24,8 @@ import unittest
 # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
 # from nose.plugins.attrib import attr
 
+import apache_beam as beam
+from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
@@ -38,7 +40,6 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import Read
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
@@ -172,9 +173,9 @@ class PipelineTest(unittest.TestCase):
                      set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite),
                      set(visitor.leave_composite))
-    self.assertEqual(2, len(visitor.enter_composite))
-    self.assertEqual(visitor.enter_composite[1].transform, transform)
-    self.assertEqual(visitor.leave_composite[0].transform, transform)
+    self.assertEqual(3, len(visitor.enter_composite))
+    self.assertEqual(visitor.enter_composite[2].transform, transform)
+    self.assertEqual(visitor.leave_composite[1].transform, transform)
 
   def test_apply_custom_transform(self):
     pipeline = TestPipeline()
@@ -252,7 +253,7 @@ class PipelineTest(unittest.TestCase):
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
-        get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
+        get_memory_usage_in_bytes() + (5 * len_elements * num_elements))
 
     # Plus small additional slack for memory fluctuations during the test.
     memory_threshold += 10 * (2 ** 20)
@@ -279,9 +280,10 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError]) | Map(raise_exception)
 
-  def test_eager_pipeline(self):
-    p = Pipeline('EagerRunner')
-    self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
+  # TODO(BEAM-1894).
+  # def test_eager_pipeline(self):
+  #   p = Pipeline('EagerRunner')
+  #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 
 class DoFnTest(unittest.TestCase):
@@ -437,6 +439,21 @@ class PipelineOptionsTest(unittest.TestCase):
              'display_data']),
         set([attr for attr in dir(options.view_as(Eggs))
              if not attr.startswith('_')]))
+
+
+class RunnerApiTest(unittest.TestCase):
+
+  def test_simple(self):
+    """Tests serializing, deserializing, and running a simple pipeline.
+
+    More extensive tests are done at pipeline.run for each suitable test.
+    """
+    p = beam.Pipeline()
+    p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
+    proto = p.to_runner_api()
+
+    p2 = Pipeline.from_runner_api(proto, p.runner, p.options)
+    p2.run()
 
 
 if __name__ == '__main__':

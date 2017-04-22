@@ -118,7 +118,6 @@ public class ProtobufUtilTest {
 
   @Test
   public void testVerifyProto2() {
-    // Everything in Dataflow's Proto2TestMessages uses Proto2 syntax.
     checkProto2Syntax(MessageA.class, ExtensionRegistry.getEmptyRegistry());
     checkProto2Syntax(MessageB.class, ExtensionRegistry.getEmptyRegistry());
     checkProto2Syntax(MessageC.class, ExtensionRegistry.getEmptyRegistry());

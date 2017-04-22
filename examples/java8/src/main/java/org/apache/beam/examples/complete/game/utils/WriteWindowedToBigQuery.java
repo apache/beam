@@ -19,6 +19,7 @@ package org.apache.beam.examples.complete.game.utils;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Map;
+
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -58,14 +59,14 @@ public class WriteWindowedToBigQuery<T>
 
   @Override
   public PDone expand(PCollection<T> teamAndScore) {
-    return teamAndScore
+    teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
-      .apply(BigQueryIO.Write
-                .to(getTable(teamAndScore.getPipeline(),
-                    tableName))
+      .apply(BigQueryIO.writeTableRows()
+                .to(getTable(teamAndScore.getPipeline(), tableName))
                 .withSchema(getSchema())
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withWriteDisposition(WriteDisposition.WRITE_APPEND));
+    return PDone.in(teamAndScore.getPipeline());
   }
 
 }

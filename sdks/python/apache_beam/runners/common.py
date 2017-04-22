@@ -23,7 +23,7 @@ import sys
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.pvalue import SideOutputValue
+from apache_beam.pvalue import OutputValue
 from apache_beam.transforms import core
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -283,14 +283,14 @@ class DoFnRunner(Receiver):
   def _process_outputs(self, windowed_input_element, results):
     """Dispatch the result of computation to the appropriate receivers.
 
-    A value wrapped in a SideOutputValue object will be unwrapped and
+    A value wrapped in a OutputValue object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
     if results is None:
       return
     for result in results:
       tag = None
-      if isinstance(result, SideOutputValue):
+      if isinstance(result, OutputValue):
         tag = result.tag
         if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
@@ -414,10 +414,8 @@ def get_logging_context(maybe_logger, **kwargs):
     maybe_context = maybe_logger.PerThreadLoggingContext(**kwargs)
     if isinstance(maybe_context, LoggingContext):
       return maybe_context
-    else:
-      return _LoggingContextAdapter(maybe_context)
-  else:
-    return LoggingContext()
+    return _LoggingContextAdapter(maybe_context)
+  return LoggingContext()
 
 
 class _ReceiverAdapter(Receiver):
@@ -432,5 +430,4 @@ class _ReceiverAdapter(Receiver):
 def as_receiver(maybe_receiver):
   if isinstance(maybe_receiver, Receiver):
     return maybe_receiver
-  else:
-    return _ReceiverAdapter(maybe_receiver)
+  return _ReceiverAdapter(maybe_receiver)

@@ -22,6 +22,9 @@ import static org.apache.beam.sdk.TestUtils.LINES2;
 import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.io.Serializable;
@@ -46,8 +49,8 @@ import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -80,7 +83,7 @@ public class FlattenTest implements Serializable {
 
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenPCollections() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
@@ -94,7 +97,19 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
+  public void testFlattenPCollectionsSingletonList() {
+    PCollection<String> input = p.apply(Create.of(LINES));
+    PCollection<String> output = PCollectionList.of(input).apply(Flatten.<String>pCollections());
+
+    assertThat(output, not(equalTo(input)));
+
+    PAssert.that(output).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
   public void testFlattenPCollectionsThenParDo() {
     List<List<String>> inputs = Arrays.asList(
       LINES, NO_LINES, LINES2, NO_LINES, LINES, NO_LINES);
@@ -109,7 +124,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenPCollectionsEmpty() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
@@ -120,7 +135,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenInputMultipleCopies() {
     int count = 5;
     PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(count));
@@ -152,7 +167,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category({RunnableOnService.class, FlattenWithHeterogeneousCoders.class})
+  @Category({ValidatesRunner.class, FlattenWithHeterogeneousCoders.class})
   public void testFlattenMultipleCoders() throws CannotProvideCoderException {
     PCollection<Long> bigEndianLongs =
         p.apply(
@@ -174,7 +189,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyFlattenAsSideInput() {
     final PCollectionView<Iterable<String>> view =
         PCollectionList.<String>empty(p)
@@ -183,21 +198,21 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-        .apply(ParDo.withSideInputs(view).of(new DoFn<Void, String>() {
+        .apply(ParDo.of(new DoFn<Void, String>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (String side : c.sideInput(view)) {
                       c.output(side);
                     }
                   }
-                }));
+                }).withSideInputs(view));
 
     PAssert.that(output).empty();
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenPCollectionsEmptyThenParDo() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
@@ -211,7 +226,7 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFlattenNoListsNoCoder() {
-    // not RunnableOnService because it should fail at pipeline construction time anyhow.
+    // not ValidatesRunner because it should fail at pipeline construction time anyhow.
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("cannot provide a Coder for empty");
 
@@ -224,7 +239,7 @@ public class FlattenTest implements Serializable {
   /////////////////////////////////////////////////////////////////////////////
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterables() {
     PCollection<Iterable<String>> input = p
         .apply(Create.<Iterable<String>>of(LINES)
@@ -240,7 +255,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesLists() {
     PCollection<List<String>> input =
         p.apply(Create.<List<String>>of(LINES).withCoder(ListCoder.of(StringUtf8Coder.of())));
@@ -253,7 +268,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesSets() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -268,7 +283,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesCollections() {
     Set<String> linesSet = ImmutableSet.copyOf(LINES);
 
@@ -284,7 +299,7 @@ public class FlattenTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testFlattenIterablesEmpty() {
     PCollection<Iterable<String>> input = p
         .apply(Create.<Iterable<String>>of(NO_LINES)

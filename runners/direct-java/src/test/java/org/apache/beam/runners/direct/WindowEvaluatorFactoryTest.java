@@ -43,8 +43,8 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.Window.Bound;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -112,7 +112,7 @@ public class WindowEvaluatorFactoryTest {
   @Test
   public void singleWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(7);
-    Bound<Long> transform = Window.<Long>into(FixedWindows.of(windowDuration));
+    Window<Long> transform = Window.<Long>into(FixedWindows.of(windowDuration));
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
@@ -151,7 +151,7 @@ public class WindowEvaluatorFactoryTest {
   public void multipleWindowsWindowFnSucceeds() throws Exception {
     Duration windowDuration = Duration.standardDays(6);
     Duration slidingBy = Duration.standardDays(3);
-    Bound<Long> transform = Window.into(SlidingWindows.of(windowDuration).every(slidingBy));
+    Window<Long> transform = Window.into(SlidingWindows.of(windowDuration).every(slidingBy));
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
@@ -208,7 +208,7 @@ public class WindowEvaluatorFactoryTest {
 
   @Test
   public void referencesEarlierWindowsSucceeds() throws Exception {
-    Bound<Long> transform = Window.into(new EvaluatorTestWindowFn());
+    Window<Long> transform = Window.into(new EvaluatorTestWindowFn());
     PCollection<Long> windowed = input.apply(transform);
 
     CommittedBundle<Long> inputBundle = createInputBundle();
@@ -313,8 +313,8 @@ public class WindowEvaluatorFactoryTest {
     }
 
     @Override
-    public BoundedWindow getSideInputWindow(BoundedWindow window) {
-      return null;
+    public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException("Cannot be used as a side input");
     }
   }
 }

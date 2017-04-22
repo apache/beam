@@ -161,8 +161,8 @@ class CallbackCoderImpl(CoderImpl):
     if isinstance(value, observable.ObservableMixin):
       # CallbackCoderImpl can presumably encode the elements too.
       return 1, [(value, self)]
-    else:
-      return self.estimate_size(value, nested), []
+
+    return self.estimate_size(value, nested), []
 
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
@@ -243,10 +243,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     if isinstance(value, observable.ObservableMixin):
       # FastPrimitivesCoderImpl can presumably encode the elements too.
       return 1, [(value, self)]
-    else:
-      out = ByteCountingOutputStream()
-      self.encode_to_stream(value, out, nested)
-      return out.get_count(), []
+
+    out = ByteCountingOutputStream()
+    self.encode_to_stream(value, out, nested)
+    return out.get_count(), []
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
@@ -304,8 +304,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         return vlist
       elif t == TUPLE_TYPE:
         return tuple(vlist)
-      else:
-        return set(vlist)
+      return set(vlist)
     elif t == DICT_TYPE:
       vlen = stream.read_var_int64()
       v = {}
@@ -315,8 +314,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
-    else:
-      return self.fallback_coder_impl.decode_from_stream(stream, nested)
+
+    return self.fallback_coder_impl.decode_from_stream(stream, nested)
 
 
 class BytesCoderImpl(CoderImpl):
@@ -408,8 +407,7 @@ class VarIntCoderImpl(StreamCoderImpl):
     ivalue = value  # type cast
     if 0 <= ivalue < len(small_ints):
       return small_ints[ivalue]
-    else:
-      return StreamCoderImpl.encode(self, value)
+    return StreamCoderImpl.encode(self, value)
 
   def decode(self, encoded):
     if len(encoded) == 1:
@@ -596,20 +594,20 @@ class SequenceCoderImpl(StreamCoderImpl):
     estimated_size += 4
     if isinstance(value, observable.ObservableMixin):
       return estimated_size, [(value, self._elem_coder)]
-    else:
-      observables = []
-      for elem in value:
-        child_size, child_observables = (
-            self._elem_coder.get_estimated_size_and_observables(
-                elem, nested=True))
-        estimated_size += child_size
-        observables += child_observables
-      # TODO: (BEAM-1537) Update to use an accurate count depending on size and
-      # count, currently we are underestimating the size by up to 10 bytes
-      # per block of data since we are not including the count prefix which
-      # occurs at most once per 64k of data and is upto 10 bytes long. The upper
-      # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
-      return estimated_size, observables
+
+    observables = []
+    for elem in value:
+      child_size, child_observables = (
+          self._elem_coder.get_estimated_size_and_observables(
+              elem, nested=True))
+      estimated_size += child_size
+      observables += child_observables
+    # TODO: (BEAM-1537) Update to use an accurate count depending on size and
+    # count, currently we are underestimating the size by up to 10 bytes
+    # per block of data since we are not including the count prefix which
+    # occurs at most once per 64k of data and is upto 10 bytes long. The upper
+    # bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.
+    return estimated_size, observables
 
 
 class TupleSequenceCoderImpl(SequenceCoderImpl):

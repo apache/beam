@@ -38,12 +38,15 @@ PACKAGE_NAME = 'apache-beam'
 PACKAGE_VERSION = get_version()
 PACKAGE_DESCRIPTION = 'Apache Beam SDK for Python'
 PACKAGE_URL = 'https://beam.apache.org'
-PACKAGE_DOWNLOAD_URL = 'TBD'
+PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
 PACKAGE_LONG_DESCRIPTION = '''
-TBD
+Apache Beam is a unified programming model for both batch and streaming
+data processing, enabling efficient execution across diverse distributed
+execution engines and providing extensibility points for connecting to
+different technologies and user communities.
 '''
 
 REQUIRED_PIP_VERSION = '7.0.0'
@@ -84,27 +87,26 @@ else:
 
 
 REQUIRED_PACKAGES = [
-    'avro>=1.7.7,<2.0.0',
+    'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
-    'google-cloud-bigquery>=0.22.1,<1.0.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
     'protobuf==3.2.0',
-    'pyyaml>=3.10,<4.0.0',
+    'pyyaml>=3.12,<4.0.0',
     ]
 
 REQUIRED_TEST_PACKAGES = [
-    'pyhamcrest>=1.9,<2.0',
+    'pyhamcrest>=1.9,<2.0'
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools>=0.5.6,<1.0.0',
+  'google-apitools>=0.5.8,<1.0.0',
   'proto-google-cloud-datastore-v1==0.90.0',
-  'googledatastore==7.0.0',
+  'googledatastore==7.0.1',
   # GCP packages required by tests
-  'google-cloud-bigquery>=0.22.1,<0.23',
+  'google-cloud-bigquery>=0.23.0,<0.24.0',
 ]
 
 

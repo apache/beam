@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.fs;
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.Serializable;
 
 /**
  * The result of {@link org.apache.beam.sdk.io.FileSystem#match}.
@@ -92,7 +93,7 @@ public abstract class MatchResult {
    * {@link Metadata} of a matched file.
    */
   @AutoValue
-  public abstract static class Metadata {
+  public abstract static class Metadata implements Serializable {
     public abstract ResourceId resourceId();
     public abstract long sizeBytes();
     public abstract boolean isReadSeekEfficient();

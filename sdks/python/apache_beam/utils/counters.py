@@ -37,9 +37,8 @@ class Counter(object):
 
   Attributes:
     name: the name of the counter, a string
-    aggregation_kind: one of the aggregation kinds defined by this class.
-    total: the total size of all the items passed to update()
-    elements: the number of times update() was called
+    combine_fn: the CombineFn to use for aggregation
+    accumulator: the accumulator created for the combine_fn
   """
 
   # Handy references to common counters.

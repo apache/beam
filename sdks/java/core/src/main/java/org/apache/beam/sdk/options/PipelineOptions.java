@@ -30,7 +30,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -79,18 +78,18 @@ import org.joda.time.format.DateTimeFormatter;
  *     PipelineOptionsFactory.as(DirectOptions.class);
  *
  * // To cast from one type to another using the as(Class) method:
- * DataflowPipelineOptions dataflowPipelineOptions =
- *     directPipelineOptions.as(DataflowPipelineOptions.class);
+ * ApplicationNameOptions applicationNameOptions =
+ *     directPipelineOptions.as(ApplicationNameOptions.class);
  *
  * // Options for the same property are shared between types
- * // The statement below will print out "true"
- * System.out.println(dataflowPipelineOptions.isStreaming());
+ * // The statement below will print out the name of the enclosing class by default
+ * System.out.println(applicationNameOptions.getApplicationName());
  *
  * // Prints out registered options.
  * PipelineOptionsFactory.printHelp(System.out);
  *
- * // Prints out options which are available to be set on DataflowPipelineOptions
- * PipelineOptionsFactory.printHelp(System.out, DataflowPipelineOptions.class);
+ * // Prints out options which are available to be set on ApplicationNameOptions
+ * PipelineOptionsFactory.printHelp(System.out, ApplicationNameOptions.class);
  * }</pre>
  *
  * <h2>Defining Your Own PipelineOptions</h2>
@@ -187,8 +186,7 @@ import org.joda.time.format.DateTimeFormatter;
  * <a href="https://github.com/FasterXML/jackson-annotations">annotations</a> to aid in
  * serialization of custom types. We point you to the public
  * <a href="https://github.com/FasterXML/jackson">Jackson documentation</a> when attempting
- * to add serialization support for your custom types. See {@link GoogleApiTracer} for an
- * example using the Jackson annotations to serialize and deserialize a custom type.
+ * to add serialization support for your custom types.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only
  * some of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a

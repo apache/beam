@@ -195,6 +195,17 @@ public class IntervalWindow extends BoundedWindow
     }
 
     @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      instantCoder.verifyDeterministic();
+      durationCoder.verifyDeterministic();
+    }
+
+    @Override
+    public boolean consistentWithEquals() {
+      return instantCoder.consistentWithEquals() && durationCoder.consistentWithEquals();
+    }
+
+    @Override
     protected CloudObject initializeCloudObject() {
       return CloudObject.forClassName("kind:interval_window");
     }

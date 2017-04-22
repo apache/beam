@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -204,24 +205,12 @@ public class SideInputContainerTest {
   }
 
   @Test
-  public void withPCollectionViewsErrorsForContainsNotInViews() {
-    PCollectionView<Map<String, Iterable<String>>> newView =
-        PCollectionViews.multimapView(
-            pipeline,
-            WindowingStrategy.globalDefault(),
-            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("with unknown views " + ImmutableList.of(newView).toString());
-
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(newView));
-  }
-
-  @Test
   public void withViewsForViewNotInContainerFails() {
+    PCollection<KV<String, String>> input =
+        pipeline.apply(Create.empty(new TypeDescriptor<KV<String, String>>() {}));
     PCollectionView<Map<String, Iterable<String>>> newView =
         PCollectionViews.multimapView(
-            pipeline,
+            input,
             WindowingStrategy.globalDefault(),
             KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 

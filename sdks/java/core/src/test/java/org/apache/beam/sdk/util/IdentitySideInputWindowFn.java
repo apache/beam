@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 
 /**
  * A {@link WindowFn} for use during tests that returns the input window for calls to
@@ -48,7 +49,12 @@ public class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, Bound
   }
 
   @Override
-  public BoundedWindow getSideInputWindow(BoundedWindow window) {
-    return window;
+  public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
+    return new WindowMappingFn<BoundedWindow>() {
+      @Override
+      public BoundedWindow getSideInputWindow(BoundedWindow window) {
+        return window;
+      }
+    };
   }
 }

@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
+import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -47,13 +48,14 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Partitioner;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
@@ -65,7 +67,6 @@ import org.apache.spark.streaming.dstream.PairDStreamFunctions;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import scala.Function1;
 import scala.Option;
 import scala.Tuple2;
@@ -135,12 +136,35 @@ public class SparkGroupAlsoByWindowViaWindowSet {
     //---- InputT: I
     DStream<Tuple2</*K*/ ByteArray, /*Itr<WV<I>>*/ byte[]>> pairDStream =
         inputDStream
-            .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction())
-            .mapToPair(TranslationUtils.<K, Iterable<WindowedValue<InputT>>>toPairFunction())
-            // move to bytes and use coders for deserialization because there's a shuffle
-            // and checkpointing involved.
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, itrWvCoder))
+            .transformToPair(
+                new Function<
+                    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>,
+                    JavaPairRDD<ByteArray, byte[]>>() {
+                  // we use mapPartitions with the RDD API because its the only available API
+                  // that allows to preserve partitioning.
+                  @Override
+                  public JavaPairRDD<ByteArray, byte[]> call(
+                      JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd)
+                      throws Exception {
+                    return rdd.mapPartitions(
+                            TranslationUtils.functionToFlatMapFunction(
+                                WindowingHelpers
+                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                            true)
+                        .mapPartitionsToPair(
+                            TranslationUtils
+                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                            true)
+                        // move to bytes representation and use coders for deserialization
+                        // because of checkpointing.
+                        .mapPartitionsToPair(
+                            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                                CoderHelpers.toByteFunction(keyCoder, itrWvCoder)),
+                            true);
+                  }
+                })
             .dstream();
+
     PairDStreamFunctions<ByteArray, byte[]> pairDStreamFunctions =
         DStream.toPairDStreamFunctions(
         pairDStream,
@@ -388,12 +412,14 @@ public class SparkGroupAlsoByWindowViaWindowSet {
     }
 
     @Override
-    public <SideOutputT> void sideOutputWindowedValue(
-        TupleTag<SideOutputT> tag,
-        SideOutputT output, Instant timestamp,
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
+        Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("Side outputs are not allowed in GroupAlsoByWindow.");
+      throw new UnsupportedOperationException(
+          "Tagged outputs are not allowed in GroupAlsoByWindow.");
     }
   }
 

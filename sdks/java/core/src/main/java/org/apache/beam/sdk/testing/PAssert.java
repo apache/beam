@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -73,6 +72,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +145,7 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
      * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link IterableAssert} like this one but with the assertion only applied to the
@@ -233,7 +233,7 @@ public class PAssert {
      * <p>If the input {@link WindowingStrategy} does not always produce final panes, the assertion
      * may be executed over an empty input even if the trigger has fired previously. To ensure that
      * a final pane is always produced, set the {@link ClosingBehavior} of the windowing strategy
-     * (via {@link Window.Bound#withAllowedLateness(Duration, ClosingBehavior)} setting
+     * (via {@link Window#withAllowedLateness(Duration, ClosingBehavior)} setting
      * {@link ClosingBehavior} to {@link ClosingBehavior#FIRE_ALWAYS}).
      *
      * @return a new {@link SingletonAssert} like this one but with the assertion only applied to
@@ -279,7 +279,15 @@ public class PAssert {
    * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}.
    */
   public static <T> IterableAssert<T> that(PCollection<T> actual) {
-    return new PCollectionContentsAssert<>(actual);
+    return that(actual.getName(), actual);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the elements of the provided {@link PCollection}
+   * with the specified reason.
+   */
+  public static <T> IterableAssert<T> that(String reason, PCollection<T> actual) {
+    return new PCollectionContentsAssert<>(actual, PAssertionSite.capture(reason));
   }
 
   /**
@@ -288,6 +296,15 @@ public class PAssert {
    */
   public static <T> IterableAssert<T> thatSingletonIterable(
       PCollection<? extends Iterable<T>> actual) {
+    return thatSingletonIterable(actual.getName(), actual);
+  }
+
+  /**
+   * Constructs an {@link IterableAssert} for the value of the provided {@link PCollection } with
+   * the specified reason. The provided PCollection must contain a single {@code Iterable<T>} value.
+   */
+  public static <T> IterableAssert<T> thatSingletonIterable(
+      String reason, PCollection<? extends Iterable<T>> actual) {
 
     try {
     } catch (NoSuchElementException | IllegalArgumentException exc) {
@@ -300,7 +317,8 @@ public class PAssert {
     @SuppressWarnings("unchecked") // Safe covariant cast
     PCollection<Iterable<T>> actualIterables = (PCollection<Iterable<T>>) actual;
 
-    return new PCollectionSingletonIterableAssert<>(actualIterables);
+    return new PCollectionSingletonIterableAssert<>(
+        actualIterables, PAssertionSite.capture(reason));
   }
 
   /**
@@ -308,7 +326,18 @@ public class PAssert {
    * {@code PCollection PCollection<T>}, which must be a singleton.
    */
   public static <T> SingletonAssert<T> thatSingleton(PCollection<T> actual) {
-    return new PCollectionViewAssert<>(actual, View.<T>asSingleton(), actual.getCoder());
+    return thatSingleton(actual.getName(), actual);
+  }
+
+  /**
+   * Constructs a {@link SingletonAssert} for the value of the provided
+   * {@code PCollection PCollection<T>} with the specified reason. The provided PCollection must be
+   * a singleton.
+   */
+  public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
+    return new PCollectionViewAssert<>(
+        actual, View.<T>asSingleton(), actual.getCoder(), PAssertionSite.capture(reason)
+    );
   }
 
   /**
@@ -319,12 +348,25 @@ public class PAssert {
    */
   public static <K, V> SingletonAssert<Map<K, Iterable<V>>> thatMultimap(
       PCollection<KV<K, V>> actual) {
+    return thatMultimap(actual.getName(), actual);
+  }
+
+  /**
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with the
+   * specified reason.
+   *
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
+   * {@code Coder<K, V>}.
+   */
+  public static <K, V> SingletonAssert<Map<K, Iterable<V>>> thatMultimap(
+      String reason, PCollection<KV<K, V>> actual) {
     @SuppressWarnings("unchecked")
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
         actual,
         View.<K, V>asMultimap(),
-        MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())));
+        MapCoder.of(kvCoder.getKeyCoder(), IterableCoder.of(kvCoder.getValueCoder())),
+        PAssertionSite.capture(reason));
   }
 
   /**
@@ -335,13 +377,50 @@ public class PAssert {
    * {@code Coder<K, V>}.
    */
   public static <K, V> SingletonAssert<Map<K, V>> thatMap(PCollection<KV<K, V>> actual) {
+    return thatMap(actual.getName(), actual);
+  }
+
+  /**
+   * Constructs a {@link SingletonAssert} for the value of the provided {@link PCollection} with
+   * the specified reason. The {@link PCollection} must have at most one value per key.
+   *
+   * <p>Note that the actual value must be coded by a {@link KvCoder}, not just any
+   * {@code Coder<K, V>}.
+   */
+  public static <K, V> SingletonAssert<Map<K, V>> thatMap(
+      String reason, PCollection<KV<K, V>> actual) {
     @SuppressWarnings("unchecked")
     KvCoder<K, V> kvCoder = (KvCoder<K, V>) actual.getCoder();
     return new PCollectionViewAssert<>(
-        actual, View.<K, V>asMap(), MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()));
+        actual,
+        View.<K, V>asMap(),
+        MapCoder.of(kvCoder.getKeyCoder(), kvCoder.getValueCoder()),
+        PAssertionSite.capture(reason));
   }
 
   ////////////////////////////////////////////////////////////
+
+  private static class PAssertionSite implements Serializable {
+    private final String message;
+    private final StackTraceElement[] creationStackTrace;
+
+    static PAssertionSite capture(String message) {
+      return new PAssertionSite(message, new Throwable().getStackTrace());
+    }
+
+    PAssertionSite(String message, StackTraceElement[] creationStackTrace) {
+      this.message = message;
+      this.creationStackTrace = creationStackTrace;
+    }
+
+    public AssertionError wrap(Throwable t) {
+      AssertionError res =
+          new AssertionError(
+              message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
+      res.setStackTrace(creationStackTrace);
+      return res;
+    }
+  }
 
   /**
    * An {@link IterableAssert} about the contents of a {@link PCollection}. This does not require
@@ -351,18 +430,21 @@ public class PAssert {
     private final PCollection<T> actual;
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
+    private final PAssertionSite site;
 
-    public PCollectionContentsAssert(PCollection<T> actual) {
-      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes());
+    public PCollectionContentsAssert(PCollection<T> actual, PAssertionSite site) {
+      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes(), site);
     }
 
     public PCollectionContentsAssert(
         PCollection<T> actual,
         AssertionWindows rewindowingStrategy,
-        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor) {
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
+        PAssertionSite site) {
       this.actual = actual;
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
+      this.site = site;
     }
 
     @Override
@@ -397,7 +479,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionContentsAssert<>(
-          actual, IntoStaticWindows.<T>of(windowCoder, window), paneExtractor);
+          actual, IntoStaticWindows.<T>of(windowCoder, window), paneExtractor, site);
     }
 
     /**
@@ -432,7 +514,7 @@ public class PAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           nextAssertionName(),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor));
+          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
 
@@ -474,7 +556,7 @@ public class PAssert {
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor));
+          new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
 
@@ -526,16 +608,20 @@ public class PAssert {
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
         paneExtractor;
+    private final PAssertionSite site;
 
-    public PCollectionSingletonIterableAssert(PCollection<Iterable<T>> actual) {
-      this(actual, IntoGlobalWindow.<Iterable<T>>of(), PaneExtractors.<Iterable<T>>onlyPane());
+    public PCollectionSingletonIterableAssert(
+        PCollection<Iterable<T>> actual, PAssertionSite site) {
+      this(
+          actual, IntoGlobalWindow.<Iterable<T>>of(), PaneExtractors.<Iterable<T>>onlyPane(), site);
     }
 
     public PCollectionSingletonIterableAssert(
         PCollection<Iterable<T>> actual,
         AssertionWindows rewindowingStrategy,
         SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
-            paneExtractor) {
+            paneExtractor,
+        PAssertionSite site) {
       this.actual = actual;
 
       @SuppressWarnings("unchecked")
@@ -544,6 +630,7 @@ public class PAssert {
 
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
+      this.site = site;
     }
 
     @Override
@@ -579,7 +666,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionSingletonIterableAssert<>(
-          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window), paneExtractor);
+          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window), paneExtractor, site);
     }
 
     @Override
@@ -603,7 +690,7 @@ public class PAssert {
         SerializableFunction<Iterable<T>, Void> checkerFn) {
       actual.apply(
           "PAssert$" + (assertCount++),
-          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor));
+          new GroupThenAssertForSingleton<>(checkerFn, rewindowingStrategy, paneExtractor, site));
       return this;
     }
 
@@ -626,12 +713,16 @@ public class PAssert {
     private final SimpleFunction<Iterable<ValueInSingleWindow<ElemT>>, Iterable<ElemT>>
         paneExtractor;
     private final Coder<ViewT> coder;
+    private final PAssertionSite site;
 
     protected PCollectionViewAssert(
         PCollection<ElemT> actual,
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
-        Coder<ViewT> coder) {
-      this(actual, view, IntoGlobalWindow.<ElemT>of(), PaneExtractors.<ElemT>onlyPane(), coder);
+        Coder<ViewT> coder,
+        PAssertionSite site) {
+      this(
+          actual, view, IntoGlobalWindow.<ElemT>of(), PaneExtractors.<ElemT>onlyPane(), coder, site
+      );
     }
 
     private PCollectionViewAssert(
@@ -639,12 +730,14 @@ public class PAssert {
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         AssertionWindows rewindowActuals,
         SimpleFunction<Iterable<ValueInSingleWindow<ElemT>>, Iterable<ElemT>> paneExtractor,
-        Coder<ViewT> coder) {
+        Coder<ViewT> coder,
+        PAssertionSite site) {
       this.actual = actual;
       this.view = view;
       this.rewindowActuals = rewindowActuals;
       this.paneExtractor = paneExtractor;
       this.coder = coder;
+      this.site = site;
     }
 
     @Override
@@ -671,7 +764,8 @@ public class PAssert {
           IntoStaticWindows.of(
               (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder(), window),
           paneExtractor,
-          coder);
+          coder,
+          site);
     }
 
     @Override
@@ -694,7 +788,8 @@ public class PAssert {
               new OneSideInputAssert<ViewT>(
                   CreateActual.from(actual, rewindowActuals, paneExtractor, view),
                   rewindowActuals.<Integer>windowDummy(),
-                  checkerFn));
+                  checkerFn,
+                  site));
       return this;
     }
 
@@ -844,7 +939,8 @@ public class PAssert {
               PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>,
               PCollection<KV<Integer, Iterable<ValueInSingleWindow<T>>>>>
           removeTriggering =
-              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>triggering(Never.ever())
+              Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                  .triggering(Never.ever())
                   .discardingFiredPanes()
                   .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness());
       // Group the contents by key. If it is empty, this PCollection will be empty, too.
@@ -888,7 +984,8 @@ public class PAssert {
                   Flatten.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>pCollections())
               .apply(
                   "NeverTrigger",
-                  Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>triggering(Never.ever())
+                  Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
+                      .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
               .apply(
@@ -917,14 +1014,17 @@ public class PAssert {
     private final SerializableFunction<Iterable<T>, Void> checkerFn;
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor;
+    private final PAssertionSite site;
 
     private GroupThenAssert(
         SerializableFunction<Iterable<T>, Void> checkerFn,
         AssertionWindows rewindowingStrategy,
-        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor) {
+        SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> paneExtractor,
+        PAssertionSite site) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
+      this.site = site;
     }
 
     @Override
@@ -933,7 +1033,7 @@ public class PAssert {
           .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
-          .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn)));
+          .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)));
 
       return PDone.in(input.getPipeline());
     }
@@ -949,15 +1049,18 @@ public class PAssert {
     private final AssertionWindows rewindowingStrategy;
     private final SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
         paneExtractor;
+    private final PAssertionSite site;
 
     private GroupThenAssertForSingleton(
         SerializableFunction<Iterable<T>, Void> checkerFn,
         AssertionWindows rewindowingStrategy,
         SimpleFunction<Iterable<ValueInSingleWindow<Iterable<T>>>, Iterable<Iterable<T>>>
-            paneExtractor) {
+            paneExtractor,
+        PAssertionSite site) {
       this.checkerFn = checkerFn;
       this.rewindowingStrategy = rewindowingStrategy;
       this.paneExtractor = paneExtractor;
+      this.site = site;
     }
 
     @Override
@@ -966,7 +1069,7 @@ public class PAssert {
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
-          .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn)));
+          .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)));
 
       return PDone.in(input.getPipeline());
     }
@@ -987,14 +1090,17 @@ public class PAssert {
     private final transient PTransform<PBegin, PCollectionView<ActualT>> createActual;
     private final transient PTransform<PCollection<Integer>, PCollection<Integer>> windowToken;
     private final SerializableFunction<ActualT, Void> checkerFn;
+    private final PAssertionSite site;
 
     private OneSideInputAssert(
         PTransform<PBegin, PCollectionView<ActualT>> createActual,
         PTransform<PCollection<Integer>, PCollection<Integer>> windowToken,
-        SerializableFunction<ActualT, Void> checkerFn) {
+        SerializableFunction<ActualT, Void> checkerFn,
+        PAssertionSite site) {
       this.createActual = createActual;
       this.windowToken = windowToken;
       this.checkerFn = checkerFn;
+      this.site = site;
     }
 
     @Override
@@ -1006,7 +1112,7 @@ public class PAssert {
           .apply("WindowToken", windowToken)
           .apply(
               "RunChecks",
-              ParDo.withSideInputs(actual).of(new SideInputCheckerDoFn<>(checkerFn, actual)));
+              ParDo.of(new SideInputCheckerDoFn<>(checkerFn, actual, site)).withSideInputs(actual));
 
       return PDone.in(input.getPipeline());
     }
@@ -1026,24 +1132,21 @@ public class PAssert {
     private final Aggregator<Integer, Integer> failure =
         createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
     private final PCollectionView<ActualT> actual;
+    private final PAssertionSite site;
 
     private SideInputCheckerDoFn(
-        SerializableFunction<ActualT, Void> checkerFn, PCollectionView<ActualT> actual) {
+        SerializableFunction<ActualT, Void> checkerFn,
+        PCollectionView<ActualT> actual,
+        PAssertionSite site) {
       this.checkerFn = checkerFn;
       this.actual = actual;
+      this.site = site;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      try {
-        ActualT actualContents = c.sideInput(actual);
-        doChecks(actualContents, checkerFn, success, failure);
-      } catch (Throwable t) {
-        // Suppress exception in streaming
-        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-          throw t;
-        }
-      }
+      ActualT actualContents = c.sideInput(actual);
+      doChecks(site, actualContents, checkerFn, success, failure);
     }
   }
 
@@ -1060,14 +1163,17 @@ public class PAssert {
         createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
         createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
+    private final PAssertionSite site;
 
-    private GroupedValuesCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
+    private GroupedValuesCheckerDoFn(
+        SerializableFunction<ActualT, Void> checkerFn, PAssertionSite site) {
       this.checkerFn = checkerFn;
+      this.site = site;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      doChecks(c.element(), checkerFn, success, failure);
+      doChecks(site, c.element(), checkerFn, success, failure);
     }
   }
 
@@ -1085,19 +1191,23 @@ public class PAssert {
         createAggregator(SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
         createAggregator(FAILURE_COUNTER, Sum.ofIntegers());
+    private final PAssertionSite site;
 
-    private SingletonCheckerDoFn(SerializableFunction<ActualT, Void> checkerFn) {
+    private SingletonCheckerDoFn(
+        SerializableFunction<ActualT, Void> checkerFn, PAssertionSite site) {
       this.checkerFn = checkerFn;
+      this.site = site;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       ActualT actualContents = Iterables.getOnlyElement(c.element());
-      doChecks(actualContents, checkerFn, success, failure);
+      doChecks(site, actualContents, checkerFn, success, failure);
     }
   }
 
   private static <ActualT> void doChecks(
+      PAssertionSite site,
       ActualT actualContents,
       SerializableFunction<ActualT, Void> checkerFn,
       Aggregator<Integer, Integer> successAggregator,
@@ -1106,9 +1216,8 @@ public class PAssert {
       checkerFn.apply(actualContents);
       successAggregator.addValue(1);
     } catch (Throwable t) {
-      LOG.error("PAssert failed expectations.", t);
       failureAggregator.addValue(1);
-      throw t;
+      throw site.wrap(t);
     }
   }
 

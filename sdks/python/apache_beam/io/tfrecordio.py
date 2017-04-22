@@ -24,6 +24,7 @@ import struct
 from apache_beam import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
@@ -146,12 +147,14 @@ class _TFRecordSource(filebasedsource.FileBasedSource):
   def __init__(self,
                file_pattern,
                coder,
-               compression_type):
+               compression_type,
+               validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
     super(_TFRecordSource, self).__init__(
         file_pattern=file_pattern,
         compression_type=compression_type,
-        splittable=False)
+        splittable=False,
+        validate=validate)
     self._coder = coder
 
   def read_records(self, file_name, offset_range_tracker):
@@ -178,7 +181,8 @@ class ReadFromTFRecord(PTransform):
   def __init__(self,
                file_pattern,
                coder=coders.BytesCoder(),
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
+               validate=True,
                **kwargs):
     """Initialize a ReadFromTFRecord transform.
 
@@ -188,6 +192,8 @@ class ReadFromTFRecord(PTransform):
       compression_type: Used to handle compressed input files. Default value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.
+      validate: Boolean flag to verify that the files exist during the pipeline
+          creation time.
       **kwargs: optional args dictionary. These are passed through to parent
         constructor.
 
@@ -195,10 +201,11 @@ class ReadFromTFRecord(PTransform):
       A ReadFromTFRecord transform object.
     """
     super(ReadFromTFRecord, self).__init__(**kwargs)
-    self._args = (file_pattern, coder, compression_type)
+    self._source = _TFRecordSource(file_pattern, coder, compression_type,
+                                   validate)
 
   def expand(self, pvalue):
-    return pvalue.pipeline | Read(_TFRecordSource(*self._args))
+    return pvalue.pipeline | Read(self._source)
 
 
 class _TFRecordSink(fileio.FileSink):
@@ -234,7 +241,7 @@ class WriteToTFRecord(PTransform):
                file_name_suffix='',
                num_shards=0,
                shard_name_template=fileio.DEFAULT_SHARD_NAME_TEMPLATE,
-               compression_type=fileio.CompressionTypes.AUTO,
+               compression_type=CompressionTypes.AUTO,
                **kwargs):
     """Initialize WriteToTFRecord transform.
 
@@ -264,8 +271,9 @@ class WriteToTFRecord(PTransform):
       A WriteToTFRecord transform object.
     """
     super(WriteToTFRecord, self).__init__(**kwargs)
-    self._args = (file_path_prefix, coder, file_name_suffix, num_shards,
-                  shard_name_template, compression_type)
+    self._sink = _TFRecordSink(file_path_prefix, coder, file_name_suffix,
+                               num_shards, shard_name_template,
+                               compression_type)
 
   def expand(self, pcoll):
-    return pcoll | Write(_TFRecordSink(*self._args))
+    return pcoll | Write(self._sink)

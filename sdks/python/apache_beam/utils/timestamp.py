@@ -69,8 +69,7 @@ class Timestamp(object):
     frac_part = micros % 1000000
     if frac_part:
       return 'Timestamp(%s%d.%06d)' % (sign, int_part, frac_part)
-    else:
-      return 'Timestamp(%s%d)' % (sign, int_part)
+    return 'Timestamp(%s%d)' % (sign, int_part)
 
   def to_utc_datetime(self):
     epoch = datetime.datetime.utcfromtimestamp(0)
@@ -162,16 +161,11 @@ class Duration(object):
     frac_part = micros % 1000000
     if frac_part:
       return 'Duration(%s%d.%06d)' % (sign, int_part, frac_part)
-    else:
-      return 'Duration(%s%d)' % (sign, int_part)
+    return 'Duration(%s%d)' % (sign, int_part)
 
   def __float__(self):
     # Note that the returned value may have lost precision.
     return float(self.micros) / 1000000
-
-  def __int__(self):
-    # Note that the returned value may have lost precision.
-    return self.micros / 1000000
 
   def __cmp__(self, other):
     # Allow comparisons between Duration and Timestamp values.

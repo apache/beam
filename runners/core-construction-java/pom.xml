@@ -24,12 +24,12 @@
   <parent>
     <artifactId>beam-runners-parent</artifactId>
     <groupId>org.apache.beam</groupId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.7.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>beam-runners-core-construction-java</artifactId>
-  <name>Apache Beam :: Runners :: Core Java Construction</name>
+  <name>Apache Beam :: Runners :: Core Construction Java</name>
   <description>Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
     prior to execution.
   </description>
@@ -50,62 +50,38 @@
           </systemPropertyVariables>
         </configuration>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>bundle-and-repackage</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <artifactSet>
-                <includes>
-                  <include>com.google.guava:guava</include>
-                </includes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-              <relocations>
-                <!-- TODO: Once ready, change the following pattern to 'com'
-                   only, exclude 'org.apache.beam.**', and remove
-                   the second relocation. -->
-                <relocation>
-                  <pattern>com.google.common</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.core.construction.repackaged.com.google.common
-                  </shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>
-                    org.apache.beam.runners.core.construction.repackaged.com.google.thirdparty
-                  </shadedPattern>
-                </relocation>
-              </relocations>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-runner-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>
@@ -116,6 +92,17 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- test dependencies -->
@@ -131,5 +118,12 @@
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 </project>

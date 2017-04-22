@@ -80,7 +80,7 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   }
 
   @Override
-  public IntervalWindow getSideInputWindow(BoundedWindow window) {
+  public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
   }
 

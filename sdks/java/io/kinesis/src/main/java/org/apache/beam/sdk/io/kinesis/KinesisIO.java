@@ -27,6 +27,7 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Instant;
 
@@ -99,6 +100,7 @@ import org.joda.time.Instant;
  * }</pre>
  *
  */
+@Experimental
 public final class KinesisIO {
     /**
      * A {@link PTransform} that reads from a Kinesis stream.

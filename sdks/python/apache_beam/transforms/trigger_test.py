@@ -25,6 +25,7 @@ import unittest
 import yaml
 
 import apache_beam as beam
+from apache_beam.runners import pipeline_context
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
@@ -32,12 +33,13 @@ from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterEach
-from apache_beam.transforms.trigger import AfterFirst
+from apache_beam.transforms.trigger import AfterAny
 from apache_beam.transforms.trigger import AfterWatermark
 from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.trigger import TriggerFn
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
@@ -215,7 +217,7 @@ class TriggerTest(unittest.TestCase):
   def test_fixed_after_first(self):
     self.run_trigger_simple(
         FixedWindows(10),  # pyformat break
-        AfterFirst(AfterCount(2), AfterWatermark()),
+        AfterAny(AfterCount(2), AfterWatermark()),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (3, 'c')],
         {IntervalWindow(0, 10): [set('ab')]},
@@ -223,7 +225,7 @@ class TriggerTest(unittest.TestCase):
         2)
     self.run_trigger_simple(
         FixedWindows(10),  # pyformat break
-        AfterFirst(AfterCount(5), AfterWatermark()),
+        AfterAny(AfterCount(5), AfterWatermark()),
         AccumulationMode.ACCUMULATING,
         [(1, 'a'), (2, 'b'), (3, 'c')],
         {IntervalWindow(0, 10): [set('abc')]},
@@ -234,7 +236,7 @@ class TriggerTest(unittest.TestCase):
   def test_repeatedly_after_first(self):
     self.run_trigger_simple(
         FixedWindows(100),  # pyformat break
-        Repeatedly(AfterFirst(AfterCount(3), AfterWatermark())),
+        Repeatedly(AfterAny(AfterCount(3), AfterWatermark())),
         AccumulationMode.ACCUMULATING,
         zip(range(7), 'abcdefg'),
         {IntervalWindow(0, 100): [
@@ -380,6 +382,23 @@ class TriggerTest(unittest.TestCase):
                        range(10))
 
 
+class RunnerApiTest(unittest.TestCase):
+
+  def test_trigger_encoding(self):
+    for trigger_fn in (
+        DefaultTrigger(),
+        AfterAll(AfterCount(1), AfterCount(10)),
+        AfterAny(AfterCount(10), AfterCount(100)),
+        AfterWatermark(early=AfterCount(1000)),
+        AfterWatermark(early=AfterCount(1000), late=AfterCount(1)),
+        Repeatedly(AfterCount(100)),
+        trigger.OrFinally(AfterCount(3), AfterCount(10))):
+      context = pipeline_context.PipelineContext()
+      self.assertEqual(
+          trigger_fn,
+          TriggerFn.from_runner_api(trigger_fn.to_runner_api(context), context))
+
+
 class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
@@ -437,8 +456,7 @@ class TranscriptTest(unittest.TestCase):
       assert s[0] == '[' and s[-1] == ']', s
       if not s[1:-1].strip():
         return []
-      else:
-        return [int(x) for x in s[1:-1].split(',')]
+      return [int(x) for x in s[1:-1].split(',')]
 
     def split_args(s):
       """Splits 'a, b, [c, d]' into ['a', 'b', '[c, d]']."""
@@ -488,8 +506,7 @@ class TranscriptTest(unittest.TestCase):
       fn = parse(s, names)
       if isinstance(fn, type):
         return fn()
-      else:
-        return fn
+      return fn
 
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module

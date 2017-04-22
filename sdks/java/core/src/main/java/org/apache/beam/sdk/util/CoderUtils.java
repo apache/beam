@@ -229,29 +229,22 @@ public final class CoderUtils {
 
   /**
    * A {@link com.fasterxml.jackson.databind.Module} that adds the type
-   * resolver needed for Coder definitions created by the Dataflow service.
+   * resolver needed for Coder definitions.
    */
   static final class Jackson2Module extends SimpleModule {
     /**
      * The Coder custom type resolver.
      *
-     * <p>This resolver resolves coders.  If the Coder ID is a particular
-     * well-known identifier supplied by the Dataflow service, it's replaced
-     * with the corresponding class.  All other Coder instances are resolved
-     * by class name, using the package org.apache.beam.sdk.coders
-     * if there are no "."s in the ID.
+     * <p>This resolver resolves coders. If the Coder ID is a particular
+     * well-known identifier, it's replaced with the corresponding class.
+     * All other Coder instances are resolved by class name, using the package
+     * org.apache.beam.sdk.coders if there are no "."s in the ID.
      */
     private static final class Resolver extends TypeIdResolverBase {
       @SuppressWarnings("unused") // Used via @JsonTypeIdResolver annotation on Mixin
       public Resolver() {
         super(TypeFactory.defaultInstance().constructType(Coder.class),
             TypeFactory.defaultInstance());
-      }
-
-      @Deprecated
-      @Override
-      public JavaType typeFromId(String id) {
-        return typeFromId(null, id);
       }
 
       @Override
@@ -307,14 +300,14 @@ public final class CoderUtils {
      * {@link ObjectMapper}.
      *
      * <p>This is done via a mixin so that this resolver is <i>only</i> used
-     * during deserialization requested by the Dataflow SDK.
+     * during deserialization requested by the Apache Beam SDK.
      */
     @JsonTypeIdResolver(Resolver.class)
     @JsonTypeInfo(use = Id.CUSTOM, include = As.PROPERTY, property = PropertyNames.OBJECT_TYPE_NAME)
     private static final class Mixin {}
 
     public Jackson2Module() {
-      super("DataflowCoders");
+      super("BeamCoders");
       setMixInAnnotation(Coder.class, Mixin.class);
     }
   }

@@ -192,8 +192,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
    */
   protected long getEncodedElementByteSize(T value, Context context)
       throws Exception {
-    try {
-      CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream());
+    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
       encode(value, os, context);
       return os.getCount();
     } catch (Exception exn) {
@@ -242,7 +241,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   }
 
   @Override
-  public Object structuralValue(T value) throws Exception {
+  public Object structuralValue(T value) {
     if (value != null && consistentWithEquals()) {
       return value;
     } else {

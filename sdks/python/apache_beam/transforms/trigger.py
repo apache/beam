@@ -35,13 +35,14 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import OutputTimeFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.runners.api import beam_runner_api_pb2
 
 
 class AccumulationMode(object):
   """Controls what to do with data when a trigger fires multiple times.
   """
-  DISCARDING = 1
-  ACCUMULATING = 2
+  DISCARDING = beam_runner_api_pb2.DISCARDING
+  ACCUMULATING = beam_runner_api_pb2.ACCUMULATING
   # TODO(robertwb): Provide retractions of previous outputs.
   # RETRACTING = 3
 
@@ -63,7 +64,7 @@ class ValueStateTag(StateTag):
   """StateTag pointing to an element."""
 
   def __repr__(self):
-    return 'ValueStateTag(%s, %s)' % (self.tag, self.combine_fn)
+    return 'ValueStateTag(%s)' % (self.tag)
 
   def with_prefix(self, prefix):
     return ValueStateTag(prefix + self.tag)
@@ -90,10 +91,6 @@ class CombiningValueStateTag(StateTag):
 
 class ListStateTag(StateTag):
   """StateTag pointing to a list of elements."""
-
-  def __init__(self, tag):
-    super(ListStateTag, self).__init__(tag)
-
   def __repr__(self):
     return 'ListStateTag(%s)' % self.tag
 
@@ -121,7 +118,7 @@ class WatermarkHoldStateTag(StateTag):
 class TriggerFn(object):
   """A TriggerFn determines when window (panes) are emitted.
 
-  See https://cloud.google.com/dataflow/model/triggers.
+  See https://beam.apache.org/documentation/programming-guide/#triggers
   """
   __metaclass__ = ABCMeta
 
@@ -185,6 +182,26 @@ class TriggerFn(object):
     pass
 # pylint: enable=unused-argument
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return {
+        'after_all': AfterAll,
+        'after_any': AfterAny,
+        'after_each': AfterEach,
+        'after_end_of_window': AfterWatermark,
+        # after_processing_time, after_synchronized_processing_time
+        # always
+        'default': DefaultTrigger,
+        'element_count': AfterCount,
+        # never
+        'or_finally': OrFinally,
+        'repeat': Repeatedly,
+    }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
+
+  @abstractmethod
+  def to_runner_api(self, unused_context):
+    pass
+
 
 class DefaultTrigger(TriggerFn):
   """Semantically Repeatedly(AfterWatermark()), but more optimized."""
@@ -216,6 +233,14 @@ class DefaultTrigger(TriggerFn):
   def __eq__(self, other):
     return type(self) == type(other)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return DefaultTrigger()
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.Trigger(
+        default=beam_runner_api_pb2.Trigger.Default())
+
 
 class AfterWatermark(TriggerFn):
   """Fire exactly once when the watermark passes the end of the window.
@@ -235,9 +260,9 @@ class AfterWatermark(TriggerFn):
   def __repr__(self):
     qualifiers = []
     if self.early:
-      qualifiers.append('early=%s' % self.early)
+      qualifiers.append('early=%s' % self.early.underlying)
     if self.late:
-      qualifiers.append('late=%s', self.late)
+      qualifiers.append('late=%s' % self.late.underlying)
     return 'AfterWatermark(%s)' % ', '.join(qualifiers)
 
   def is_late(self, context):
@@ -275,8 +300,7 @@ class AfterWatermark(TriggerFn):
     elif self.early:
       return self.early.should_fire(
           watermark, window, NestedContext(context, 'early'))
-    else:
-      return False
+    return False
 
   def on_fire(self, watermark, window, context):
     if self.is_late(context):
@@ -305,6 +329,28 @@ class AfterWatermark(TriggerFn):
   def __hash__(self):
     return hash((type(self), self.early, self.late))
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return AfterWatermark(
+        early=TriggerFn.from_runner_api(
+            proto.after_end_of_window.early_firings, context)
+        if proto.after_end_of_window.HasField('early_firings')
+        else None,
+        late=TriggerFn.from_runner_api(
+            proto.after_end_of_window.late_firings, context)
+        if proto.after_end_of_window.HasField('late_firings')
+        else None)
+
+  def to_runner_api(self, context):
+    early_proto = self.early.underlying.to_runner_api(
+        context) if self.early else None
+    late_proto = self.late.underlying.to_runner_api(
+        context) if self.late else None
+    return beam_runner_api_pb2.Trigger(
+        after_end_of_window=beam_runner_api_pb2.Trigger.AfterEndOfWindow(
+            early_firings=early_proto,
+            late_firings=late_proto))
+
 
 class AfterCount(TriggerFn):
   """Fire when there are at least count elements in this window pane."""
@@ -316,6 +362,9 @@ class AfterCount(TriggerFn):
 
   def __repr__(self):
     return 'AfterCount(%s)' % self.count
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.count == other.count
 
   def on_element(self, element, window, context):
     context.add_state(self.COUNT_TAG, 1)
@@ -333,6 +382,15 @@ class AfterCount(TriggerFn):
   def reset(self, window, context):
     context.clear_state(self.COUNT_TAG)
 
+  @staticmethod
+  def from_runner_api(proto, unused_context):
+    return AfterCount(proto.element_count.element_count)
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.Trigger(
+        element_count=beam_runner_api_pb2.Trigger.ElementCount(
+            element_count=self.count))
+
 
 class Repeatedly(TriggerFn):
   """Repeatedly invoke the given trigger, never finishing."""
@@ -342,6 +400,9 @@ class Repeatedly(TriggerFn):
 
   def __repr__(self):
     return 'Repeatedly(%s)' % self.underlying
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.underlying == other.underlying
 
   def on_element(self, element, window, context):  # get window from context?
     self.underlying.on_element(element, window, context)
@@ -360,6 +421,16 @@ class Repeatedly(TriggerFn):
   def reset(self, window, context):
     self.underlying.reset(window, context)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return Repeatedly(
+        TriggerFn.from_runner_api(proto.repeat.subtrigger, context))
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        repeat=beam_runner_api_pb2.Trigger.Repeat(
+            subtrigger=self.underlying.to_runner_api(context)))
+
 
 class ParallelTriggerFn(TriggerFn):
 
@@ -371,6 +442,9 @@ class ParallelTriggerFn(TriggerFn):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__,
                        ', '.join(str(t) for t in self.triggers))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.triggers == other.triggers
 
   @abstractmethod
   def combine_op(self, trigger_results):
@@ -406,8 +480,33 @@ class ParallelTriggerFn(TriggerFn):
   def _sub_context(context, index):
     return NestedContext(context, '%d/' % index)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    subtriggers = [
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger
+        in proto.after_all.subtriggers or proto.after_any.subtriggers]
+    if proto.after_all.subtriggers:
+      return AfterAll(*subtriggers)
+    else:
+      return AfterAny(*subtriggers)
 
-class AfterFirst(ParallelTriggerFn):
+  def to_runner_api(self, context):
+    subtriggers = [
+        subtrigger.to_runner_api(context) for subtrigger in self.triggers]
+    if self.combine_op == all:
+      return beam_runner_api_pb2.Trigger(
+          after_all=beam_runner_api_pb2.Trigger.AfterAll(
+              subtriggers=subtriggers))
+    elif self.combine_op == any:
+      return beam_runner_api_pb2.Trigger(
+          after_any=beam_runner_api_pb2.Trigger.AfterAny(
+              subtriggers=subtriggers))
+    else:
+      raise NotImplementedError(self)
+
+
+class AfterAny(ParallelTriggerFn):
   """Fires when any subtrigger fires.
 
   Also finishes when any subtrigger finishes.
@@ -434,6 +533,9 @@ class AfterEach(TriggerFn):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__,
                        ', '.join(str(t) for t in self.triggers))
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.triggers == other.triggers
 
   def on_element(self, element, window, context):
     ix = context.get_state(self.INDEX_TAG)
@@ -474,11 +576,36 @@ class AfterEach(TriggerFn):
   def _sub_context(context, index):
     return NestedContext(context, '%d/' % index)
 
+  @staticmethod
+  def from_runner_api(proto, context):
+    return AfterEach(*[
+        TriggerFn.from_runner_api(subtrigger, context)
+        for subtrigger in proto.after_each.subtriggers])
 
-class OrFinally(AfterFirst):
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        after_each=beam_runner_api_pb2.Trigger.AfterEach(
+            subtriggers=[
+                subtrigger.to_runner_api(context)
+                for subtrigger in self.triggers]))
 
-  def __init__(self, body_trigger, exit_trigger):
-    super(OrFinally, self).__init__(body_trigger, exit_trigger)
+
+class OrFinally(AfterAny):
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return OrFinally(
+        TriggerFn.from_runner_api(proto.or_finally.main, context),
+        # getattr is used as finally is a keyword in Python
+        TriggerFn.from_runner_api(getattr(proto.or_finally, 'finally'),
+                                  context))
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        or_finally=beam_runner_api_pb2.Trigger.OrFinally(
+            main=self.triggers[0].to_runner_api(context),
+            # dict keyword argument is used as finally is a keyword in Python
+            **{'finally': self.triggers[1].to_runner_api(context)}))
 
 
 class TriggerContext(object):
@@ -657,11 +784,11 @@ class MergeableStateAdapter(SimpleState):
   def _get_id(self, window):
     if window in self.window_ids:
       return self.window_ids[window][0]
-    else:
-      window_id = self._get_next_counter()
-      self.window_ids[window] = [window_id]
-      self._persist_window_ids()
-      return window_id
+
+    window_id = self._get_next_counter()
+    self.window_ids[window] = [window_id]
+    self._persist_window_ids()
+    return window_id
 
   def _get_ids(self, window):
     return self.window_ids.get(window, [])
@@ -714,7 +841,7 @@ class TriggerDriver(object):
 
 
 class _UnwindowedValues(observable.ObservableMixin):
-  """Exposes iterable of windowed values as interable of unwindowed values."""
+  """Exposes iterable of windowed values as iterable of unwindowed values."""
 
   def __init__(self, windowed_values):
     super(_UnwindowedValues, self).__init__()
