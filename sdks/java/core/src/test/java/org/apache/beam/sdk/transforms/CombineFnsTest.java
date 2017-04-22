@@ -31,9 +31,9 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -345,7 +345,7 @@ public class  CombineFnsTest {
     }
   }
 
-  private static class UserStringCoder extends StandardCoder<UserString> {
+  private static class UserStringCoder extends CustomCoder<UserString> {
     public static UserStringCoder of() {
       return INSTANCE;
     }

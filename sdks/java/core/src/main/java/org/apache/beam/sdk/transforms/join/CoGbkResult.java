@@ -17,11 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.util.Structs.addObject;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -35,10 +30,8 @@ import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
@@ -211,7 +204,7 @@ public class CoGbkResult {
   /**
    * A {@link Coder} for {@link CoGbkResult}s.
    */
-  public static class CoGbkResultCoder extends StandardCoder<CoGbkResult> {
+  public static class CoGbkResultCoder extends CustomCoder<CoGbkResult> {
 
     private final CoGbkResultSchema schema;
     private final UnionCoder unionCoder;
@@ -225,15 +218,6 @@ public class CoGbkResult {
       return new CoGbkResultCoder(schema, unionCoder);
     }
 
-    @JsonCreator
-    public static CoGbkResultCoder of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components,
-        @JsonProperty(PropertyNames.CO_GBK_RESULT_SCHEMA) CoGbkResultSchema schema) {
-      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-      return new CoGbkResultCoder(schema, (UnionCoder) components.get(0));
-    }
-
     private CoGbkResultCoder(
         CoGbkResultSchema tupleTags,
         UnionCoder unionCoder) {
@@ -244,13 +228,6 @@ public class CoGbkResult {
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return ImmutableList.of(unionCoder);
-    }
-
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addObject(result, PropertyNames.CO_GBK_RESULT_SCHEMA, schema.asCloudObject());
-      return result;
     }
 
     @Override
