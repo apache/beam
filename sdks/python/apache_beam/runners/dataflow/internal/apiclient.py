@@ -329,13 +329,13 @@ class Job(object):
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
-    # area or team members using same job names. This method is not entirely
-    # foolproof since two job submissions with same name can happen at exactly
-    # the same time. However the window is extremely small given that
-    # time.time() has at least microseconds granularity. We add the suffix only
-    # for GCS staging locations where the potential for such clashes is high.
+    # area or team members using same job names. We also add a small random
+    # string to avoid any conflicts if two jobs are submitted at the same time.
     if self.google_cloud_options.staging_location.startswith('gs://'):
-      path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
+      path_suffix = '%s.%f.%s' % (
+          self.google_cloud_options.job_name,
+          time.time(),
+          ''.join(random.choice(string.lowercase) for _ in range(5)))
       self.google_cloud_options.staging_location = utils.path.join(
           self.google_cloud_options.staging_location, path_suffix)
       self.google_cloud_options.temp_location = utils.path.join(
