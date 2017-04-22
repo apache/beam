@@ -113,6 +113,7 @@ public class CoderRegistry implements CoderProvider {
     codersToRegister.put(Void.class, CoderFactories.fromStaticMethods(VoidCoder.class));
     codersToRegister.put(byte[].class, CoderFactories.fromStaticMethods(ByteArrayCoder.class));
     codersToRegister.put(IntervalWindow.class, CoderFactories.forCoder(IntervalWindow.getCoder()));
+    // TODO(mairbek): Remove once Spanner classes are serializable.
     codersToRegister.put(Mutation.class, CoderFactories.forCoder(SpannerMutationCoder.of()));
     codersToRegister.put(Struct.class, CoderFactories.forCoder(SpannerStructCoder.of()));
 
