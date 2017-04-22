@@ -258,6 +258,9 @@ class PipelineTest(unittest.TestCase):
     # Plus small additional slack for memory fluctuations during the test.
     memory_threshold += 10 * (2 ** 20)
 
+    # Plus small additional slack for memory fluctuations during the test.
+    memory_threshold += 10 * (2 ** 20)
+
     biglist = pipeline | 'oom:create' >> Create(
         ['x' * len_elements] * num_elements)
     for i in range(num_maps):
