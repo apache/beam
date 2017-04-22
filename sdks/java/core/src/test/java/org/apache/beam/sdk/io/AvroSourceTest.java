@@ -82,7 +82,7 @@ public class AvroSourceTest {
   private enum SyncBehavior {
     SYNC_REGULAR, // Sync at regular, user defined intervals
     SYNC_RANDOM, // Sync at random intervals
-    SYNC_DEFAULT; // Sync at default intervals (i.e., no manual syncing).
+    SYNC_DEFAULT // Sync at default intervals (i.e., no manual syncing).
   }
 
   private static final int DEFAULT_RECORD_COUNT = 1000;
