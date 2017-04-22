@@ -69,7 +69,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  */
 public class DoFnSignatures {
 
-  private DoFnSignatures() {};
+  private DoFnSignatures() {}
 
   private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
