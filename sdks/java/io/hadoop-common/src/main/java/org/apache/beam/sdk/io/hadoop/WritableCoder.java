@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -27,7 +25,7 @@ import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
@@ -45,7 +43,7 @@ import org.apache.hadoop.io.Writable;
  *
  * @param <T> the type of elements handled by this coder.
  */
-public class WritableCoder<T extends Writable> extends StandardCoder<T> {
+public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   private static final long serialVersionUID = 0L;
 
   /**
@@ -54,18 +52,6 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
     return new WritableCoder<>(clazz);
-  }
-
-  @JsonCreator
-  @SuppressWarnings("unchecked")
-  public static WritableCoder<?> of(@JsonProperty("type") String classType)
-      throws ClassNotFoundException {
-    Class<?> clazz = Class.forName(classType);
-    if (!Writable.class.isAssignableFrom(clazz)) {
-      throw new ClassNotFoundException(
-          "Class " + classType + " does not implement Writable");
-    }
-    return of((Class<? extends Writable>) clazz);
   }
 
   private final Class<T> type;

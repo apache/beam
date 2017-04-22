@@ -183,7 +183,7 @@ public class IsmFormat {
    * </ul>
    */
   public static class IsmRecordCoder<V>
-      extends StandardCoder<IsmRecord<V>> {
+      extends CustomCoder<IsmRecord<V>> {
     /** Returns an IsmRecordCoder with the specified key component coders, value coder. */
     public static <V> IsmRecordCoder<V> of(
         int numberOfShardKeyCoders,
@@ -482,22 +482,10 @@ public class IsmFormat {
    * A coder for metadata key component. Can be used to wrap key component coder allowing for
    * the metadata key component to be used as a place holder instead of an actual key.
    */
-  public static class MetadataKeyCoder<K> extends StandardCoder<K> {
+  public static class MetadataKeyCoder<K> extends CustomCoder<K> {
     public static <K> MetadataKeyCoder<K> of(Coder<K> keyCoder) {
       checkNotNull(keyCoder);
       return new MetadataKeyCoder<>(keyCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static MetadataKeyCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() == 1,
-          "Expecting one component, got " + components.size());
-      return of(components.get(0));
     }
 
     private final Coder<K> keyCoder;

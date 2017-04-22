@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -41,7 +39,6 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DelegateCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -64,7 +61,6 @@ import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.util.PCollectionViews;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -2278,7 +2274,7 @@ public class Combine {
       }
 
       private static class InputOrAccumCoder<InputT, AccumT>
-          extends StandardCoder<InputOrAccum<InputT, AccumT>> {
+          extends CustomCoder<InputOrAccum<InputT, AccumT>> {
 
         private final Coder<InputT> inputCoder;
         private final Coder<AccumT> accumCoder;
@@ -2286,14 +2282,6 @@ public class Combine {
         public InputOrAccumCoder(Coder<InputT> inputCoder, Coder<AccumT> accumCoder) {
           this.inputCoder = inputCoder;
           this.accumCoder = accumCoder;
-        }
-
-        @JsonCreator
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        public static <InputT, AccumT> InputOrAccumCoder<InputT, AccumT> of(
-            @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-            List<Coder<?>> elementCoders) {
-          return new InputOrAccumCoder(elementCoders.get(0), elementCoders.get(1));
         }
 
         @Override

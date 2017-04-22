@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.junit.Rule;
 import org.junit.Test;
@@ -87,7 +88,7 @@ public class SerializableUtilsTest {
   }
 
   /** A {@link Coder} that is not serializable by Java. */
-  private static class UnserializableCoderByJava extends StandardCoder<Object> {
+  private static class UnserializableCoderByJava extends CustomCoder<Object> {
     private final Object unserializableField = new Object();
 
     @Override
@@ -116,54 +117,4 @@ public class SerializableUtilsTest {
     expectedException.expectMessage("unable to serialize");
     SerializableUtils.ensureSerializable(new UnserializableCoderByJava());
   }
-
-  /** A {@link Coder} that is not serializable by Jackson. */
-  private static class UnserializableCoderByJackson extends StandardCoder<Object> {
-    private final SerializableByJava unserializableField;
-
-    public UnserializableCoderByJackson(SerializableByJava unserializableField) {
-      this.unserializableField = unserializableField;
-    }
-
-    @JsonCreator
-    public static UnserializableCoderByJackson of(
-        @JsonProperty("unserializableField") SerializableByJava unserializableField) {
-      return new UnserializableCoderByJackson(unserializableField);
-    }
-
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      result.put("unserializableField", unserializableField);
-      return result;
-    }
-
-    @Override
-    public void encode(Object value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
-    }
-
-    @Override
-    public Object decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
-      return unserializableField;
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return ImmutableList.of();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {}
-  }
-
-  @Test
-  public void testEnsureSerializableWithUnserializableCoderByJackson() throws Exception {
-    expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Unable to deserialize Coder:");
-    SerializableUtils.ensureSerializable(
-        new UnserializableCoderByJackson(new SerializableByJava("TestData", 5)));
-  }
-
 }

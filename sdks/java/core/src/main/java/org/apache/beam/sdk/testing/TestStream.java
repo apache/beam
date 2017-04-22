@@ -21,26 +21,22 @@ package org.apache.beam.sdk.testing;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
@@ -48,8 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
-import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeParameter;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -289,28 +283,16 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
    *            this {@link EventCoder}
    */
   @VisibleForTesting
-  static final class EventCoder<T> extends StandardCoder<Event<T>> {
+  static final class EventCoder<T> extends CustomCoder<Event<T>> {
     private static final Coder<ReadableDuration> DURATION_CODER = DurationCoder.of();
     private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
-    private final Coder<T> valueCoder;
     private final Coder<Iterable<TimestampedValue<T>>> elementCoder;
 
     public static <T> EventCoder<T> of(Coder<T> valueCoder) {
       return new EventCoder<>(valueCoder);
     }
 
-    @JsonCreator
-    public static <T> EventCoder<T> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<? extends Coder<?>> components) {
-      checkArgument(
-          components.size() == 1,
-          "Was expecting exactly one component coder, got %s",
-          components.size());
-      return new EventCoder<>((Coder<T>) components.get(0));
-    }
-
     private EventCoder(Coder<T> valueCoder) {
-      this.valueCoder = valueCoder;
       this.elementCoder = IterableCoder.of(TimestampedValueCoder.of(valueCoder));
     }
 
@@ -353,24 +335,6 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
         default:
           throw new AssertionError("Unreachable: Unsupported Event Type " + eventType);
       }
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return Collections.singletonList(valueCoder);
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      elementCoder.verifyDeterministic();
-      DURATION_CODER.verifyDeterministic();
-      INSTANT_CODER.verifyDeterministic();
-    }
-
-    @Override
-    public TypeDescriptor<Event<T>> getEncodedTypeDescriptor() {
-      return new TypeDescriptor<Event<T>>() {}.where(
-          new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
     }
   }
 }

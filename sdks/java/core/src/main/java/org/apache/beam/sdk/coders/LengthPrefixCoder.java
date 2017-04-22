@@ -17,21 +17,18 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -41,21 +38,12 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * @param <T> the type of the values being transcoded
  */
-public class LengthPrefixCoder<T> extends StandardCoder<T> {
+public class LengthPrefixCoder<T> extends CustomCoder<T> {
 
   public static <T> LengthPrefixCoder<T> of(
       Coder<T> valueCoder) {
     checkNotNull(valueCoder, "Coder not expected to be null");
     return new LengthPrefixCoder<>(valueCoder);
-  }
-
-  @JsonCreator
-  public static LengthPrefixCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1,
-                  "Expecting 1 components, got " + components.size());
-    return of(components.get(0));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -64,11 +52,6 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
 
   private LengthPrefixCoder(Coder<T> valueCoder) {
     this.valueCoder = valueCoder;
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    return CloudObject.forClassName("kind:length_prefix");
   }
 
   @Override
@@ -141,5 +124,15 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
     return valueCoder.isRegisterByteSizeObserverCheap(value, Context.OUTER);
+  }
+
+  @Override
+  public String getEncodingId() {
+    return "";
+  }
+
+  @Override
+  public Collection<String> getAllowedEncodings() {
+    return Collections.emptyList();
   }
 }

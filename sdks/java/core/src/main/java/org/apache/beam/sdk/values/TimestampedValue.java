@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,10 +26,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.joda.time.Instant;
 
 /**
@@ -88,25 +84,13 @@ public class TimestampedValue<V> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@link Coder} for {@link TimestampedValue}.
-   */
-  public static class TimestampedValueCoder<T>
-      extends StandardCoder<TimestampedValue<T>> {
+  /** A {@link Coder} for {@link TimestampedValue}. */
+  public static class TimestampedValueCoder<T> extends CustomCoder<TimestampedValue<T>> {
 
     private final Coder<T> valueCoder;
 
     public static <T> TimestampedValueCoder<T> of(Coder<T> valueCoder) {
       return new TimestampedValueCoder<>(valueCoder);
-    }
-
-    @JsonCreator
-    public static TimestampedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1,
-                    "Expecting 1 component, got " + components.size());
-      return of(components.get(0));
     }
 
     @SuppressWarnings("unchecked")

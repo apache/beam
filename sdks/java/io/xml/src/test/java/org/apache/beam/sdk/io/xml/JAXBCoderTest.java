@@ -171,7 +171,7 @@ public class JAXBCoderTest {
   /**
    * A coder that surrounds the value with two values, to demonstrate nesting.
    */
-  private static class TestCoder extends StandardCoder<TestType> {
+  private static class TestCoder extends CustomCoder<TestType> {
     private final JAXBCoder<TestType> jaxbCoder;
     public TestCoder(JAXBCoder<TestType> jaxbCoder) {
       this.jaxbCoder = jaxbCoder;

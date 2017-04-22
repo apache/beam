@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CloudObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,12 +50,6 @@ public class LengthPrefixCoderTest {
       "Ag0D",
       "Ag0O",
       "AA");
-
-  @Test
-  public void testCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = TEST_CODER.asCloudObject();
-    assertEquals("kind:length_prefix", cloudObject.getClassName());
-  }
 
   @Test
   public void testCoderSerializable() throws Exception {
