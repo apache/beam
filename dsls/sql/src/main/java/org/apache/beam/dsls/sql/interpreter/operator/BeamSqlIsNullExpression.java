@@ -15,48 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.transform;
+package org.apache.beam.dsls.sql.interpreter.operator;
 
+import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
-import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSQLFilterFn} is the executor for a {@link BeamFilterRel} step.
- *
+ * {@code BeamSqlExpression} for 'IS NULL' operation.
  */
-public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
+public class BeamSqlIsNullExpression extends BeamSqlExpression {
 
-  private String stepName;
-  private BeamSQLExpressionExecutor executor;
-
-  public BeamSQLFilterFn(String stepName, BeamSQLExpressionExecutor executor) {
-    super();
-    this.stepName = stepName;
-    this.executor = executor;
+  private BeamSqlIsNullExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
+    super(operands, outputType);
   }
 
-  @Setup
-  public void setup() {
-    executor.prepare();
+  public BeamSqlIsNullExpression(BeamSqlExpression operand){
+    this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 
-  @ProcessElement
-  public void processElement(ProcessContext c) {
-    BeamSQLRow in = c.element();
-
-    List<Object> result = executor.execute(in);
-
-    if ((Boolean) result.get(0)) {
-      c.output(in);
-    }
+  /**
+   * only one operand is required.
+   */
+  @Override
+  public boolean accept() {
+    return operands.size() == 1;
   }
 
-  @Teardown
-  public void close() {
-    executor.close();
+  @Override
+  public BeamSqlPrimitive<Boolean> evaluate(BeamSQLRow inputRecord) {
+    Object leftValue = operands.get(0).evaluate(inputRecord).getValue();
+    return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue == null);
   }
-
 }

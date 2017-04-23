@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.schema;
+package org.apache.beam.dsls.sql.exception;
 
 /**
- * Exception when the field is invalid.
+ * operation is not supported.
  *
  */
-public class InvalidFieldException extends RuntimeException {
+public class BeamInvalidOperatorException extends RuntimeException {
 
-  public InvalidFieldException() {
-    super();
+  public BeamInvalidOperatorException(String string) {
+    super(string);
   }
 
-  public InvalidFieldException(String message) {
-    super(message);
+  public BeamInvalidOperatorException() {
+    super();
   }
 
 }
