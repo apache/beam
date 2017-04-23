@@ -46,10 +46,7 @@ class GCSFileSystem(FileSystem):
       raise ValueError('Basepath %r must be GCS path.', basepath)
     path = basepath
     for p in paths:
-      if path == '' or path.endswith('/'):
-        path += p
-      else:
-        path += '/' + p
+      path = path.rstrip('/') + '/' + p.lstrip('/')
     return path
 
   def mkdirs(self, path):

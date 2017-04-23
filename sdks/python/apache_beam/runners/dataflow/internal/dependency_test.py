@@ -23,7 +23,7 @@ import shutil
 import tempfile
 import unittest
 
-from apache_beam import utils
+from apache_beam.io.filesystems_util import get_filesystem
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
@@ -241,7 +241,8 @@ class SetupTest(unittest.TestCase):
     def file_copy(from_path, to_path):
       if not from_path.endswith(names.PICKLED_MAIN_SESSION_FILE):
         self.assertEqual(expected_from_path, from_path)
-        self.assertEqual(utils.path.join(expected_to_dir,
+        filesystem = get_filesystem(expected_to_dir)
+        self.assertEqual(filesystem.join(expected_to_dir,
                                          names.DATAFLOW_SDK_TARBALL_FILE),
                          to_path)
       if from_path.startswith('gs://') or to_path.startswith('gs://'):
