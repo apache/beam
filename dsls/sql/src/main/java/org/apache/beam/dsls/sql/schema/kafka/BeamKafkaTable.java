@@ -40,11 +40,6 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {
 
-  /**
-   *
-   */
-  private static final long serialVersionUID = -634715473399906527L;
-
   private String bootstrapServers;
   private List<String> topics;
   private Map<String, Object> configUpdates;

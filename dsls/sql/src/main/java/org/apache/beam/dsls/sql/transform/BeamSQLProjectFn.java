@@ -30,11 +30,6 @@ import org.apache.beam.sdk.transforms.DoFn;
  *
  */
 public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
-
-  /**
-   *
-   */
-  private static final long serialVersionUID = -1046605249999014608L;
   private String stepName;
   private BeamSQLExpressionExecutor executor;
   private BeamSQLRecordType outputRecordType;

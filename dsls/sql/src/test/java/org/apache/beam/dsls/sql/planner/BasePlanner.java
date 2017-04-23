@@ -28,6 +28,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 /**
@@ -35,21 +36,33 @@ import org.junit.BeforeClass;
  *
  */
 public class BasePlanner {
-  public static BeamSqlRunner runner = new BeamSqlRunner();
+  public static BeamSqlRunner runner;
 
   @BeforeClass
   public static void prepare() {
+    runner = new BeamSqlRunner();
+
     runner.addTable("ORDER_DETAILS", getTable());
     runner.addTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
     runner.addTable("SUB_ORDER_RAM", getTable());
+  }
+
+  @AfterClass
+  public static void close(){
+    runner = null;
   }
 
   private static BaseBeamTable getTable() {
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("order_id", SqlTypeName.BIGINT).add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE).add("order_time", SqlTypeName.TIMESTAMP).build();
+        return a0.builder()
+            .add("order_id", SqlTypeName.BIGINT)
+            .add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE)
+            .add("shipping", SqlTypeName.FLOAT)
+            .add("notes", SqlTypeName.VARCHAR)
+            .build();
       }
     };
 
@@ -60,8 +73,13 @@ public class BasePlanner {
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("order_id", SqlTypeName.BIGINT).add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE).add("order_time", SqlTypeName.TIMESTAMP).build();
+        return a0.builder()
+            .add("order_id", SqlTypeName.BIGINT)
+            .add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE)
+            .add("shipping", SqlTypeName.FLOAT)
+            .add("notes", SqlTypeName.VARCHAR)
+            .build();
       }
     };
 

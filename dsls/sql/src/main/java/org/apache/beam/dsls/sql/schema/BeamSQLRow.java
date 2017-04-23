@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import org.apache.beam.dsls.sql.exception.InvalidFieldException;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -28,10 +29,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  */
 public class BeamSQLRow implements Serializable {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 4569220242480160895L;
 
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
@@ -42,12 +39,15 @@ public class BeamSQLRow implements Serializable {
     this.dataValues = new ArrayList<>();
     for (int idx = 0; idx < dataType.size(); ++idx) {
       dataValues.add(null);
+      nullFields.add(idx);
     }
   }
 
   public BeamSQLRow(BeamSQLRecordType dataType, List<Object> dataValues) {
-    this.dataValues = dataValues;
-    this.dataType = dataType;
+    this(dataType);
+    for (int idx = 0; idx < dataValues.size(); ++idx) {
+      addField(idx, dataValues.get(idx));
+    }
   }
 
   public void addField(String fieldName, Object fieldValue) {
@@ -56,19 +56,29 @@ public class BeamSQLRow implements Serializable {
 
   public void addField(int index, Object fieldValue) {
     if (fieldValue == null) {
-      dataValues.set(index, fieldValue);
-      if (!nullFields.contains(index)) {
-        nullFields.add(index);
-      }
       return;
+    } else {
+      if (nullFields.contains(index)) {
+        nullFields.remove(nullFields.indexOf(index));
+      }
     }
 
     SqlTypeName fieldType = dataType.getFieldsType().get(index);
     switch (fieldType) {
     case INTEGER:
-    case SMALLINT:
-    case TINYINT:
       if (!(fieldValue instanceof Integer)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      }
+      break;
+    case SMALLINT:
+      if (!(fieldValue instanceof Short)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      }
+      break;
+    case TINYINT:
+      if (!(fieldValue instanceof Byte)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
@@ -97,22 +107,22 @@ public class BeamSQLRow implements Serializable {
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
       break;
-    case TIME:
-    case TIMESTAMP:
-      if (!(fieldValue instanceof Date)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
     default:
       throw new UnsupportedDataTypeException(fieldType);
     }
     dataValues.set(index, fieldValue);
   }
 
+  public short getShort(int idx) {
+    return (Short) getFieldValue(idx);
+  }
 
   public int getInteger(int idx) {
     return (Integer) getFieldValue(idx);
+  }
+
+  public float getFloat(int idx) {
+    return (Float) getFieldValue(idx);
   }
 
   public double getDouble(int idx) {
@@ -145,45 +155,49 @@ public class BeamSQLRow implements Serializable {
 
     switch (fieldType) {
     case INTEGER:
-    case SMALLINT:
-    case TINYINT:
       if (!(fieldValue instanceof Integer)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Integer.valueOf(fieldValue.toString());
+        return fieldValue;
+      }
+    case SMALLINT:
+      if (!(fieldValue instanceof Short)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      } else {
+        return fieldValue;
+      }
+    case TINYINT:
+      if (!(fieldValue instanceof Byte)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      } else {
+        return fieldValue;
       }
     case DOUBLE:
       if (!(fieldValue instanceof Double)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Double.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case BIGINT:
       if (!(fieldValue instanceof Long)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Long.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case FLOAT:
       if (!(fieldValue instanceof Float)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
-        return Float.valueOf(fieldValue.toString());
+        return fieldValue;
       }
     case VARCHAR:
       if (!(fieldValue instanceof String)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue.toString();
-      }
-    case TIME:
-    case TIMESTAMP:
-      if (!(fieldValue instanceof Date)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
