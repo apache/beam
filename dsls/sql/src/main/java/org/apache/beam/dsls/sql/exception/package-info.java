@@ -15,20 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.schema;
 
 /**
- * Exception when the field is invalid.
+ * Exceptions in BeamSQL.
  *
  */
-public class InvalidFieldException extends RuntimeException {
-
-  public InvalidFieldException() {
-    super();
-  }
-
-  public InvalidFieldException(String message) {
-    super(message);
-  }
-
-}
+package org.apache.beam.dsls.sql.exception;

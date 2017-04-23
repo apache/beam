@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-dsls-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>0.6.0</version>
   </parent>
   
   <artifactId>beam-dsls-sql</artifactId>
@@ -140,10 +140,6 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.springframework</groupId>
-      <artifactId>spring-expression</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>

@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
-
-import org.junit.Assert;
-import org.junit.Test;
+package org.apache.beam.dsls.sql.exception;
 
 /**
- * Tests to execute a query.
+ * operation is not supported.
  *
  */
-public class BeamPlannerSubmitTest extends BasePlanner {
-  @Test
-  public void insertSelectFilter() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
-        + " order_id, site_id, price " + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
+public class BeamInvalidOperatorException extends RuntimeException {
+  /**
+   *
+   */
+  private static final long serialVersionUID = 3445015747629217342L;
 
-    runner.submitQuery(sql);
+  public BeamInvalidOperatorException(String string) {
+    super(string);
+  }
 
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertEquals("order_id=12345,site_id=0,price=20.5,shipping=null,notes=null",
-        MockedBeamSQLTable.CONTENT.get(0));
+  public BeamInvalidOperatorException() {
+    super();
   }
 
 }

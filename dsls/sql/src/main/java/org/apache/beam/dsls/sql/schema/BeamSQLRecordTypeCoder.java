@@ -54,35 +54,34 @@ public class BeamSQLRecordTypeCoder extends StandardCoder<BeamSQLRecordType> {
     for (SqlTypeName fieldType : value.getFieldsType()) {
       stringCoder.encode(fieldType.name(), outStream, nested);
     }
-    outStream.flush();
+    //add a dummy field to indicate the end of record
+    intCoder.encode(value.size(), outStream, context);
   }
 
   @Override
   public BeamSQLRecordType decode(InputStream inStream,
       org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
     BeamSQLRecordType typeRecord = new BeamSQLRecordType();
-    Context nested = context.nested();
-    int size = intCoder.decode(inStream, nested);
+    int size = intCoder.decode(inStream, context.nested());
     for (int idx = 0; idx < size; ++idx) {
-      typeRecord.getFieldsName().add(stringCoder.decode(inStream, nested));
+      typeRecord.getFieldsName().add(stringCoder.decode(inStream, context.nested()));
     }
     for (int idx = 0; idx < size; ++idx) {
-      typeRecord.getFieldsType().add(SqlTypeName.valueOf(stringCoder.decode(inStream, nested)));
+      typeRecord.getFieldsType().add(
+          SqlTypeName.valueOf(stringCoder.decode(inStream, context.nested())));
     }
+    intCoder.decode(inStream, context);
     return typeRecord;
   }
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    // TODO Auto-generated method stub
     return null;
   }
 
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    // TODO Auto-generated method stub
-
   }
 
 }

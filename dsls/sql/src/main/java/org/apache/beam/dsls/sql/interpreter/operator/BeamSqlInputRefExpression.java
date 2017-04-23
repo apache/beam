@@ -15,24 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.interpreter.operator;
+
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Generic exception for un-supported operations.
- *
+ * An primitive operation for direct field extraction.
  */
-public class BeamSqlUnsupportedException extends RuntimeException {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 3445015747629217342L;
+public class BeamSqlInputRefExpression extends BeamSqlExpression{
+  private int inputRef;
 
-  public BeamSqlUnsupportedException(String string) {
-    super(string);
+  public BeamSqlInputRefExpression(SqlTypeName sqlTypeName, int inputRef) {
+    super(null, sqlTypeName);
+    this.inputRef = inputRef;
   }
 
-  public BeamSqlUnsupportedException() {
-    super();
+  @Override
+  public boolean accept() {
+    // TODO Auto-generated method stub
+    return false;
   }
+
+  @Override
+  public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
+    return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
+  }
+
 
 }
