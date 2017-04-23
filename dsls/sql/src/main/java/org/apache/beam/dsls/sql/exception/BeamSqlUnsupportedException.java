@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.exception;
 
 /**
- * Generic exception for un-supported operations.
+ * Generic exception for un-supported features/functions in BeamSQL.
  *
  */
 public class BeamSqlUnsupportedException extends RuntimeException {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 3445015747629217342L;
 
   public BeamSqlUnsupportedException(String string) {
     super(string);

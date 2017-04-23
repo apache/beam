@@ -66,11 +66,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
  */
 public class BeamSqlExample implements Serializable {
 
-  /**
-   *
-   */
-  private static final long serialVersionUID = 3673487843555563904L;
-
   public static void main(String[] args) throws Exception {
     BeamSqlRunner runner = new BeamSqlRunner();
     runner.addTable("ORDER_DETAILS", getTable("127.0.0.1:9092", "orders"));
