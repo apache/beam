@@ -32,7 +32,7 @@ public class BeamPlannerExplainTest extends BasePlanner {
     String plan = runner.explainQuery(sql);
 
     String expectedPlan =
-        "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], order_time=[$3])\n"
+        "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], shipping=[$3], notes=[$4])\n"
         + "  BeamIOSourceRel(table=[[ORDER_DETAILS]])\n";
     Assert.assertEquals("explain doesn't match", expectedPlan, plan);
   }
@@ -58,7 +58,8 @@ public class BeamPlannerExplainTest extends BasePlanner {
 
     String expectedPlan =
         "BeamIOSinkRel(table=[[SUB_ORDER]], operation=[INSERT], flattened=[true])\n"
-        + "  BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], order_time=[null])\n"
+        + "  BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], shipping=[null],"
+            + " notes=[null])\n"
         + "    BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2])\n"
         + "      BeamFilterRel(condition=[AND(=($1, 0), >($2, 20))])\n"
         + "        BeamIOSourceRel(table=[[ORDER_DETAILS]])\n";

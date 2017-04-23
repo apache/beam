@@ -18,7 +18,6 @@
 package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
@@ -39,11 +38,6 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
 
-  /**
-   *
-   */
-  private static final long serialVersionUID = 1373168368414036932L;
-
   public static final List<String> CONTENT = new ArrayList<>();
 
   public MockedBeamSQLTable(RelProtoDataType protoRowType) {
@@ -61,25 +55,25 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     row1.addField(0, 12345L);
     row1.addField(1, 0);
     row1.addField(2, 10.5);
-    row1.addField(3, new Date());
+    row1.addField(3, 123.4f);
 
     BeamSQLRow row2 = new BeamSQLRow(beamSqlRecordType);
     row2.addField(0, 12345L);
     row2.addField(1, 1);
     row2.addField(2, 20.5);
-    row2.addField(3, new Date());
+    row2.addField(3, 234.5f);
 
     BeamSQLRow row3 = new BeamSQLRow(beamSqlRecordType);
     row3.addField(0, 12345L);
     row3.addField(1, 0);
     row3.addField(2, 20.5);
-    row3.addField(3, new Date());
+    row3.addField(3, 345.6f);
 
     BeamSQLRow row4 = new BeamSQLRow(beamSqlRecordType);
     row4.addField(0, null);
     row4.addField(1, null);
     row4.addField(2, 20.5);
-    row4.addField(3, new Date());
+    row4.addField(3, 456.7f);
 
     return Create.of(row1, row2, row3);
   }
