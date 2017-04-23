@@ -36,16 +36,16 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class BeamSqlRunner implements Serializable {
-  /**
-   *
-   */
-  private static final long serialVersionUID = -4708693435115005182L;
-
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRunner.class);
 
   private SchemaPlus schema = Frameworks.createRootSchema(true);
 
   private BeamQueryPlanner planner = new BeamQueryPlanner(schema);
+
+  public BeamSqlRunner() {
+    //disable assertions in Calcite.
+    ClassLoader.getSystemClassLoader().setDefaultAssertionStatus(false);
+  }
 
   /**
    * Add a schema.
@@ -70,7 +70,6 @@ public class BeamSqlRunner implements Serializable {
    */
   public void submitQuery(String sqlString) throws Exception {
     planner.submitToRun(sqlString);
-    planner.planner.close();
   }
 
   /**
@@ -78,12 +77,10 @@ public class BeamSqlRunner implements Serializable {
    *
    */
   public String explainQuery(String sqlString)
-      throws ValidationException, RelConversionException, SqlParseException {
+    throws ValidationException, RelConversionException, SqlParseException {
     BeamRelNode exeTree = planner.convertToBeamRel(sqlString);
     String beamPlan = RelOptUtil.toString(exeTree);
     System.out.println(String.format("beamPlan>\n%s", beamPlan));
-
-    planner.planner.close();
     return beamPlan;
   }
 

@@ -35,11 +35,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamKafkaCSVTable extends BeamKafkaTable {
 
-  /**
-   *
-   */
-  private static final long serialVersionUID = 4754022536543333984L;
-
   public static final String DELIMITER = ",";
   private static final Logger LOG = LoggerFactory.getLogger(BeamKafkaCSVTable.class);
 

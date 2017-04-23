@@ -15,26 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Tests to execute a query.
- *
+ * An primitive operation for direct field extraction.
  */
-public class BeamPlannerSubmitTest extends BasePlanner {
-  @Test
-  public void insertSelectFilter() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
-        + " order_id, site_id, price " + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
+public class BeamSqlInputRefExpression extends BeamSqlExpression{
+  private int inputRef;
 
-    runner.submitQuery(sql);
-
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertEquals("order_id=12345,site_id=0,price=20.5,shipping=null,notes=null",
-        MockedBeamSQLTable.CONTENT.get(0));
+  public BeamSqlInputRefExpression(SqlTypeName sqlTypeName, int inputRef) {
+    super(null, sqlTypeName);
+    this.inputRef = inputRef;
   }
+
+  @Override
+  public boolean accept() {
+    // TODO Auto-generated method stub
+    return false;
+  }
+
+  @Override
+  public BeamSqlPrimitive evaluate(BeamSQLRow inputRecord) {
+    return BeamSqlPrimitive.of(outputType, inputRecord.getFieldValue(inputRef));
+  }
+
 
 }

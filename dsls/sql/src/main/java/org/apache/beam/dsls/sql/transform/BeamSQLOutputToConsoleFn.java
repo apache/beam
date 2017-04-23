@@ -25,10 +25,6 @@ import org.apache.beam.sdk.transforms.DoFn;
  *
  */
 public class BeamSQLOutputToConsoleFn extends DoFn<BeamSQLRow, Void> {
-  /**
-   *
-   */
-  private static final long serialVersionUID = -1256111753670606705L;
 
   private String stepName;
 
