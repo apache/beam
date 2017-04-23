@@ -412,6 +412,38 @@ public class UnboundedReadEvaluatorFactoryTest {
     evaluator.processElement(shard);
   }
 
+  @Test
+  public void evaluatorThrowsInCloseRethrows() throws Exception {
+    ContiguousSet<Long> elems = ContiguousSet.create(Range.closed(0L, 20L), DiscreteDomain.longs());
+    TestUnboundedSource<Long> source =
+        new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]))
+            .throwsOnClose();
+
+    PCollection<Long> pcollection = p.apply(Read.from(source));
+    AppliedPTransform<?, ?, ?> sourceTransform =
+        DirectGraphs.getGraph(p).getProducer(pcollection);
+
+    when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
+    UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
+    when(context.createBundle(pcollection)).thenReturn(output);
+
+    WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
+        WindowedValue.valueInGlobalWindow(
+            UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
+    CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
+        bundleFactory
+            .<UnboundedSourceShard<Long, TestCheckpointMark>>createRootBundle()
+            .add(shard)
+            .commit(Instant.now());
+    UnboundedReadEvaluatorFactory factory =
+        new UnboundedReadEvaluatorFactory(context, 0.0 /* never reuse */);
+    TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
+        factory.forApplication(sourceTransform, inputBundle);
+    thrown.expect(IOException.class);
+    thrown.expectMessage("throws on close");
+    evaluator.processElement(shard);
+  }
+
   /**
    * A terse alias for producing timestamped longs in the {@link GlobalWindow}, where
    * the timestamp is the epoch offset by the value of the element.
