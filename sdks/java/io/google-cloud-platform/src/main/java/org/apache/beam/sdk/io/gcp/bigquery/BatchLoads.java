@@ -189,7 +189,7 @@ class BatchLoads<DestinationT>
                     new SimpleFunction<String, String>() {
                       @Override
                       public String apply(String input) {
-                        return stepUuid;
+                        return BigQueryHelpers.randomUUIDString();
                       }
                     }))
             .apply(View.<String>asSingleton());
