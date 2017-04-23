@@ -20,7 +20,6 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -55,10 +54,8 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   @Override
   public void encode(BeamSQLRow value, OutputStream outStream,
       org.apache.beam.sdk.coders.Coder.Context context) throws CoderException, IOException {
-    recordTypeCoder.encode(value.getDataType(), outStream, context);
-    listCoder.encode(value.getNullFields(), outStream, context);
-
-    Context nested = context.nested();
+    recordTypeCoder.encode(value.getDataType(), outStream, context.nested());
+    listCoder.encode(value.getNullFields(), outStream, context.nested());
 
     for (int idx = 0; idx < value.size(); ++idx) {
       if (value.getNullFields().contains(idx)) {
@@ -67,36 +64,38 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
       switch (value.getDataType().getFieldsType().get(idx)) {
       case INTEGER:
+        intCoder.encode(value.getInteger(idx), outStream, context.nested());
+        break;
       case SMALLINT:
       case TINYINT:
-        intCoder.encode(value.getInteger(idx), outStream, nested);
+        intCoder.encode((int) value.getShort(idx), outStream, context.nested());
         break;
       case DOUBLE:
+        doubleCoder.encode(value.getDouble(idx), outStream, context.nested());
+        break;
       case FLOAT:
-        doubleCoder.encode(value.getDouble(idx), outStream, nested);
+        doubleCoder.encode((double) value.getFloat(idx), outStream, context.nested());
         break;
       case BIGINT:
-        longCoder.encode(value.getLong(idx), outStream, nested);
+        longCoder.encode(value.getLong(idx), outStream, context.nested());
         break;
       case VARCHAR:
-        stringCoder.encode(value.getString(idx), outStream, nested);
-        break;
-      case TIME:
-      case TIMESTAMP:
-        longCoder.encode(value.getDate(idx).getTime(), outStream, nested);
+        stringCoder.encode(value.getString(idx), outStream, context.nested());
         break;
 
       default:
         throw new UnsupportedDataTypeException(value.getDataType().getFieldsType().get(idx));
       }
     }
+    //add a dummy field to indicate the end of record
+    intCoder.encode(value.size(), outStream, context);
   }
 
   @Override
   public BeamSQLRow decode(InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
       throws CoderException, IOException {
-    BeamSQLRecordType type = recordTypeCoder.decode(inStream, context);
-    List<Integer> nullFields = listCoder.decode(inStream, context);
+    BeamSQLRecordType type = recordTypeCoder.decode(inStream, context.nested());
+    List<Integer> nullFields = listCoder.decode(inStream, context.nested());
 
     BeamSQLRow record = new BeamSQLRow(type);
     record.setNullFields(nullFields);
@@ -108,29 +107,32 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
       switch (type.getFieldsType().get(idx)) {
       case INTEGER:
+        record.addField(idx, intCoder.decode(inStream, context.nested()));
+        break;
       case SMALLINT:
+        record.addField(idx, intCoder.decode(inStream, context.nested()).shortValue());
+        break;
       case TINYINT:
-        record.addField(idx, intCoder.decode(inStream, context));
+        record.addField(idx, intCoder.decode(inStream, context.nested()).byteValue());
         break;
       case DOUBLE:
+        record.addField(idx, doubleCoder.decode(inStream, context.nested()));
+        break;
       case FLOAT:
-        record.addField(idx, doubleCoder.decode(inStream, context));
+        record.addField(idx, doubleCoder.decode(inStream, context.nested()).floatValue());
         break;
       case BIGINT:
-        record.addField(idx, longCoder.decode(inStream, context));
+        record.addField(idx, longCoder.decode(inStream, context.nested()));
         break;
       case VARCHAR:
-        record.addField(idx, stringCoder.decode(inStream, context));
-        break;
-      case TIME:
-      case TIMESTAMP:
-        record.addField(idx, new Date(longCoder.decode(inStream, context)));
+        record.addField(idx, stringCoder.decode(inStream, context.nested()));
         break;
 
       default:
         throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
       }
     }
+    intCoder.decode(inStream, context);
 
     return record;
   }
