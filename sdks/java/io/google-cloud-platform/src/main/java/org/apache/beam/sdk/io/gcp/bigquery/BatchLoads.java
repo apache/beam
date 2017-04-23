@@ -60,10 +60,14 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT>
     extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
+  static final Logger LOG = LoggerFactory.getLogger(BatchLoads.class);
+
   // The maximum number of file writers to keep open in a single bundle at a time, since file
   // writers default to 64mb buffers. This comes into play when writing dynamic table destinations.
   // The first 20 tables from a single BatchLoads transform will write files inline in the
@@ -161,28 +165,10 @@ class BatchLoads<DestinationT>
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
     Pipeline p = input.getPipeline();
-    final String stepUuid = BigQueryHelpers.randomUUIDString();
-
-    PCollectionView<String> tempFilePrefix =
-        p.apply("Create", Create.of((Void) null))
-            .apply(
-                "GetTempFilePrefix",
-                ParDo.of(
-                    new DoFn<Void, String>() {
-                      @ProcessElement
-                      public void getTempFilePrefix(ProcessContext c) {
-                        c.output(
-                            resolveTempLocation(
-                                c.getPipelineOptions().getTempLocation(),
-                                "BigQueryWriteTemp",
-                                stepUuid));
-                      }
-                    }))
-            .apply("TempFilePrefixView", View.<String>asSingleton());
 
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
-    PCollectionView<String> jobIdTokenView =
+    final PCollection<String> jobIdToken =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
                 "CreateJobId",
@@ -190,10 +176,27 @@ class BatchLoads<DestinationT>
                     new SimpleFunction<String, String>() {
                       @Override
                       public String apply(String input) {
-                        return stepUuid;
+                        return BigQueryHelpers.randomUUIDString();
+                      }
+                    }));
+    final PCollectionView<String> jobIdTokenView = jobIdToken.apply(View.<String>asSingleton());
+
+    PCollectionView<String> tempFilePrefix = jobIdToken
+            .apply(
+                "GetTempFilePrefix",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void getTempFilePrefix(ProcessContext c) {
+                        String tempLocation = resolveTempLocation(
+                            c.getPipelineOptions().getTempLocation(),
+                            "BigQueryWriteTemp", c.element());
+                        LOG.info("Writing BigQuery temporary files to {} before loading them.",
+                            tempLocation);
+                        c.output(tempLocation);
                       }
                     }))
-            .apply(View.<String>asSingleton());
+            .apply("TempFilePrefixView", View.<String>asSingleton());
 
     PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
         input.apply(
@@ -210,9 +213,10 @@ class BatchLoads<DestinationT>
         new TupleTag<KV<ShardedKey<DestinationT>, TableRow>>("unwrittenRecords") {};
     PCollectionTuple writeBundlesTuple = inputInGlobalWindow
             .apply("WriteBundlesToFiles",
-                ParDo.of(new WriteBundlesToFiles<>(stepUuid, unwrittedRecordsTag,
+                ParDo.of(new WriteBundlesToFiles<>(tempFilePrefix, unwrittedRecordsTag,
                     maxNumWritersPerBundle, maxFileSize))
-                .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
+                    .withSideInputs(tempFilePrefix)
+                    .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
         writeBundlesTuple.get(writtenFilesTag)
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
