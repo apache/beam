@@ -33,8 +33,6 @@ cdef class DoFnMethodWrapper(object):
   cdef public object defaults
   cdef public object method_value
 
-  cpdef call(self, list args, dict kwargs)
-
 
 cdef class DoFnSignature(object):
   cdef public DoFnMethodWrapper process_method
@@ -85,7 +83,7 @@ cdef class DoFnRunner(Receiver):
 
   cpdef process(self, WindowedValue windowed_value)
   @cython.locals(windowed_value=WindowedValue)
-  cpdef _process_outputs(self, WindowedValue element, results)
+  cpdef process_outputs(self, WindowedValue element, results)
 
 
 cdef class DoFnContext(object):

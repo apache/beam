@@ -54,33 +54,21 @@ class Receiver(object):
 class DoFnMethodWrapper(object):
   """Represents a method of a DoFn object."""
 
-  def __init__(self, method_value, args, defaults):
+  def __init__(self, do_fn, method_name):
     """
     Initiates a ``DoFnMethodWrapper``.
 
     Args:
-      method_value: Python method represented by this object.
-      args: a list that gives the arguments of the given method.
-      defaults: a list that gives the default values of arguments mentioned
-        above. If len(defaults) > len(args) default values are for the last
-        len(defaults) arguments in args.
+      do_fn: A DoFn object that contains the method.
+      method_name: name of the method as a string.
     """
+
+    args, _, _, defaults = do_fn.get_function_arguments(method_name)
+    defaults = defaults if defaults else []
+    method_value = getattr(do_fn, method_name)
+    self.method_value = method_value
     self.args = args
     self.defaults = defaults
-    self.method_value = method_value
-
-  def call(self, input_args, input_kwargs):
-    """Invokes the method represented by this object.
-
-    Args:
-      input_args: a list of arguments to be passed when invoking the method.
-      input_kwargs: a dictionary of keyword arguments to be passed when invoking
-                    the method.
-
-    Using a regular method call here instead of __call__ to reduce per-element
-    overhead.
-    """
-    return self.method_value(*input_args, **input_kwargs)
 
 
 class DoFnSignature(object):
@@ -97,22 +85,13 @@ class DoFnSignature(object):
 
   def __init__(self, do_fn):
     # We add a property here for all methods defined by Beam DoFn features.
-    self.process_method = None
-    self.start_bundle_method = None
-    self.finish_bundle_method = None
 
     assert isinstance(do_fn, core.DoFn)
     self.do_fn = do_fn
 
-    def _create_do_fn_method(do_fn, method_name):
-      arguments, _, _, defaults = do_fn.get_function_arguments(method_name)
-      defaults = defaults if defaults else []
-      method_value = getattr(do_fn, method_name)
-      return DoFnMethodWrapper(method_value, arguments, defaults)
-
-    self.process_method = _create_do_fn_method(do_fn, 'process')
-    self.start_bundle_method = _create_do_fn_method(do_fn, 'start_bundle')
-    self.finish_bundle_method = _create_do_fn_method(do_fn, 'finish_bundle')
+    self.process_method = DoFnMethodWrapper(do_fn, 'process')
+    self.start_bundle_method = DoFnMethodWrapper(do_fn, 'start_bundle')
+    self.finish_bundle_method = DoFnMethodWrapper(do_fn, 'finish_bundle')
     self._validate()
 
   def _validate(self):
@@ -132,10 +111,12 @@ class DoFnSignature(object):
     pass
 
   def _validate_bundle_method(self):
-    assert core.DoFn.ElementParam not in self.start_bundle_method.defaults
-    assert core.DoFn.SideInputParam not in self.start_bundle_method.defaults
-    assert core.DoFn.TimestampParam not in self.start_bundle_method.defaults
-    assert core.DoFn.WindowParam not in self.start_bundle_method.defaults
+    # Bundle methods may only contain ContextParam.
+    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if (
+        i.endswith('Param') and i != 'ContextParam')]
+
+    for param in unsupported_dofn_params:
+      assert param not in self.start_bundle_method.defaults
 
 
 class DoFnInvoker(object):
@@ -188,8 +169,8 @@ class DoFnInvoker(object):
     defaults = self.signature.start_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    self.output_processor._process_outputs(
-        None, self.signature.start_bundle_method.call(args, {}))
+    self.output_processor.process_outputs(
+        None, self.signature.start_bundle_method.method_value(*args))
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
@@ -197,8 +178,8 @@ class DoFnInvoker(object):
     defaults = self.signature.finish_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    self.output_processor._process_outputs(
-        None, self.signature.finish_bundle_method.call(args, {}))
+    self.output_processor.process_outputs(
+        None, self.signature.finish_bundle_method.method_value(*args))
 
 
 class SimpleInvoker(DoFnInvoker):
@@ -209,7 +190,7 @@ class SimpleInvoker(DoFnInvoker):
     self.process_method = signature.process_method.method_value
 
   def invoke_process(self, windowed_value):
-    self.output_processor._process_outputs(
+    self.output_processor.process_outputs(
         windowed_value, self.process_method(windowed_value.value))
 
 
@@ -218,7 +199,7 @@ class PerWindowInvoker(DoFnInvoker):
 
   def __init__(self, output_processor, signature, context,
                side_inputs, input_args, input_kwargs):
-    super(PerWindowInvoker, self).__init__(signature, output_processor)
+    super(PerWindowInvoker, self).__init__(output_processor, signature)
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
@@ -326,11 +307,11 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = windowed_value.timestamp
 
     if kwargs_for_process:
-      self.output_processor._process_outputs(
+      self.output_processor.process_outputs(
           windowed_value,
           self.process_method(*args_for_process, **kwargs_for_process))
     else:
-      self.output_processor._process_outputs(
+      self.output_processor.process_outputs(
           windowed_value, self.process_method(*args_for_process))
 
 
@@ -447,7 +428,7 @@ class DoFnRunner(Receiver):
     else:
       raise
 
-  def _process_outputs(self, windowed_input_element, results):
+  def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of computation to the appropriate receivers.
 
     A value wrapped in a OutputValue object will be unwrapped and
