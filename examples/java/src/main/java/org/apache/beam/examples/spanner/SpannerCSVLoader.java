@@ -13,7 +13,7 @@ import org.apache.beam.sdk.values.PCollection;
 import java.util.Collections;
 
 /**
- * An example pipleine to import data into Spanner.
+ * An example pipeline to import data into Spanner.
  */
 public class SpannerCSVLoader {
   /** Command options specification. */
