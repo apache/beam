@@ -42,11 +42,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.common.GcpIoTransport;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 
 /**
@@ -199,7 +199,7 @@ public class ExampleUtils {
   private void setupBigQueryTable(String projectId, String datasetId, String tableId,
       TableSchema schema) throws IOException {
     if (bigQueryClient == null) {
-      bigQueryClient = Transport.newBigQueryClient(options.as(BigQueryOptions.class)).build();
+      bigQueryClient = GcpIoTransport.newBigQueryClient(options.as(BigQueryOptions.class)).build();
     }
 
     Datasets datasetService = bigQueryClient.datasets();
@@ -224,7 +224,7 @@ public class ExampleUtils {
 
   private void setupPubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = GcpIoTransport.newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) == null) {
       pubsubClient.projects().topics().create(topic, new Topic().setName(topic)).execute();
@@ -233,7 +233,7 @@ public class ExampleUtils {
 
   private void setupPubsubSubscription(String topic, String subscription) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = GcpIoTransport.newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) == null) {
       Subscription subInfo = new Subscription()
@@ -250,7 +250,7 @@ public class ExampleUtils {
    */
   private void deletePubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = GcpIoTransport.newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) != null) {
       pubsubClient.projects().topics().delete(topic).execute();
@@ -264,7 +264,7 @@ public class ExampleUtils {
    */
   private void deletePubsubSubscription(String subscription) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = GcpIoTransport.newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) != null) {
       pubsubClient.projects().subscriptions().delete(subscription).execute();

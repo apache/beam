@@ -39,9 +39,7 @@ public class GcpCoreApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam",
             "com.google.api.client",
-            "com.google.api.services.bigquery",
             "com.google.api.services.cloudresourcemanager",
-            "com.google.api.services.pubsub",
             "com.google.api.services.storage",
             "com.google.auth",
             "com.google.protobuf",
