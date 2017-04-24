@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Utf8;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
@@ -39,9 +38,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * If in a nested context, prefixes the string with an integer length field,
  * encoded via a {@link VarIntCoder}.
  */
-public class StringUtf8Coder extends AtomicCoder<String> {
+public class StringUtf8Coder extends CustomCoder<String> {
 
-  @JsonCreator
   public static StringUtf8Coder of() {
     return INSTANCE;
   }
@@ -104,6 +102,9 @@ public class StringUtf8Coder extends AtomicCoder<String> {
       }
     }
   }
+
+  @Override
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}

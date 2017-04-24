@@ -53,11 +53,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -1321,7 +1321,7 @@ public class KafkaIO {
     }
   }
 
-  private static class NullOnlyCoder<T> extends AtomicCoder<T> {
+  private static class NullOnlyCoder<T> extends CustomCoder<T> {
     @Override
     public void encode(T value, OutputStream outStream, Context context) {
       checkArgument(value == null, "Can only encode nulls");
