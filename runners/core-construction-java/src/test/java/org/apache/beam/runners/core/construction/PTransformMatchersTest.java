@@ -31,7 +31,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -503,8 +502,7 @@ public class PTransformMatchersTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Integer>("foo", "bar") {
               @Override
-              public FileBasedWriteOperation<Integer> createWriteOperation(
-                  PipelineOptions options) {
+              public FileBasedWriteOperation<Integer> createWriteOperation() {
                 return null;
               }
             });

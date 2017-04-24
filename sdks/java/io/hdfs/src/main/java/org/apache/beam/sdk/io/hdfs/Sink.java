@@ -39,7 +39,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
   /**
    * Returns an instance of a {@link WriteOperation} that can write to this Sink.
    */
-  public abstract WriteOperation<T, ?> createWriteOperation(PipelineOptions options);
+  public abstract WriteOperation<T, ?> createWriteOperation();
 
   /**
    * {@inheritDoc}

@@ -104,7 +104,7 @@ public class Write<T> extends PTransform<PCollection<T>, PDone> {
         Write.class.getSimpleName());
     PipelineOptions options = input.getPipeline().getOptions();
     sink.validate(options);
-    return createWrite(input, sink.createWriteOperation(options));
+    return createWrite(input, sink.createWriteOperation());
   }
 
   @Override

@@ -124,7 +124,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         WriteFiles.class.getSimpleName());
     PipelineOptions options = input.getPipeline().getOptions();
     sink.validate(options);
-    this.writeOperation = sink.createWriteOperation(options);
+    this.writeOperation = sink.createWriteOperation();
     this.writeOperation.setWindowedWrites(windowedWrites);
     return createWrite(input);
   }
