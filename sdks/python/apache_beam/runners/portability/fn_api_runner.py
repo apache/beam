@@ -188,7 +188,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           # concatenate them together
           for element in operation.source.source.read(None):
             element_coder.encode_to_stream(element, output_stream, True)
-          target_name = '%s' % self._next_uid()
+          target_name = self._next_uid()
           input_data[(transform_id, target_name)] = output_stream.get()
           fn = beam_fn_api_pb2.FunctionSpec(urn=sdk_worker.DATA_INPUT_URN,
                                             id=self._next_uid())
@@ -205,7 +205,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               GlobalWindows.windowed_value(operation.source),
               output_stream,
               True)
-          target_name = '%s' % self._next_uid()
+          target_name = self._next_uid()
           input_data[(input_transform_id, target_name)] = output_stream.get()
           input_ptransform = beam_fn_api_pb2.PrimitiveTransform(
               id=input_transform_id,

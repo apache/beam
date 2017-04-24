@@ -32,7 +32,7 @@ class FnApiRunnerTest(maptask_executor_runner.MapTaskExecutorRunner):
     # TODO(robertwb): Implement PGBKCV operation.
     pass
 
-  # Inherits all tests from worker_runner_base_test.WorkerRunnerBaseTest
+  # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner
 
 
 if __name__ == '__main__':

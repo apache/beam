@@ -37,7 +37,7 @@ class FnApiLogRecordHandler(logging.Handler):
   LOG_LEVEL_MAP = {
       logging.FATAL: beam_fn_api_pb2.LogEntry.CRITICAL,
       logging.ERROR: beam_fn_api_pb2.LogEntry.ERROR,
-      logging.WARNING: beam_fn_api_pb2.LogEntry.ERROR,
+      logging.WARNING: beam_fn_api_pb2.LogEntry.WARNING,
       logging.INFO: beam_fn_api_pb2.LogEntry.INFO,
       logging.DEBUG: beam_fn_api_pb2.LogEntry.DEBUG
   }
