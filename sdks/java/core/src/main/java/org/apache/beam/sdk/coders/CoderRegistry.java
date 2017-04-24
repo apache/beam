@@ -44,7 +44,6 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -77,9 +76,7 @@ import org.slf4j.LoggerFactory;
  *       the default {@code Coder} type. The {@link Coder} class must satisfy the requirements
  *       of {@link CoderProviders#fromStaticMethods}.
  *   <li>Fallback: A fallback {@link CoderProvider} is used to attempt to provide a {@link Coder}
- *       for any type. By default, there are two chained fallback coders:
- *       {@link ProtoCoder#coderProvider}, which can provide a coder to efficiently serialize any
- *       Protocol Buffers message, and then {@link SerializableCoder#PROVIDER}, which can provide a
+ *       for any type. By default, there is {@link SerializableCoder#PROVIDER}, which can provide a
  *       {@link Coder} for any type that is serializable via Java serialization. The fallback
  *       {@link CoderProvider} can be get and set respectively using
  *       {@link #getFallbackCoderProvider()} and {@link #setFallbackCoderProvider}. Multiple
@@ -165,7 +162,7 @@ public class CoderRegistry implements CoderProvider {
   private CoderRegistry() {
     coderFactoryMap = new HashMap<>(REGISTERED_CODER_FACTORIES_PER_CLASS);
     setFallbackCoderProvider(
-        CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
+        CoderProviders.firstOf(SerializableCoder.PROVIDER));
   }
 
   /**
@@ -423,8 +420,7 @@ public class CoderRegistry implements CoderProvider {
    * providing a {@code Coder<T>} for a type {@code T}, then the registry will attempt to create
    * a {@link Coder} using this {@link CoderProvider}.
    *
-   * <p>By default, this is set to the chain of {@link ProtoCoder#coderProvider()} and
-   * {@link SerializableCoder#PROVIDER}.
+   * <p>By default, this is set to {@link SerializableCoder#PROVIDER}.
    *
    * <p>See {@link #getFallbackCoderProvider}.
    */

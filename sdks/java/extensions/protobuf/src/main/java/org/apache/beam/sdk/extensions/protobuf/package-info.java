@@ -19,6 +19,6 @@
  * Defines a {@link org.apache.beam.sdk.coders.Coder}
  * for Protocol Buffers messages, {@code ProtoCoder}.
  *
- * @see org.apache.beam.sdk.coders.protobuf.ProtoCoder
+ * @see org.apache.beam.sdk.extensions.protobuf.ProtoCoder
  */
-package org.apache.beam.sdk.coders.protobuf;
+package org.apache.beam.sdk.extensions.protobuf;
