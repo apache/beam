@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.OffsetBasedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -381,7 +382,7 @@ public class XmlIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(
           getRootElement(),
           "rootElement is null. Use builder method withRootElement() to set this.");
@@ -505,7 +506,7 @@ public class XmlIO {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getRecordClass(), "Missing a class to bind to a JAXB context.");
       checkNotNull(getRootElement(), "Missing a root element name.");
       checkNotNull(getFilenamePrefix(), "Missing a filename to write to.");

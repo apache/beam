@@ -286,12 +286,12 @@ public class BigtableIO {
     }
 
     @Override
-    public void validate(PBegin input) {
-      checkArgument(options != null, "BigtableOptions not specified");
+    public void validate(PipelineOptions options) {
+      checkArgument(this.options != null, "BigtableOptions not specified");
       checkArgument(!tableId.isEmpty(), "Table ID not specified");
       try {
         checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
+            getBigtableService(options).tableExists(tableId),
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {
@@ -492,12 +492,12 @@ public class BigtableIO {
     }
 
     @Override
-    public void validate(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
-      checkArgument(options != null, "BigtableOptions not specified");
+    public void validate(PipelineOptions options) {
+      checkArgument(this.options != null, "BigtableOptions not specified");
       checkArgument(!tableId.isEmpty(), "Table ID not specified");
       try {
         checkArgument(
-            getBigtableService(input.getPipeline().getOptions()).tableExists(tableId),
+            getBigtableService(options).tableExists(tableId),
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {

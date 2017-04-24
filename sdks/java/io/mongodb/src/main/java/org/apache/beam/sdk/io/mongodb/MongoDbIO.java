@@ -167,7 +167,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(uri(), "uri");
       checkNotNull(database(), "database");
       checkNotNull(collection(), "collection");
@@ -444,7 +444,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public void validate(PCollection<Document> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(uri(), "uri");
       checkNotNull(database(), "database");
       checkNotNull(collection(), "collection");

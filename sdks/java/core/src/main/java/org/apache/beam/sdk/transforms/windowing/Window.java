@@ -324,8 +324,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     return result;
   }
 
-  @Override
-  public void validate(PCollection<T> input) {
+  private void applicableTo(PCollection<?> input) {
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
 
@@ -363,6 +362,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
   @Override
   public PCollection<T> expand(PCollection<T> input) {
+    applicableTo(input);
+
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
     if (getWindowFn() == null) {

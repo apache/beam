@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -79,11 +80,11 @@ public class ForwardingPTransformTest {
   @Test
   public void validateDelegates() {
     @SuppressWarnings("unchecked")
-    PCollection<Integer> input = Mockito.mock(PCollection.class);
-    Mockito.doThrow(RuntimeException.class).when(delegate).validate(input);
+    PipelineOptions options = Mockito.mock(PipelineOptions.class);
+    Mockito.doThrow(RuntimeException.class).when(delegate).validate(options);
 
     thrown.expect(RuntimeException.class);
-    forwarding.validate(input);
+    forwarding.validate(options);
   }
 
   @Test
