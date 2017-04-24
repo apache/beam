@@ -240,10 +240,6 @@ class _TaggedReceivers(dict):
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
-  def __init__(self, operation_name, spec, counter_factory, state_sampler):
-    super(DoOperation, self).__init__(
-        operation_name, spec, counter_factory, state_sampler)
-
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
 
@@ -502,10 +498,6 @@ class FlattenOperation(Operation):
   with all the items.
   """
 
-  def __init__(self, operation_name, spec, counter_factory, state_sampler):
-    super(FlattenOperation, self).__init__(
-        operation_name, spec, counter_factory, state_sampler)
-
   def process(self, o):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
@@ -621,8 +613,9 @@ class SimpleMapTaskExecutor(object):
         operation_specs.Worker* classes.
     """
 
-    # operations is a list of operation_specs.Worker* instances. The order of the
-    # elements is important because the inputs use list indexes as references.
+    # operations is a list of operation_specs.Worker* instances.
+    # The order of the elements is important because the inputs use
+    # list indexes as references.
 
     step_names = (
         self._map_task.step_names or [None] * len(self._map_task.operations))

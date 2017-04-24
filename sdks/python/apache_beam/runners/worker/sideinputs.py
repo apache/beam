@@ -74,6 +74,7 @@ class PrefetchingSourceSetIterable(object):
       self.reader_threads.append(t)
 
   def _reader_thread(self):
+    # pylint: disable=too-many-nested-blocks
     try:
       while True:
         try:

@@ -32,11 +32,6 @@ class PerThreadLoggingContextTest(unittest.TestCase):
           logger.per_thread_worker_data.get_data()[name], 'thread-value')
     self.assertFalse(name in logger.per_thread_worker_data.get_data())
 
-  def test_no_positional_args(self):
-    with self.assertRaises(TypeError):
-      with logger.PerThreadLoggingContext('something'):
-        pass
-
   def test_per_thread_attribute(self):
     self.assertFalse('xyz' in logger.per_thread_worker_data.get_data())
     with logger.PerThreadLoggingContext(xyz='value'):
@@ -181,4 +176,3 @@ class JsonLogFormatterTest(unittest.TestCase):
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
-
