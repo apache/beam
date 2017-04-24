@@ -49,14 +49,11 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
-          <pluginId>grpc-java</pluginId>
-          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
         </configuration>
         <executions>
           <execution>
             <goals>
               <goal>test-compile</goal>
-              <goal>test-compile-custom</goal>
             </goals>
           </execution>
         </executions>
