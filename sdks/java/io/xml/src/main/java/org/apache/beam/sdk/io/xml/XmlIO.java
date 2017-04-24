@@ -21,6 +21,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+
+import java.nio.charset.Charset;
+
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -77,6 +80,21 @@ public class XmlIO {
    *     .withRecordClass(Record.class));
    * }</pre>
    *
+   * <p>By default, UTF-8 charset is used. If your file is using a different charset, you have to
+   * specify as follow:
+   *
+   * <pre>{@code
+   * PCollection<String> output = p.apply(XmlIO.<Record>read()
+   *      .from(file.toPath().toString())
+   *      .withRooElement("root")
+   *      .withRecordElement("record")
+   *      .withRecordClass(Record.class)
+   *      .withCharset(StandardCharsets.ISO_8859_1));
+   * }</pre>
+   *
+   * <p>{@link java.nio.charset.StandardCharsets} provides static references to most of the
+   * charset you might want to use.
+   *
    * <p>Currently, only XML files that use single-byte characters are supported. Using a file that
    * contains multi-byte characters may result in data loss or duplication.
    *
@@ -94,6 +112,7 @@ public class XmlIO {
     return new AutoValue_XmlIO_Read.Builder<T>()
         .setMinBundleSize(Read.DEFAULT_MIN_BUNDLE_SIZE)
         .setCompressionType(Read.CompressionType.AUTO)
+        .setCharset("UTF-8")
         .build();
   }
 
@@ -220,6 +239,9 @@ public class XmlIO {
 
     abstract long getMinBundleSize();
 
+    @Nullable
+    abstract String getCharset();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -235,6 +257,8 @@ public class XmlIO {
       abstract Builder<T> setMinBundleSize(long minBundleSize);
 
       abstract Builder<T> setCompressionType(CompressionType compressionType);
+
+      abstract Builder<T> setCharset(String charset);
 
       abstract Read<T> build();
     }
@@ -325,6 +349,13 @@ public class XmlIO {
       return toBuilder().setCompressionType(compressionType).build();
     }
 
+    /**
+     * Sets the XML file charset.
+     */
+    public Read<T> withCharset(Charset charset) {
+      return toBuilder().setCharset(charset.name()).build();
+    }
+
     @Override
     public void validate(PBegin input) {
       checkNotNull(
@@ -336,6 +367,9 @@ public class XmlIO {
       checkNotNull(
           getRecordClass(),
           "recordClass is null. Use builder method withRecordClass() to set this.");
+      checkNotNull(
+          getCharset(),
+          "charset is null. Use builder method withCharset() to set this.");
     }
 
     @Override
@@ -351,7 +385,9 @@ public class XmlIO {
           .addIfNotNull(
               DisplayData.item("recordElement", getRecordElement()).withLabel("XML Record Element"))
           .addIfNotNull(
-              DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"));
+              DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"))
+          .addIfNotNull(
+              DisplayData.item("charset", getCharset()).withLabel("Charset"));
     }
 
     @VisibleForTesting
