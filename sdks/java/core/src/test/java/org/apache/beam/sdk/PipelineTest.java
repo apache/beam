@@ -189,8 +189,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyNotLogged("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyNotLogged("do not have stable unique names");
   }
 
   @Test
@@ -201,8 +201,8 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
     pipeline.apply(Create.of(5, 6, 7));
-
-    logged.verifyWarn("does not have a stable unique name.");
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
+    logged.verifyWarn("do not have stable unique names");
   }
 
   @Test
@@ -211,8 +211,9 @@ public class PipelineTest {
 
     pipeline.apply(Create.of(5, 6, 7));
 
-    thrown.expectMessage("does not have a stable unique name.");
+    thrown.expectMessage("do not have stable unique names");
     pipeline.apply(Create.of(5, 6, 7));
+    ((Pipeline) pipeline).validate(pipeline.getOptions());
   }
 
   /**
