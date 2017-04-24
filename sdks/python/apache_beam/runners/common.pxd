@@ -46,10 +46,11 @@ cdef class DoFnSignature(object):
 cdef class DoFnInvoker(object):
 
   cdef public DoFnSignature signature
+  cdef DoFnRunner output_processor
 
-  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
-  cpdef invoke_start_bundle(self, process_output_fn)
-  cpdef invoke_finish_bundle(self, process_output_fn)
+  cpdef invoke_process(self, WindowedValue windowed_value)
+  cpdef invoke_start_bundle(self)
+  cpdef invoke_finish_bundle(self)
 
   # TODO(chamikara) define static method create_invoker() here.
 
@@ -57,8 +58,6 @@ cdef class DoFnInvoker(object):
 cdef class SimpleInvoker(DoFnInvoker):
 
   cdef object process_method
-
-  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
 
 
 cdef class PerWindowInvoker(DoFnInvoker):
@@ -70,8 +69,6 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef list placeholders
   cdef bint has_windowed_inputs
   cdef object process_method
-
-  cpdef invoke_process(self, WindowedValue windowed_value, process_output_fn)
 
 
 cdef class DoFnRunner(Receiver):

@@ -144,13 +144,14 @@ class DoFnInvoker(object):
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
 
-  def __init__(self, signature):
+  def __init__(self, output_processor, signature):
+    self.output_processor = output_processor
     self.signature = signature
 
   @staticmethod
   def create_invoker(
-      signature, context, side_inputs, input_args,
-      input_kwargs):
+      output_processor,
+      signature, context, side_inputs, input_args, input_kwargs):
     """ Creates a new DoFnInvoker based on given arguments.
 
     Args:
@@ -165,64 +166,59 @@ class DoFnInvoker(object):
         not side_inputs and not input_args and not input_kwargs and
         not default_arg_values)
     if use_simple_invoker:
-      return SimpleInvoker(signature)
+      return SimpleInvoker(output_processor, signature)
     else:
       return PerWindowInvoker(
+          output_processor,
           signature, context, side_inputs, input_args, input_kwargs)
 
-  def invoke_process(self, windowed_value, process_output_fn):
+  def invoke_process(self, windowed_value):
     """Invokes the DoFn.process() function.
 
     Args:
       windowed_value: a WindowedValue object that gives the element for which
                       process() method should be invoked along with the window
                       the element belongs to.
-      process_output_fn: a function to which the result of DoFn.process()
-                         invocation should be passed.
     """
     raise NotImplementedError
 
-  def invoke_start_bundle(self, process_output_fn):
+  def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
-
-    Args:
-      process_output_fn: a function to which the result of DoFn.start_bundle()
-                         invocation should be passed.
     """
     defaults = self.signature.start_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    process_output_fn(None, self.signature.start_bundle_method.call(args, {}))
+    self.output_processor._process_outputs(
+        None, self.signature.start_bundle_method.call(args, {}))
 
-  def invoke_finish_bundle(self, process_output_fn):
+  def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
-
-    Args:
-      process_output_fn: a function to which the result of DoFn.finish_bundle()
-                         invocation should be passed.
     """
     defaults = self.signature.finish_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    process_output_fn(None, self.signature.finish_bundle_method.call(args, {}))
+    self.output_processor._process_outputs(
+        None, self.signature.finish_bundle_method.call(args, {}))
 
 
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
 
-  def __init__(self, signature):
-    super(SimpleInvoker, self).__init__(signature)
+  def __init__(self, output_processor, signature):
+    super(SimpleInvoker, self).__init__(output_processor, signature)
     self.process_method = signature.process_method.method_value
 
-  def invoke_process(self, windowed_value, process_output_fn):
-    process_output_fn(windowed_value, self.process_method(windowed_value.value))
+  def invoke_process(self, windowed_value):
+    self.output_processor._process_outputs(
+        windowed_value, self.process_method(windowed_value.value))
 
 
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
-  def __init__(self, signature, context, side_inputs, input_args, input_kwargs):
-    super(PerWindowInvoker, self).__init__(signature)
+  def __init__(self, output_processor, signature, context,
+               side_inputs, input_args, input_kwargs):
+    super(PerWindowInvoker, self).__init__(signature, output_processor)
     self.side_inputs = side_inputs
     self.context = context
     self.process_method = signature.process_method.method_value
@@ -297,7 +293,7 @@ class PerWindowInvoker(DoFnInvoker):
     self.args_for_process = args_with_placeholders
     self.kwargs_for_process = input_kwargs
 
-  def invoke_process(self, windowed_value, process_output_fn):
+  def invoke_process(self, windowed_value):
     self.context.set_element(windowed_value)
     # Call for the process function for each window if has windowed side inputs
     # or if the process accesses the window parameter. We can just call it once
@@ -305,12 +301,11 @@ class PerWindowInvoker(DoFnInvoker):
     if self.has_windowed_inputs and len(windowed_value.windows) != 1:
       for w in windowed_value.windows:
         self._invoke_per_window(
-            WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
-            process_output_fn)
+            WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)))
     else:
-      self._invoke_per_window(windowed_value, process_output_fn)
+      self._invoke_per_window(windowed_value)
 
-  def _invoke_per_window(self, windowed_value, process_output_fn):
+  def _invoke_per_window(self, windowed_value):
     if self.has_windowed_inputs:
       window, = windowed_value.windows
       args_for_process, kwargs_for_process = util.insert_values_in_args(
@@ -330,8 +325,13 @@ class PerWindowInvoker(DoFnInvoker):
       elif p == core.DoFn.TimestampParam:
         args_for_process[i] = windowed_value.timestamp
 
-    process_output_fn(windowed_value, self.process_method(
-        *args_for_process, **kwargs_for_process))
+    if kwargs_for_process:
+      self.output_processor._process_outputs(
+          windowed_value,
+          self.process_method(*args_for_process, **kwargs_for_process))
+    else:
+      self.output_processor._process_outputs(
+          windowed_value, self.process_method(*args_for_process))
 
 
 class DoFnRunner(Receiver):
@@ -402,7 +402,7 @@ class DoFnRunner(Receiver):
     self.window_fn = windowing.windowfn
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
-        do_fn_signature, context, side_inputs, args, kwargs)
+        self, do_fn_signature, context, side_inputs, args, kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -411,7 +411,7 @@ class DoFnRunner(Receiver):
     try:
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
-      self.do_fn_invoker.invoke_process(windowed_value, self._process_outputs)
+      self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
     finally:
@@ -423,7 +423,7 @@ class DoFnRunner(Receiver):
       self.logging_context.enter()
       self.scoped_metrics_container.enter()
       self.context.set_element(None)
-      bundle_method(self._process_outputs)
+      bundle_method()
     except BaseException as exn:
       self._reraise_augmented(exn)
     finally:
