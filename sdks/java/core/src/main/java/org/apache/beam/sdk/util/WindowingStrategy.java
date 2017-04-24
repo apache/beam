@@ -51,7 +51,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
    */
   public enum AccumulationMode {
     DISCARDING_FIRED_PANES,
-    ACCUMULATING_FIRED_PANES;
+    ACCUMULATING_FIRED_PANES
   }
 
   private static final Duration DEFAULT_ALLOWED_LATENESS = Duration.ZERO;
