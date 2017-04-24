@@ -23,7 +23,6 @@ import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -43,7 +42,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>This method of encoding is not designed for ease of evolution of {@code Clazz};
  * it should only be used in cases where the class is stable or the encoding is not
- * important. If evolution of the class is important, see {@link ProtoCoder} or {@link AvroCoder}.
+ * important. If evolution of the class is important, see {@link AvroCoder} or any other
+ * evolution safe encoding.
  *
  * @param <T> The type of objects coded.
  */

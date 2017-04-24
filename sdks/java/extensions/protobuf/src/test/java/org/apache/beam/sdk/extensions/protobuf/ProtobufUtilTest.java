@@ -15,20 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders.protobuf;
+package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.checkProto2Syntax;
-import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
-import static org.apache.beam.sdk.coders.protobuf.ProtobufUtil.verifyDeterministic;
+import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.checkProto2Syntax;
+import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.getRecursiveDescriptorsForClass;
+import static org.apache.beam.sdk.extensions.protobuf.ProtobufUtil.verifyDeterministic;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageWithMap;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.ReferencesMessageWithMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.protobuf.Any;
@@ -39,6 +33,11 @@ import com.google.protobuf.Message;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageA;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.ReferencesMessageWithMap;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
