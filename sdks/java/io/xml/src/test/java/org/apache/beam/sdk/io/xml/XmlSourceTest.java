@@ -158,6 +158,11 @@ public class XmlSourceTest {
       + "</train>"
       + "</trains>";
 
+  String trainXMLWithISO88591 =
+      "<trains>"
+      + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
+      + "</trains>";
+
   @XmlRootElement
   static class Train {
     public static final int TRAIN_NUMBER_UNDEFINED = -1;
@@ -591,6 +596,28 @@ public class XmlSourceTest {
         trainsToStrings(expectedResults),
         containsInAnyOrder(
             trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
+  }
+
+  @Test
+  public void testReadXMLWithCharset() throws IOException {
+    File file = tempFolder.newFile("trainXMLISO88591");
+    Files.write(file.toPath(), trainXMLWithISO88591.getBytes(StandardCharsets.ISO_8859_1));
+
+    PCollection<Train> output =
+        p.apply("ReadFileData",
+            XmlIO.<Train>read()
+                .from(file.toPath().toString())
+                .withRootElement("trains")
+                .withRecordElement("train")
+                .withRecordClass(Train.class)
+                .withMinBundleSize(1024)
+                .withCharset(StandardCharsets.ISO_8859_1));
+
+    List<Train> expectedResults =
+        ImmutableList.of(new Train("Cédric", 7, "blue", "small"));
+
+    PAssert.that(output).containsInAnyOrder(expectedResults);
+    p.run();
   }
 
   @Test

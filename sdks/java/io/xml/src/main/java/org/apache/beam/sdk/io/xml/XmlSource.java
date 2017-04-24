@@ -185,9 +185,11 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
       byte[] dummyStartDocumentBytes =
           (String.format(
-                  "<?xml version=\"%s\" encoding=\"UTF-8\" ?><%s>",
+                  "<?xml version=\"%s\" encoding=\""
+                      + getCurrentSource().spec.getCharset()
+                      + "\"?><%s>",
                   XML_VERSION, getCurrentSource().spec.getRootElement()))
-              .getBytes(StandardCharsets.UTF_8);
+              .getBytes(getCurrentSource().spec.getCharset());
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
       // method returns the offset and stores any bytes that should be used when creating the XML
@@ -339,7 +341,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
         this.parser = xmlInputFactory.createXMLStreamReader(
             new SequenceInputStream(
                 new ByteArrayInputStream(lookAhead), Channels.newInputStream(channel)),
-            "UTF-8");
+            getCurrentSource().spec.getCharset());
 
         // Current offset should be the offset before reading the record element.
         while (true) {
