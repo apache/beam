@@ -24,7 +24,7 @@ syntax = "proto2";
 
 package proto2_coder_test_messages;
 
-option java_package = "org.apache.beam.sdk.coders";
+option java_package = "org.apache.beam.sdk.extensions.protobuf";
 
 message MessageA {
   optional string field1 = 1;

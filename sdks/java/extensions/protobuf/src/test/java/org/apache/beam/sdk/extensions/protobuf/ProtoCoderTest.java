@@ -15,22 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders.protobuf;
+package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageB;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageC;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageWithMap;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageA;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
+import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
