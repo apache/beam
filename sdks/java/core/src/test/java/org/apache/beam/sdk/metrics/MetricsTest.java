@@ -19,9 +19,8 @@
 package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
-import static org.apache.beam.sdk.metrics.MetricMatchers.distributionCommittedMinMax;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionMinMax;
+import static org.apache.beam.sdk.metrics.MetricMatchers.metricsResult;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
@@ -130,59 +129,16 @@ public class MetricsTest implements Serializable {
   @Test
   public void committedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();
-
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-        .build());
-
-    assertThat(metrics.counters(), hasItem(
-        committedMetricsResult(NAMESPACE, "count", "MyStep1", 3L)));
-    assertThat(metrics.distributions(), hasItem(
-        committedMetricsResult(NAMESPACE, "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L))));
-
-    assertThat(metrics.counters(), hasItem(
-        committedMetricsResult(NAMESPACE, "count", "MyStep2", 6L)));
-    assertThat(metrics.distributions(), hasItem(
-        committedMetricsResult(NAMESPACE, "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L))));
-    assertThat(metrics.gauges(), hasItem(
-        committedMetricsResult(NAMESPACE, "my-gauge", "MyStep2",
-            GaugeResult.create(12L, Instant.now()))));
-
-    assertThat(metrics.distributions(), hasItem(
-        distributionCommittedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));
+    testAllMetrics(result, true);
   }
-
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
       UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
   public void attemptedMetricsReportToQuery() {
     PipelineResult result = runPipelineWithMetrics();
-
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-        .build());
-
     // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
-    assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult(NAMESPACE, "count", "MyStep1", 3L)));
-    assertThat(metrics.distributions(), hasItem(
-        attemptedMetricsResult(NAMESPACE, "input", "MyStep1",
-            DistributionResult.create(26L, 3L, 5L, 13L))));
-
-    assertThat(metrics.counters(), hasItem(
-        attemptedMetricsResult(NAMESPACE, "count", "MyStep2", 6L)));
-    assertThat(metrics.distributions(), hasItem(
-        attemptedMetricsResult(NAMESPACE, "input", "MyStep2",
-            DistributionResult.create(52L, 6L, 5L, 13L))));
-    assertThat(metrics.gauges(), hasItem(
-        attemptedMetricsResult(NAMESPACE, "my-gauge", "MyStep2",
-            GaugeResult.create(12L, Instant.now()))));
-
-    assertThat(metrics.distributions(), hasItem(
-        distributionAttemptedMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L)));
+    testAllMetrics(result, false);
   }
 
   private PipelineResult runPipelineWithMetrics() {
@@ -237,6 +193,30 @@ public class MetricsTest implements Serializable {
     return result;
   }
 
+  private static void testAllMetrics(PipelineResult result, boolean isCommitted) {
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+
+    assertThat(metrics.counters(), hasItem(
+        metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
+    assertThat(metrics.distributions(), hasItem(
+        metricsResult(NAMESPACE, "input", "MyStep1",
+            DistributionResult.create(26L, 3L, 5L, 13L), isCommitted)));
+
+    assertThat(metrics.counters(), hasItem(
+        metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
+    assertThat(metrics.distributions(), hasItem(
+        metricsResult(NAMESPACE, "input", "MyStep2",
+            DistributionResult.create(52L, 6L, 5L, 13L), isCommitted)));
+    assertThat(metrics.gauges(), hasItem(
+        metricsResult(NAMESPACE, "my-gauge", "MyStep2",
+            GaugeResult.create(12L, Instant.now()), isCommitted)));
+
+    assertThat(metrics.distributions(), hasItem(
+        distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
+  }
+
   @Test
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testBoundedSourceMetrics() {
@@ -267,7 +247,6 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   public void testUnboundedSourceMetrics() {
     long numElements = 1000;
-
 
     // Use withMaxReadTime to force unbounded mode.
     pipeline.apply(
