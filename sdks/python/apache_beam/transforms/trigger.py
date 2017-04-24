@@ -1072,6 +1072,7 @@ class InMemoryUnmergedState(UnmergedState):
     return window_id
 
   def add_state(self, window, tag, value):
+    print '[!!] add_state', window, tag, value
     if self.defensive_copy:
       value = copy.deepcopy(value)
     if isinstance(tag, _ValueStateTag):
@@ -1119,3 +1120,4 @@ class InMemoryUnmergedState(UnmergedState):
     state_str = '\n'.join('%s: %s' % (key, dict(state))
                           for key, state in self.state.items())
     return 'timers: %s\nstate: %s' % (dict(self.timers), state_str)
+

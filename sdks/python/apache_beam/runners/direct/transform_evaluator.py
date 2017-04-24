@@ -34,7 +34,6 @@ from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
-from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import create_trigger_driver
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
@@ -265,7 +264,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
         bundles = _read_values_to_bundles(reader)
 
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
 
 
 class _TestStreamEvaluator(_TransformEvaluator):
@@ -330,7 +329,7 @@ class _TestStreamEvaluator(_TransformEvaluator):
     print '[!] TestStream finish_bundle', self.current_index, event, unprocessed_bundle
 
     return TransformResult(
-        self._applied_ptransform, bundles, unprocessed_bundle, None, None,
+        self._applied_ptransform, bundles, unprocessed_bundle, None, None, None,
             None, None)
 
 
@@ -355,7 +354,7 @@ class _FlattenEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = [self.bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, None, None, None)
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
 
 
 class _TaggedReceivers(dict):
@@ -444,7 +443,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, None, result_counters,
+        self._applied_ptransform, bundles, [], None, None, None, result_counters,
         None, self._tagged_receivers.undeclared_in_memory_tag_values)
 
 class KeyedWorkItem(object):
@@ -452,6 +451,9 @@ class KeyedWorkItem(object):
     self.key = key
     self.timers = timers
     self.elements = elements
+
+  def __repr__(self):
+    return '<KeyedWorkItem key: %s, timers: %s, elements: %s>' % (self.key, self.timers, self.elements)
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
@@ -500,14 +502,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
 
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, None, None, None)
-
-
-class StateInternals(object):
-  pass
-
-class DirectStateInternals(StateInternals):
-  pass
+        self._applied_ptransform, bundles, [], None, None, None, None, None)
 
 class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
   """TransformEvaluator for GroupByKeyOnly transform."""
@@ -540,8 +535,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    self.keyed_states = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else collections.defaultdict(InMemoryUnmergedState))
+    self.state = self._execution_context.get_step_context().get_state()
 
     self.driver = create_trigger_driver(self._applied_ptransform.transform.windowing)
 
@@ -558,7 +552,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     print '[!] GABW process_element', element, kwi
     k, vs = kwi.key, kwi.elements
     encoded_k = self.key_coder.encode(k)
-    state = self.keyed_states[encoded_k]
+    state = self.state
 
     print '[!] GABW current input watermark:', self._execution_context.watermarks.input_watermark
     fired = state.get_and_clear_timers(
@@ -590,7 +584,7 @@ class _GroupAlsoByWindowEvaluator(_TransformEvaluator):
     if self.gabw_items:
       qbundles = [bundle]
     return TransformResult(
-        self._applied_ptransform, bundles, [], self.keyed_states, None, None, None)
+        self._applied_ptransform, bundles, [], self.state, None, None, None, None)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
@@ -618,8 +612,8 @@ class _NativeWriteEvaluator(_TransformEvaluator):
 
   def start_bundle(self):
     # state: [values]
-    self.state = (self._execution_context.existing_state
-                  if self._execution_context.existing_state else [])
+    self.state = (self._execution_context.legacy_existing_state
+                  if self._execution_context.legacy_existing_state else [])
 
   def process_element(self, element):
     self.state.append(element)
@@ -647,4 +641,4 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       hold = WatermarkManager.WATERMARK_NEG_INF
 
     return TransformResult(
-        self._applied_ptransform, [], [], state, None, None, hold)
+        self._applied_ptransform, [], [], None, state, None, None, hold)

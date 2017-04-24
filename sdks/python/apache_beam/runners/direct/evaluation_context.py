@@ -27,16 +27,60 @@ from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
+
+
+
+
+class DirectUnmergedState(InMemoryUnmergedState):
+  def __init__(self):
+    super(DirectUnmergedState, self).__init__()
+    self.new_timers = []
+
+  def set_timer(self, window, name, time_domain, timestamp):
+    print '[!!] set_timer', window, name, time_domain, timestamp
+    super(DirectUnmergedState, self).set_timer(window, name, time_domain, timestamp)
+
+  def clear_timer(self, window, name, time_domain):
+    print '[!!] clear_timer', window, name, time_domain
+    # TODO(ccy): this is not implemented, but is not strictly necessary as it is an optimization
+    super(DirectUnmergedState, self).clear_timer(window, name, time_domain)
+
+
+
+class StepContext(object):
+  def __init__(self, execution_context):
+    self._execution_context = execution_context
+    self._state = None
+
+  def get_state(self):
+    # TODO(ccy): consider using copy on write semantics so that work items can be retried.
+    if not self._state:
+      if self._execution_context.existing_state:
+        self._state = self._execution_context.existing_state
+      else:
+        self._state = DirectUnmergedState()
+    return self._state
+
 
 
 class _ExecutionContext(object):
 
-  def __init__(self, watermarks, existing_state, key):
+  def __init__(self, applied_ptransform, watermarks, existing_state, legacy_existing_state, key):
+    self.applied_ptransform = applied_ptransform
     self.watermarks = watermarks
     self.existing_state = existing_state
+    self.legacy_existing_state = legacy_existing_state
     self.key = key
     # TODO(ccy): key, clock as first arguments for consistency with Java.
+    self._step_context = None
+
+  def get_step_context(self):
+    if not self._step_context:
+      self._step_context = StepContext(self)
+    return self._step_context
+
 
 
 class _SideInputView(object):
@@ -141,6 +185,8 @@ class EvaluationContext(object):
       self._pcollection_to_views[view.pvalue].append(view)
 
     # AppliedPTransform -> Evaluator specific state objects
+    self._legacy_existing_state = {}
+    # (AppliedPTransform, key) -> DirectUnmergedState objects
     self._application_state_internals = {}
     self._watermark_manager = WatermarkManager(
         Clock(), root_transforms, value_to_consumers)
@@ -226,7 +272,8 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
-      self._application_state_internals[result.transform] = result.state
+      self._legacy_existing_state[result.transform] = result.legacy_state
+      self._application_state_internals[(result.transform, completed_bundle.key)] = result.state
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -252,8 +299,10 @@ class EvaluationContext(object):
 
   def get_execution_context(self, applied_ptransform, key):
     return _ExecutionContext(
+        applied_ptransform,
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_internals.get(applied_ptransform),
+        self._application_state_internals.get((applied_ptransform, key)),
+        self._legacy_existing_state.get(applied_ptransform),
         key)
 
   def create_bundle(self, output_pcollection):
