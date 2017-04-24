@@ -336,7 +336,7 @@ class Pipeline(object):
     # argument evaluation order.
     root_transform_id = context.transforms.get_id(self._root_transform())
     proto = beam_runner_api_pb2.Pipeline(
-        root_transform_id=root_transform_id,
+        root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
     return proto
 
@@ -345,8 +345,9 @@ class Pipeline(object):
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(proto.components)
+    root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [
-        context.transforms.get_by_id(proto.root_transform_id)]
+        context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = set([
         t.unique_name for t in proto.components.transforms.values()])
