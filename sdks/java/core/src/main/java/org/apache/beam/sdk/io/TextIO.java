@@ -47,7 +47,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -136,18 +135,6 @@ public class TextIO {
     }
 
     /**
-     * Returns a transform for reading text files that has GCS path validation on
-     * pipeline creation disabled.
-     *
-     * <p>This can be useful in the case where the GCS input does not
-     * exist at the pipeline creation time, but is expected to be
-     * available at execution time.
-     */
-    public static Bound withoutValidation() {
-      return new Bound().withoutValidation();
-    }
-
-    /**
      * Returns a transform for reading text files that decompresses all input files
      * using the specified compression type.
      *
@@ -170,24 +157,19 @@ public class TextIO {
       /** The filepattern to read from. */
       @Nullable private final ValueProvider<String> filepattern;
 
-      /** An option to indicate if input validation is desired. Default is true. */
-      private final boolean validate;
-
       /** Option to indicate the input source's compression type. Default is AUTO. */
       private final TextIO.CompressionType compressionType;
 
       private Bound() {
-        this(null, null, true, TextIO.CompressionType.AUTO);
+        this(null, null, TextIO.CompressionType.AUTO);
       }
 
       private Bound(
           @Nullable String name,
           @Nullable ValueProvider<String> filepattern,
-          boolean validate,
           TextIO.CompressionType compressionType) {
         super(name);
         this.filepattern = filepattern;
-        this.validate = validate;
         this.compressionType = compressionType;
       }
 
@@ -201,8 +183,7 @@ public class TextIO {
        */
       public Bound from(String filepattern) {
         checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, StaticValueProvider.of(filepattern), validate,
-                           compressionType);
+        return new Bound(name, StaticValueProvider.of(filepattern), compressionType);
       }
 
       /**
@@ -210,7 +191,7 @@ public class TextIO {
        */
       public Bound from(ValueProvider<String> filepattern) {
         checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, filepattern, validate, compressionType);
+        return new Bound(name, filepattern, compressionType);
       }
 
       /**
@@ -224,7 +205,7 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound withoutValidation() {
-        return new Bound(name, filepattern, false, compressionType);
+        return new Bound(name, filepattern, compressionType);
       }
 
       /**
@@ -237,26 +218,13 @@ public class TextIO {
        * <p>Does not modify this object.
        */
       public Bound withCompressionType(TextIO.CompressionType compressionType) {
-        return new Bound(name, filepattern, validate, compressionType);
+        return new Bound(name, filepattern, compressionType);
       }
 
       @Override
       public PCollection<String> expand(PBegin input) {
         if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
-        }
-
-        if (validate) {
-          checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
-          try {
-            checkState(
-              !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
-                "Unable to find any files matching %s",
-                filepattern);
-          } catch (IOException e) {
-            throw new IllegalStateException(
-              String.format("Failed to validate %s", filepattern.get()), e);
-          }
         }
 
         final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
@@ -303,8 +271,6 @@ public class TextIO {
         builder
             .add(DisplayData.item("compressionType", compressionType.toString())
               .withLabel("Compression Type"))
-            .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validation Enabled"), true)
             .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
               .withLabel("File Pattern"));
       }
@@ -316,10 +282,6 @@ public class TextIO {
 
       public String getFilepattern() {
         return filepattern.get();
-      }
-
-      public boolean needsValidation() {
-        return validate;
       }
 
       public TextIO.CompressionType getCompressionType() {
@@ -484,9 +446,6 @@ public class TextIO {
       /** The shard template of each file written, combined with prefix and suffix. */
       private final String shardTemplate;
 
-      /** An option to indicate if output validation is desired. Default is true. */
-      private final boolean validate;
-
       /** A policy for naming output files. */
       private final FilenamePolicy filenamePolicy;
 
@@ -500,13 +459,13 @@ public class TextIO {
       private final WritableByteChannelFactory writableByteChannelFactory;
 
       private Bound() {
-        this(null, null, "", null, null, 0, DEFAULT_SHARD_TEMPLATE, true,
+        this(null, null, "", null, null, 0, DEFAULT_SHARD_TEMPLATE,
             FileBasedSink.CompressionType.UNCOMPRESSED, null, false);
       }
 
       private Bound(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
           @Nullable String header, @Nullable String footer, int numShards,
-          String shardTemplate, boolean validate,
+          String shardTemplate,
           WritableByteChannelFactory writableByteChannelFactory,
           FilenamePolicy filenamePolicy,
           boolean windowedWrites) {
@@ -517,7 +476,6 @@ public class TextIO {
         this.filenameSuffix = filenameSuffix;
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
-        this.validate = validate;
         this.writableByteChannelFactory =
             firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
         this.filenamePolicy = filenamePolicy;
@@ -535,7 +493,7 @@ public class TextIO {
       public Bound to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
-            header, footer, numShards, shardTemplate, validate,
+            header, footer, numShards, shardTemplate,
             writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
@@ -544,7 +502,7 @@ public class TextIO {
        */
       public Bound to(ValueProvider<String> filenamePrefix) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
        /**
@@ -552,7 +510,7 @@ public class TextIO {
         */
       public Bound to(FilenamePolicy filenamePolicy) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -566,7 +524,7 @@ public class TextIO {
       public Bound withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
         return new Bound(name, filenamePrefix, nameExtension, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -586,7 +544,7 @@ public class TextIO {
       public Bound withNumShards(int numShards) {
         checkArgument(numShards >= 0);
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -599,7 +557,7 @@ public class TextIO {
        */
       public Bound withShardNameTemplate(String shardTemplate) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -617,7 +575,7 @@ public class TextIO {
        */
       public Bound withoutSharding() {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, 1, "",
-            validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -632,7 +590,7 @@ public class TextIO {
        */
       public Bound withoutValidation() {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, false, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -647,7 +605,7 @@ public class TextIO {
        */
       public Bound withHeader(@Nullable String header) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -662,7 +620,7 @@ public class TextIO {
        */
       public Bound withFooter(@Nullable String footer) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
@@ -679,12 +637,12 @@ public class TextIO {
       public Bound withWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory) {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       public Bound withWindowedWrites() {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, validate, writableByteChannelFactory, filenamePolicy, true);
+            shardTemplate, writableByteChannelFactory, filenamePolicy, true);
       }
 
       @Override
@@ -732,8 +690,6 @@ public class TextIO {
             .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
               .withLabel("Output Shard Name Template"),
                 DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("validation", validate)
-              .withLabel("Validation Enabled"), true)
             .addIfNotDefault(DisplayData.item("numShards", numShards)
               .withLabel("Maximum Output Shards"), 0)
             .addIfNotNull(DisplayData.item("fileHeader", header)
@@ -781,10 +737,6 @@ public class TextIO {
       @Nullable
       public String getFooter() {
         return footer;
-      }
-
-      public boolean needsValidation() {
-        return validate;
       }
     }
   }
