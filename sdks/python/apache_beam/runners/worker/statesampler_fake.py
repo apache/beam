@@ -18,7 +18,7 @@
 
 class StateSampler(object):
 
-  def __init__(*args, **kwargs):
+  def __init__(self, *args, **kwargs):
     pass
 
   def scoped_state(self, name):
