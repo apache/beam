@@ -27,9 +27,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Interface for any executor.
+ * The client side, public, technology independent interface to an executor.
  */
 public interface Executor {
+
+  /**
+   * Execution (job) result.
+   */
+  class Result {}
 
   /** 
    * Submit flow as a job. Asynchronous operation.
@@ -44,19 +49,14 @@ public interface Executor {
   void shutdown();
 
   /**
-   * Operators that are considered to be basic and each executor has to
-   * implement them.
+   * Operators that are considered to be basic and expected to be natively
+   * supported by each executor implementation.
+   *
    * @return set of basic operators
    */
   @SuppressWarnings({ "unchecked", "rawtypes" })
   static Set<Class<? extends Operator<?, ?>>> getBasicOps() {
     return (Set) Sets.newHashSet(
         FlatMap.class, Repartition.class, ReduceStateByKey.class, Union.class);
-  }
-  
-  /**
-   * Execution (job) result. Should contain aggregators, etc.
-   */
-  public static class Result {
   }
 }
