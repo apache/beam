@@ -30,11 +30,12 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.metrics.Gauge;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -78,7 +79,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private <OutputT> TransformEvaluator<?> createEvaluator(
-      AppliedPTransform<PBegin, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
+      AppliedPTransform<PBegin, PCollection<OutputT>, Unbounded<OutputT>> application) {
     return new UnboundedReadEvaluator<>(application, evaluationContext, readerReuseChance);
   }
 
@@ -122,6 +123,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               (PCollection<OutputT>) getOnlyElement(transform.getOutputs().values()));
       UnboundedSourceShard<OutputT, CheckpointMarkT> shard = element.getValue();
       UnboundedReader<OutputT> reader = null;
+      String splitId = String.valueOf(shard.getSplitId());
+      Gauge sourceWatermarkOfSplit = SourceMetrics.sourceWatermarkOfSplit(splitId);
       try {
         reader = getReader(shard);
         boolean elementAvailable = startReader(reader, shard);
@@ -138,6 +141,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             numElements++;
           } while (numElements < ARBITRARY_MAX_ELEMENTS && reader.advance());
           Instant watermark = reader.getWatermark();
+          if (SourceMetrics.shouldSetMetricOfSplit(shard.getTotalSplits())) {
+            sourceWatermarkOfSplit.set(watermark.getMillis());
+          }
 
           CheckpointMarkT finishedCheckpoint = finishRead(reader, shard);
           UnboundedSourceShard<OutputT, CheckpointMarkT> residual;
@@ -151,7 +157,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             toClose.close();
             residual =
                 UnboundedSourceShard.of(
-                    shard.getSource(), shard.getDeduplicator(), null, finishedCheckpoint);
+                    shard.getSplitId(), shard.getTotalSplits(), shard.getSource(),
+                    shard.getDeduplicator(), null, finishedCheckpoint);
           } else {
             residual = shard.withCheckpoint(finishedCheckpoint);
           }
@@ -167,12 +174,20 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               Collections.<WindowedValue<?>>singleton(
                   WindowedValue.timestampedValueInGlobalWindow(
                       UnboundedSourceShard.of(
+                          shard.getSplitId(),
+                          shard.getTotalSplits(),
                           shard.getSource(),
                           shard.getDeduplicator(),
                           reader,
                           shard.getCheckpoint()),
                       reader.getWatermark())));
+        } else {
+          // update watermark when read the BoundedWindow.TIMESTAMP_MAX_VALUE watermark.
+          if (SourceMetrics.shouldSetMetricOfSplit(shard.getTotalSplits())) {
+            sourceWatermarkOfSplit.set(reader.getWatermark().getMillis());
+          }
         }
+
       } catch (IOException e) {
         if (reader != null) {
           reader.close();
@@ -255,18 +270,25 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   @AutoValue
   abstract static class UnboundedSourceShard<T, CheckpointT extends CheckpointMark> {
     static <T, CheckpointT extends CheckpointMark> UnboundedSourceShard<T, CheckpointT> unstarted(
-        UnboundedSource<T, CheckpointT> source, UnboundedReadDeduplicator deduplicator) {
-      return of(source, deduplicator, null, null);
+        int splitId, int totalSplits, UnboundedSource<T, CheckpointT> source,
+        UnboundedReadDeduplicator deduplicator) {
+      return of(splitId, totalSplits, source, deduplicator, null, null);
     }
 
     static <T, CheckpointT extends CheckpointMark> UnboundedSourceShard<T, CheckpointT> of(
+        int splitId,
+        int totalSplits,
         UnboundedSource<T, CheckpointT> source,
         UnboundedReadDeduplicator deduplicator,
         @Nullable UnboundedReader<T> reader,
         @Nullable CheckpointT checkpoint) {
       return new AutoValue_UnboundedReadEvaluatorFactory_UnboundedSourceShard<>(
-          source, deduplicator, reader, checkpoint);
+          splitId, totalSplits, source, deduplicator, reader, checkpoint);
     }
+
+    abstract int getSplitId();
+
+    abstract int getTotalSplits();
 
     abstract UnboundedSource<T, CheckpointT> getSource();
 
@@ -279,7 +301,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     abstract CheckpointT getCheckpoint();
 
     UnboundedSourceShard<T, CheckpointT> withCheckpoint(CheckpointT newCheckpoint) {
-      return of(getSource(), getDeduplicator(), getExistingReader(), newCheckpoint);
+      return of(getSplitId(), getTotalSplits(), getSource(),
+          getDeduplicator(), getExistingReader(), newCheckpoint);
     }
   }
 
@@ -307,9 +330,11 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
       ImmutableList.Builder<CommittedBundle<UnboundedSourceShard<OutputT, ?>>> initialShards =
           ImmutableList.builder();
+      int index = 0;
+      int totalSplits = splits.size();
       for (UnboundedSource<OutputT, ?> split : splits) {
         UnboundedSourceShard<OutputT, ?> shard =
-            UnboundedSourceShard.unstarted(split, deduplicator);
+            UnboundedSourceShard.unstarted(index++, totalSplits, split, deduplicator);
         initialShards.add(
             evaluationContext
                 .<UnboundedSourceShard<OutputT, ?>>createRootBundle()
