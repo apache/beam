@@ -45,7 +45,8 @@ public final class ByteKey implements Comparable<ByteKey>, Serializable {
   public static final ByteKey EMPTY = ByteKey.of();
 
   /**
-   * Creates a new {@link ByteKey} backed by a copy of the data in the specified {@link ByteBuffer}.
+   * Creates a new {@link ByteKey} backed by a copy of the data remaining in the specified
+   * {@link ByteBuffer}.
    */
   public static ByteKey copyFrom(ByteBuffer value) {
     return new ByteKey(ByteString.copyFrom(value));
