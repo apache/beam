@@ -19,6 +19,7 @@ package org.apache.beam.examples.common;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
@@ -33,6 +34,10 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.Subscription;
 import com.google.api.services.pubsub.model.Topic;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -42,10 +47,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.NullCredentialInitializer;
+import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 
@@ -196,10 +203,49 @@ public class ExampleUtils {
     }
   }
 
+  /**
+   * Returns a BigQuery client builder using the specified {@link BigQueryOptions}.
+   */
+  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+    return new Bigquery.Builder(Transport.getTransport(), Transport.getJsonFactory(),
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+  }
+
+  /**
+   * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
+   */
+  private static Pubsub.Builder newPubsubClient(PubsubOptions options) {
+    return new Pubsub.Builder(Transport.getTransport(), Transport.getJsonFactory(),
+        chainHttpRequestInitializer(
+            options.getGcpCredential(),
+            // Do not log 404. It clutters the output and is possibly even required by the caller.
+            new RetryHttpRequestInitializer(ImmutableList.of(404))))
+        .setRootUrl(options.getPubsubRootUrl())
+        .setApplicationName(options.getAppName())
+        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+  }
+
+  private static HttpRequestInitializer chainHttpRequestInitializer(
+      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
+    if (credential == null) {
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
+    } else {
+      return new ChainingHttpRequestInitializer(
+          new HttpCredentialsAdapter(credential),
+          httpRequestInitializer);
+    }
+  }
+
   private void setupBigQueryTable(String projectId, String datasetId, String tableId,
       TableSchema schema) throws IOException {
     if (bigQueryClient == null) {
-      bigQueryClient = Transport.newBigQueryClient(options.as(BigQueryOptions.class)).build();
+      bigQueryClient = newBigQueryClient(options.as(BigQueryOptions.class)).build();
     }
 
     Datasets datasetService = bigQueryClient.datasets();
@@ -224,7 +270,7 @@ public class ExampleUtils {
 
   private void setupPubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) == null) {
       pubsubClient.projects().topics().create(topic, new Topic().setName(topic)).execute();
@@ -233,7 +279,7 @@ public class ExampleUtils {
 
   private void setupPubsubSubscription(String topic, String subscription) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) == null) {
       Subscription subInfo = new Subscription()
@@ -250,7 +296,7 @@ public class ExampleUtils {
    */
   private void deletePubsubTopic(String topic) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().topics().get(topic)) != null) {
       pubsubClient.projects().topics().delete(topic).execute();
@@ -264,7 +310,7 @@ public class ExampleUtils {
    */
   private void deletePubsubSubscription(String subscription) throws IOException {
     if (pubsubClient == null) {
-      pubsubClient = Transport.newPubsubClient(options.as(PubsubOptions.class)).build();
+      pubsubClient = newPubsubClient(options.as(PubsubOptions.class)).build();
     }
     if (executeNullIfNotFound(pubsubClient.projects().subscriptions().get(subscription)) != null) {
       pubsubClient.projects().subscriptions().delete(subscription).execute();
