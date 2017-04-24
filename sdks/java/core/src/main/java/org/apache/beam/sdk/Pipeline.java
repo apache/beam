@@ -29,10 +29,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
@@ -113,7 +113,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
-
   /**
    * Thrown during execution of a {@link Pipeline}, whenever user code within that
    * {@link Pipeline} throws an exception.
@@ -133,12 +132,23 @@ public class Pipeline {
   // Public operations.
 
   /**
+   * Constructs a pipeline from default options.
+   *
+   * @return The newly created pipeline.
+   */
+  public static Pipeline create() {
+    Pipeline pipeline = new Pipeline(PipelineOptionsFactory.create());
+    LOG.debug("Creating {}", pipeline);
+    return pipeline;
+  }
+
+  /**
    * Constructs a pipeline from the provided options.
    *
    * @return The newly created pipeline.
    */
   public static Pipeline create(PipelineOptions options) {
-    Pipeline pipeline = new Pipeline(PipelineRunner.fromOptions(options), options);
+    Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
   }
@@ -270,9 +280,22 @@ public class Pipeline {
   }
 
   /**
-   * Runs the {@link Pipeline} using its {@link PipelineRunner}.
+   * Runs this {@link Pipeline} using the default {@link PipelineOptions} provided
+   * to {@link #create(PipelineOptions)}.
+   *
+   * <p>It is an error to call this method if the pipeline was created without
+   * a default set of options.
    */
   public PipelineResult run() {
+    return run(defaultOptions);
+  }
+
+  /**
+   * Runs this {@link Pipeline} using the given {@link PipelineOptions}, using the runner
+   * specified by the options.
+   */
+  public PipelineResult run(PipelineOptions options) {
+    PipelineRunner runner = PipelineRunner.fromOptions(options);
     // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
     // pipeline.
     LOG.debug("Running {} via {}", this, runner);
@@ -417,22 +440,32 @@ public class Pipeline {
   /////////////////////////////////////////////////////////////////////////////
   // Below here are internal operations, never called by users.
 
-  private final PipelineRunner<?> runner;
-  private final PipelineOptions options;
   private final TransformHierarchy transforms = new TransformHierarchy(this);
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
   private final List<String> unstableNames = new ArrayList<>();
+  private final PipelineOptions defaultOptions;
 
-  protected Pipeline(PipelineRunner<?> runner, PipelineOptions options) {
-    this.runner = runner;
-    this.options = options;
+  protected Pipeline(PipelineOptions options) {
+    this.defaultOptions = options;
   }
 
   @Override
   public String toString() {
     return "Pipeline#" + hashCode();
   }
+
+  /**
+   * Returns the default {@link PipelineOptions} provided to {@link #create(PipelineOptions)}.
+   *
+   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
+   *     provided to a transform if it is required.
+   */
+  @Deprecated
+  public PipelineOptions getOptions() {
+    return defaultOptions;
+  }
+
 
   /**
    * Applies a {@link PTransform} to the given {@link PInput}.
@@ -516,19 +549,6 @@ public class Pipeline {
   }
 
   /**
-   * Returns the {@link PipelineOptions} provided at the time this {@link Pipeline} was created.
-   *
-   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
-   *     provided to a transform if it is required. This method will be removed within a Major
-   *     Version and should not be used.
-   */
-  @Deprecated
-  @Experimental
-  public PipelineOptions getOptions() {
-    return options;
-  }
-
-  /**
    * Returns a unique name for a transform with the given prefix (from
    * enclosing transforms) and initial name.
    *
@@ -572,7 +592,9 @@ public class Pipeline {
 
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
-      node.getTransform().validate(options);
+      if (node.getTransform() != null) {
+        node.getTransform().validate(options);
+      }
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
