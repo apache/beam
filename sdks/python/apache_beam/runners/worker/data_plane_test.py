@@ -33,6 +33,7 @@ from apache_beam.utils import portpicker
 def timeout(timeout_secs):
   def decorate(fn):
     exc_info = []
+
     def wrapper(*args, **kwargs):
       def call_fn():
         try:

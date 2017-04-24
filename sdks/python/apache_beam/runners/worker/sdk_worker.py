@@ -214,6 +214,7 @@ class SdkHarness(object):
 
     responses = queue.Queue()
     no_more_work = object()
+
     def get_responses():
       while True:
         response = responses.get()
@@ -446,5 +447,3 @@ class SdkWorker(object):
       op.finish()
 
     return beam_fn_api_pb2.ProcessBundleResponse()
-
-
