@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.sdk.io.gcp.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Matchers.any;
@@ -36,6 +36,7 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.math.BigInteger;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
