@@ -15,7 +15,6 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import operation_specs as maptask
 from apache_beam.runners.worker import operations
 try:
   from apache_beam.runners.worker import statesampler
@@ -250,11 +249,11 @@ class MapTaskExecutorRunner(PipelineRunner):
     for input in transform_node.inputs:
       map_task_index, producer_index, output_index = self.outputs[input]
       element_coder = self._get_coder(input)
-      flatten_write = operation_specs.WorkerInMemoryWrite(output_buffer=output_buffer,
-                                                  write_windowed_values=True,
-                                                  input=(producer_index,
-                                                         output_index),
-                                                  output_coders=[element_coder])
+      flatten_write = operation_specs.WorkerInMemoryWrite(
+          output_buffer=output_buffer,
+          write_windowed_values=True,
+          input=(producer_index, output_index),
+          output_coders=[element_coder])
       self.map_tasks[map_task_index].append(
           (transform_node.full_label + '/Write', flatten_write))
       self.dependencies[output_map_task].add(map_task_index)
@@ -272,8 +271,8 @@ class MapTaskExecutorRunner(PipelineRunner):
     element_coder = self._get_coder(transform_node.outputs[None])
     _, producer_index, output_index = self.outputs[transform_node.inputs[0]]
     combine_op = operation_specs.WorkerPartialGroupByKey(
-        combine_fn=pickler.dumps((transform_node.transform.combine_fn, (), {},
-                                  ())),
+        combine_fn=pickler.dumps(
+            (transform_node.transform.combine_fn, (), {}, ())),
         output_coders=[element_coder],
         input=(producer_index, output_index))
     self._run_as_op(transform_node, combine_op)
@@ -288,11 +287,12 @@ class MapTaskExecutorRunner(PipelineRunner):
     transform = transform_node.transform
     element_coder = self._get_coder(transform_node.outputs[None])
     _, producer_index, output_index = self.outputs[transform_node.inputs[0]]
-    combine_op = operation_specs.WorkerCombineFn(serialized_fn=pickler.dumps(
-        (transform.combine_fn, (), {}, ())),
-                                         phase=phase,
-                                         output_coders=[element_coder],
-                                         input=(producer_index, output_index))
+    combine_op = operation_specs.WorkerCombineFn(
+        serialized_fn=pickler.dumps(
+            (transform.combine_fn, (), {}, ())),
+        phase=phase,
+        output_coders=[element_coder],
+        input=(producer_index, output_index))
     self._run_as_op(transform_node, combine_op)
 
   def _get_coder(self, pvalue, windowed=True):

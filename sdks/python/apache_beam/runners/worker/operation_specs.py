@@ -325,7 +325,7 @@ def get_coder_from_spec(coder_spec):
     return coders.WindowedValueCoder(value_coder, window_coder=window_coder)
   elif coder_spec['@type'] == 'kind:global_window':
     assert ('component_encodings' not in coder_spec
-            or len(coder_spec['component_encodings'] == 0))
+            or not coder_spec['component_encodings'])
     return coders.GlobalWindowCoder()
   elif coder_spec['@type'] == 'kind:length_prefix':
     assert len(coder_spec['component_encodings']) == 1

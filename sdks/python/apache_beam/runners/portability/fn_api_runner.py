@@ -15,7 +15,6 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
-from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.portability import maptask_executor_runner
@@ -320,7 +319,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         expected_targets = [
             beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
                                    name=output_name)
-            for (transform_id, output_name) in sinks.keys()]
+            for (transform_id, output_name), _ in sinks.items()]
         for output in data_plane_handler.input_elements(
             process_bundle.instruction_id, expected_targets):
           target_tuple = (

@@ -35,9 +35,10 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
 
   def test_pardo(self):
     with self.create_pipeline() as p:
-      res = (p | beam.Create(['a', 'bc'])
-               | beam.Map(lambda e: e * 2)
-               | beam.Map(lambda e: e + 'x'))
+      res = (p
+             | beam.Create(['a', 'bc'])
+             | beam.Map(lambda e: e * 2)
+             | beam.Map(lambda e: e + 'x'))
       assert_that(res, equal_to(['aax', 'bcbcx']))
 
   def test_pardo_metrics(self):
@@ -88,8 +89,9 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
         if tag in elem:
           yield beam.pvalue.OutputValue(tag, elem)
     with self.create_pipeline() as p:
-      xy = (p | 'Create' >> beam.Create(['x', 'y', 'xy'])
-              | beam.FlatMap(tee, 'x', 'y').with_outputs())
+      xy = (p
+            | 'Create' >> beam.Create(['x', 'y', 'xy'])
+            | beam.FlatMap(tee, 'x', 'y').with_outputs())
       assert_that(xy.x, equal_to(['x', 'xy']), label='x')
       assert_that(xy.y, equal_to(['y', 'xy']), label='y')
 
@@ -106,7 +108,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       assert_that(named.odd, equal_to([1, 3]), label='named.odd')
 
       unnamed = ints | 'unnamed' >> beam.FlatMap(even_odd).with_outputs()
-      unnamed[None] | beam.Map(id)
+      unnamed[None] | beam.Map(id)  # pylint: disable=expression-not-assigned
       assert_that(unnamed[None], equal_to([1, 2, 3]), label='unnamed.all')
       assert_that(unnamed.even, equal_to([2]), label='unnamed.even')
       assert_that(unnamed.odd, equal_to([1, 3]), label='unnamed.odd')
@@ -143,9 +145,10 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
-      res = (p | beam.Create([('a', 1), ('a', 2), ('b', 3)])
-               | beam.GroupByKey()
-               | beam.Map(lambda (k, vs): (k, sorted(vs))))
+      res = (p
+             | beam.Create([('a', 1), ('a', 2), ('b', 3)])
+             | beam.GroupByKey()
+             | beam.Map(lambda (k, vs): (k, sorted(vs))))
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
   def test_flatten(self):
@@ -157,8 +160,9 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
 
   def test_combine_per_key(self):
     with self.create_pipeline() as p:
-      res = (p | beam.Create([('a', 1), ('a', 2), ('b', 3)])
-               | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      res = (p
+             | beam.Create([('a', 1), ('a', 2), ('b', 3)])
+             | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
   def test_read(self):
@@ -171,11 +175,12 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
 
   def test_windowing(self):
     with self.create_pipeline() as p:
-      res = (p | beam.Create([1, 2, 100, 101, 102])
-               | beam.Map(lambda t: TimestampedValue(('k', t), t))
-               | beam.WindowInto(beam.transforms.window.Sessions(10))
-               | beam.GroupByKey()
-               | beam.Map(lambda (k, vs): (k, sorted(vs))))
+      res = (p
+             | beam.Create([1, 2, 100, 101, 102])
+             | beam.Map(lambda t: TimestampedValue(('k', t), t))
+             | beam.WindowInto(beam.transforms.window.Sessions(10))
+             | beam.GroupByKey()
+             | beam.Map(lambda (k, vs): (k, sorted(vs))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
 if __name__ == '__main__':
