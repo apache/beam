@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 
+import java.nio.charset.Charset;
+
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -87,19 +89,11 @@ public class XmlIO {
    *      .withRooElement("root")
    *      .withRecordElement("record")
    *      .withRecordClass(Record.class)
-   *      .withCharset("ISO-8859-1"));
+   *      .withCharset(StandardCharsets.ISO_8859_1));
    * }</pre>
    *
-   * <p>Or:
-   *
-   * <pre>{@code
-   * PCollection<String> output = p.apply(XmlIO.<Record>read()
-   *      .from(file.toPath().toString())
-   *      .withRooElement("root")
-   *      .withRecordElement("record")
-   *      .withRecordClass(Record.class)
-   *      .withCharset(StandardCharsets.ISO_8859_1.name()));
-   * }</pre>
+   * <p>{@link java.nio.charset.StandardCharsets} provides static references to most of the
+   * charset you might want to use.
    *
    * <p>Currently, only XML files that use single-byte characters are supported. Using a file that
    * contains multi-byte characters may result in data loss or duplication.
@@ -358,8 +352,8 @@ public class XmlIO {
     /**
      * Sets the XML file charset.
      */
-    public Read<T> withCharset(String charset) {
-      return toBuilder().setCharset(charset).build();
+    public Read<T> withCharset(Charset charset) {
+      return toBuilder().setCharset(charset.name()).build();
     }
 
     @Override
