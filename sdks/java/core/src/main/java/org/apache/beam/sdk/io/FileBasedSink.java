@@ -32,12 +32,16 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -104,6 +108,46 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
+  // Pattern that matches shard placeholders within a shard template.
+  private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
+
+  /**
+   * Constructs a fully qualified name from components.
+   *
+   * <p>The name is built from a prefix, shard template (with shard numbers
+   * applied), and a suffix.  All components are required, but may be empty
+   * strings.
+   *
+   * <p>Within a shard template, repeating sequences of the letters "S" or "N"
+   * are replaced with the shard number, or number of shards respectively.  The
+   * numbers are formatted with leading zeros to match the length of the
+   * repeated sequence of letters.
+   *
+   * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
+   * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
+   * produced:  "output-001-of-100.txt".
+   */
+  public static String constructName(String prefix,
+      String shardTemplate, String suffix, int shardNum, int numShards) {
+    // Matcher API works with StringBuffer, rather than StringBuilder.
+    StringBuffer sb = new StringBuffer();
+    sb.append(prefix);
+
+    Matcher m = SHARD_FORMAT_RE.matcher(shardTemplate);
+    while (m.find()) {
+      boolean isShardNum = (m.group(1).charAt(0) == 'S');
+
+      char[] zeros = new char[m.end() - m.start()];
+      Arrays.fill(zeros, '0');
+      DecimalFormat df = new DecimalFormat(String.valueOf(zeros));
+      String formatted = df.format(isShardNum ? shardNum : numShards);
+      m.appendReplacement(sb, formatted);
+    }
+    m.appendTail(sb);
+
+    sb.append(suffix);
+    return sb.toString();
+  }
 
   /**
    * Directly supported file output compression types.
@@ -301,7 +345,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       }
 
       String suffix = getFileExtension(extension);
-      String filename = IOChannelUtils.constructName(
+      String filename = constructName(
           baseOutputFilename.get(), fileNamingTemplate, suffix, context.getShardNumber(),
           context.getNumShards());
       return filename;

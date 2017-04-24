@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.FileBasedSink.constructName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,7 +45,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
@@ -85,6 +84,30 @@ public class FileBasedSinkTest {
 
   private String getBaseTempDirectory() {
     return appendToTempFolder(tempDirectory);
+  }
+
+  @Test
+  public void testConstructName() {
+    assertEquals("output-001-of-123.txt",
+        constructName("output", "-SSS-of-NNN", ".txt", 1, 123));
+
+    assertEquals("out.txt/part-00042",
+        constructName("out.txt", "/part-SSSSS", "", 42, 100));
+
+    assertEquals("out.txt",
+        constructName("ou", "t.t", "xt", 1, 1));
+
+    assertEquals("out0102shard.txt",
+        constructName("out", "SSNNshard", ".txt", 1, 2));
+
+    assertEquals("out-2/1.part-1-of-2.txt",
+        constructName("out", "-N/S.part-S-of-N", ".txt", 1, 2));
+  }
+
+  @Test
+  public void testConstructNameWithLargeShardCount() {
+    assertEquals("out-100-of-5000.txt",
+        constructName("out", "-SS-of-NN", ".txt", 100, 5000));
   }
 
   /**
