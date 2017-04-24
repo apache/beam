@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-
 class StateSampler(object):
 
   def __init__(self, *args, **kwargs):
