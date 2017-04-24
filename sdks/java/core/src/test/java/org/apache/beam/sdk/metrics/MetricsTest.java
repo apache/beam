@@ -127,18 +127,86 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
       UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void committedMetricsReportToQuery() {
+  public void testAllCommittedMetrics() {
     PipelineResult result = runPipelineWithMetrics();
-    testAllMetrics(result, true);
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+
+    testAllMetrics(metrics, true);
   }
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
       UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void attemptedMetricsReportToQuery() {
+  public void testAllAttemptedMetrics() {
     PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+
     // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
-    testAllMetrics(result, false);
+    testAllMetrics(metrics, false);
+  }
+
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void testCommittedCounterMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testCounterMetrics(metrics, true);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
+  @Test
+  public void testAttemptedCounterMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testCounterMetrics(metrics, false);
+  }
+
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesDistributionMetrics.class})
+  @Test
+  public void testCommittedDistributionMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testDistributionMetrics(metrics, true);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
+  @Test
+  public void testAttemptedDistributionMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testDistributionMetrics(metrics, false);
+  }
+
+  @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
+  @Test
+  public void testCommittedGaugeMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testGaugeMetrics(metrics, true);
+  }
+
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
+  @Test
+  public void testAttemptedGaugeMetrics() {
+    PipelineResult result = runPipelineWithMetrics();
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
+    testGaugeMetrics(metrics, false);
   }
 
   private PipelineResult runPipelineWithMetrics() {
@@ -193,28 +261,35 @@ public class MetricsTest implements Serializable {
     return result;
   }
 
-  private static void testAllMetrics(PipelineResult result, boolean isCommitted) {
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-        .build());
-
+  private static void testCounterMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(metrics.counters(), hasItem(
         metricsResult(NAMESPACE, "count", "MyStep1", 3L, isCommitted)));
+    assertThat(metrics.counters(), hasItem(
+        metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
+  }
+
+  private static void testGaugeMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    assertThat(metrics.gauges(), hasItem(
+        metricsResult(NAMESPACE, "my-gauge", "MyStep2",
+            GaugeResult.create(12L, Instant.now()), isCommitted)));
+  }
+
+  private static void testDistributionMetrics(MetricQueryResults metrics, boolean isCommitted) {
     assertThat(metrics.distributions(), hasItem(
         metricsResult(NAMESPACE, "input", "MyStep1",
             DistributionResult.create(26L, 3L, 5L, 13L), isCommitted)));
 
-    assertThat(metrics.counters(), hasItem(
-        metricsResult(NAMESPACE, "count", "MyStep2", 6L, isCommitted)));
     assertThat(metrics.distributions(), hasItem(
         metricsResult(NAMESPACE, "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L), isCommitted)));
-    assertThat(metrics.gauges(), hasItem(
-        metricsResult(NAMESPACE, "my-gauge", "MyStep2",
-            GaugeResult.create(12L, Instant.now()), isCommitted)));
-
     assertThat(metrics.distributions(), hasItem(
         distributionMinMax(NAMESPACE, "bundle", "MyStep1", 10L, 40L, isCommitted)));
+  }
+
+  private static void testAllMetrics(MetricQueryResults metrics, boolean isCommitted) {
+    testCounterMetrics(metrics, isCommitted);
+    testDistributionMetrics(metrics, isCommitted);
+    testGaugeMetrics(metrics, isCommitted);
   }
 
   @Test
