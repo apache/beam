@@ -38,10 +38,9 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * @param <T> the type of the values being transcoded
  */
-public class LengthPrefixCoder<T> extends CustomCoder<T> {
+public class LengthPrefixCoder<T> extends StandardCoder<T> {
 
-  public static <T> LengthPrefixCoder<T> of(
-      Coder<T> valueCoder) {
+  public static <T> LengthPrefixCoder<T> of(Coder<T> valueCoder) {
     checkNotNull(valueCoder, "Coder not expected to be null");
     return new LengthPrefixCoder<>(valueCoder);
   }
