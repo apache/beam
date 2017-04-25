@@ -191,14 +191,14 @@ public class ReduceWindow<
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // implement this operator via `ReduceByKey`
-    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, W> reduceByKey;
+    ReduceByKey<IN, Byte, VALUE, OUT, W> reduceByKey;
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
         windowing, eventTimeAssigner, reducer, partitioning);
-    Dataset<Pair<Void, OUT>> output = reduceByKey.output();
+    Dataset<Pair<Byte, OUT>> output = reduceByKey.output();
 
-    MapElements<Pair<Void, OUT>, OUT> format = new MapElements<>(
+    MapElements<Pair<Byte, OUT>, OUT> format = new MapElements<>(
         getName() + "::MapElements", getFlow(), output, Pair::getSecond);
 
     return DAG.of(reduceByKey, format);
