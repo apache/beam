@@ -343,6 +343,9 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
       // rename output shards to Hadoop style, i.e. part-r-00000.txt
       int i = 0;
       for (FileStatus s : statuses) {
+        if (s.getPath().getParent() == null) {
+          break;
+        }
         String name = s.getPath().getName();
         int pos = name.indexOf('.');
         String ext = pos > 0 ? name.substring(pos) : "";
