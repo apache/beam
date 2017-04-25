@@ -27,6 +27,9 @@ import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.metrics import Metrics
+from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.io.iobase import Read
 from apache_beam.test_pipeline import TestPipeline
 import apache_beam.pvalue as pvalue
 import apache_beam.transforms.combiners as combine
@@ -167,6 +170,30 @@ class PTransformTest(unittest.TestCase):
     assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
     assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
     pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_read_from_text_metrics(self):
+    from apache_beam.examples.snippets.snippets import CountingSource
+
+    class CounterDoFn(beam.DoFn):
+      def __init__(self):
+        self.received_records = Metrics.counter(self.__class__,
+                                                'receivedRecords')
+
+      def process(self, element):
+        self.received_records.inc()
+
+    pipeline = TestPipeline()
+    (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
+    res = pipeline.run()
+    res.wait_until_finish()
+    metric_results = res.metrics().query(MetricsFilter()
+                                         .with_name('recordsRead'))
+    outputs_counter = metric_results['counters'][0]
+    self.assertEqual(outputs_counter.key.step, 'Read')
+    self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
+    self.assertEqual(outputs_counter.committed, 100)
+    self.assertEqual(outputs_counter.attempted, 100)
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):

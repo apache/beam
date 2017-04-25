@@ -17,23 +17,20 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A UnionCoder encodes RawUnionValues.
  */
-public class UnionCoder extends StandardCoder<RawUnionValue> {
+public class UnionCoder extends CustomCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
@@ -42,13 +39,6 @@ public class UnionCoder extends StandardCoder<RawUnionValue> {
    */
   public static UnionCoder of(List<Coder<?>> elementCoders) {
     return new UnionCoder(elementCoders);
-  }
-
-  @JsonCreator
-  public static UnionCoder jsonOf(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> elements) {
-    return UnionCoder.of(elements);
   }
 
   private int getIndexForEncoding(RawUnionValue union) {

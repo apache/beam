@@ -20,6 +20,7 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -34,10 +35,12 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -84,7 +88,7 @@ public class PAssertTest implements Serializable {
     }
   }
 
-  private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
+  private static class NotSerializableObjectCoder extends CustomCoder<NotSerializableObject> {
     private NotSerializableObjectCoder() { }
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
@@ -115,6 +119,44 @@ public class PAssertTest implements Serializable {
         throws Exception {
       observer.update(0L);
     }
+  }
+
+  @Test
+  public void testFailureEncodedDecoded() throws IOException {
+    AssertionError error = null;
+    try {
+      assertEquals(0, 1);
+    } catch (AssertionError e) {
+      error = e;
+    }
+    SuccessOrFailure failure = SuccessOrFailure.failure(
+        new PAssert.PAssertionSite(error.getMessage(), error.getStackTrace()));
+    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
+
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
+    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
+
+    // Should compare strings, because throwables are not directly comparable.
+    assertEquals("Encode-decode failed SuccessOrFailure",
+        failure.assertionError().toString(), res.assertionError().toString());
+    String resultStacktrace = Throwables.getStackTraceAsString(res.assertionError());
+    String failureStacktrace = Throwables.getStackTraceAsString(failure.assertionError());
+    assertThat(resultStacktrace, is(failureStacktrace));
+  }
+
+  @Test
+  public void testSuccessEncodedDecoded() throws IOException {
+    SuccessOrFailure success = SuccessOrFailure.success();
+    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
+
+    byte[] encoded = CoderUtils.encodeToByteArray(coder, success);
+    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
+
+    assertEquals("Encode-decode successful SuccessOrFailure",
+        success.isSuccess(), res.isSuccess());
+    assertEquals("Encode-decode successful SuccessOrFailure",
+        success.assertionError(),
+        res.assertionError());
   }
 
   /**
@@ -425,7 +467,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalse() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that("Vals should have been empty", vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -439,7 +481,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testEmptyFalseDefaultReasonString() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     PAssert.that(vals).empty();
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -447,14 +489,27 @@ public class PAssertTest implements Serializable {
     String message = thrown.getMessage();
 
     assertThat(message,
-        containsString("CountingInput.BoundedCountingInput/Read(BoundedCountingSource).out"));
+        containsString("GenerateSequence/Read(BoundedCountingSource).out"));
     assertThat(message, containsString("Expected: iterable over [] in any order"));
+  }
+
+  @Test
+  public void testAssertionSiteIsCaptured() {
+    // This check should return a failure.
+    SuccessOrFailure res = PAssert.doChecks(
+        PAssert.PAssertionSite.capture("Captured assertion message."),
+        new Integer(10),
+        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+
+    String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
+    assertEquals(res.isSuccess(), false);
+    assertThat(stacktrace, containsString("PAssertionSite.capture"));
   }
 
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
@@ -473,7 +528,7 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
-    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    PCollection<Long> vals = pipeline.apply(GenerateSequence.from(0).to(5));
     assertThatCollectionIsEmptyWithoutMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);

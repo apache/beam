@@ -29,11 +29,9 @@ public class GcpPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
     return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(BigQueryOptions.class)
         .add(GcpOptions.class)
         .add(GcsOptions.class)
         .add(GoogleApiDebugOptions.class)
-        .add(PubsubOptions.class)
         .build();
   }
 }

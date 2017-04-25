@@ -18,23 +18,21 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
  * Defines a coder for {@link TableRowInfo} objects.
  */
 @VisibleForTesting
-class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
+class TableRowInfoCoder extends CustomCoder<TableRowInfo> {
   private static final TableRowInfoCoder INSTANCE = new TableRowInfoCoder();
 
-  @JsonCreator
   public static TableRowInfoCoder of() {
     return INSTANCE;
   }

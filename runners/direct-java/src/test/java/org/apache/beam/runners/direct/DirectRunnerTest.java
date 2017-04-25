@@ -40,27 +40,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
-import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -69,13 +66,9 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IllegalMutationException;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -246,7 +239,7 @@ public class DirectRunnerTest implements Serializable {
     opts.setRunner(DirectRunner.class);
 
     final Pipeline p = Pipeline.create(opts);
-    p.apply(CountingInput.unbounded().withRate(1L, Duration.standardSeconds(1)));
+    p.apply(GenerateSequence.from(0).withRate(1L, Duration.standardSeconds(1)));
 
     final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
     Runnable cancelRunnable = new Runnable() {
@@ -513,8 +506,7 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromBoundedRead() throws Exception {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.upTo(10)).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0).to(10)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
@@ -524,45 +516,14 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputFromUnboundedRead() {
     Pipeline p = getPipeline();
-    PCollection<Long> pCollection =
-        p.apply(CountingInput.unbounded()).setCoder(new LongNoDecodeCoder());
+    p.apply(GenerateSequence.from(0)).setCoder(new LongNoDecodeCoder());
 
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Cannot decode a long");
     p.run();
   }
 
-
-  @Test
-  public void testAggregatorNotPresentInGraph() throws AggregatorRetrievalException {
-    Pipeline p = getPipeline();
-    IdentityDoFn identityDoFn = new IdentityDoFn();
-    p.apply(Create.of(KV.of("key", "element1"), KV.of("key", "element2"), KV.of("key", "element3")))
-        .apply(ParDo.of(identityDoFn));
-    PipelineResult pipelineResult = p.run();
-    pipelineResult.getAggregatorValues(identityDoFn.getCounter()).getValues();
-  }
-
-  private static class IdentityDoFn extends DoFn<KV<String, String>, String> {
-    private final Aggregator<Long, Long> counter = createAggregator("counter", Sum.ofLongs());
-    private static final String STATE_ID = "state";
-    @StateId(STATE_ID)
-    private static final StateSpec<Object, ValueState<String>> stateSpec =
-        StateSpecs.value(StringUtf8Coder.of());
-
-    @ProcessElement
-    public void processElement(ProcessContext context, @StateId(STATE_ID) ValueState<String> state){
-      state.write("state content");
-      counter.addValue(1L);
-      context.output(context.element().getValue());
-    }
-
-    public Aggregator<Long, Long> getCounter() {
-      return counter;
-    }
-  }
-
-  private static class LongNoDecodeCoder extends AtomicCoder<Long> {
+  private static class LongNoDecodeCoder extends CustomCoder<Long> {
     @Override
     public void encode(
         Long value, OutputStream outStream, Context context) throws IOException {

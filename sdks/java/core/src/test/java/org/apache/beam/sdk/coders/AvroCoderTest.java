@@ -64,7 +64,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -150,10 +149,18 @@ public class AvroCoderTest {
   @Test
   public void testAvroCoderEncoding() throws Exception {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-    CloudObject encoding = coder.asCloudObject();
+    CoderProperties.coderSerializable(coder);
+    AvroCoder<Pojo> copy = SerializableUtils.clone(coder);
 
-    Assert.assertThat(encoding.keySet(),
-        Matchers.containsInAnyOrder("@type", "type", "schema", "encoding_id"));
+    Pojo pojo = new Pojo("foo", 3);
+    Pojo equalPojo = new Pojo("foo", 3);
+    Pojo otherPojo = new Pojo("bar", -19);
+    CoderProperties.coderConsistentWithEquals(coder, pojo, equalPojo);
+    CoderProperties.coderConsistentWithEquals(copy, pojo, equalPojo);
+    CoderProperties.coderConsistentWithEquals(coder, pojo, otherPojo);
+    CoderProperties.coderConsistentWithEquals(copy, pojo, otherPojo);
+
+
   }
 
   /**

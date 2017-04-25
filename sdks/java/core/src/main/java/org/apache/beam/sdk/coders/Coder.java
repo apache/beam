@@ -148,6 +148,7 @@ public interface Coder<T> extends Serializable {
   /**
    * Returns the {@link CloudObject} that represents this {@code Coder}.
    */
+  @Deprecated
   CloudObject asCloudObject();
 
   /**

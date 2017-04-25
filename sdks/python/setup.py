@@ -90,6 +90,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
+    'grpcio>=1.0,<2.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
@@ -102,7 +103,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools>=0.5.8,<1.0.0',
+  'google-apitools==0.5.10',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.1',
   # GCP packages required by tests

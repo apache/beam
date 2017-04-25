@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -64,7 +63,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -889,7 +888,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testMultiOutputAppliedMultipleTimesDifferentOutputs() {
     pipeline.enableAbandonedNodeEnforcement(false);
-    PCollection<Long> longs = pipeline.apply(CountingInput.unbounded());
+    PCollection<Long> longs = pipeline.apply(GenerateSequence.from(0));
 
     TupleTag<Long> mainOut = new TupleTag<>();
     final TupleTag<String> valueAsString = new TupleTag<>();
@@ -979,7 +978,7 @@ public class ParDoTest implements Serializable {
 
   private static class TestDummy { }
 
-  private static class TestDummyCoder extends AtomicCoder<TestDummy> {
+  private static class TestDummyCoder extends CustomCoder<TestDummy> {
     private TestDummyCoder() { }
     private static final TestDummyCoder INSTANCE = new TestDummyCoder();
 
@@ -1015,6 +1014,9 @@ public class ParDoTest implements Serializable {
         throws Exception {
       observer.update(0L);
     }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 
   private static class TaggedOutputDummyFn extends DoFn<Integer, Integer> {

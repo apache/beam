@@ -22,9 +22,7 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
-import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -34,10 +32,8 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
-import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * Helpers for cloud communication.
@@ -88,38 +84,6 @@ public class Transport {
     } catch (MalformedURLException e) {
       throw new RuntimeException("Invalid URL: " + urlString);
     }
-  }
-
-  /**
-   * Returns a BigQuery client builder using the specified {@link BigQueryOptions}.
-   */
-  public static Bigquery.Builder
-      newBigQueryClient(BigQueryOptions options) {
-    return new Bigquery.Builder(getTransport(), getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  /**
-   * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
-   *
-   * @deprecated Use an appropriate org.apache.beam.sdk.util.PubsubClient.PubsubClientFactory
-   */
-  @Deprecated
-  public static Pubsub.Builder
-      newPubsubClient(PubsubOptions options) {
-    return new Pubsub.Builder(getTransport(), getJsonFactory(),
-        chainHttpRequestInitializer(
-            options.getGcpCredential(),
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setRootUrl(options.getPubsubRootUrl())
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**

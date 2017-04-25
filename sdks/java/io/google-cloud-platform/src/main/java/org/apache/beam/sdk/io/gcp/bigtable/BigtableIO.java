@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.range.ByteKey;
@@ -664,6 +664,10 @@ public class BigtableIO {
   /** Disallow construction of utility class. */
   private BigtableIO() {}
 
+  private static ByteKey makeByteKey(ByteString key) {
+    return ByteKey.copyFrom(key.asReadOnlyByteBuffer());
+  }
+
   static class BigtableSource extends BoundedSource<Row> {
     public BigtableSource(
         SerializableFunction<PipelineOptions, BigtableService> serviceFactory,
@@ -759,7 +763,7 @@ public class BigtableIO {
       long lastOffset = 0;
       ImmutableList.Builder<BigtableSource> splits = ImmutableList.builder();
       for (SampleRowKeysResponse response : sampleRowKeys) {
-        ByteKey responseEndKey = ByteKey.of(response.getRowKey());
+        ByteKey responseEndKey = makeByteKey(response.getRowKey());
         long responseOffset = response.getOffsetBytes();
         checkState(
             responseOffset >= lastOffset,
@@ -837,7 +841,7 @@ public class BigtableIO {
       // TODO: In future, Bigtable service may provide finer grained APIs, e.g., to sample given a
       // filter or to sample on a given key range.
       for (SampleRowKeysResponse response : samples) {
-        ByteKey currentEndKey = ByteKey.of(response.getRowKey());
+        ByteKey currentEndKey = makeByteKey(response.getRowKey());
         long currentOffset = response.getOffsetBytes();
         if (!currentStartKey.isEmpty() && currentStartKey.equals(currentEndKey)) {
           // Skip an empty region.
@@ -950,7 +954,7 @@ public class BigtableIO {
       reader = service.createReader(getCurrentSource());
       boolean hasRecord =
           reader.start()
-              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()))
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;
@@ -967,7 +971,7 @@ public class BigtableIO {
     public boolean advance() throws IOException {
       boolean hasRecord =
           reader.advance()
-              && rangeTracker.tryReturnRecordAt(true, ByteKey.of(reader.getCurrentRow().getKey()))
+              && rangeTracker.tryReturnRecordAt(true, makeByteKey(reader.getCurrentRow().getKey()))
               || rangeTracker.markDone();
       if (hasRecord) {
         ++recordsReturned;

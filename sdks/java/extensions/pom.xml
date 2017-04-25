@@ -35,6 +35,7 @@
     <module>gcp-core</module>
     <module>jackson</module>
     <module>join-library</module>
+    <module>protobuf</module>
     <module>sorter</module>
   </modules>
 

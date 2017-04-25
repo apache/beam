@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
@@ -65,6 +66,7 @@ public class Coders {
           .put(VarLongCoder.class, "urn:beam:coders:varint:0.1")
           .put(IntervalWindowCoder.class, "urn:beam:coders:interval_window:0.1")
           .put(IterableCoder.class, "urn:beam:coders:stream:0.1")
+          .put(LengthPrefixCoder.class, "urn:beam:coders:length_prefix:0.1")
           .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
           .put(FullWindowedValueCoder.class, "urn:beam:coders:windowed_value:0.1")
           .build();
@@ -143,6 +145,10 @@ public class Coders {
         return VarLongCoder.of();
       case "urn:beam:coders:interval_window:0.1":
         return IntervalWindowCoder.of();
+      case "urn:beam:coders:length_prefix:0.1":
+        checkArgument(
+            coderComponents.size() == 1, "Expecting 1 component, got %s", coderComponents.size());
+        return LengthPrefixCoder.of(coderComponents.get(0));
       case "urn:beam:coders:stream:0.1":
         return IterableCoder.of(coderComponents);
       case "urn:beam:coders:global_window:0.1":

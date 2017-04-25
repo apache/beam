@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;
@@ -31,10 +30,10 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Comparator;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -56,10 +55,9 @@ public class RandomAccessData {
    *
    * <p>This coder does not support encoding positive infinity.
    */
-  public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
+  public static class RandomAccessDataCoder extends CustomCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
 
-    @JsonCreator
     public static RandomAccessDataCoder of() {
       return INSTANCE;
     }
@@ -90,6 +88,9 @@ public class RandomAccessData {
     }
 
     @Override
+    public void verifyDeterministic() {}
+
+    @Override
     public boolean consistentWithEquals() {
       return true;
     }
@@ -111,6 +112,11 @@ public class RandomAccessData {
         size += VarInt.getLength(value.size);
       }
       return size + value.size;
+    }
+
+    @Override
+    public String getEncodingId() {
+      return "";
     }
   }
 

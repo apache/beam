@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.Structs.addString;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +54,6 @@ import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -102,7 +98,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of elements handled by this coder
  */
-public class AvroCoder<T> extends StandardCoder<T> {
+public class AvroCoder<T> extends CustomCoder<T> {
 
   /**
    * Returns an {@code AvroCoder} instance for the provided element type.
@@ -141,15 +137,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
    */
   public static <T> AvroCoder<T> of(Class<T> type, Schema schema) {
     return new AvroCoder<>(type, schema);
-  }
-
-  @SuppressWarnings({"unchecked", "rawtypes"})
-  @JsonCreator
-  public static AvroCoder<?> of(
-      @JsonProperty("type") String classType,
-      @JsonProperty("schema") String schema) throws ClassNotFoundException {
-    Schema.Parser parser = new Schema.Parser();
-    return new AvroCoder(Class.forName(classType), parser.parse(schema));
   }
 
   public static final CoderProvider PROVIDER = new CoderProvider() {
@@ -234,17 +221,20 @@ public class AvroCoder<T> extends StandardCoder<T> {
     // Reader and writer are allocated once per thread and are "final" for thread-local Coder
     // instance.
     this.reader = new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
+      private final AvroCoder<T> myCoder = AvroCoder.this;
       @Override
       public DatumReader<T> initialValue() {
-        return createDatumReader();
+        return myCoder.createDatumReader();
       }
     };
-    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-      @Override
-      public DatumWriter<T> initialValue() {
-        return createDatumWriter();
-      }
-    };
+    this.writer =
+        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+          @Override
+          public DatumWriter<T> initialValue() {
+            return myCoder.createDatumWriter();
+          }
+        };
   }
 
   /**
@@ -311,14 +301,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
     return null;
   }
 
-  @Override
-  protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    addString(result, "type", type.getName());
-    addString(result, "schema", schemaSupplier.get().toString());
-    return result;
-  }
-
   /**
    * @throws NonDeterministicException when the type may not be deterministically
    * encoded using the given {@link Schema}, the {@code directBinaryEncoder}, and the
@@ -339,6 +321,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
    */
   // TODO: once we can remove this deprecated function, inline in constructor.
   @Deprecated
+  @VisibleForTesting
   public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumReader<>(schemaSupplier.get());
@@ -352,8 +335,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
    *
    * @deprecated For {@code AvroCoder} internal use only.
    */
-  // TODO: once we can remove this deprecated function, inline in constructor.
   @Deprecated
+  @VisibleForTesting
+  // TODO: once we can remove this deprecated function, inline in constructor.
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumWriter<>(schemaSupplier.get());

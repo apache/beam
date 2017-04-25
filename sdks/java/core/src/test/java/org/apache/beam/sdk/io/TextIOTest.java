@@ -34,7 +34,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -247,24 +246,22 @@ public class TextIOTest {
 
     assertEquals(
         "TextIO.Read/Read.out",
-        p.apply(TextIO.Read.withoutValidation().from("somefile")).getName());
+        p.apply(TextIO.Read.from("somefile")).getName());
     assertEquals(
         "MyRead/Read.out",
-        p.apply("MyRead", TextIO.Read.withoutValidation().from(emptyTxt.getPath())).getName());
+        p.apply("MyRead", TextIO.Read.from(emptyTxt.getPath())).getName());
   }
 
   @Test
   public void testReadDisplayData() {
     TextIO.Read.Bound read = TextIO.Read
         .from("foo.*")
-        .withCompressionType(BZIP2)
-        .withoutValidation();
+        .withCompressionType(BZIP2);
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
     assertThat(displayData, hasDisplayItem("compressionType", BZIP2.toString()));
-    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test
@@ -273,8 +270,7 @@ public class TextIOTest {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
     TextIO.Read.Bound read = TextIO.Read
-        .from("foobar")
-        .withoutValidation();
+        .from("foobar");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("TextIO.Read should include the file prefix in its primitive display data",
@@ -493,8 +489,7 @@ public class TextIOTest {
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
         .withFooter("myFooter")
-        .withHeader("myHeader")
-        .withoutValidation();
+        .withHeader("myHeader");
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -504,7 +499,6 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
-    assertThat(displayData, hasDisplayItem("validation", false));
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "UNCOMPRESSED"));
   }
 
@@ -517,7 +511,6 @@ public class TextIOTest {
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
-    assertThat(displayData, not(hasDisplayItem("validation", false)));
   }
 
   @Test
@@ -529,7 +522,6 @@ public class TextIOTest {
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
-    assertThat(displayData, not(hasDisplayItem("validation", false)));
   }
 
   @Test
@@ -580,22 +572,8 @@ public class TextIOTest {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
     p
-        .apply(TextIO.Read.from(options.getInput()).withoutValidation())
-        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
-  }
-
-  @Test
-  public void testReadWithoutValidationFlag() throws Exception {
-    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/foo*/baz");
-    assertTrue(read.needsValidation());
-    assertFalse(read.withoutValidation().needsValidation());
-  }
-
-  @Test
-  public void testWriteWithoutValidationFlag() throws Exception {
-    TextIO.Write.Bound write = TextIO.Write.to("gs://bucket/foo/baz");
-    assertTrue(write.needsValidation());
-    assertFalse(write.withoutValidation().needsValidation());
+        .apply(TextIO.Read.from(options.getInput()))
+        .apply(TextIO.Write.to(options.getOutput()));
   }
 
   @Test

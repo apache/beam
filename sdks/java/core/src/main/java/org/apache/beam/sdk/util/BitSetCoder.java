@@ -21,17 +21,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 
 /**
  * Coder for the BitSet used to track child-trigger finished states.
  */
-public class BitSetCoder extends AtomicCoder<BitSet> {
+public class BitSetCoder extends CustomCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
-  private static final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
+  private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
   private BitSetCoder() {}
 
@@ -42,19 +42,18 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
   @Override
   public void encode(BitSet value, OutputStream outStream, Context context)
       throws CoderException, IOException {
-    byteArrayCoder.encodeAndOwn(value.toByteArray(), outStream, context);
+    BYTE_ARRAY_CODER.encodeAndOwn(value.toByteArray(), outStream, context);
   }
 
   @Override
   public BitSet decode(InputStream inStream, Context context)
       throws CoderException, IOException {
-    return BitSet.valueOf(byteArrayCoder.decode(inStream, context));
+    return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
-        "BitSetCoder requires its byteArrayCoder to be deterministic.",
-        byteArrayCoder);
+        "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
   }
 }

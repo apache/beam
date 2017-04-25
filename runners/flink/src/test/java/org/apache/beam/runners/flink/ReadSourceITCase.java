@@ -21,7 +21,7 @@ import com.google.common.base.Joiner;
 import java.io.File;
 import java.net.URI;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -68,7 +68,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
     Pipeline p = FlinkTestPipeline.createForBatch();
 
     PCollection<String> result = p
-        .apply(CountingInput.upTo(10))
+        .apply(GenerateSequence.from(0).to(10))
         .apply(ParDo.of(new DoFn<Long, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {

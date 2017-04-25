@@ -19,13 +19,8 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.eq;
@@ -38,36 +33,22 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Get;
-import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.GetMetrics;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Messages;
 import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.JobMetrics;
-import com.google.api.services.dataflow.model.MetricStructuredName;
-import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSetMultimap;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.net.SocketTimeoutException;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.values.PInput;
@@ -367,323 +348,6 @@ public class DataflowPipelineJobTest {
         DataflowPipelineJob.STATUS_POLLING_RETRIES, timeDiff);
   }
 
-  @Test
-  public void testGetAggregatorValuesWithNoMetricUpdatesReturnsEmptyValue()
-      throws IOException, AggregatorRetrievalException {
-    Aggregator<?, ?> aggregator = mock(Aggregator.class);
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform =
-        appliedPTransform(fullName, pTransform, Pipeline.create(options));
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(appliedTransform, stepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    JobMetrics jobMetrics = new JobMetrics();
-    when(getMetrics.execute()).thenReturn(jobMetrics);
-
-    jobMetrics.setMetrics(ImmutableList.<MetricUpdate>of());
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    AggregatorValues<?> values = job.getAggregatorValues(aggregator);
-
-    assertThat(values.getValues(), empty());
-  }
-
-  @Test
-  public void testGetAggregatorValuesWithNullMetricUpdatesReturnsEmptyValue()
-      throws IOException, AggregatorRetrievalException {
-    Aggregator<?, ?> aggregator = mock(Aggregator.class);
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform =
-        appliedPTransform(fullName, pTransform, Pipeline.create(options));
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(appliedTransform, stepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    JobMetrics jobMetrics = new JobMetrics();
-    when(getMetrics.execute()).thenReturn(jobMetrics);
-
-    jobMetrics.setMetrics(null);
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    AggregatorValues<?> values = job.getAggregatorValues(aggregator);
-
-    assertThat(values.getValues(), empty());
-  }
-
-  @Test
-  public void testGetAggregatorValuesWithSingleMetricUpdateReturnsSingletonCollection()
-      throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
-    String aggregatorName = "agg";
-    Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform =
-        appliedPTransform(fullName, pTransform, Pipeline.create(options));
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(appliedTransform, stepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    JobMetrics jobMetrics = new JobMetrics();
-    when(getMetrics.execute()).thenReturn(jobMetrics);
-
-    MetricUpdate update = new MetricUpdate();
-    long stepValue = 1234L;
-    update.setScalar(new BigDecimal(stepValue));
-
-    MetricStructuredName structuredName = new MetricStructuredName();
-    structuredName.setName(aggregatorName);
-    structuredName.setContext(ImmutableMap.of("step", stepName));
-    update.setName(structuredName);
-
-    jobMetrics.setMetrics(ImmutableList.of(update));
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
-
-    assertThat(values.getValuesAtSteps(), hasEntry(fullName, stepValue));
-    assertThat(values.getValuesAtSteps().size(), equalTo(1));
-    assertThat(values.getValues(), contains(stepValue));
-    assertThat(values.getTotalValue(combineFn), equalTo(Long.valueOf(stepValue)));
-  }
-
-  @Test
-  public void testGetAggregatorValuesWithMultipleMetricUpdatesReturnsCollection()
-      throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
-    String aggregatorName = "agg";
-    Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
-
-    Pipeline p = Pipeline.create(options);
-
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform = appliedPTransform(fullName, pTransform, p);
-
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> otherTransform = mock(PTransform.class);
-    String otherStepName = "s88";
-    String otherFullName = "Spam/Ham/Eggs";
-    AppliedPTransform<?, ?, ?> otherAppliedTransform =
-        appliedPTransform(otherFullName, otherTransform, p);
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(
-            aggregator, pTransform, aggregator, otherTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(
-            appliedTransform, stepName, otherAppliedTransform, otherStepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    JobMetrics jobMetrics = new JobMetrics();
-    when(getMetrics.execute()).thenReturn(jobMetrics);
-
-    MetricUpdate updateOne = new MetricUpdate();
-    long stepValue = 1234L;
-    updateOne.setScalar(new BigDecimal(stepValue));
-
-    MetricStructuredName structuredNameOne = new MetricStructuredName();
-    structuredNameOne.setName(aggregatorName);
-    structuredNameOne.setContext(ImmutableMap.of("step", stepName));
-    updateOne.setName(structuredNameOne);
-
-    MetricUpdate updateTwo = new MetricUpdate();
-    long stepValueTwo = 1024L;
-    updateTwo.setScalar(new BigDecimal(stepValueTwo));
-
-    MetricStructuredName structuredNameTwo = new MetricStructuredName();
-    structuredNameTwo.setName(aggregatorName);
-    structuredNameTwo.setContext(ImmutableMap.of("step", otherStepName));
-    updateTwo.setName(structuredNameTwo);
-
-    jobMetrics.setMetrics(ImmutableList.of(updateOne, updateTwo));
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
-
-    assertThat(values.getValuesAtSteps(), hasEntry(fullName, stepValue));
-    assertThat(values.getValuesAtSteps(), hasEntry(otherFullName, stepValueTwo));
-    assertThat(values.getValuesAtSteps().size(), equalTo(2));
-    assertThat(values.getValues(), containsInAnyOrder(stepValue, stepValueTwo));
-    assertThat(values.getTotalValue(combineFn), equalTo(Long.valueOf(stepValue + stepValueTwo)));
-  }
-
-  @Test
-  public void testGetAggregatorValuesWithUnrelatedMetricUpdateIgnoresUpdate()
-      throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
-    String aggregatorName = "agg";
-    Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform =
-        appliedPTransform(fullName, pTransform, Pipeline.create(options));
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(appliedTransform, stepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    JobMetrics jobMetrics = new JobMetrics();
-    when(getMetrics.execute()).thenReturn(jobMetrics);
-
-    MetricUpdate ignoredUpdate = new MetricUpdate();
-    ignoredUpdate.setScalar(null);
-
-    MetricStructuredName ignoredName = new MetricStructuredName();
-    ignoredName.setName("ignoredAggregator.elementCount.out0");
-    ignoredName.setContext(null);
-    ignoredUpdate.setName(ignoredName);
-
-    jobMetrics.setMetrics(ImmutableList.of(ignoredUpdate));
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
-
-    assertThat(values.getValuesAtSteps().entrySet(), empty());
-    assertThat(values.getValues(), empty());
-  }
-
-  @Test
-  public void testGetAggregatorValuesWithUnusedAggregatorThrowsException()
-      throws AggregatorRetrievalException {
-    Aggregator<?, ?> aggregator = mock(Aggregator.class);
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of().asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
-
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("not used in this pipeline");
-    job.getAggregatorValues(aggregator);
-  }
-
-  @Test
-  public void testGetAggregatorValuesWhenClientThrowsExceptionThrowsAggregatorRetrievalException()
-      throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
-    String aggregatorName = "agg";
-    Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
-    @SuppressWarnings("unchecked")
-    PTransform<PInput, POutput> pTransform = mock(PTransform.class);
-    String stepName = "s1";
-    String fullName = "Foo/Bar/Baz";
-    AppliedPTransform<?, ?, ?> appliedTransform =
-        appliedPTransform(fullName, pTransform, Pipeline.create(options));
-
-    DataflowAggregatorTransforms aggregatorTransforms = new DataflowAggregatorTransforms(
-        ImmutableSetMultimap.<Aggregator<?, ?>, PTransform<?, ?>>of(aggregator, pTransform).asMap(),
-        ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of(appliedTransform, stepName));
-
-    GetMetrics getMetrics = mock(GetMetrics.class);
-    when(mockJobs.getMetrics(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getMetrics);
-    IOException cause = new IOException();
-    when(getMetrics.execute()).thenThrow(cause);
-
-    Get getState = mock(Get.class);
-    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(getState);
-    Job modelJob = new Job();
-    when(getState.execute()).thenReturn(modelJob);
-    modelJob.setCurrentState(State.RUNNING.toString());
-
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
-
-    thrown.expect(AggregatorRetrievalException.class);
-    thrown.expectCause(is(cause));
-    thrown.expectMessage(aggregator.toString());
-    thrown.expectMessage("when retrieving Aggregator values for");
-    job.getAggregatorValues(aggregator);
-  }
-
-  private static class TestAggregator<InT, OutT> implements Aggregator<InT, OutT> {
-    private final CombineFn<InT, ?, OutT> combineFn;
-    private final String name;
-
-    public TestAggregator(CombineFn<InT, ?, OutT> combineFn, String name) {
-      this.combineFn = combineFn;
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(InT value) {
-      throw new AssertionError();
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public CombineFn<InT, ?, OutT> getCombineFn() {
-      return combineFn;
-    }
-  }
-
   private AppliedPTransform<?, ?, ?> appliedPTransform(
       String fullName, PTransform<PInput, POutput> transform, Pipeline p) {
     PInput input = mock(PInput.class);
@@ -695,7 +359,6 @@ public class DataflowPipelineJobTest {
         transform,
         p);
   }
-
 
   private static class FastNanoClockAndFuzzySleeper implements NanoClock, Sleeper {
 

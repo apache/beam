@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.util.Structs.addString;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -39,9 +41,10 @@ import org.apache.beam.sdk.util.StringUtils;
  *
  * @param <T> the type of elements handled by this coder
  */
-public abstract class CustomCoder<T> extends AtomicCoder<T>
+public abstract class CustomCoder<T> extends StandardCoder<T>
     implements Serializable {
   @JsonCreator
+  @Deprecated
   public static CustomCoder<?> of(
       // N.B. typeId is a required parameter here, since a field named "@type"
       // is presented to the deserializer as an input.
@@ -62,12 +65,30 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
   }
 
   /**
+   * {@inheritDoc}.
+   *
+   * <p>Returns an empty list. A {@link CustomCoder} has no default argument {@link Coder coders}.
+   */
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  /**
+   * Returns an empty list. A {@link CustomCoder} by default will not have component coders that are
+   * used for inference.
+   */
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
+  }
+
+  /**
    * {@inheritDoc}
    *
    * @return A thin {@link CloudObject} wrapping of the Java serialization of {@code this}.
    */
   @Override
-  public CloudObject initializeCloudObject() {
+  public final CloudObject initializeCloudObject() {
     // N.B. We use the CustomCoder class, not the derived class, since during
     // deserialization we will be using the CustomCoder's static factory method
     // to construct an instance of the derived class.

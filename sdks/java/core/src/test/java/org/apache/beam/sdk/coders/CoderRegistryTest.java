@@ -22,10 +22,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 
 import com.google.auto.service.AutoService;
-import com.google.cloud.dataflow.sdk.coders.Proto2CoderTestMessages.MessageA;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Duration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -38,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry.IncompatibleCoderException;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -87,17 +84,6 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testProtoCoderFallbackCoderProvider() throws Exception {
-    CoderRegistry registry = CoderRegistry.createDefault();
-
-    // MessageA is a Protocol Buffers test message with syntax 2
-    assertEquals(registry.getDefaultCoder(MessageA.class), ProtoCoder.of(MessageA.class));
-
-    // Duration is a Protocol Buffers default type with syntax 3
-    assertEquals(registry.getDefaultCoder(Duration.class), ProtoCoder.of(Duration.class));
-  }
-
-  @Test
   public void testAvroFallbackCoderProvider() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     registry.setFallbackCoderProvider(AvroCoder.PROVIDER);
@@ -114,7 +100,7 @@ public class CoderRegistryTest {
   }
 
   @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
-  private class MyListCoder extends StandardCoder<List> {
+  private class MyListCoder extends CustomCoder<List> {
     @Override
     public void encode(List value, OutputStream outStream, Context context)
         throws CoderException, IOException {

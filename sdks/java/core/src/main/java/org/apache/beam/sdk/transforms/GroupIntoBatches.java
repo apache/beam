@@ -218,7 +218,7 @@ public class GroupIntoBatches<K, InputT>
         CombiningState<Long, Long, Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
-      if (Iterables.size(values) > 0) {
+      if (!Iterables.isEmpty(values)) {
         c.output(KV.of(key.read(), values));
       }
       batch.clear();

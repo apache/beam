@@ -39,7 +39,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -319,7 +319,7 @@ public class WindowTest implements Serializable {
 
     final PCollection<Long> initialWindows =
         pipeline
-            .apply(CountingInput.upTo(10L))
+            .apply(GenerateSequence.from(0).to(10))
             .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
 
     // Sanity check the window assignment to demonstrate the baseline

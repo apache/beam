@@ -19,8 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -37,7 +35,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -48,7 +46,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -973,21 +970,13 @@ public class CombineFns {
     }
   }
 
-  private static class ComposedAccumulatorCoder extends StandardCoder<Object[]> {
+  private static class ComposedAccumulatorCoder extends CustomCoder<Object[]> {
     private List<Coder<Object>> coders;
     private int codersCount;
 
     public ComposedAccumulatorCoder(List<Coder<Object>> coders) {
       this.coders = ImmutableList.copyOf(coders);
       this.codersCount  = coders.size();
-    }
-
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    @JsonCreator
-    public static ComposedAccumulatorCoder of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      return new ComposedAccumulatorCoder((List) components);
     }
 
     @Override

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,9 +28,8 @@ import java.math.BigInteger;
  * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a byte array containing the big endian
  * two's-complement representation, encoded via {@link ByteArrayCoder}.
  */
-public class BigIntegerCoder extends AtomicCoder<BigInteger> {
+public class BigIntegerCoder extends CustomCoder<BigInteger> {
 
-  @JsonCreator
   public static BigIntegerCoder of() {
     return INSTANCE;
   }
@@ -39,22 +37,26 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final BigIntegerCoder INSTANCE = new BigIntegerCoder();
+  private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
   private BigIntegerCoder() {}
-
-  private final ByteArrayCoder byteArrayCoder = ByteArrayCoder.of();
 
   @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-    byteArrayCoder.encode(value.toByteArray(), outStream, context);
+    BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
   }
 
   @Override
   public BigInteger decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    return new BigInteger(byteArrayCoder.decode(inStream, context));
+    return new BigInteger(BYTE_ARRAY_CODER.decode(inStream, context));
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    BYTE_ARRAY_CODER.verifyDeterministic();
   }
 
   /**
@@ -65,6 +67,11 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   @Override
   public boolean consistentWithEquals() {
     return true;
+  }
+
+  @Override
+  public String getEncodingId() {
+    return "";
   }
 
   /**
@@ -85,6 +92,6 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   @Override
   protected long getEncodedElementByteSize(BigInteger value, Context context) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-    return byteArrayCoder.getEncodedElementByteSize(value.toByteArray(), context);
+    return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray(), context);
   }
 }

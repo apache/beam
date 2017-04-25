@@ -26,9 +26,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
@@ -306,7 +306,7 @@ public final class PaneInfo {
   /**
    * A Coder for encoding PaneInfo instances.
    */
-  public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
+  public static class PaneInfoCoder extends CustomCoder<PaneInfo> {
     private enum Encoding {
       FIRST,
       ONE_INDEX,
@@ -383,5 +383,8 @@ public final class PaneInfo {
       }
       return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
     }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 }

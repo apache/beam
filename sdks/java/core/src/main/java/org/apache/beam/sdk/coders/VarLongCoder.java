@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -31,11 +32,16 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
  * longs that are known to often be large or negative.
  */
-public class VarLongCoder extends AtomicCoder<Long> {
-
-  @JsonCreator
+public class VarLongCoder extends StandardCoder<Long> {
   public static VarLongCoder of() {
     return INSTANCE;
+  }
+
+  /**
+   * Returns an empty list. {@link VarLongCoder} has no components.
+   */
+  public static <T> List<Object> getInstanceComponents(T ignored) {
+    return Collections.emptyList();
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -65,6 +71,14 @@ public class VarLongCoder extends AtomicCoder<Long> {
       throw new CoderException(exn);
     }
   }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  @Override
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}

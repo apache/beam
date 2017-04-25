@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -26,7 +24,6 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -46,7 +43,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of elements handled by this coder
  */
-public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
+public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   /**
    * Returns a {@link SerializableCoder} instance for the provided element type.
@@ -64,18 +61,6 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
     return new SerializableCoder<>(clazz, TypeDescriptor.of(clazz));
-  }
-
-  @JsonCreator
-  @SuppressWarnings("unchecked")
-  public static SerializableCoder<?> of(@JsonProperty("type") String classType)
-      throws ClassNotFoundException {
-    Class<?> clazz = Class.forName(classType);
-    if (!Serializable.class.isAssignableFrom(clazz)) {
-      throw new ClassNotFoundException(
-          "Class " + classType + " does not implement Serializable");
-    }
-    return of((Class<? extends Serializable>) clazz);
   }
 
   /**
@@ -143,13 +128,6 @@ public class SerializableCoder<T extends Serializable> extends AtomicCoder<T> {
     return String.format("%s:%s",
         type.getName(),
         ObjectStreamClass.lookup(type).getSerialVersionUID());
-  }
-
-  @Override
-  public CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    result.put("type", type.getName());
-    return result;
   }
 
   /**

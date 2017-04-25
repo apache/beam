@@ -26,7 +26,6 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
@@ -39,9 +38,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -455,9 +454,8 @@ public class GroupByKeyTest {
   /**
    * Deterministic {@link Coder} for {@link BadEqualityKey}.
    */
-  static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
+  static class DeterministicKeyCoder extends CustomCoder<BadEqualityKey> {
 
-    @JsonCreator
     public static DeterministicKeyCoder of() {
       return INSTANCE;
     }
@@ -480,6 +478,9 @@ public class GroupByKeyTest {
         throws IOException {
       return new BadEqualityKey(new DataInputStream(inStream).readLong());
     }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 
   /**

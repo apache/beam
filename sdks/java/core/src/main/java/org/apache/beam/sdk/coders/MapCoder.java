@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -28,12 +24,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
@@ -45,7 +41,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
+public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
   /**
    * Produces a MapCoder with the given keyCoder and valueCoder.
    */
@@ -53,14 +49,6 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       Coder<K> keyCoder,
       Coder<V> valueCoder) {
     return new MapCoder<>(keyCoder, valueCoder);
-  }
-
-  @JsonCreator
-  public static MapCoder<?, ?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
-    return of((Coder<?>) components.get(0), (Coder<?>) components.get(1));
   }
 
   /**
@@ -193,5 +181,15 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
     return new TypeDescriptor<Map<K, V>>() {}.where(
             new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
+  }
+
+  @Override
+  public String getEncodingId() {
+    return "";
+  }
+
+  @Override
+  public Collection<String> getAllowedEncodings() {
+    return Collections.emptyList();
   }
 }
