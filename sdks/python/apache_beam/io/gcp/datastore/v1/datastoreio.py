@@ -96,7 +96,7 @@ class ReadFromDatastore(PTransform):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base.py import *
+      from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -382,7 +382,7 @@ class WriteToDatastore(_Mutate):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base.py import *
+      from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
