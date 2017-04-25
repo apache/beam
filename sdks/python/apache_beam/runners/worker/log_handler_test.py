@@ -24,7 +24,7 @@ from concurrent import futures
 
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import log_handler
-from apache_beam.utils import portpicker
+from apache_beam.runners.worker import portpicker
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2.BeamFnLoggingServicer):

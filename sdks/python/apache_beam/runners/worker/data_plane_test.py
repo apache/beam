@@ -31,7 +31,7 @@ from concurrent import futures
 
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import data_plane
-from apache_beam.utils import portpicker
+from apache_beam.runners.worker import portpicker
 
 
 def timeout(timeout_secs):

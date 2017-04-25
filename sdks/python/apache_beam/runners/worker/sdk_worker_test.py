@@ -32,7 +32,7 @@ from apache_beam.io.iobase import SourceBundle
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
-from apache_beam.utils import portpicker
+from apache_beam.runners.worker import portpicker
 
 
 class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):

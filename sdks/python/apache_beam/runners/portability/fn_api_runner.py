@@ -37,8 +37,8 @@ from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import portpicker
 from apache_beam.runners.worker import sdk_worker
-from apache_beam.utils import portpicker
 
 
 def streaming_rpc_handler(cls, method_name):
