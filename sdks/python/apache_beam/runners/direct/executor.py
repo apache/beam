@@ -240,13 +240,6 @@ class _CompletionCallback(object):
         _ExecutorServiceParallelExecutor.ExecutorUpdate(None, exception))
 
 
-class _TimerCompletionCallback(_CompletionCallback):
-
-  def __init__(self, evaluation_context, all_updates, timers):
-    super(_TimerCompletionCallback, self).__init__(
-        evaluation_context, all_updates, timers)
-
-
 class TransformExecutor(ExecutorService.CallableTask):
   """TransformExecutor will evaluate a bundle using an applied ptransform.
 
@@ -529,7 +522,7 @@ class _ExecutorServiceParallelExecutor(object):
         empty_bundle = (
             self._executor.evaluation_context.create_empty_committed_bundle(
                 applied_ptransform.inputs[0]))
-        timer_completion_callback = _TimerCompletionCallback(
+        timer_completion_callback = _CompletionCallback(
             self._executor.evaluation_context, self._executor.all_updates,
             applied_ptransform)
 

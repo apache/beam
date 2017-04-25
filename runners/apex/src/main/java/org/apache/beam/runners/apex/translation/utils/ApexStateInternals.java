@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.apex.translation.utils;
 
+import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.DefaultSerializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
@@ -27,7 +28,9 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
@@ -35,6 +38,7 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -42,6 +46,7 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -56,33 +61,24 @@ import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 /**
- * Implementation of {@link StateInternals} that can be serialized and
- * checkpointed with the operator. Suitable for small states, in the future this
- * should be based on the incremental state saving components in the Apex
- * library.
+ * Implementation of {@link StateInternals} for transient use.
+ *
+ * <p>For fields that need to be serialized, use {@link ApexStateInternalsFactory}
+ * or {@link StateInternalsProxy}
  */
-@DefaultSerializer(JavaSerializer.class)
-public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
-  private static final long serialVersionUID = 1L;
-  public static <K> ApexStateInternals<K> forKey(K key) {
-    return new ApexStateInternals<>(key);
-  }
-
+public class ApexStateInternals<K> implements StateInternals<K> {
   private final K key;
+  private final Table<String, String, byte[]> stateTable;
 
-  protected ApexStateInternals(K key) {
+  protected ApexStateInternals(K key, Table<String, String, byte[]> stateTable) {
     this.key = key;
+    this.stateTable = stateTable;
   }
 
   @Override
   public K getKey() {
     return key;
   }
-
-  /**
-   * Serializable state for internals (namespace to state tag to coded value).
-   */
-  private final Table<String, String, byte[]> stateTable = HashBasedTable.create();
 
   @Override
   public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
@@ -437,17 +433,54 @@ public class ApexStateInternals<K> implements StateInternals<K>, Serializable {
   }
 
   /**
-   * Factory for {@link ApexStateInternals}.
+   * Implementation of {@link StateInternals} that can be serialized and
+   * checkpointed with the operator. Suitable for small states, in the future this
+   * should be based on the incremental state saving components in the Apex
+   * library.
    *
    * @param <K> key type
    */
+  @DefaultSerializer(JavaSerializer.class)
   public static class ApexStateInternalsFactory<K>
       implements StateInternalsFactory<K>, Serializable {
     private static final long serialVersionUID = 1L;
+    /**
+     * Serializable state for internals (namespace to state tag to coded value).
+     */
+    private Map<Slice, Table<String, String, byte[]>> perKeyState = new HashMap<>();
+    private final Coder<K> keyCoder;
+
+    private ApexStateInternalsFactory(Coder<K> keyCoder) {
+      this.keyCoder = keyCoder;
+    }
 
     @Override
-    public StateInternals<K> stateInternalsForKey(K key) {
-      return ApexStateInternals.forKey(key);
+    public ApexStateInternals<K> stateInternalsForKey(K key) {
+      final Slice keyBytes;
+      try {
+        keyBytes = (key != null) ? new Slice(CoderUtils.encodeToByteArray(keyCoder, key)) :
+          new Slice(null);
+      } catch (CoderException e) {
+        throw new RuntimeException(e);
+      }
+      Table<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
+      if (stateTable == null) {
+        stateTable = HashBasedTable.create();
+        perKeyState.put(keyBytes, stateTable);
+      }
+      return new ApexStateInternals<>(key, stateTable);
+    }
+
+  }
+
+  /**
+   * Factory to create the state internals.
+   */
+  public static class ApexStateBackend implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    public <K> ApexStateInternalsFactory<K> newStateInternalsFactory(Coder<K> keyCoder) {
+      return new ApexStateInternalsFactory<K>(keyCoder);
     }
   }
 

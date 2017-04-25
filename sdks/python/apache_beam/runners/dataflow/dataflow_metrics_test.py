@@ -38,8 +38,7 @@ class DictToObject(object):
   def _wrap(self, value):
     if isinstance(value, (tuple, list, set, frozenset)):
       return type(value)([self._wrap(v) for v in value])
-    else:
-      return DictToObject(value) if isinstance(value, dict) else value
+    return DictToObject(value) if isinstance(value, dict) else value
 
 
 class TestDataflowMetrics(unittest.TestCase):

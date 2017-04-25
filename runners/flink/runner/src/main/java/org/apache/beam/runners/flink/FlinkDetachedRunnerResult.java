@@ -24,7 +24,6 @@ import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.commons.lang.NotImplementedException;
 import org.joda.time.Duration;
 
 
@@ -46,7 +45,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
       throws AggregatorRetrievalException {
     throw new AggregatorRetrievalException(
         "Accumulators can't be retrieved for detached Job executions.",
-        new NotImplementedException());
+        new UnsupportedOperationException());
   }
 
   @Override

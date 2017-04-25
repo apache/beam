@@ -26,10 +26,10 @@ def pack_Any(msg):
   """
   if msg is None:
     return None
-  else:
-    result = any_pb2.Any()
-    result.Pack(msg)
-    return result
+
+  result = any_pb2.Any()
+  result.Pack(msg)
+  return result
 
 
 def unpack_Any(any_msg, msg_class):
@@ -39,10 +39,9 @@ def unpack_Any(any_msg, msg_class):
   """
   if msg_class is None:
     return None
-  else:
-    msg = msg_class()
-    any_msg.Unpack(msg)
-    return msg
+  msg = msg_class()
+  any_msg.Unpack(msg)
+  return msg
 
 
 def pack_Struct(**kwargs):

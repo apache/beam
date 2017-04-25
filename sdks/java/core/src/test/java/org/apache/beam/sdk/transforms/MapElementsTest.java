@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -152,14 +153,18 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMapBasicSerializableFunction() throws Exception {
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
-        .apply(MapElements.via(new SerializableFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return -input;
-          }
-        }).withOutputType(new TypeDescriptor<Integer>() {}));
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements.into(TypeDescriptors.integers())
+                    .via(
+                        new SerializableFunction<Integer, Integer>() {
+                          @Override
+                          public Integer apply(Integer input) {
+                            return -input;
+                          }
+                        }));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
@@ -210,8 +215,8 @@ public class MapElementsTest implements Serializable {
           }
         };
 
-    MapElements<?, ?> serializableMap = MapElements.via(serializableFn)
-        .withOutputType(TypeDescriptor.of(Integer.class));
+    MapElements<?, ?> serializableMap =
+        MapElements.into(TypeDescriptors.integers()).via(serializableFn);
     assertThat(DisplayData.from(serializableMap),
         hasDisplayItem("mapFn", serializableFn.getClass()));
   }

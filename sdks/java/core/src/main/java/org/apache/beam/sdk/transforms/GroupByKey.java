@@ -101,9 +101,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
- * <p>If the input {@code PCollection} contains late data (see
- * {@link org.apache.beam.sdk.io.PubsubIO.Read#timestampLabel}
- * for an example of how this can occur) or the
+ * <p>If the input {@code PCollection} contains late data or the
  * {@link Window#triggering requested TriggerFn} can fire before
  * the watermark, then there may be multiple elements
  * output by a {@code GroupByKey} that correspond to the same key and window.

@@ -42,7 +42,7 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   if [[ $FILES_TO_IGNORE ]]; then
     FILES_TO_IGNORE="$FILES_TO_IGNORE, "
   fi
-  FILES_TO_IGNORE="$FILES_TO_IGNORE$(basename $file)" 
+  FILES_TO_IGNORE="$FILES_TO_IGNORE$(basename $file)"
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 

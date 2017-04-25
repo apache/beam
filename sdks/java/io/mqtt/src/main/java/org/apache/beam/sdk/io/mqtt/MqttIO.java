@@ -31,6 +31,7 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -99,6 +100,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@Experimental
 public class MqttIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIO.class);

@@ -160,7 +160,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         # followed by a new line character. Since such a record is at the last
         # position of a file, it should not be a part of the considered range.
         # We do this check to ignore such records.
-        if len(record) == 0 and num_bytes_to_next_record < 0:
+        if len(record) == 0 and num_bytes_to_next_record < 0:  # pylint: disable=len-as-condition
           break
 
         # Record separator must be larger than zero bytes.
@@ -198,9 +198,9 @@ class _TextSource(filebasedsource.FileBasedSource):
         if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
           # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
-        else:
-          # Found a '\n'. Accepting that as the next separator.
-          return (next_lf, next_lf + 1)
+
+        # Found a '\n'. Accepting that as the next separator.
+        return (next_lf, next_lf + 1)
 
       current_pos = len(read_buffer.data)
 
@@ -256,10 +256,9 @@ class _TextSource(filebasedsource.FileBasedSource):
       # Current record should not contain the separator.
       return (read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
               sep_bounds[1] - record_start_position_in_buffer)
-    else:
-      # Current record should contain the separator.
-      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
-              sep_bounds[1] - record_start_position_in_buffer)
+    # Current record should contain the separator.
+    return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
+            sep_bounds[1] - record_start_position_in_buffer)
 
 
 class _TextSink(fileio.FileSink):
@@ -385,7 +384,6 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._strip_trailing_newlines = strip_trailing_newlines
     self._source = _TextSource(
         file_pattern, min_bundle_size, compression_type,
         strip_trailing_newlines, coder, validate=validate,

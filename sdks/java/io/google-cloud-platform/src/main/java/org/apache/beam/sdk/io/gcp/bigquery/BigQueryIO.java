@@ -410,7 +410,7 @@ public class BigQueryIO {
         }
       }
 
-      ValueProvider<TableReference> table = getTableWithDefaultProject(bqOptions);
+      ValueProvider<TableReference> table = getTableProvider();
 
       checkState(
           table == null || getQuery() == null,
@@ -428,6 +428,12 @@ public class BigQueryIO {
             getUseLegacySql() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect"
                 + " preference, which only applies to queries");
+        if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
+          LOG.info(
+              "Project of {} not set. The value of {}.getProject() at execution time will be used.",
+              TableReference.class.getSimpleName(),
+              BigQueryOptions.class.getSimpleName());
+        }
       } else /* query != null */ {
         checkState(
             getFlattenResults() != null, "flattenResults should not be null if query is set");
@@ -495,10 +501,13 @@ public class BigQueryIO {
                 extractDestinationDir,
                 getBigQueryServices());
       } else {
-        ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
-        source = BigQueryTableSource.create(
-            jobIdToken, inputTable, extractDestinationDir, getBigQueryServices(),
-            StaticValueProvider.of(executingProject));
+        source =
+            BigQueryTableSource.create(
+                jobIdToken,
+                getTableProvider(),
+                extractDestinationDir,
+                getBigQueryServices(),
+                StaticValueProvider.of(executingProject));
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -506,12 +515,12 @@ public class BigQueryIO {
             void cleanup(PipelineOptions options) throws Exception {
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-              JobReference jobRef = new JobReference()
-                  .setProjectId(executingProject)
-                  .setJobId(getExtractJobId(jobIdToken));
+              JobReference jobRef =
+                  new JobReference()
+                      .setProjectId(executingProject)
+                      .setJobId(getExtractJobId(jobIdToken));
 
-              Job extractJob = getBigQueryServices().getJobService(bqOptions)
-                  .getJob(jobRef);
+              Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
               Collection<String> extractFiles = null;
               if (extractJob != null) {
@@ -526,7 +535,8 @@ public class BigQueryIO {
               if (extractFiles != null && !extractFiles.isEmpty()) {
                 new GcsUtilFactory().create(options).remove(extractFiles);
               }
-            }};
+            }
+          };
       return input.getPipeline()
           .apply(org.apache.beam.sdk.io.Read.from(source))
           .setCoder(getDefaultOutputCoder())
@@ -553,33 +563,6 @@ public class BigQueryIO {
           .addIfNotDefault(DisplayData.item("validation", getValidate())
             .withLabel("Validation Enabled"),
               true);
-    }
-
-    /**
-     * Returns the table to read, or {@code null} if reading from a query instead.
-     *
-     * <p>If the table's project is not specified, use the executing project.
-     */
-    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(
-        BigQueryOptions bqOptions) {
-      ValueProvider<TableReference> table = getTableProvider();
-      if (table == null) {
-        return table;
-      }
-      if (!table.isAccessible()) {
-        LOG.info("Using a dynamic value for table input. This must contain a project"
-            + " in the table reference: {}", table);
-        return table;
-      }
-      if (Strings.isNullOrEmpty(table.get().getProjectId())) {
-        // If user does not specify a project we assume the table to be located in
-        // the default project.
-        TableReference tableRef = table.get();
-        tableRef.setProjectId(bqOptions.getProject());
-        return NestedValueProvider.of(StaticValueProvider.of(
-            BigQueryHelpers.toJsonString(tableRef)), new JsonTableRefToTableRef());
-      }
-      return table;
     }
 
     /**

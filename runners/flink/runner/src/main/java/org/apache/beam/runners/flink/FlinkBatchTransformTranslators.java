@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
@@ -71,7 +72,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -511,15 +511,15 @@ class FlinkBatchTransformTranslators {
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      List<TaggedPValue> outputs = context.getOutputs(transform);
+      Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
 
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
       outputMap.put(transform.getMainOutputTag(), 0);
       int count = 1;
-      for (TaggedPValue taggedValue : outputs) {
-        if (!outputMap.containsKey(taggedValue.getTag())) {
-          outputMap.put(taggedValue.getTag(), count++);
+      for (TupleTag<?> tag : outputs.keySet()) {
+        if (!outputMap.containsKey(tag)) {
+          outputMap.put(tag, count++);
         }
       }
 
@@ -528,13 +528,13 @@ class FlinkBatchTransformTranslators {
 
       // collect all output Coders and create a UnionCoder for our tagged outputs
       List<Coder<?>> outputCoders = Lists.newArrayList();
-      for (TaggedPValue taggedValue : outputs) {
+      for (PValue taggedValue : outputs.values()) {
         checkState(
-            taggedValue.getValue() instanceof PCollection,
+            taggedValue instanceof PCollection,
             "Within ParDo, got a non-PCollection output %s of type %s",
-            taggedValue.getValue(),
-            taggedValue.getValue().getClass().getSimpleName());
-        PCollection<?> coll = (PCollection<?>) taggedValue.getValue();
+            taggedValue,
+            taggedValue.getClass().getSimpleName());
+        PCollection<?> coll = (PCollection<?>) taggedValue;
         outputCoders.add(coll.getCoder());
         windowingStrategy = coll.getWindowingStrategy();
       }
@@ -599,11 +599,11 @@ class FlinkBatchTransformTranslators {
 
       transformSideInputs(sideInputs, outputDataSet, context);
 
-      for (TaggedPValue output : outputs) {
+      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
         pruneOutput(
             outputDataSet,
             context,
-            outputMap.get(output.getTag()),
+            outputMap.get(output.getKey()),
             (PCollection) output.getValue());
       }
 
@@ -640,7 +640,7 @@ class FlinkBatchTransformTranslators {
         Flatten.PCollections<T> transform,
         FlinkBatchTranslationContext context) {
 
-      List<TaggedPValue> allInputs = context.getInputs(transform);
+      Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
       DataSet<WindowedValue<T>> result = null;
 
       if (allInputs.isEmpty()) {
@@ -661,13 +661,13 @@ class FlinkBatchTransformTranslators {
                     (Coder<T>) VoidCoder.of(),
                     GlobalWindow.Coder.INSTANCE)));
       } else {
-        for (TaggedPValue taggedPc : allInputs) {
+        for (PValue taggedPc : allInputs.values()) {
           checkArgument(
-              taggedPc.getValue() instanceof PCollection,
+              taggedPc instanceof PCollection,
               "Got non-PCollection input to flatten: %s of type %s",
-              taggedPc.getValue(),
-              taggedPc.getValue().getClass().getSimpleName());
-          PCollection<T> collection = (PCollection<T>) taggedPc.getValue();
+              taggedPc,
+              taggedPc.getClass().getSimpleName());
+          PCollection<T> collection = (PCollection<T>) taggedPc;
           DataSet<WindowedValue<T>> current = context.getInputDataSet(collection);
           if (result == null) {
             result = current;

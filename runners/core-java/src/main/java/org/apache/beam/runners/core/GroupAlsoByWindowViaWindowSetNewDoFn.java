@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
+import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -25,7 +26,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.Triggers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * A general {@link GroupAlsoByWindowsDoFn}. This delegates all of the logic to the
+ * A general {@link GroupAlsoByWindowsAggregators}. This delegates all of the logic to the
  * {@link ReduceFnRunner}.
  */
 @SystemDoFnInternal
@@ -61,9 +61,10 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
 
   protected final Aggregator<Long, Long> droppedDueToClosedWindow =
       createAggregator(
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
   protected final Aggregator<Long, Long> droppedDueToLateness =
-      createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
+      createAggregator(
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
   private final WindowingStrategy<Object, W> windowingStrategy;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
   private transient StateInternalsFactory<K> stateInternalsFactory;
@@ -104,9 +105,9 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
       }
 
       @Override
-      public <SideOutputT> void sideOutputWindowedValue(
-              TupleTag<SideOutputT> tag,
-              SideOutputT output,
+      public <AdditionalOutputT> void outputWindowedValue(
+              TupleTag<AdditionalOutputT> tag,
+              AdditionalOutputT output,
               Instant timestamp,
               Collection<? extends BoundedWindow> windows,
               PaneInfo pane) {
@@ -142,10 +143,6 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     reduceFnRunner.processElements(keyedWorkItem.elementsIterable());
     reduceFnRunner.onTimers(keyedWorkItem.timersIterable());
     reduceFnRunner.persist();
-  }
-
-  public OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn() {
-    throw new RuntimeException("Not implement!");
   }
 
   public Aggregator<Long, Long> getDroppedDueToLatenessAggregator() {

@@ -43,7 +43,6 @@ import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
-import org.apache.beam.runners.spark.translation.DoFnFunction;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
@@ -78,7 +77,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
@@ -192,19 +191,19 @@ public final class StreamingTransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
-        List<TaggedPValue> pcs = context.getInputs(transform);
+        Map<TupleTag<?>, PValue> pcs = context.getInputs(transform);
         // since this is a streaming pipeline, at least one of the PCollections to "flatten" are
         // unbounded, meaning it represents a DStream.
         // So we could end up with an unbounded unified DStream.
         final List<JavaDStream<WindowedValue<T>>> dStreams = new ArrayList<>();
         final List<Integer> streamingSources = new ArrayList<>();
-        for (TaggedPValue pv : pcs) {
+        for (PValue pv : pcs.values()) {
           checkArgument(
-              pv.getValue() instanceof PCollection,
+              pv instanceof PCollection,
               "Flatten had non-PCollection value in input: %s of type %s",
-              pv.getValue(),
-              pv.getValue().getClass().getSimpleName());
-          PCollection<T> pcol = (PCollection<T>) pv.getValue();
+              pv,
+              pv.getClass().getSimpleName());
+          PCollection<T> pcol = (PCollection<T>) pv;
           Dataset dataset = context.borrowDataset(pcol);
           if (dataset instanceof UnboundedDataset) {
             UnboundedDataset<T> unboundedDataset = (UnboundedDataset<T>) dataset;
@@ -368,8 +367,7 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
-  multiDo() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
@@ -387,17 +385,15 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<InputT>> dStream = unboundedDataset.getDStream();
 
         final String stepName = context.getCurrentTransform().getFullName();
-        if (transform.getSideOutputTags().size() == 0) {
-          // Don't tag with the output and filter for a single-output ParDo, as it's additional
-          // identity transforms.
-          // Also see BEAM-1737 for failures when the two versions are condensed.
-          JavaDStream<WindowedValue<OutputT>> outStream =
-              dStream.transform(
-                  new Function<JavaRDD<WindowedValue<InputT>>, JavaRDD<WindowedValue<OutputT>>>() {
+        if (transform.getAdditionalOutputTags().size() == 0) {
+          JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
+              dStream.transformToPair(
+                  new Function<
+                      JavaRDD<WindowedValue<InputT>>,
+                      JavaPairRDD<TupleTag<?>, WindowedValue<?>>>() {
                     @Override
-                    public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd)
-                        throws Exception {
-                      final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
+                    public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
+                        JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
                       final Accumulator<NamedAggregators> aggAccum =
                           AggregatorsAccumulator.getInstance();
                       final Accumulator<SparkMetricsContainer> metricsAccum =
@@ -405,62 +401,30 @@ public final class StreamingTransformTranslator {
                       final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
                           sideInputs =
                               TranslationUtils.getSideInputs(
-                                  transform.getSideInputs(), jsc, pviews);
-                      return rdd.mapPartitions(
-                          new DoFnFunction<>(
+                                  transform.getSideInputs(),
+                                  JavaSparkContext.fromSparkContext(rdd.context()),
+                                  pviews);
+                      return rdd.mapPartitionsToPair(
+                          new MultiDoFnFunction<>(
                               aggAccum,
                               metricsAccum,
                               stepName,
                               doFn,
                               runtimeContext,
+                              transform.getMainOutputTag(),
                               sideInputs,
                               windowingStrategy));
                     }
                   });
-
-          PCollection<OutputT> output =
-              (PCollection<OutputT>)
-                  Iterables.getOnlyElement(context.getOutputs(transform)).getValue();
-          context.putDataset(
-              output, new UnboundedDataset<>(outStream, unboundedDataset.getStreamSources()));
-        } else {
-          JavaPairDStream<TupleTag<?>, WindowedValue<?>> all =
-              dStream
-                  .transformToPair(
-                      new Function<
-                          JavaRDD<WindowedValue<InputT>>,
-                          JavaPairRDD<TupleTag<?>, WindowedValue<?>>>() {
-                        @Override
-                        public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
-                            JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-                          String stepName = context.getCurrentTransform().getFullName();
-                          final Accumulator<NamedAggregators> aggAccum =
-                              AggregatorsAccumulator.getInstance();
-                          final Accumulator<SparkMetricsContainer> metricsAccum =
-                              MetricsAccumulator.getInstance();
-                          final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
-                              sideInputs =
-                                  TranslationUtils.getSideInputs(
-                                      transform.getSideInputs(),
-                                      JavaSparkContext.fromSparkContext(rdd.context()),
-                                      pviews);
-                          return rdd.mapPartitionsToPair(
-                              new MultiDoFnFunction<>(
-                                  aggAccum,
-                                  metricsAccum,
-                                  stepName,
-                                  doFn,
-                                  runtimeContext,
-                                  transform.getMainOutputTag(),
-                                  sideInputs,
-                                  windowingStrategy));
-                        }
-                      })
-                  .cache();
-          for (TaggedPValue output : context.getOutputs(transform)) {
+          Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+          if (outputs.size() > 1) {
+            // cache the DStream if we're going to filter it more than once.
+            all.cache();
+          }
+          for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
             @SuppressWarnings("unchecked")
             JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
-                all.filter(new TranslationUtils.TupleTagFilter(output.getTag()));
+                all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
             @SuppressWarnings("unchecked")
             // Object is the best we can do since different outputs can have different tags
             JavaDStream<WindowedValue<Object>> values =
@@ -525,7 +489,7 @@ public final class StreamingTransformTranslator {
     EVALUATORS.put(Read.Unbounded.class, readUnbounded());
     EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
-    EVALUATORS.put(ParDo.MultiOutput.class, multiDo());
+    EVALUATORS.put(ParDo.MultiOutput.class, parDo());
     EVALUATORS.put(ConsoleIO.Write.Unbound.class, print());
     EVALUATORS.put(CreateStream.class, createFromQueue());
     EVALUATORS.put(Window.Assign.class, window());

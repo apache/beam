@@ -33,6 +33,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -92,6 +93,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * @param <V> the type of values to be written to the sink via {@link FileOutputFormat}.
  */
 @AutoValue
+@Experimental
 public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
 
   private static final JobID jobId = new JobID(

@@ -221,7 +221,7 @@ public class MetricsTest implements Serializable {
                 values.update(element);
                 gauge.set(12L);
                 c.output(element);
-                c.sideOutput(output2, element);
+                c.output(output2, element);
               }
             })
             .withOutputTags(output1, TupleTagList.of(output2)));

@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -27,7 +29,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -120,12 +122,12 @@ public class KeyedPCollectionTuple<K> implements PInput {
    * any tag-specific information.
    */
   @Override
-  public List<TaggedPValue> expand() {
-    List<TaggedPValue> retval = new ArrayList<>();
+  public Map<TupleTag<?>, PValue> expand() {
+    ImmutableMap.Builder<TupleTag<?>, PValue> retval = ImmutableMap.builder();
     for (TaggedKeyedPCollection<K, ?> taggedPCollection : keyedCollections) {
-      retval.add(TaggedPValue.of(taggedPCollection.tupleTag, taggedPCollection.pCollection));
+      retval.put(taggedPCollection.tupleTag, taggedPCollection.pCollection);
     }
-    return retval;
+    return retval.build();
   }
 
   /**

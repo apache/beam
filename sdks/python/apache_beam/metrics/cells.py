@@ -97,9 +97,8 @@ class CellCommitState(object):
     with self._lock:
       if self._state == CellCommitState.CLEAN:
         return False
-      else:
-        self._state = CellCommitState.COMMITTING
-        return True
+      self._state = CellCommitState.COMMITTING
+      return True
 
 
 class MetricCell(object):
@@ -218,8 +217,7 @@ class DistributionResult(object):
     """
     if self.data.count == 0:
       return None
-    else:
-      return float(self.data.sum)/self.data.count
+    return float(self.data.sum)/self.data.count
 
 
 class DistributionData(object):
@@ -257,16 +255,16 @@ class DistributionData(object):
   def combine(self, other):
     if other is None:
       return self
-    else:
-      new_min = (None if self.min is None and other.min is None else
-                 min(x for x in (self.min, other.min) if x is not None))
-      new_max = (None if self.max is None and other.max is None else
-                 max(x for x in (self.max, other.max) if x is not None))
-      return DistributionData(
-          self.sum + other.sum,
-          self.count + other.count,
-          new_min,
-          new_max)
+
+    new_min = (None if self.min is None and other.min is None else
+               min(x for x in (self.min, other.min) if x is not None))
+    new_max = (None if self.max is None and other.max is None else
+               max(x for x in (self.max, other.max) if x is not None))
+    return DistributionData(
+        self.sum + other.sum,
+        self.count + other.count,
+        new_min,
+        new_max)
 
   @classmethod
   def singleton(cls, value):

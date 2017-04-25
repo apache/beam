@@ -19,20 +19,21 @@ package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Iterables;
-import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.GroupByKeyAndSortValuesOnly;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
+import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -42,7 +43,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
@@ -86,20 +87,20 @@ public class BatchStatefulParDoOverrides {
           ParDo.SingleOutput<KV<K, InputT>, OutputT>> {
 
     @Override
-    @SuppressWarnings("unchecked")
-    public PTransform<PCollection<KV<K, InputT>>, PCollection<OutputT>> getReplacementTransform(
-        ParDo.SingleOutput<KV<K, InputT>, OutputT> originalParDo) {
-      return new StatefulSingleOutputParDo<>(originalParDo);
-    }
-
-    @Override
-    public PCollection<KV<K, InputT>> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs).getValue();
+    public PTransformReplacement<PCollection<KV<K, InputT>>, PCollection<OutputT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, InputT>>, PCollection<OutputT>,
+                    SingleOutput<KV<K, InputT>, OutputT>>
+                transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new StatefulSingleOutputParDo<>(transform.getTransform()));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollection<OutputT> newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollection<OutputT> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -109,20 +110,20 @@ public class BatchStatefulParDoOverrides {
           PCollection<KV<K, InputT>>, PCollectionTuple, ParDo.MultiOutput<KV<K, InputT>, OutputT>> {
 
     @Override
-    @SuppressWarnings("unchecked")
-    public PTransform<PCollection<KV<K, InputT>>, PCollectionTuple> getReplacementTransform(
-        ParDo.MultiOutput<KV<K, InputT>, OutputT> originalParDo) {
-      return new StatefulMultiOutputParDo<>(originalParDo);
-    }
-
-    @Override
-    public PCollection<KV<K, InputT>> getInput(List<TaggedPValue> inputs, Pipeline p) {
-      return (PCollection<KV<K, InputT>>) Iterables.getOnlyElement(inputs).getValue();
+    public PTransformReplacement<PCollection<KV<K, InputT>>, PCollectionTuple>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<KV<K, InputT>>, PCollectionTuple,
+                    MultiOutput<KV<K, InputT>, OutputT>>
+                transform) {
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new StatefulMultiOutputParDo<>(transform.getTransform()));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
-        List<TaggedPValue> outputs, PCollectionTuple newOutput) {
+        Map<TupleTag<?>, PValue> outputs, PCollectionTuple newOutput) {
       return ReplacementOutputs.tagged(outputs, newOutput);
     }
   }
@@ -176,7 +177,7 @@ public class BatchStatefulParDoOverrides {
               ParDo.of(new BatchStatefulDoFn<K, InputT, OutputT>(fn))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
-                      originalParDo.getMainOutputTag(), originalParDo.getSideOutputTags());
+                      originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
 
       return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
     }

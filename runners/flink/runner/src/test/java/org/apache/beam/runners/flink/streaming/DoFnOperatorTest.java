@@ -144,19 +144,19 @@ public class DoFnOperatorTest {
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
 
     TupleTag<String> mainOutput = new TupleTag<>("main-output");
-    TupleTag<String> sideOutput1 = new TupleTag<>("side-output-1");
-    TupleTag<String> sideOutput2 = new TupleTag<>("side-output-2");
+    TupleTag<String> additionalOutput1 = new TupleTag<>("output-1");
+    TupleTag<String> additionalOutput2 = new TupleTag<>("output-2");
     ImmutableMap<TupleTag<?>, Integer> outputMapping = ImmutableMap.<TupleTag<?>, Integer>builder()
         .put(mainOutput, 1)
-        .put(sideOutput1, 2)
-        .put(sideOutput2, 3)
+        .put(additionalOutput1, 2)
+        .put(additionalOutput2, 3)
         .build();
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
-        new MultiOutputDoFn(sideOutput1, sideOutput2),
+        new MultiOutputDoFn(additionalOutput1, additionalOutput2),
         windowedValueCoder,
         mainOutput,
-        ImmutableList.<TupleTag<?>>of(sideOutput1, sideOutput2),
+        ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
         new DoFnOperator.MultiOutputOutputManagerFactory(outputMapping),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
@@ -176,8 +176,8 @@ public class DoFnOperatorTest {
     assertThat(
         this.stripStreamRecordFromRawUnion(testHarness.getOutput()),
         contains(
-            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("side: one")),
-            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("side: two")),
+            new RawUnionValue(2, WindowedValue.valueInGlobalWindow("extra: one")),
+            new RawUnionValue(3, WindowedValue.valueInGlobalWindow("extra: two")),
             new RawUnionValue(1, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(2, WindowedValue.valueInGlobalWindow("got: hello")),
             new RawUnionValue(3, WindowedValue.valueInGlobalWindow("got: hello"))));
@@ -542,24 +542,24 @@ public class DoFnOperatorTest {
   }
 
   private static class MultiOutputDoFn extends DoFn<String, String> {
-    private TupleTag<String> sideOutput1;
-    private TupleTag<String> sideOutput2;
+    private TupleTag<String> additionalOutput1;
+    private TupleTag<String> additionalOutput2;
 
-    public MultiOutputDoFn(TupleTag<String> sideOutput1, TupleTag<String> sideOutput2) {
-      this.sideOutput1 = sideOutput1;
-      this.sideOutput2 = sideOutput2;
+    public MultiOutputDoFn(TupleTag<String> additionalOutput1, TupleTag<String> additionalOutput2) {
+      this.additionalOutput1 = additionalOutput1;
+      this.additionalOutput2 = additionalOutput2;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (c.element().equals("one")) {
-        c.sideOutput(sideOutput1, "side: one");
+        c.output(additionalOutput1, "extra: one");
       } else if (c.element().equals("two")) {
-        c.sideOutput(sideOutput2, "side: two");
+        c.output(additionalOutput2, "extra: two");
       } else {
         c.output("got: " + c.element());
-        c.sideOutput(sideOutput1, "got: " + c.element());
-        c.sideOutput(sideOutput2, "got: " + c.element());
+        c.output(additionalOutput1, "got: " + c.element());
+        c.output(additionalOutput2, "got: " + c.element());
       }
     }
   }

@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -101,9 +100,9 @@ public class DirectGraphVisitorTest implements Serializable {
             graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)));
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms())  {
       // Root transforms will have no inputs
-      assertThat(root.getInputs(), emptyIterable());
+      assertThat(root.getInputs().entrySet(), emptyIterable());
       assertThat(
-          Iterables.getOnlyElement(root.getOutputs()).getValue(),
+          Iterables.getOnlyElement(root.getOutputs().values()),
           Matchers.<POutput>isOneOf(created, counted, unCounted));
     }
   }
@@ -121,7 +120,7 @@ public class DirectGraphVisitorTest implements Serializable {
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(graph.getProducer(empty)));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
     assertThat(onlyRoot.getTransform(), Matchers.<PTransform<?, ?>>equalTo(flatten));
-    assertThat(onlyRoot.getInputs(), Matchers.<TaggedPValue>emptyIterable());
+    assertThat(onlyRoot.getInputs().entrySet(), emptyIterable());
     assertThat(onlyRoot.getOutputs(), equalTo(empty.expand()));
   }
 

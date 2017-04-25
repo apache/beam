@@ -63,7 +63,7 @@ public class SplittableDoFnOperator<
           WindowedValue<
               KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
       TupleTag<FnOutputT> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
@@ -74,7 +74,7 @@ public class SplittableDoFnOperator<
         doFn,
         inputCoder,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         outputManagerFactory,
         windowingStrategy,
         sideInputTagMapping,
@@ -125,9 +125,9 @@ public class SplittableDoFnOperator<
               }
 
               @Override
-              public <SideOutputT> void sideOutputWindowedValue(
-                  TupleTag<SideOutputT> tag,
-                  SideOutputT output,
+              public <AdditionalOutputT> void outputWindowedValue(
+                  TupleTag<AdditionalOutputT> tag,
+                  AdditionalOutputT output,
                   Instant timestamp,
                   Collection<? extends BoundedWindow> windows,
                   PaneInfo pane) {

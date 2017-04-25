@@ -103,10 +103,9 @@ class BatchLoadBigQuery<T> extends PTransform<PCollection<T>, WriteResult> {
     if (write.getFormatFunction() == BigQueryIO.IDENTITY_FORMATTER) {
       inputInGlobalWindow = (PCollection<TableRow>) typedInputInGlobalWindow;
     } else {
-      inputInGlobalWindow = typedInputInGlobalWindow
-          .apply(MapElements.via(write.getFormatFunction())
-              .withOutputType(new TypeDescriptor<TableRow>() {
-              }));
+      inputInGlobalWindow =
+          typedInputInGlobalWindow.apply(
+              MapElements.into(new TypeDescriptor<TableRow>() {}).via(write.getFormatFunction()));
     }
 
     // PCollection of filename, file byte size.

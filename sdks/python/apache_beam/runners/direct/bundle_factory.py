@@ -127,8 +127,7 @@ class Bundle(object):
     if not self._stacked:
       if self._committed and not make_copy:
         return self._elements
-      else:
-        return list(self._elements)
+      return list(self._elements)
 
     def iterable_stacked_or_elements(elements):
       for e in elements:
@@ -140,9 +139,8 @@ class Bundle(object):
 
     if self._committed and not make_copy:
       return iterable_stacked_or_elements(self._elements)
-    else:
-      # returns a copy.
-      return [e for e in iterable_stacked_or_elements(self._elements)]
+    # returns a copy.
+    return [e for e in iterable_stacked_or_elements(self._elements)]
 
   def has_elements(self):
     return len(self._elements) > 0
@@ -171,9 +169,9 @@ class Bundle(object):
     if not self._stacked:
       self._elements.append(element)
       return
-    if (len(self._elements) > 0 and
-        (isinstance(self._elements[-1], WindowedValue) or
-         isinstance(self._elements[-1], Bundle.StackedWindowedValues)) and
+    if (self._elements and
+        (isinstance(self._elements[-1], (WindowedValue,
+                                         Bundle.StackedWindowedValues))) and
         self._elements[-1].timestamp == element.timestamp and
         self._elements[-1].windows == element.windows):
       if isinstance(self._elements[-1], WindowedValue):

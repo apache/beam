@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,7 +45,7 @@ public interface POutput {
    *
    * <p>Not intended to be invoked directly by user code.
    */
-  List<TaggedPValue> expand();
+  Map<TupleTag<?>, PValue> expand();
 
   /**
    * Records that this {@code POutput} is an output of the given

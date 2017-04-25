@@ -41,16 +41,15 @@ def check_or_interleave(hint, value, var):
     return value
   elif isinstance(hint, typehints.IteratorHint.IteratorTypeConstraint):
     return _interleave_type_check(hint, var)(value)
-  else:
-    _check_instance_type(hint, value, var)
-    return value
+  _check_instance_type(hint, value, var)
+  return value
 
 
 def check_type_hints(f):
   @functools.wraps(f)
   def wrapper(*args, **kwargs):
     hints = get_type_hints(f)
-    if hints.input_types:
+    if hints.input_types:  # pylint: disable=too-many-nested-blocks
       input_hints = getcallargs_forhints(
           f, *hints.input_types[0], **hints.input_types[1])
       inputs = inspect.getcallargs(f, *args, **kwargs)

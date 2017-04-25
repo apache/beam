@@ -142,7 +142,7 @@ class DataflowRunnerTest(unittest.TestCase):
     steps = [step
              for step in job_dict['steps']
              if len(step['properties'].get('display_data', [])) > 0]
-    step = steps[0]
+    step = steps[1]
     disp_data = step['properties']['display_data']
     disp_data = sorted(disp_data, key=lambda x: x['namespace']+x['key'])
     nspace = SpecialParDo.__module__+ '.'

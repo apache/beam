@@ -57,10 +57,10 @@ class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
     }
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
+    public <T> void output(TupleTag<T> tag, T output) {
     }
     @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output,
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output,
         Instant timestamp) {
     }
     @Override

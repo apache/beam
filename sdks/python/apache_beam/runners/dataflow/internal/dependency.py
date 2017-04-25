@@ -493,8 +493,7 @@ def get_sdk_name_and_version():
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return ('Apache Beam SDK for Python', beam_version.__version__)
-  else:
-    return ('Google Cloud Dataflow SDK for Python', container_version)
+  return ('Google Cloud Dataflow SDK for Python', container_version)
 
 
 def get_sdk_package_name():
@@ -502,8 +501,7 @@ def get_sdk_package_name():
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME
-  else:
-    return GOOGLE_PACKAGE_NAME
+  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):

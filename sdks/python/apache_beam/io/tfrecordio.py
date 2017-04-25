@@ -201,10 +201,11 @@ class ReadFromTFRecord(PTransform):
       A ReadFromTFRecord transform object.
     """
     super(ReadFromTFRecord, self).__init__(**kwargs)
-    self._args = (file_pattern, coder, compression_type, validate)
+    self._source = _TFRecordSource(file_pattern, coder, compression_type,
+                                   validate)
 
   def expand(self, pvalue):
-    return pvalue.pipeline | Read(_TFRecordSource(*self._args))
+    return pvalue.pipeline | Read(self._source)
 
 
 class _TFRecordSink(fileio.FileSink):
@@ -270,8 +271,9 @@ class WriteToTFRecord(PTransform):
       A WriteToTFRecord transform object.
     """
     super(WriteToTFRecord, self).__init__(**kwargs)
-    self._args = (file_path_prefix, coder, file_name_suffix, num_shards,
-                  shard_name_template, compression_type)
+    self._sink = _TFRecordSink(file_path_prefix, coder, file_name_suffix,
+                               num_shards, shard_name_template,
+                               compression_type)
 
   def expand(self, pcoll):
-    return pcoll | Write(_TFRecordSink(*self._args))
+    return pcoll | Write(self._sink)
