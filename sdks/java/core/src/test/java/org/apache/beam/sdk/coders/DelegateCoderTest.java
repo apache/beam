@@ -109,7 +109,7 @@ public class DelegateCoderTest implements Serializable {
   private static final String TEST_ENCODING_ID = "test-encoding-id";
   private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
 
-  private static class TestAllowedEncodingsCoder extends StandardCoder<Integer> {
+  private static class TestAllowedEncodingsCoder extends CustomCoder<Integer> {
 
     @Override
     public void encode(Integer value, OutputStream outstream, Context context) {
