@@ -19,8 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Struct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
@@ -113,9 +111,6 @@ public class CoderRegistry implements CoderProvider {
     codersToRegister.put(Void.class, CoderFactories.fromStaticMethods(VoidCoder.class));
     codersToRegister.put(byte[].class, CoderFactories.fromStaticMethods(ByteArrayCoder.class));
     codersToRegister.put(IntervalWindow.class, CoderFactories.forCoder(IntervalWindow.getCoder()));
-    // TODO(mairbek): Remove once Spanner classes are serializable.
-    codersToRegister.put(Mutation.class, CoderFactories.forCoder(SpannerMutationCoder.of()));
-    codersToRegister.put(Struct.class, CoderFactories.forCoder(SpannerStructCoder.of()));
 
     // Enumerate all the CoderRegistrars in a deterministic order, adding all coders to register
     Set<CoderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);

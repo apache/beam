@@ -40,8 +40,6 @@ public class SdkCoreApiSurfaceTest {
             "org.apache.beam",
             "com.google.api.client",
             "com.google.protobuf",
-            "com.google.cloud",
-            "com.google.cloud.spanner",
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
             "com.fasterxml.jackson.databind",

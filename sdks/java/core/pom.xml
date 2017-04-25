@@ -231,11 +231,6 @@
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-spanner</artifactId>
-    </dependency>
-
 
       <!-- To use org.apache.beam.io.AvroSource with XZ-encoded files, please explicitly
         declare this dependency to include org.tukaani:xz on the classpath at runtime. -->
