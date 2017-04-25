@@ -42,10 +42,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.gcp.common.GcpIoTransport;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.gcp.common.GcpIoTransport;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 
