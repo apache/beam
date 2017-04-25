@@ -20,75 +20,72 @@ import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.HashPartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 
-public class TopPerKeyKeyTest {
+public class SortTest {
   @Test
   public void testBuild() {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
+    Dataset<String> result = Sort.named("Sort1")
             .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
+            .by(s -> 1L)
             .windowBy(windowing)
+            .setNumPartitions(1)
             .output();
 
     assertEquals(flow, result.getFlow());
     assertEquals(1, flow.size());
 
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
     assertEquals(flow, tpk.getFlow());
-    assertEquals("TopPerKey1", tpk.getName());
+    assertEquals("Sort1", tpk.getName());
     assertNotNull(tpk.getKeyExtractor());
-    assertNotNull(tpk.getValueExtractor());
-    assertNotNull(tpk.getScoreExtractor());
+    assertNotNull(tpk.getSortByExtractor());
     assertEquals(result, tpk.output());
     assertSame(windowing, tpk.getWindowing());
     assertNull(tpk.getEventTimeAssigner());
 
-    // default partitioning used
-    assertTrue(tpk.getPartitioning().hasDefaultPartitioner());
-    assertEquals(2, tpk.getPartitioning().getNumPartitions());
+    assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
+    assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertEquals(1, tpk.getPartitioning().getNumPartitions());
   }
 
   @Test
   public void testBuild_ImplicitName() {
     Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
+    Dataset<String> result = Sort.of(dataset)
+            .by(s -> 1L)
             .output();
 
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertEquals("TopPerKey", tpk.getName());
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
+    assertEquals("Sort", tpk.getName());
   }
 
   @Test
   public void testBuild_Windowing() {
     Flow flow = Flow.create("TEST");
-    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
+    Dataset<String> result = Sort.of(dataset)
+            .by(s -> 1L)
             .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
             .output();
 
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
     assertNotNull(tpk.getEventTimeAssigner());
   }
 
@@ -98,16 +95,14 @@ public class TopPerKeyKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
+    Dataset<String> result = Sort.named("Sort1")
             .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
+            .by(s -> 1L)
             .setPartitioning(new HashPartitioning<>(1))
             .windowBy(windowing)
             .output();
 
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
     assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
     assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, tpk.getPartitioning().getNumPartitions());
@@ -119,19 +114,44 @@ public class TopPerKeyKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
+    Dataset<String> result = Sort.named("Sort1")
             .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
+            .by(s -> 1L)
             .windowBy(windowing)
-            .setPartitioner(new HashPartitioner<>())
+            .setPartitioner(e -> 0)
             .setNumPartitions(5)
             .output();
 
-    TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
     assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
     assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, tpk.getPartitioning().getNumPartitions());
+  }
+  
+  @Test(expected=IllegalArgumentException.class)
+  public void testBuild_UnsupportedPartitioningImplicit() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    Dataset<String> result = Sort.of(dataset)
+            .by(s -> 1L)
+            .output();
+
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
+    assertEquals("Sort", tpk.getName());
+  }
+  
+  @Test(expected=IllegalArgumentException.class)
+  public void testBuild_UnsupportedPartitioningExplicit() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
+
+    Dataset<String> result = Sort.of(dataset)
+            .by(s -> 1L)
+            .setNumPartitions(2)
+            .output();
+
+    Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
+    assertEquals("Sort", tpk.getName());
   }
 }

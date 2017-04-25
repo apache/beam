@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
@@ -25,18 +24,18 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import javax.annotation.Nullable;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 

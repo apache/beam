@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
+import cz.seznam.euphoria.core.client.operator.Sort;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.util.Settings;
@@ -103,6 +104,8 @@ public class BatchFlowTranslator extends FlowTranslator {
     // derived operators
     Translation.set(translations, ReduceByKey.class, new ReduceByKeyTranslator(),
         ReduceByKeyTranslator::wantTranslate);
+    Translation.set(translations, Sort.class, new SortTranslator(),
+        SortTranslator::wantTranslate);
   }
 
   @SuppressWarnings("unchecked")

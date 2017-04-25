@@ -18,7 +18,6 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -150,7 +149,6 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     }
   }
 
-
   private static class StateReducer
           implements FlatMapFunction<Iterator<Tuple2<KeyedWindow, Object>>, SparkElement> {
 
@@ -225,7 +223,5 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
       }
       activeReducers.clear();
     }
-
-
   }
 }

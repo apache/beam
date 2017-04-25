@@ -37,6 +37,7 @@ import org.junit.runners.Suite;
     RepartitionTest.class,
     SumByKeyTest.class,
     TopPerKeyTest.class,
+    SortTest.class,
     UnionTest.class,
     WindowingTest.class,
 })
