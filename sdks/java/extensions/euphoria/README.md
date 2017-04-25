@@ -142,7 +142,18 @@ requests which do not pass the full build lifecycle as defined by the
 
 * Another source of documentation are deliberately simple examples
   maintained in the [euphoria-examples module](https://github.com/seznam/euphoria/tree/master/euphoria-examples).
+  
+## Contact us
 
+* open issue in [issue tracker](https://github.com/seznam/euphoria/issues)
+* in case of questions you can contact us via [Gitter channel](https://gitter.im/euphoria-api/Lobby) or you can e-mail directly to project members
+
+### Euphoria Team
+
+* __Petr Novotník__ (xitep) - petr.novotnik@firma.seznam.cz
+* __Jan Lukavský__ (je-ik) - je.ik@seznam.cz
+* __Jaromír Vaněk__ (vanekjar) - vanek.jaromir@gmail.com
+* __Adam Horký__ (horkyada) - adam.horky@firma.seznam.cz
 
 ## License
 
