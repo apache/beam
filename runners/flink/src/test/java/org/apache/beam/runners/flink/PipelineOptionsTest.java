@@ -180,6 +180,15 @@ public class PipelineOptionsTest {
 
   }
 
+  @Test
+  public void testExternalizedCheckpointsConfigs() {
+    String[] args = new String[] { "--externalizedCheckpointsEnabled=true",
+        "--retainExternalizedCheckpointsOnCancellation=false" };
+    final FlinkPipelineOptions options = PipelineOptionsFactory.fromArgs(args)
+        .as(FlinkPipelineOptions.class);
+    assertEquals(options.isExternalizedCheckpointsEnabled(), true);
+    assertEquals(options.getRetainExternalizedCheckpointsOnCancellation(), false);
+  }
 
   private static class TestDoFn extends DoFn<String, String> {
 
