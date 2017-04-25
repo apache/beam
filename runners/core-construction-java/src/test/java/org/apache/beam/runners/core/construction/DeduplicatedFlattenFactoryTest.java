@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.Iterables;
+import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory.FlattenWithoutDuplicateInputs;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,7 +57,7 @@ public class DeduplicatedFlattenFactoryTest {
   @Test
   public void duplicatesInsertsMultipliers() {
     PTransform<PCollectionList<String>, PCollection<String>> replacement =
-        factory.getReplacementTransform(Flatten.<String>pCollections());
+        new DeduplicatedFlattenFactory.FlattenWithoutDuplicateInputs<>();
     final PCollectionList<String> inputList =
         PCollectionList.of(first).and(second).and(first).and(first);
     inputList.apply(replacement);
@@ -74,22 +75,14 @@ public class DeduplicatedFlattenFactoryTest {
   @Test
   @Category(NeedsRunner.class)
   public void testOverride() {
-    PTransform<PCollectionList<String>, PCollection<String>> replacement =
-        factory.getReplacementTransform(Flatten.<String>pCollections());
     final PCollectionList<String> inputList =
         PCollectionList.of(first).and(second).and(first).and(first);
+    PTransform<PCollectionList<String>, PCollection<String>> replacement =
+        new FlattenWithoutDuplicateInputs<>();
     PCollection<String> flattened = inputList.apply(replacement);
 
     PAssert.that(flattened).containsInAnyOrder("one", "two", "one", "one");
     pipeline.run();
-  }
-
-  @Test
-  public void inputReconstruction() {
-    final PCollectionList<String> inputList =
-        PCollectionList.of(first).and(second).and(first).and(first);
-
-    assertThat(factory.getInput(inputList.expand(), pipeline), equalTo(inputList));
   }
 
   @Test
@@ -98,15 +91,14 @@ public class DeduplicatedFlattenFactoryTest {
         PCollectionList.of(first).and(second).and(first).and(first);
     PCollection<String> original =
         inputList.apply(Flatten.<String>pCollections());
-    PCollection<String> replacement =
-        inputList.apply(factory.getReplacementTransform(Flatten.<String>pCollections()));
+    PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<String>());
 
     assertThat(
         factory.mapOutputs(original.expand(), replacement),
         Matchers.<PValue, ReplacementOutput>hasEntry(
             replacement,
             ReplacementOutput.of(
-                Iterables.getOnlyElement(original.expand()),
-                Iterables.getOnlyElement(replacement.expand()))));
+                TaggedPValue.ofExpandedValue(original),
+                TaggedPValue.ofExpandedValue(replacement))));
   }
 }

@@ -92,6 +92,16 @@ class ReadFromDatastore(PTransform):
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
     """
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     logging.warning('datastoreio read transform is experimental.')
     super(ReadFromDatastore, self).__init__()
 
@@ -243,7 +253,7 @@ class ReadFromDatastore(PTransform):
     query = helper.make_latest_timestamp_query(namespace)
     req = helper.make_request(project, namespace, query)
     resp = datastore.run_query(req)
-    if len(resp.batch.entity_results) == 0:
+    if not resp.batch.entity_results:
       raise RuntimeError("Datastore total statistics unavailable.")
 
     entity = resp.batch.entity_results[0].entity
@@ -271,7 +281,7 @@ class ReadFromDatastore(PTransform):
 
     req = helper.make_request(project, namespace, kind_stats_query)
     resp = datastore.run_query(req)
-    if len(resp.batch.entity_results) == 0:
+    if not resp.batch.entity_results:
       raise RuntimeError("Datastore statistics for kind %s unavailable" % kind)
 
     entity = resp.batch.entity_results[0].entity
@@ -368,6 +378,16 @@ class _Mutate(PTransform):
 class WriteToDatastore(_Mutate):
   """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
   def __init__(self, project):
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    try:
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apitools.base.py import *
+    except ImportError:
+      raise ImportError(
+          'Google Cloud IO not available, '
+          'please install apache_beam[gcp]')
+
     super(WriteToDatastore, self).__init__(
         project, WriteToDatastore.to_upsert_mutation)
 

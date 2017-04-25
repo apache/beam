@@ -78,10 +78,6 @@ class ComputeSessions(beam.PTransform):
   A session is defined as a string of edits where each is separated from the
   next by less than an hour.
   """
-
-  def __init__(self):
-    super(ComputeSessions, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'ComputeSessionsWindow' >> beam.WindowInto(
@@ -91,10 +87,6 @@ class ComputeSessions(beam.PTransform):
 
 class TopPerMonth(beam.PTransform):
   """Computes the longest session ending in each month."""
-
-  def __init__(self):
-    super(TopPerMonth, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'TopPerMonthWindow' >> beam.WindowInto(

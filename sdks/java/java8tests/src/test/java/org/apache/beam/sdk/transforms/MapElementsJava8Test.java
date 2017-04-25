@@ -21,7 +21,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,8 +47,8 @@ public class MapElementsJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
             // Note that the type annotation is required.
-            .via((Integer i) -> i * 2)
-            .withOutputType(new TypeDescriptor<Integer>() {}));
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> i * 2));
 
     PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();
@@ -82,8 +82,8 @@ public class MapElementsJava8Test implements Serializable {
         .apply(Create.of(1, 2, 3))
         .apply(MapElements
             // Note that the type annotation is required.
-            .via(new Doubler()::doubleIt)
-            .withOutputType(new TypeDescriptor<Integer>() {}));
+            .into(TypeDescriptors.integers())
+            .via(new Doubler()::doubleIt));
 
     PAssert.that(output).containsInAnyOrder(6, 2, 4);
     pipeline.run();

@@ -24,12 +24,12 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
@@ -62,7 +62,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -84,19 +84,21 @@ public final class TransformTranslator {
       @SuppressWarnings("unchecked")
       @Override
       public void evaluate(Flatten.PCollections<T> transform, EvaluationContext context) {
-        List<TaggedPValue> pcs = context.getInputs(transform);
+        Collection<PValue> pcs = context.getInputs(transform).values();
         JavaRDD<WindowedValue<T>> unionRDD;
         if (pcs.size() == 0) {
           unionRDD = context.getSparkContext().emptyRDD();
         } else {
           JavaRDD<WindowedValue<T>>[] rdds = new JavaRDD[pcs.size()];
-          for (int i = 0; i < rdds.length; i++) {
+          int index = 0;
+          for (PValue pc : pcs) {
             checkArgument(
-                pcs.get(i).getValue() instanceof PCollection,
+                pc instanceof PCollection,
                 "Flatten had non-PCollection value in input: %s of type %s",
-                pcs.get(i).getValue(),
-                pcs.get(i).getValue().getClass().getSimpleName());
-            rdds[i] = ((BoundedDataset<T>) context.borrowDataset(pcs.get(i).getValue())).getRDD();
+                pc,
+                pc.getClass().getSimpleName());
+            rdds[index] = ((BoundedDataset<T>) context.borrowDataset(pc)).getRDD();
+            index++;
           }
           unionRDD = context.getSparkContext().union(rdds);
         }
@@ -334,8 +336,7 @@ public final class TransformTranslator {
     };
   }
 
-  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>
-  parDo() {
+  private static <InputT, OutputT> TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.MultiOutput<InputT, OutputT>>() {
       @Override
       public void evaluate(
@@ -351,51 +352,31 @@ public final class TransformTranslator {
             context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> aggAccum = AggregatorsAccumulator.getInstance();
         Accumulator<SparkMetricsContainer> metricsAccum = MetricsAccumulator.getInstance();
-        Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
-        if (transform.getSideOutputTags().size() == 0) {
-          // Don't tag with the output and filter for a single-output ParDo, as it's additional
-          // identity transforms.
-          // Also see BEAM-1737 for failures when the two versions are condensed.
-          PCollection<OutputT> output =
-              (PCollection<OutputT>)
-                  Iterables.getOnlyElement(context.getOutputs(transform)).getValue();
-          context.putDataset(
-              output,
-              new BoundedDataset<>(
-                  inRDD.mapPartitions(
-                      new DoFnFunction<>(
-                          aggAccum,
-                          metricsAccum,
-                          stepName,
-                          doFn,
-                          context.getRuntimeContext(),
-                          sideInputs,
-                          windowingStrategy))));
-        } else {
-          JavaPairRDD<TupleTag<?>, WindowedValue<?>> all =
-              inRDD
-                  .mapPartitionsToPair(
-                      new MultiDoFnFunction<>(
-                          aggAccum,
-                          metricsAccum,
-                          stepName,
-                          doFn,
-                          context.getRuntimeContext(),
-                          transform.getMainOutputTag(),
-                          TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                          windowingStrategy))
-                  .cache();
-          for (TaggedPValue output : context.getOutputs(transform)) {
-            @SuppressWarnings("unchecked")
-            JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
-                all.filter(new TranslationUtils.TupleTagFilter(output.getTag()));
-            @SuppressWarnings("unchecked")
-            // Object is the best we can do since different outputs can have different tags
-            JavaRDD<WindowedValue<Object>> values =
-                (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-            context.putDataset(output.getValue(), new BoundedDataset<>(values));
-          }
+        JavaPairRDD<TupleTag<?>, WindowedValue<?>> all =
+            inRDD.mapPartitionsToPair(
+                new MultiDoFnFunction<>(
+                    aggAccum,
+                    metricsAccum,
+                    stepName,
+                    doFn,
+                    context.getRuntimeContext(),
+                    transform.getMainOutputTag(),
+                    TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                    windowingStrategy));
+        Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+        if (outputs.size() > 1) {
+          // cache the RDD if we're going to filter it more than once.
+          all.cache();
+        }
+        for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+          @SuppressWarnings("unchecked")
+          JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
+              all.filter(new TranslationUtils.TupleTagFilter(output.getKey()));
+          @SuppressWarnings("unchecked")
+          // Object is the best we can do since different outputs can have different tags
+          JavaRDD<WindowedValue<Object>> values =
+              (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
+          context.putDataset(output.getValue(), new BoundedDataset<>(values));
         }
       }
 

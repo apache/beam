@@ -35,11 +35,12 @@ def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
 def default_window_mapping_fn(target_window_fn):
   if target_window_fn == window.GlobalWindows():
     return _global_window_mapping_fn
-  else:
-    def map_via_end(source_window):
-      return list(target_window_fn.assign(
-          window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
-    return map_via_end
+
+  def map_via_end(source_window):
+    return list(target_window_fn.assign(
+        window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
+
+  return map_via_end
 
 
 class SideInputMap(object):

@@ -21,7 +21,7 @@
 import unittest
 
 from apache_beam import error, pvalue
-from iobase import (
+from apache_beam.runners.dataflow.native_io.iobase import (
     _dict_printable_fields,
     _NativeWrite,
     ConcatPosition,

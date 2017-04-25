@@ -45,8 +45,7 @@ def instance_to_type(o):
       return o.__class__
     elif t == BoundMethod:
       return types.MethodType
-    else:
-      return t
+    return t
   elif t == tuple:
     return typehints.Tuple[[instance_to_type(item) for item in o]]
   elif t == list:
@@ -90,8 +89,7 @@ class Const(object):
   def unwrap(x):
     if isinstance(x, Const):
       return x.type
-    else:
-      return x
+    return x
 
   @staticmethod
   def unwrap_all(xs):
@@ -121,8 +119,7 @@ class FrameState(object):
     ncellvars = len(self.co.co_cellvars)
     if i < ncellvars:
       return Any
-    else:
-      return Const(self.f.func_closure[i - ncellvars].cell_contents)
+    return Const(self.f.func_closure[i - ncellvars].cell_contents)
 
   def get_global(self, i):
     name = self.get_name(i)
@@ -130,8 +127,7 @@ class FrameState(object):
       return Const(self.f.func_globals[name])
     if name in __builtin__.__dict__:
       return Const(__builtin__.__dict__[name])
-    else:
-      return Any
+    return Any
 
   def get_name(self, i):
     return self.co.co_names[i]
@@ -144,9 +140,8 @@ class FrameState(object):
       return other.copy()
     elif other is None:
       return self.copy()
-    else:
-      return FrameState(self.f, union_list(self.vars, other.vars), union_list(
-          self.stack, other.stack))
+    return FrameState(self.f, union_list(self.vars, other.vars), union_list(
+        self.stack, other.stack))
 
   def __ror__(self, left):
     return self | left
@@ -168,8 +163,7 @@ def union(a, b):
     return b
   elif type(a) == type(b) and element_type(b) == typehints.Union[()]:
     return a
-  else:
-    return typehints.Union[a, b]
+  return typehints.Union[a, b]
 
 
 def element_type(hint):
@@ -180,8 +174,7 @@ def element_type(hint):
     return hint.inner_type
   elif isinstance(hint, typehints.TupleHint.TupleConstraint):
     return typehints.Union[hint.tuple_types]
-  else:
-    return Any
+  return Any
 
 
 def key_value_types(kv_type):
@@ -248,8 +241,7 @@ def infer_return_type(c, input_types, debug=False, depth=5):
             tuple: typehints.Tuple[Any, ...],
             dict: typehints.Dict[Any, Any]
         }[c]
-      else:
-        return c
+      return c
     else:
       return Any
   except TypeInferenceError:

@@ -18,12 +18,11 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import java.util.Collections;
-import java.util.List;
-
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.POutputValueBase;
-import org.apache.beam.sdk.values.TaggedPValue;
-
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * The result of a {@link BigQueryIO.Write} transform.
@@ -37,8 +36,8 @@ final class WriteResult extends POutputValueBase {
   }
 
   @Override
-  public List<TaggedPValue> expand() {
-    return Collections.emptyList();
+  public Map<TupleTag<?>, PValue> expand() {
+    return Collections.emptyMap();
   }
 
   private WriteResult(Pipeline pipeline) {

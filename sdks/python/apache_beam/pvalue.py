@@ -96,10 +96,6 @@ class PCollection(PValue):
   pipelines.
   """
 
-  def __init__(self, pipeline, **kwargs):
-    """Initializes a PCollection. Do not call directly."""
-    super(PCollection, self).__init__(pipeline, **kwargs)
-
   def __eq__(self, other):
     if isinstance(other, PCollection):
       return self.tag == other.tag and self.producer == other.producer
@@ -312,20 +308,18 @@ class AsSingleton(AsSideInput):
     base = super(AsSingleton, self)._view_options()
     if self.default_value != AsSingleton._NO_DEFAULT:
       return dict(base, default=self.default_value)
-    else:
-      return base
+    return base
 
   @staticmethod
   def _from_runtime_iterable(it, options):
     head = list(itertools.islice(it, 2))
-    if len(head) == 0:
+    if not head:
       return options.get('default', EmptySideInput())
     elif len(head) == 1:
       return head[0]
-    else:
-      raise ValueError(
-          'PCollection with more than one element accessed as '
-          'a singleton view.')
+    raise ValueError(
+        'PCollection with more than one element accessed as '
+        'a singleton view.')
 
   @property
   def element_type(self):

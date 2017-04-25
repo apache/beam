@@ -25,7 +25,7 @@ import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -260,9 +260,9 @@ public class GameStats extends LeaderBoard {
     // Extract username/score pairs from the event stream
     PCollection<KV<String, Integer>> userEvents =
         rawEvents.apply("ExtractUserScore",
-          MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-            .withOutputType(
-                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.

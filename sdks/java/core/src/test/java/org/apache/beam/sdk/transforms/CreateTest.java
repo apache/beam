@@ -108,9 +108,11 @@ public class CreateTest {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("default Create Coder");
+    thrown.expectMessage("determine a default Coder");
     thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("Create.empty(TypeDescriptor)");
     thrown.expectMessage("withCoder(Coder)");
+    thrown.expectMessage("withType(TypeDescriptor)");
     p.apply(Create.of(Collections.emptyList()));
   }
 
@@ -280,9 +282,11 @@ public class CreateTest {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("default Create Coder");
+    thrown.expectMessage("determine a default Coder");
     thrown.expectMessage("Create.empty(Coder)");
+    thrown.expectMessage("Create.empty(TypeDescriptor)");
     thrown.expectMessage("withCoder(Coder)");
+    thrown.expectMessage("withType(TypeDescriptor)");
     p.apply(Create.timestamped(new ArrayList<TimestampedValue<Object>>()));
   }
 

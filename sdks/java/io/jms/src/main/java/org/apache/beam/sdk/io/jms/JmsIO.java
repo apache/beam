@@ -37,6 +37,7 @@ import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -97,6 +98,7 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
+@Experimental
 public class JmsIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);

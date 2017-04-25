@@ -259,7 +259,7 @@ class CompressedFile(object):
 
   @property
   def seekable(self):
-    return self._file.mode == 'r'
+    return 'r' in self._file.mode
 
   def _clear_read_buffer(self):
     """Clears the read buffer by removing all the contents and
@@ -414,6 +414,7 @@ class FileSystem(object):
   the correct file system based on the provided file pattern scheme.
   """
   __metaclass__ = abc.ABCMeta
+  CHUNK_SIZE = 1  # Chuck size in the batch operations
 
   @staticmethod
   def _get_compression_type(path, compression_type):

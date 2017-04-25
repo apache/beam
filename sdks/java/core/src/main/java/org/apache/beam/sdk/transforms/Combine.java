@@ -1775,7 +1775,7 @@ public class Combine {
    * PCollection<KV<String, Double>> salesRecords = ...;
    * PCollection<KV<String, Double>> totalSalesPerPerson =
    *     salesRecords.apply(Combine.<String, Double, Double>perKey(
-   *         new Sum.SumDoubleFn()));
+   *         Sum.ofDoubles()));
    * } </pre>
    *
    * <p>Each output element is in the window by which its corresponding input
@@ -2191,7 +2191,7 @@ public class Combine {
                 c.output(kv);
               } else {
                 int nonce = counter++ % spread;
-                c.sideOutput(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                c.output(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
               }
             }
           })

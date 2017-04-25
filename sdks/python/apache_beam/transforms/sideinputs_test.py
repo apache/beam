@@ -145,16 +145,14 @@ class SideInputsTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  # @attr('ValidatesRunner')
-  # TODO(BEAM-1124): Temporarily disable it due to test failed running on
-  # Dataflow service.
+  @attr('ValidatesRunner')
   def test_multi_valued_singleton_side_input(self):
     pipeline = self.create_pipeline()
     pcol = pipeline | 'start' >> beam.Create([1, 2])
     side = pipeline | 'side' >> beam.Create([3, 4])  # 2 values in side input.
     pcol | 'compute' >> beam.FlatMap(  # pylint: disable=expression-not-assigned
         lambda x, s: [x * s], beam.pvalue.AsSingleton(side))
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       pipeline.run()
 
   @attr('ValidatesRunner')

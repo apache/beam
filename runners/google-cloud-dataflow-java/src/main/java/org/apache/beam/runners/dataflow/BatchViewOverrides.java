@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.GloballyAsSingletonView;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -494,7 +496,7 @@ class BatchViewOverrides {
        */
       private void outputMetadataRecordForSize(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value, long uniqueKeyCount) {
-        c.sideOutput(outputForSize,
+        c.output(outputForSize,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), uniqueKeyCount)));
@@ -503,7 +505,7 @@ class BatchViewOverrides {
       /** This outputs records which will be used to construct the entry set. */
       private void outputMetadataRecordForEntrySet(
           ProcessContext c, KV<KV<K, W>, WindowedValue<V>> value) {
-        c.sideOutput(outputForEntrySet,
+        c.output(outputForEntrySet,
             KV.of(ismCoder.hash(ImmutableList.of(IsmFormat.getMetadataKey(),
                 value.getKey().getValue())),
                 KV.of(value.getKey().getValue(), value.getKey().getKey())));
@@ -773,7 +775,7 @@ class BatchViewOverrides {
           coderForMapLike(windowCoder, inputCoder.getKeyCoder(), inputCoder.getValueCoder());
 
       // Create the various output tags representing the main output containing the data stream
-      // and the side outputs containing the metadata about the size and entry set.
+      // and the additional outputs containing the metadata about the size and entry set.
       TupleTag<IsmRecord<WindowedValue<V>>> mainOutputTag = new TupleTag<>();
       TupleTag<KV<Integer, KV<W, Long>>> outputForSizeTag = new TupleTag<>();
       TupleTag<KV<Integer, KV<W, K>>> outputForEntrySetTag = new TupleTag<>();
@@ -1404,10 +1406,17 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> getReplacementTransform(
-        final GloballyAsSingletonView<ElemT, ViewT> transform) {
-      return new BatchCombineGloballyAsSingletonView<>(
-          runner, transform.getCombineFn(), transform.getFanout(), transform.getInsertDefault());
+    public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<ElemT>, PCollectionView<ViewT>,
+                    GloballyAsSingletonView<ElemT, ViewT>>
+                transform) {
+      GloballyAsSingletonView<ElemT, ViewT> combine = transform.getTransform();
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new BatchCombineGloballyAsSingletonView<>(
+              runner, combine.getCombineFn(), combine.getFanout(), combine.getInsertDefault()));
     }
 
     private static class BatchCombineGloballyAsSingletonView<ElemT, ViewT>

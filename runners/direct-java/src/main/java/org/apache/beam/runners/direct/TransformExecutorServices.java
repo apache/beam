@@ -21,8 +21,11 @@ import com.google.common.base.MoreObjects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Static factory methods for constructing instances of {@link TransformExecutorService}.
@@ -37,7 +40,7 @@ final class TransformExecutorServices {
    * parallel.
    */
   public static TransformExecutorService parallel(ExecutorService executor) {
-    return new ParallelEvaluationState(executor);
+    return new ParallelTransformExecutor(executor);
   }
 
   /**
@@ -45,7 +48,7 @@ final class TransformExecutorServices {
    * serial.
    */
   public static TransformExecutorService serial(ExecutorService executor) {
-    return new SerialEvaluationState(executor);
+    return new SerialTransformExecutor(executor);
   }
 
   /**
@@ -55,18 +58,36 @@ final class TransformExecutorServices {
    * <p>A principal use of this is for the evaluation of an unkeyed Step. Unkeyed computations are
    * processed in parallel.
    */
-  private static class ParallelEvaluationState implements TransformExecutorService {
+  private static class ParallelTransformExecutor implements TransformExecutorService {
+    private static final Logger LOG = LoggerFactory.getLogger(ParallelTransformExecutor.class);
+
     private final ExecutorService executor;
     private final AtomicBoolean active = new AtomicBoolean(true);
 
-    private ParallelEvaluationState(ExecutorService executor) {
+    private ParallelTransformExecutor(ExecutorService executor) {
       this.executor = executor;
     }
 
     @Override
     public void schedule(TransformExecutor<?> work) {
       if (active.get()) {
-        executor.submit(work);
+        try {
+          executor.submit(work);
+        } catch (RejectedExecutionException rejected) {
+          boolean stillActive = active.get();
+          if (stillActive) {
+            throw new IllegalStateException(
+                String.format(
+                    "Execution of Work %s was rejected, but the %s is still active",
+                    work, ParallelTransformExecutor.class.getSimpleName()));
+          } else {
+            LOG.debug(
+                "Rejected execution of Work {} on executor {}. "
+                    + "Suppressed exception because evaluator is not active",
+                work,
+                this);
+          }
+        }
       }
     }
 
@@ -88,14 +109,14 @@ final class TransformExecutorServices {
    * <p>A principal use of this is for the serial evaluation of a (Step, Key) pair.
    * Keyed computations are processed serially per step.
    */
-  private static class SerialEvaluationState implements TransformExecutorService {
+  private static class SerialTransformExecutor implements TransformExecutorService {
     private final ExecutorService executor;
 
     private AtomicReference<TransformExecutor<?>> currentlyEvaluating;
     private final Queue<TransformExecutor<?>> workQueue;
     private boolean active = true;
 
-    private SerialEvaluationState(ExecutorService executor) {
+    private SerialTransformExecutor(ExecutorService executor) {
       this.executor = executor;
       this.currentlyEvaluating = new AtomicReference<>();
       this.workQueue = new ConcurrentLinkedQueue<>();
@@ -149,7 +170,7 @@ final class TransformExecutorServices {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(SerialEvaluationState.class)
+      return MoreObjects.toStringHelper(SerialTransformExecutor.class)
           .add("currentlyEvaluating", currentlyEvaluating)
           .add("workQueue", workQueue)
           .toString();

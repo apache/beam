@@ -2107,9 +2107,9 @@ public class BigQueryIOTest implements Serializable {
 
     List<KV<Long, List<String>>> partitions;
     if (expectedNumPartitions > 1) {
-      partitions = tester.takeSideOutputElements(multiPartitionsTag);
+      partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {
-      partitions = tester.takeSideOutputElements(singlePartitionTag);
+      partitions = tester.takeOutputElements(singlePartitionTag);
     }
     List<Long> partitionIds = Lists.newArrayList();
     List<String> partitionFileNames = Lists.newArrayList();

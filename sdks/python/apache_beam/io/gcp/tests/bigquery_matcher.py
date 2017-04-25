@@ -38,8 +38,7 @@ MAX_RETRIES = 4
 
 def retry_on_http_and_value_error(exception):
   """Filter allowing retries on Bigquery errors and value error."""
-  return isinstance(exception, GoogleCloudError) or \
-          isinstance(exception, ValueError)
+  return isinstance(exception, (GoogleCloudError, ValueError))
 
 
 class BigqueryMatcher(BaseMatcher):

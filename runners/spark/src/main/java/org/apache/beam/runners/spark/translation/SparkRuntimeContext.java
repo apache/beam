@@ -29,6 +29,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -130,6 +131,7 @@ public class SparkRuntimeContext implements Serializable {
         }
         // register IO factories.
         IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
+        FileSystems.setDefaultConfigInWorkers(pipelineOptions);
       }
       return pipelineOptions;
     }

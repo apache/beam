@@ -78,12 +78,60 @@ def create_runner(runner_name):
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
-    return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    try:
+      return getattr(__import__(module, {}, {}, [runner], -1), runner)()
+    except ImportError:
+      if runner_name in _KNOWN_DATAFLOW_RUNNERS:
+        raise ImportError(
+            'Google Cloud Dataflow runner not available, '
+            'please install apache_beam[gcp]')
+      else:
+        raise
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' % (
             runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
+
+
+def group_by_key_input_visitor():
+  # Imported here to avoid circular dependencies.
+  from apache_beam.pipeline import PipelineVisitor
+
+  class GroupByKeyInputVisitor(PipelineVisitor):
+    """A visitor that replaces `Any` element type for input `PCollection` of
+    a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
+
+    TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
+    we could directly replace the coder instead of mutating the element type.
+    """
+
+    def visit_transform(self, transform_node):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam import GroupByKey, GroupByKeyOnly
+      from apache_beam import typehints
+      if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
+        pcoll = transform_node.inputs[0]
+        input_type = pcoll.element_type
+        # If input_type is not specified, then treat it as `Any`.
+        if not input_type:
+          input_type = typehints.Any
+
+        if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
+          if isinstance(input_type, typehints.AnyTypeConstraint):
+            # `Any` type needs to be replaced with a KV[Any, Any] to
+            # force a KV coder as the main output coder for the pcollection
+            # preceding a GroupByKey.
+            pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
+          else:
+            # TODO: Handle other valid types,
+            # e.g. Union[KV[str, int], KV[str, float]]
+            raise ValueError(
+                "Input to GroupByKey must be of Tuple or Any type. "
+                "Found %s for %s" % (input_type, pcoll))
+
+  return GroupByKeyInputVisitor()
 
 
 class PipelineRunner(object):
@@ -119,35 +167,7 @@ class PipelineRunner(object):
           logging.error('Error while visiting %s', transform_node.full_label)
           raise
 
-    class GroupByKeyInputVisitor(PipelineVisitor):
-      """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` with a `KV` type.
-
-      TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
-      we could directly replace the coder instead of mutating the element type.
-      """
-      def visit_transform(self, transform_node):
-        # Imported here to avoid circular dependencies.
-        # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam import GroupByKey
-        from apache_beam import typehints
-        if isinstance(transform_node.transform, GroupByKey):
-          pcoll = transform_node.inputs[0]
-          input_type = pcoll.element_type
-          if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
-            if isinstance(input_type, typehints.AnyTypeConstraint):
-              # `Any` type needs to be replaced with a KV[Any, Any] to
-              # force a KV coder as the main output coder for the pcollection
-              # preceding a GroupByKey.
-              pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
-            else:
-              # TODO: Handle other valid types,
-              # e.g. Union[KV[str, int], KV[str, float]]
-              raise ValueError(
-                  "Input to GroupByKey must be of Tuple or Any type. "
-                  "Found %s for %s" % (input_type, pcoll))
-
-    pipeline.visit(GroupByKeyInputVisitor())
+    pipeline.visit(group_by_key_input_visitor())
     pipeline.visit(RunVisitor(self))
 
   def clear(self, pipeline, node=None):

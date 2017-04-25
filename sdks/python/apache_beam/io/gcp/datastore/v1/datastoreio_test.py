@@ -27,7 +27,7 @@ from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 
 # Protect against environments where datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from google.cloud.proto.datastore.v1 import query_pb2
@@ -35,7 +35,7 @@ try:
   from googledatastore import helper as datastore_helper
 except ImportError:
   datastore_pb2 = None
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')

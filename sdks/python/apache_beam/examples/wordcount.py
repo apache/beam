@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import argparse
 import logging
 import re
 
@@ -66,29 +67,24 @@ class WordExtractingDoFn(beam.DoFn):
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""
-  class WordcountOptions(PipelineOptions):
-    @classmethod
-    def _add_argparse_args(cls, parser):
-      parser.add_value_provider_argument(
-          '--input',
-          dest='input',
-          default='gs://dataflow-samples/shakespeare/kinglear.txt',
-          help='Input file to process.')
-      parser.add_value_provider_argument(
-          '--output',
-          dest='output',
-          required=True,
-          help='Output file to write results to.')
-  pipeline_options = PipelineOptions(argv)
-  wordcount_options = pipeline_options.view_as(WordcountOptions)
-
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      dest='input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--output',
+                      dest='output',
+                      required=True,
+                      help='Output file to write results to.')
+  known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromText(wordcount_options.input)
+  lines = p | 'read' >> ReadFromText(known_args.input)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -103,17 +99,21 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> WriteToText(wordcount_options.output)
+  output | 'write' >> WriteToText(known_args.output)
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  empty_lines_filter = MetricsFilter().with_name('empty_lines')
-  query_result = result.metrics().query(empty_lines_filter)
-  if query_result['counters']:
-    empty_lines_counter = query_result['counters'][0]
-    logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
+
+  # Do not query metrics when creating a template which doesn't run
+  if (not hasattr(result, 'has_job')    # direct runner
+      or result.has_job):               # not just a template creation
+    empty_lines_filter = MetricsFilter().with_name('empty_lines')
+    query_result = result.metrics().query(empty_lines_filter)
+    if query_result['counters']:
+      empty_lines_counter = query_result['counters'][0]
+      logging.info('number of empty lines: %d', empty_lines_counter.committed)
+    # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -44,9 +44,6 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
 
 /**
  * Flink operator for executing window {@link DoFn DoFns}.
- *
- * @param <InputT>
- * @param <OutputT>
  */
 public class WindowDoFnOperator<K, InputT, OutputT>
     extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
@@ -57,7 +54,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
       Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
-      List<TupleTag<?>> sideOutputTags,
+      List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<WindowedValue<KV<K, OutputT>>> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
@@ -68,7 +65,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         null,
         inputCoder,
         mainOutputTag,
-        sideOutputTags,
+        additionalOutputTags,
         outputManagerFactory,
         windowingStrategy,
         sideInputTagMapping,

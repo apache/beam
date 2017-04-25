@@ -64,6 +64,31 @@ public class TransformExecutorServicesTest {
   }
 
   @Test
+  public void parallelRejectedStillActiveThrows() {
+    @SuppressWarnings("unchecked")
+    TransformExecutor<Object> first = mock(TransformExecutor.class);
+
+    TransformExecutorService parallel =
+        TransformExecutorServices.parallel(executorService);
+    executorService.shutdown();
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("still active");
+    parallel.schedule(first);
+  }
+
+  @Test
+  public void parallelRejectedShutdownSucceeds() {
+    @SuppressWarnings("unchecked")
+    TransformExecutor<Object> first = mock(TransformExecutor.class);
+
+    TransformExecutorService parallel =
+        TransformExecutorServices.parallel(executorService);
+    executorService.shutdown();
+    parallel.shutdown();
+    parallel.schedule(first);
+  }
+
+  @Test
   public void serialScheduleTwoWaitsForFirstToComplete() {
     @SuppressWarnings("unchecked")
     TransformExecutor<Object> first = mock(TransformExecutor.class);
@@ -96,5 +121,28 @@ public class TransformExecutorServicesTest {
     thrown.expectMessage("unexpected currently executing");
 
     serial.complete(second);
+  }
+
+  /**
+   * Tests that a Serial {@link TransformExecutorService} does not schedule follow up work if the
+   * executor is shut down when the initial work completes.
+   */
+  @Test
+  public void serialShutdownCompleteActive() {
+    @SuppressWarnings("unchecked")
+    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked")
+    TransformExecutor<Object> second = mock(TransformExecutor.class);
+
+    TransformExecutorService serial = TransformExecutorServices.serial(executorService);
+    serial.schedule(first);
+    verify(first).run();
+
+    serial.schedule(second);
+    verify(second, never()).run();
+
+    serial.shutdown();
+    serial.complete(first);
+    verify(second, never()).run();
   }
 }
