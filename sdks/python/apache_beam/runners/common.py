@@ -102,21 +102,21 @@ class DoFnSignature(object):
     self._validate_process()
 
   def _validate_start_bundle(self):
-    self._validate_bundle_method()
+    self._validate_bundle_method(self.start_bundle_method)
 
   def _validate_finish_bundle(self):
-    self._validate_bundle_method()
+    self._validate_bundle_method(self.finish_bundle_method)
 
   def _validate_process(self):
     pass
 
-  def _validate_bundle_method(self):
+  def _validate_bundle_method(self, method_wrapper):
     # Bundle methods may only contain ContextParam.
     unsupported_dofn_params = [i for i in core.DoFn.__dict__ if (
         i.endswith('Param') and i != 'ContextParam')]
 
     for param in unsupported_dofn_params:
-      assert param not in self.start_bundle_method.defaults
+      assert param not in method_wrapper.defaults
 
 
 class DoFnInvoker(object):
@@ -352,13 +352,8 @@ class DoFnRunner(Receiver):
       state: handle for accessing DoFn state
       scoped_metrics_container: Context switcher for metrics container
     """
-    self.tagged_receivers = tagged_receivers
     self.scoped_metrics_container = (scoped_metrics_container
                                      or ScopedMetricsContainer())
-
-    # Optimize for the common case.
-    self.main_receivers = as_receiver(tagged_receivers[None])
-
     self.step_name = step_name
 
     # Need to support multiple iterations.
@@ -380,10 +375,14 @@ class DoFnRunner(Receiver):
     self.context = context
 
     do_fn_signature = DoFnSignature(fn)
-    self.window_fn = windowing.windowfn
+
+    # Optimize for the common case.
+    main_receivers = as_receiver(tagged_receivers[None])
+    output_processor = OutputProcessor(
+        windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
-        self, do_fn_signature, context, side_inputs, args, kwargs)
+        output_processor, do_fn_signature, context, side_inputs, args, kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -427,6 +426,22 @@ class DoFnRunner(Receiver):
       raise type(exn), args, sys.exc_info()[2]
     else:
       raise
+
+
+class OutputProcessor(object):
+  """Processes output produced by DoFn method invocations."""
+
+  def __init__(self, window_fn, main_receivers, tagged_receivers):
+    """Initializes ``OutputProcessor``.
+
+    Args:
+      window_fn: a windowing function (WindowFn).
+      main_receivers: a dict of tag name to Receiver objects.
+      tagged_receivers: main receiver object.
+    """
+    self.window_fn = window_fn
+    self.main_receivers = main_receivers
+    self.tagged_receivers = tagged_receivers
 
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of computation to the appropriate receivers.

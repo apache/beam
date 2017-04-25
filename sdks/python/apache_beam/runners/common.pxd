@@ -40,11 +40,16 @@ cdef class DoFnSignature(object):
   cdef public DoFnMethodWrapper finish_bundle_method
   cdef public object do_fn
 
+  cdef _validate(self)
+  cdef _validate_start_bundle(self)
+  cdef _validate_finish_bundle(self)
+  cdef _validate_process(self)
+  cdef _validate_bundle_method(self, DoFnMethodWrapper bundle_method)
+
 
 cdef class DoFnInvoker(object):
-
   cdef public DoFnSignature signature
-  cdef DoFnRunner output_processor
+  cdef OutputProcessor output_processor
 
   cpdef invoke_process(self, WindowedValue windowed_value)
   cpdef invoke_start_bundle(self)
@@ -54,12 +59,10 @@ cdef class DoFnInvoker(object):
 
 
 cdef class SimpleInvoker(DoFnInvoker):
-
   cdef object process_method
 
 
 cdef class PerWindowInvoker(DoFnInvoker):
-
   cdef list side_inputs
   cdef DoFnContext context
   cdef list args_for_process
@@ -70,18 +73,21 @@ cdef class PerWindowInvoker(DoFnInvoker):
 
 
 cdef class DoFnRunner(Receiver):
-
-  cdef object window_fn
   cdef DoFnContext context
-  cdef object tagged_receivers
   cdef LoggingContext logging_context
   cdef object step_name
   cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
-  cdef Receiver main_receivers
   cdef DoFnInvoker do_fn_invoker
 
   cpdef process(self, WindowedValue windowed_value)
+
+
+cdef class OutputProcessor(object):
+  cdef object window_fn
+  cdef Receiver main_receivers
+  cdef object tagged_receivers
+
   @cython.locals(windowed_value=WindowedValue)
   cpdef process_outputs(self, WindowedValue element, results)
 
