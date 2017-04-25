@@ -203,8 +203,4 @@ public class ReduceWindow<
 
     return DAG.of(reduceByKey, format);
   }
-
-
-
-
 }

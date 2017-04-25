@@ -308,7 +308,7 @@ public class InMemExecutorTest {
     }
   } // ~ end of SortState
 
-  static class SizedCountWindow extends Window {
+  static class SizedCountWindow extends Window<SizedCountWindow> {
     final int size;
 
     int get() {
@@ -336,6 +336,11 @@ public class InMemExecutorTest {
     @Override
     public int hashCode() {
       return size;
+    }
+
+    @Override
+    public int compareTo(SizedCountWindow o) {
+      return Integer.compare(size, o.size);
     }
   } // ~ end of SizedCountWindow
 

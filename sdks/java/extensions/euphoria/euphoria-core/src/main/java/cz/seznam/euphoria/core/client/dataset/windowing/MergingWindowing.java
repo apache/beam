@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
 
-public interface MergingWindowing<T, W extends Window & Comparable<W>>
+public interface MergingWindowing<T, W extends Window<W>>
     extends Windowing<T, W>
 {
   /**

@@ -85,7 +85,7 @@ public class RBKAttachedWindowingTest {
         reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
-        .valueBy(new ToHashMap<>(Pair::getFirst, Pair::getSecond))
+        .valueBy(new ToHashMap<String, Long, Pair<String, Long>>(Pair::getFirst, Pair::getSecond))
         .combineBy(new MergeHashMaps<>())
         .setNumPartitions(1)
         .output();
@@ -319,7 +319,7 @@ public class RBKAttachedWindowingTest {
     Dataset<Pair<Long, HashMap<String, Long>>> reduced =
         ReduceByKey.of(counted)
         .keyBy(e -> e.getFirst().getStartMillis())
-        .valueBy(new ToHashMap<>(Triple::getSecond, Triple::getThird))
+        .valueBy(new ToHashMap<String, Long, Triple<TimeInterval, String, Long>>(Triple::getSecond, Triple::getThird))
         .combineBy(new MergeHashMaps<>())
         // ~ partition by the input window start time
         .setNumPartitions(2)

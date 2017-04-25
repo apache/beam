@@ -19,7 +19,7 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
  * Extension to {@link cz.seznam.euphoria.core.client.dataset.windowing.Window}
  * defining time based constraints on the implementor.
  */
-public interface TimedWindow<W extends Window> {
+public interface TimedWindow {
 
   /**
    * Defines the timestamp/watermark until this window is considered open.

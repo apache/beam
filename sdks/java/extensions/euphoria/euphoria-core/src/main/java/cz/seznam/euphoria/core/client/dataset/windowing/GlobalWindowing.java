@@ -29,8 +29,7 @@ public final class GlobalWindowing<T>
     implements Windowing<T, GlobalWindowing.Window> {
 
   public static final class Window
-      extends cz.seznam.euphoria.core.client.dataset.windowing.Window
-      implements Comparable<Window> {
+      extends cz.seznam.euphoria.core.client.dataset.windowing.Window<GlobalWindowing.Window> {
 
     static final Window INSTANCE = new Window();
 

@@ -286,7 +286,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   // ----------------------------------------------------------------------------
 
   // ~ every instance is unique: this allows us to exercise merging
-  static final class CWindow extends Window implements Comparable<CWindow> {
+  static final class CWindow extends Window<CWindow> {
 
     static int _idCounter = 0;
     static final Object _idCounterMutex = new Object();
