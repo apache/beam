@@ -22,7 +22,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.bigquery.Bigquery.Datasets.Delete;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects.Delete;
 import com.google.api.services.storage.Storage;
 import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.util.TestCredential;
@@ -112,8 +112,9 @@ public class GoogleApiDebugOptionsTest {
         Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Delete deleteRequest = Transport.newBigQueryClient(options.as(BigQueryOptions.class))
-        .build().datasets().delete("testProjectId", "testDatasetId");
+    Delete deleteRequest =
+        Transport.newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class))
+            .build().projects().delete("testProjectId");
     assertNull(deleteRequest.get("$trace"));
   }
 

@@ -56,12 +56,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.io.gcp.common.GcpIoTransport;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +116,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private JobServiceImpl(BigQueryOptions options) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = Transport.newBigQueryClient(options).build();
+      this.client = GcpIoTransport.newBigQueryClient(options).build();
     }
 
     /**
@@ -379,7 +378,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     private DatasetServiceImpl(BigQueryOptions bqOptions) {
       this.errorExtractor = new ApiErrorExtractor();
-      this.client = Transport.newBigQueryClient(bqOptions).build();
+      this.client = GcpIoTransport.newBigQueryClient(bqOptions).build();
       this.options = bqOptions;
       this.maxRowsPerBatch = MAX_ROWS_PER_BATCH;
       this.executor = null;
@@ -827,13 +826,13 @@ class BigQueryServicesImpl implements BigQueryServices {
         BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              queryConfig, projectId, Transport.newBigQueryClient(bqOptions).build()));
+              queryConfig, projectId, GcpIoTransport.newBigQueryClient(bqOptions).build()));
     }
 
     private static BigQueryJsonReader fromTable(
         BigQueryOptions bqOptions, TableReference tableRef) {
       return new BigQueryJsonReaderImpl(BigQueryTableRowIterator.fromTable(
-          tableRef, Transport.newBigQueryClient(bqOptions).build()));
+          tableRef, GcpIoTransport.newBigQueryClient(bqOptions).build()));
     }
 
     @Override
