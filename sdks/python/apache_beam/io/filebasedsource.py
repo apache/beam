@@ -30,7 +30,7 @@ from apache_beam.io import concat_source
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
@@ -86,10 +86,6 @@ class FileBasedSource(iobase.BoundedSource):
     if isinstance(file_pattern, basestring):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
-    if file_pattern.is_accessible():
-      self._file_system = get_filesystem(file_pattern.get())
-    else:
-      self._file_system = None
 
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -118,9 +114,7 @@ class FileBasedSource(iobase.BoundedSource):
       pattern = self._pattern.get()
 
       single_file_sources = []
-      if self._file_system is None:
-        self._file_system = get_filesystem(pattern)
-      match_result = self._file_system.match([pattern])[0]
+      match_result = FileSystems.match([pattern])[0]
       files_metadata = match_result.metadata_list
 
       # We create a reference for FileBasedSource that will be serialized along
@@ -155,7 +149,7 @@ class FileBasedSource(iobase.BoundedSource):
     return self._concat_source
 
   def open_file(self, file_name):
-    return get_filesystem(file_name).open(
+    return FileSystems.open(
         file_name, 'application/octet-stream',
         compression_type=self._compression_type)
 
@@ -164,11 +158,9 @@ class FileBasedSource(iobase.BoundedSource):
     """Validate if there are actual files in the specified glob pattern
     """
     pattern = self._pattern.get()
-    if self._file_system is None:
-      self._file_system = get_filesystem(pattern)
 
     # Limit the responses as we only want to check if something exists
-    match_result = self._file_system.match([pattern], limits=[1])[0]
+    match_result = FileSystems.match([pattern], limits=[1])[0]
     if len(match_result.metadata_list) <= 0:
       raise IOError(
           'No files found based on the file pattern %s' % pattern)
@@ -183,9 +175,7 @@ class FileBasedSource(iobase.BoundedSource):
   @check_accessible(['_pattern'])
   def estimate_size(self):
     pattern = self._pattern.get()
-    if self._file_system is None:
-      self._file_system = get_filesystem(pattern)
-    match_result = self._file_system.match([pattern])[0]
+    match_result = FileSystems.match([pattern])[0]
     return sum([f.size_in_bytes for f in match_result.metadata_list])
 
   def read(self, range_tracker):
