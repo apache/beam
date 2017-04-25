@@ -18,4 +18,4 @@
 /**
  * Defines utilities for unit testing Google Cloud Platform components of Apache Beam pipelines.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.sdk.io.gcp.testing;

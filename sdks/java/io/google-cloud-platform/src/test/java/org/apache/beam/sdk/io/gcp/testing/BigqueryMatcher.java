@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.sdk.io.gcp.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -48,6 +48,7 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.hamcrest.Description;
