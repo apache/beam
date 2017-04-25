@@ -29,8 +29,13 @@ import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -498,9 +503,12 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void writeWithRunnerDeterminedSharding() {
+    ResourceId outputDirectory = LocalResources.fromString("/foo/bar", true /* isDirectory */);
+    FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
+        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
     WriteFiles<Integer> write =
         WriteFiles.to(
-            new FileBasedSink<Integer>("foo", "bar") {
+            new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
               @Override
               public FileBasedWriteOperation<Integer> createWriteOperation() {
                 return null;

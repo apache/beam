@@ -19,24 +19,25 @@ package org.apache.beam.sdk.io;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /**
- * A simple FileBasedSink that writes String values as lines with header and footer lines.
+ * A simple {@link FileBasedSink} that writes {@link String} values as lines with
+ * header and footer.
  */
 class SimpleSink extends FileBasedSink<String> {
-  public SimpleSink(String baseOutputFilename, String extension) {
-    super(baseOutputFilename, extension);
+  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix) {
+    this(baseOutputDirectory, prefix, template, suffix, CompressionType.UNCOMPRESSED);
   }
 
-  public SimpleSink(String baseOutputFilename, String extension,
+  public SimpleSink(ResourceId baseOutputDirectory, String prefix, String template, String suffix,
                     WritableByteChannelFactory writableByteChannelFactory) {
-    super(baseOutputFilename, extension, writableByteChannelFactory);
-  }
-
-  public SimpleSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
-    super(baseOutputFilename, extension, fileNamingTemplate);
+    super(
+        StaticValueProvider.of(baseOutputDirectory),
+        new DefaultFilenamePolicy(StaticValueProvider.of(prefix), template, suffix),
+        writableByteChannelFactory);
   }
 
   @Override
@@ -45,8 +46,8 @@ class SimpleSink extends FileBasedSink<String> {
   }
 
   static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
-    public SimpleWriteOperation(SimpleSink sink, String tempOutputFilename) {
-      super(sink, tempOutputFilename);
+    public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
+      super(sink, tempOutputDirectory);
     }
 
     public SimpleWriteOperation(SimpleSink sink) {
@@ -54,7 +55,7 @@ class SimpleSink extends FileBasedSink<String> {
     }
 
     @Override
-    public SimpleWriter createWriter(PipelineOptions options) throws Exception {
+    public SimpleWriter createWriter() throws Exception {
       return new SimpleWriter(this);
     }
   }
