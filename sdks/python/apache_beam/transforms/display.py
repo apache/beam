@@ -40,6 +40,7 @@ from datetime import datetime, timedelta
 import inspect
 import json
 
+
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
 
@@ -160,6 +161,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
+              unicode:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',
@@ -304,8 +306,7 @@ class DisplayDataItem(object):
     """
     if type_ == 'CLASS':
       return value.__name__
-    else:
-      return None
+    return None
 
   @classmethod
   def _get_value_type(cls, value):

@@ -53,10 +53,8 @@ public interface DoFnInvoker<InputT, OutputT> {
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
-   * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
-   *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
-  DoFn.ProcessContinuation invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
+  void invokeProcessElement(ArgumentProvider<InputT, OutputT> extra);
 
   /** Invoke the appropriate {@link DoFn.OnTimer} method on the bound {@link DoFn}. */
   void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments);

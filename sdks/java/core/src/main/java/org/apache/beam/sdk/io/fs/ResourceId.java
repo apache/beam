@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.fs;
 
+import java.io.Serializable;
+import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 
 /**
@@ -27,7 +29,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
  *
  * <p>TODO: add examples for how ResourceId is constructed and used.
  */
-public interface ResourceId {
+public interface ResourceId extends Serializable {
 
   /**
    * Returns a child {@code ResourceId} under {@code this}.
@@ -82,4 +84,11 @@ public interface ResourceId {
    * <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   String getScheme();
+
+  /**
+   * Returns the string representation of this {@link ResourceId}.
+   *
+   * <p>The corresponding {@link FileSystem#match} is required to accept this string representation.
+   */
+  String toString();
 }

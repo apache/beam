@@ -25,8 +25,8 @@ import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -99,7 +99,7 @@ public class UserScoreTest implements Serializable {
 
   /** Tests ExtractAndSumScore("user"). */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUserScoreSums() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
@@ -117,7 +117,7 @@ public class UserScoreTest implements Serializable {
 
   /** Tests ExtractAndSumScore("team"). */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testTeamScoreSums() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
@@ -135,7 +135,7 @@ public class UserScoreTest implements Serializable {
 
   /** Test that bad input data is dropped appropriately. */
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUserScoresBadInput() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS2).withCoder(StringUtf8Coder.of()));
@@ -143,9 +143,9 @@ public class UserScoreTest implements Serializable {
     PCollection<KV<String, Integer>> extract = input
       .apply(ParDo.of(new ParseEventFn()))
       .apply(
-          MapElements.via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore()))
-          .withOutputType(
-              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())));
+          MapElements
+              .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+              .via((GameActionInfo gInfo) -> KV.of(gInfo.getUser(), gInfo.getScore())));
 
     PAssert.that(extract).empty();
 

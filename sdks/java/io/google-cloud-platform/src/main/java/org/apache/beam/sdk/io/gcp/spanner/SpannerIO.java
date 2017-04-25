@@ -1,21 +1,11 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.cloud.spanner.AbortedException;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,43 +19,56 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+
 
 /**
- * {@link SpannerIO} provides an API for reading from and writing to
- * <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a>.
+ *  <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a> connectors.
  *
+ * <h3>Reading from Cloud Spanner</h3>
+ * <strong>Status: Not implemented.</strong>
+ *
+ * <h3>Writing to Cloud Spanner</h3>
+ * <strong>Status: Experimental.</strong>
+ * <p>
+ * {@link SpannerIO#writeTo} batches together and concurrently writes a set of {@link Mutation}s.
+ *
+ * To configure Cloud Spanner sink, you must apply {@link SpannerIO#writeTo} transform to
+ * {@link PCollection<Mutation>} and specify instance and database identifiers.
+ * For example, following code sketches out a pipeline that imports data from the CSV file to Cloud
+ * Spanner.
+ *
+ * <pre>{@code
+ *
+ * Pipeline p = ...;
+ * // Read the CSV file.
+ * PCollection<String> lines = p.apply("Read CSV file", TextIO.Read.from(options.getInput()));
+ * // Parse the line and convert to mutation.
+ * PCollection<Mutation> mutations = lines.apply("Parse CSV", parseFromCsv());
+ * // Write mutations.
+ * mutations.apply("Write", SpannerIO.writeTo(options.getInstanceId(), options.getDatabaseId()));
+ * p.run();
+ *
+ * }</pre>
+
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
 
-  private SpannerIO() { }
+  private SpannerIO() {
+  }
 
   @VisibleForTesting
-  public static final int SPANNER_MUTATIONS_PER_COMMIT_LIMIT = 20000;
+  static final int SPANNER_MUTATIONS_PER_COMMIT_LIMIT = 20000;
 
-/*
- * <p>To write a {@link PCollection} to Spanner, use {@link SpannerIO#writeTo} to
- * specify the database location for output.
- *
- * <p>For example:
- *
- * <pre> {@code
- *
- * Write data to a table.  Input read from {@link TextIO} will be parsed
- * and transformed to a {@link PCollection} of {@link Mutation}s.
- *
- * PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
- * options.getInput = <CSV text file location>;
- * PCollection<Mutation> mutations = ...;
- *
- * Pipeline p = Pipeline.create(options);
- *   p.apply(TextIO.Read.from(options.getInput()))
- *       .apply(mutations)
- *       .apply(SpannerIO.writeTo(options.getInstanceId(), options.getDatabaseId()));
- *   p.run();
- *
- * } </pre>
- */
+    /**
+     * Creates an instance of {@link Writer}. Use {@link Writer#withBatchSize} to limit the batch
+     * size.
+     */
   public static Writer writeTo(String instanceId, String databaseId) {
     return new Writer(instanceId, databaseId, SPANNER_MUTATIONS_PER_COMMIT_LIMIT);
   }
@@ -88,7 +91,7 @@ public class SpannerIO {
     }
 
     /**
-     * Returns a new {@link Write} with a limit on the number of mutations per batch.
+     * Returns a new {@link Writer} with a limit on the number of mutations per batch.
      * Defaults to {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}.
      */
     public Writer withBatchSize(Integer batchSize) {
@@ -127,18 +130,6 @@ public class SpannerIO {
               .withLabel("Output Database"));
     }
 
-    public String getInstanceId() {
-      return instanceId;
-    }
-
-    public String getDatabaseId() {
-      return databaseId;
-    }
-
-    public int getBatchSize() {
-      return batchSize;
-    }
-
   }
 
 
@@ -153,7 +144,7 @@ public class SpannerIO {
    * mutation operation should be idempotent.
    */
   @VisibleForTesting
-  static class SpannerWriterFn<T, V> extends DoFn<Mutation, Void> {
+  static class SpannerWriterFn extends DoFn<Mutation, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(SpannerWriterFn.class);
     private transient Spanner spanner;
     private final String instanceId;

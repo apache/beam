@@ -55,12 +55,12 @@ public class TypedPValueTest {
   }
 
   private PCollectionTuple buildPCollectionTupleWithTags(
-      TupleTag<Integer> mainOutputTag, TupleTag<Integer> sideOutputTag) {
+      TupleTag<Integer> mainOutputTag, TupleTag<Integer> additionalOutputTag) {
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3));
     PCollectionTuple tuple = input.apply(
         ParDo
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag))
-        .of(new IdentityDoFn()));
+        .of(new IdentityDoFn())
+        .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
     return tuple;
   }
 
@@ -69,11 +69,11 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testUntypedSideOutputTupleTagGivesActionableMessage() {
+  public void testUntypedOutputTupleTagGivesActionableMessage() {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
-    // untypedSideOutputTag did not use anonymous subclass.
-    TupleTag<Integer> untypedSideOutputTag = new TupleTag<Integer>();
-    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedSideOutputTag);
+    // untypedOutputTag did not use anonymous subclass.
+    TupleTag<Integer> untypedOutputTag = new TupleTag<Integer>();
+    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedOutputTag);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
@@ -84,15 +84,15 @@ public class TypedPValueTest {
     thrown.expectMessage(
         containsString("Building a Coder from the fallback CoderProvider failed"));
 
-    tuple.get(untypedSideOutputTag).getCoder();
+    tuple.get(untypedOutputTag).getCoder();
   }
 
   @Test
-  public void testStaticFactorySideOutputTupleTagGivesActionableMessage() {
+  public void testStaticFactoryOutputTupleTagGivesActionableMessage() {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
-    // untypedSideOutputTag constructed from a static factory method.
-    TupleTag<Integer> untypedSideOutputTag = makeTagStatically();
-    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedSideOutputTag);
+    // untypedOutputTag constructed from a static factory method.
+    TupleTag<Integer> untypedOutputTag = makeTagStatically();
+    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedOutputTag);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
@@ -103,27 +103,27 @@ public class TypedPValueTest {
     thrown.expectMessage(
         containsString("Building a Coder from the fallback CoderProvider failed"));
 
-    tuple.get(untypedSideOutputTag).getCoder();
+    tuple.get(untypedOutputTag).getCoder();
   }
 
   @Test
-  public void testTypedSideOutputTupleTag() {
+  public void testTypedOutputTupleTag() {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
-    // typedSideOutputTag was constructed with compile-time type information.
-    TupleTag<Integer> typedSideOutputTag = new TupleTag<Integer>() {};
-    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, typedSideOutputTag);
+    // typedOutputTag was constructed with compile-time type information.
+    TupleTag<Integer> typedOutputTag = new TupleTag<Integer>() {};
+    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, typedOutputTag);
 
-    assertThat(tuple.get(typedSideOutputTag).getCoder(), instanceOf(VarIntCoder.class));
+    assertThat(tuple.get(typedOutputTag).getCoder(), instanceOf(VarIntCoder.class));
   }
 
   @Test
-  public void testUntypedMainOutputTagTypedSideOutputTupleTag() {
+  public void testUntypedMainOutputTagTypedOutputTupleTag() {
     // mainOutputTag is allowed to be untyped because Coder can be inferred other ways.
     TupleTag<Integer> mainOutputTag = new TupleTag<>();
-    TupleTag<Integer> typedSideOutputTag = new TupleTag<Integer>() {};
-    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, typedSideOutputTag);
+    TupleTag<Integer> typedOutputTag = new TupleTag<Integer>() {};
+    PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, typedOutputTag);
 
-    assertThat(tuple.get(typedSideOutputTag).getCoder(), instanceOf(VarIntCoder.class));
+    assertThat(tuple.get(typedOutputTag).getCoder(), instanceOf(VarIntCoder.class));
   }
 
   // A simple class for which there should be no obvious Coder.
@@ -139,13 +139,13 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testParDoWithNoSideOutputsErrorDoesNotMentionTupleTag() {
+  public void testParDoWithNoOutputsErrorDoesNotMentionTupleTag() {
     PCollection<EmptyClass> input =
         p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
 
     thrown.expect(IllegalStateException.class);
 
-    // Output specific to ParDo TupleTag side outputs should not be present.
+    // Output specific to ParDo additional TupleTag outputs should not be present.
     thrown.expectMessage(not(containsString("erasure")));
     thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
     // Instead, expect output suggesting other possible fixes.
@@ -161,7 +161,7 @@ public class TypedPValueTest {
   public void testFinishSpecifyingShouldFailIfNoCoderInferrable() {
     p.enableAbandonedNodeEnforcement(false);
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
-    ParDo.Bound<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());
+    ParDo.SingleOutput<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());
     PCollection<EmptyClass> unencodable =
         created.apply(uninferrableParDo);
 

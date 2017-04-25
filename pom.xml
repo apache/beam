@@ -34,7 +34,7 @@
   <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.6.0-SNAPSHOT</version>
+  <version>0.7.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -48,7 +48,7 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
     <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
-    <tag>release-0.6.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <issueManagement>
@@ -102,6 +102,7 @@
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <apache.commons.lang.version>3.5</apache.commons.lang.version>
+    <apache.commons.compress.version>1.9</apache.commons.compress.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
@@ -113,22 +114,23 @@
     <datastore.client.version>1.4.0</datastore.client.version>
     <datastore.proto.version>1.3.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
-    <google-auto-value.version>1.3</google-auto-value.version>
-    <google-auth.version>0.6.0</google-auth.version>
+    <google-auto-value.version>1.4.1</google-auto-value.version>
+    <google-auth.version>0.6.1</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>20.0</guava.version>
-    <grpc.version>1.0.1</grpc.version>
+    <grpc.version>1.2.0</grpc.version>
+    <grpc-google-common-protos.version>0.1.9</grpc-google-common-protos.version>
     <hamcrest.version>1.3</hamcrest.version>
-    <jackson.version>2.7.2</jackson.version>
+    <jackson.version>2.8.8</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
-    <netty.version>4.1.3.Final</netty.version>
-    <os-maven-plugin.version>1.4.0.Final</os-maven-plugin.version>
-    <protobuf.version>3.1.0</protobuf.version>
+    <netty.version>4.1.8.Final</netty.version>
+    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
+    <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
     <spark.version>1.6.2</spark.version>
@@ -136,12 +138,12 @@
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
+    <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
-    <spanner.version>0.11.2-beta</spanner.version>
-    <cloud-core.version>0.11.2-alpha</cloud-core.version>
+    <spanner.version>0.16.0-beta</spanner.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -171,7 +173,7 @@
               <artifactId>maven-javadoc-plugin</artifactId>
               <executions>
                 <execution>
-                  <id>javadoc</id>
+                  <id>attach-javadocs</id>
                   <phase>package</phase>
                   <goals>
                     <goal>jar</goal>
@@ -357,6 +359,12 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-sorter</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -364,6 +372,19 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-harness</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-common</artifactId>
+        <classifier>tests</classifier>
         <version>${project.version}</version>
       </dependency>
 
@@ -433,6 +454,12 @@
         <version>${project.version}</version>
       </dependency>
 
+	  <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+	    <version>${project.version}</version>
+      </dependency>
+	
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-construction-java</artifactId>
@@ -489,6 +516,12 @@
 
       <dependency>
         <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>${apache.commons.compress.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${apache.commons.lang.version}</version>
       </dependency>
@@ -521,12 +554,12 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-lite</artifactId>
-        <version>3.0.1</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-lite</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -780,6 +813,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-spanner</artifactId>
+        <version>${spanner.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>util</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
@@ -817,6 +856,12 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
         <version>${protobuf.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>grpc-google-common-protos</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
       </dependency>
 
       <dependency>
@@ -1164,13 +1209,7 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.3</version>
         </plugin>
-	
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.12</version>
-        </plugin>
-	
+
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
@@ -1313,6 +1352,51 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
           <version>3.0.0</version>
+          <executions>
+            <execution>
+              <id>bundle-and-repackage</id>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <includes>
+                    <include>com.google.guava:guava</include>
+                  </includes>
+                </artifactSet>
+                <filters>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>META-INF/*.SF</exclude>
+                      <exclude>META-INF/*.DSA</exclude>
+                      <exclude>META-INF/*.RSA</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+                <relocations>
+                  <relocation>
+                    <pattern>com.google.common</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.com.google.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.thirdparty</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.com.google.thirdparty
+                    </shadedPattern>
+                  </relocation>
+                </relocations>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
@@ -1405,6 +1489,32 @@
             </filesets>
           </configuration>
         </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>3.0.0</version>
+          <executions>
+            <execution>
+              <id>render-artifact-id</id>
+              <goals>
+                <goal>regex-properties</goal>
+              </goals>
+              <phase>prepare-package</phase>
+              <configuration>
+                <regexPropertySettings>
+                  <regexPropertySetting>
+                    <name>renderedArtifactId</name>
+                    <regex>[^A-Za-z0-9]</regex>
+                    <replacement>.</replacement>
+                    <value>${project.artifactId}</value>
+                    <failIfNoMatch>false</failIfNoMatch>
+                  </regexPropertySetting>
+                </regexPropertySettings>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1450,9 +1560,14 @@
                   <version>[1.7,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <!-- Keep aligned with prerequisite section below. -->
+                  <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>com.google.protobuf:protobuf-lite</exclude>
+                  </excludes>
+                </bannedDependencies>
               </rules>
             </configuration>
           </execution>
@@ -1464,6 +1579,14 @@
             <version>1.0-beta-6</version>
           </dependency>
         </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
@@ -1485,6 +1608,7 @@
       </plugin>
     </plugins>
   </reporting>
+
   <prerequisites>
     <!-- Keep aligned with requireMavenVersion section above. -->
     <maven>3.2</maven>

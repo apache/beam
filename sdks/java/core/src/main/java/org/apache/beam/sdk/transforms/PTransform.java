@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -28,6 +30,8 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypedPValue;
 
 /**
@@ -162,7 +166,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * operations that do not save or restore any state.
  *
  * @see <a href=
- * "https://cloud.google.com/dataflow/java-sdk/applying-transforms"
+ * "https://beam.apache.org/documentation/programming-guide/#transforms"
  * >Applying Transformations</a>
  *
  * @param <InputT> the type of the input to this PTransform
@@ -190,6 +194,16 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, does nothing.
    */
   public void validate(InputT input) {}
+
+  /**
+   * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
+   * are independent of the expansion of the {@link InputT} within {@link #expand(PInput)}.
+   *
+   * <p>For example, this can contain any side input consumed by this {@link PTransform}.
+   */
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    return Collections.emptyMap();
+  }
 
   /**
    * Returns the transform name.

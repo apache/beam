@@ -177,7 +177,7 @@ public class NullableCoderTest {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
-  private static class EntireStreamExpectingCoder extends DeterministicStandardCoder<String> {
+  private static class EntireStreamExpectingCoder extends StandardCoder<String> {
     @Override
     public void encode(
         String value, OutputStream outStream, Context context) throws IOException {
@@ -196,5 +196,8 @@ public class NullableCoderTest {
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 }

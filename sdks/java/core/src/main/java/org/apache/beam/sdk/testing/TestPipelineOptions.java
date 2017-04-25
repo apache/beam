@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -35,10 +38,12 @@ public interface TestPipelineOptions extends PipelineOptions {
   void setTempRoot(String value);
 
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
+  @JsonIgnore
   SerializableMatcher<PipelineResult> getOnCreateMatcher();
   void setOnCreateMatcher(SerializableMatcher<PipelineResult> value);
 
   @Default.InstanceFactory(AlwaysPassMatcherFactory.class)
+  @JsonIgnore
   SerializableMatcher<PipelineResult> getOnSuccessMatcher();
   void setOnSuccessMatcher(SerializableMatcher<PipelineResult> value);
 

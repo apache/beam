@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 
@@ -44,6 +48,14 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
+   * Gets the {@link PCollection} this {@link PCollectionView} was created from.
+   *
+   * <p>The {@link PCollection} may not be available in all contexts.
+   */
+  @Nullable
+  PCollection<?> getPCollection();
+
+  /**
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, is part of the side input's specification with a {@link ParDo} transform, which will
    *     obtain that information via a package-private channel.
@@ -58,6 +70,13 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
+
+  /**
+   * Returns the {@link WindowMappingFn} used to map windows from a main input to the side input of
+   * this {@link PCollectionView}.
+   */
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  WindowMappingFn<?> getWindowMappingFn();
 
   /**
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side

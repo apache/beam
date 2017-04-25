@@ -176,8 +176,8 @@ class ParDoTest(unittest.TestCase):
     # [END model_pardo_side_input_dofn]
     self.assertEqual({'a', 'bb', 'ccc'}, set(small_words))
 
-  def test_pardo_with_side_outputs(self):
-    # [START model_pardo_emitting_values_on_side_outputs]
+  def test_pardo_with_tagged_outputs(self):
+    # [START model_pardo_emitting_values_on_tagged_outputs]
     class ProcessWords(beam.DoFn):
 
       def process(self, element, cutoff_length, marker):
@@ -185,48 +185,48 @@ class ParDoTest(unittest.TestCase):
           # Emit this short word to the main output.
           yield element
         else:
-          # Emit this word's long length to a side output.
-          yield pvalue.SideOutputValue(
+          # Emit this word's long length to the 'above_cutoff_lengths' output.
+          yield pvalue.OutputValue(
               'above_cutoff_lengths', len(element))
         if element.startswith(marker):
-          # Emit this word to a different side output.
-          yield pvalue.SideOutputValue('marked strings', element)
-    # [END model_pardo_emitting_values_on_side_outputs]
+          # Emit this word to a different output with the 'marked strings' tag.
+          yield pvalue.OutputValue('marked strings', element)
+    # [END model_pardo_emitting_values_on_tagged_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
 
-    # [START model_pardo_with_side_outputs]
+    # [START model_pardo_with_tagged_outputs]
     results = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
                .with_outputs('above_cutoff_lengths', 'marked strings',
                              main='below_cutoff_strings'))
     below = results.below_cutoff_strings
     above = results.above_cutoff_lengths
     marked = results['marked strings']  # indexing works as well
-    # [END model_pardo_with_side_outputs]
+    # [END model_pardo_with_tagged_outputs]
 
     self.assertEqual({'a', 'an'}, set(below))
     self.assertEqual({3, 5}, set(above))
     self.assertEqual({'xyz'}, set(marked))
 
-    # [START model_pardo_with_side_outputs_iter]
+    # [START model_pardo_with_tagged_outputs_iter]
     below, above, marked = (words
                             | beam.ParDo(
                                 ProcessWords(), cutoff_length=2, marker='x')
                             .with_outputs('above_cutoff_lengths',
                                           'marked strings',
                                           main='below_cutoff_strings'))
-    # [END model_pardo_with_side_outputs_iter]
+    # [END model_pardo_with_tagged_outputs_iter]
 
     self.assertEqual({'a', 'an'}, set(below))
     self.assertEqual({3, 5}, set(above))
     self.assertEqual({'xyz'}, set(marked))
 
-  def test_pardo_with_undeclared_side_outputs(self):
+  def test_pardo_with_undeclared_outputs(self):
     numbers = [1, 2, 3, 4, 5, 10, 20]
 
-    # [START model_pardo_with_side_outputs_undeclared]
+    # [START model_pardo_with_undeclared_outputs]
     def even_odd(x):
-      yield pvalue.SideOutputValue('odd' if x % 2 else 'even', x)
+      yield pvalue.OutputValue('odd' if x % 2 else 'even', x)
       if x % 10 == 0:
         yield x
 
@@ -235,7 +235,7 @@ class ParDoTest(unittest.TestCase):
     evens = results.even
     odds = results.odd
     tens = results[None]  # the undeclared main output
-    # [END model_pardo_with_side_outputs_undeclared]
+    # [END model_pardo_with_undeclared_outputs]
 
     self.assertEqual({2, 4, 10, 20}, set(evens))
     self.assertEqual({1, 3, 5}, set(odds))
@@ -327,6 +327,9 @@ class TypeHintsTest(unittest.TestCase):
     p = TestPipeline()
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
+
+    # For pickling
+    global Player  # pylint: disable=global-variable-not-assigned
 
     # [START type_hints_deterministic_key]
     class Player(object):
@@ -466,8 +469,7 @@ class SnippetsTest(unittest.TestCase):
 
     if sorted_output:
       return sorted(s.rstrip('\n') for s in all_lines)
-    else:
-      return all_lines
+    return all_lines
 
   def test_model_pipelines(self):
     temp_path = self.create_temp_file('aa bb cc\n bb cc\n cc')

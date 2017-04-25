@@ -90,10 +90,6 @@ class CountWords(beam.PTransform):
   A PTransform that converts a PCollection containing lines of text into a
   PCollection of (word, count) tuples.
   """
-
-  def __init__(self):
-    super(CountWords, self).__init__()
-
   def expand(self, pcoll):
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))

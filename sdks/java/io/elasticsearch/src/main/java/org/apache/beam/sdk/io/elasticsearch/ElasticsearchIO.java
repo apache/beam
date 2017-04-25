@@ -20,17 +20,13 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -38,13 +34,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -72,6 +69,7 @@ import org.elasticsearch.client.RestClientBuilder;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
+ * This IO is only compatible with Elasticsearch v2.x
  *
  * <h3>Reading from Elasticsearch</h3>
  *
@@ -117,6 +115,7 @@ import org.elasticsearch.client.RestClientBuilder;
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
  * to specify the size of the write batch in number of documents or in bytes.
  */
+@Experimental
 public class ElasticsearchIO {
 
   public static Read read() {
@@ -140,11 +139,10 @@ public class ElasticsearchIO {
 
   private ElasticsearchIO() {}
 
-  private static JsonObject parseResponse(Response response) throws IOException {
-    InputStream content = response.getEntity().getContent();
-    InputStreamReader inputStreamReader = new InputStreamReader(content, "UTF-8");
-    JsonObject jsonObject = new Gson().fromJson(inputStreamReader, JsonObject.class);
-    return jsonObject;
+  private static final ObjectMapper mapper = new ObjectMapper();
+
+  private static JsonNode parseResponse(Response response) throws IOException {
+    return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
   /** A POJO describing a connection configuration to Elasticsearch. */
@@ -187,8 +185,10 @@ public class ElasticsearchIO {
      * @param index the index toward which the requests will be issued
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
+     * @throws IOException when it fails to connect to Elasticsearch
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type) {
+    public static ConnectionConfiguration create(String[] addresses, String index, String type)
+        throws IOException {
       checkArgument(
           addresses != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null address");
@@ -202,11 +202,29 @@ public class ElasticsearchIO {
       checkArgument(
           type != null,
           "ConnectionConfiguration.create(addresses, index, type) called with null type");
-      return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
-          .setAddresses(Arrays.asList(addresses))
-          .setIndex(index)
-          .setType(type)
-          .build();
+      ConnectionConfiguration connectionConfiguration =
+          new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
+              .setAddresses(Arrays.asList(addresses))
+              .setIndex(index)
+              .setType(type)
+              .build();
+      checkVersion(connectionConfiguration);
+      return connectionConfiguration;
+    }
+
+    private static void checkVersion(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
+      RestClient restClient = connectionConfiguration.createClient();
+      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      JsonNode jsonNode = parseResponse(response);
+      String version = jsonNode.path("version").path("number").asText();
+      boolean version2x = version.startsWith("2.");
+      restClient.close();
+      checkArgument(
+          version2x,
+          "ConnectionConfiguration.create(addresses, index, type): "
+              + "the Elasticsearch version to connect to is different of 2.x. "
+              + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
     }
 
     /**
@@ -410,7 +428,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public List<? extends BoundedSource<String>> splitIntoBundles(
+    public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 
@@ -428,23 +446,24 @@ public class ElasticsearchIO {
       // But, as each shard (replica or primary) is responsible for only one part of the data,
       // there will be no duplicate.
 
-      JsonObject statsJson = getStats(true);
-      JsonObject shardsJson =
+      JsonNode statsJson = getStats(true);
+      JsonNode shardsJson =
           statsJson
-              .getAsJsonObject("indices")
-              .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
-              .getAsJsonObject("shards");
-      Set<Map.Entry<String, JsonElement>> shards = shardsJson.entrySet();
-      for (Map.Entry<String, JsonElement> shardJson : shards) {
+              .path("indices")
+              .path(spec.getConnectionConfiguration().getIndex())
+              .path("shards");
+
+      Iterator<Map.Entry<String, JsonNode>> shards = shardsJson.fields();
+      while (shards.hasNext()) {
+        Map.Entry<String, JsonNode> shardJson = shards.next();
         String shardId = shardJson.getKey();
-        JsonArray value = (JsonArray) shardJson.getValue();
+        JsonNode value = (JsonNode) shardJson.getValue();
         boolean isPrimaryShard =
             value
-                .get(0)
-                .getAsJsonObject()
-                .getAsJsonObject("routing")
-                .getAsJsonPrimitive("primary")
-                .getAsBoolean();
+                .path(0)
+                .path("routing")
+                .path("primary")
+                .asBoolean();
         if (isPrimaryShard) {
           sources.add(new BoundedElasticsearchSource(spec, shardId));
         }
@@ -463,14 +482,14 @@ public class ElasticsearchIO {
       // NB: Elasticsearch 5.x now provides the slice API.
       // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
       // #sliced-scroll)
-      JsonObject statsJson = getStats(false);
-      JsonObject indexStats =
+      JsonNode statsJson = getStats(false);
+      JsonNode indexStats =
           statsJson
-              .getAsJsonObject("indices")
-              .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
-              .getAsJsonObject("primaries");
-      JsonObject store = indexStats.getAsJsonObject("store");
-      return store.getAsJsonPrimitive("size_in_bytes").getAsLong();
+              .path("indices")
+              .path(spec.getConnectionConfiguration().getIndex())
+              .path("primaries");
+      JsonNode store = indexStats.path("store");
+      return store.path("size_in_bytes").asLong();
     }
 
     @Override
@@ -494,7 +513,7 @@ public class ElasticsearchIO {
       return StringUtf8Coder.of();
     }
 
-    private JsonObject getStats(boolean shardLevel) throws IOException {
+    private JsonNode getStats(boolean shardLevel) throws IOException {
       HashMap<String, String> params = new HashMap<>();
       if (shardLevel) {
         params.put("level", "shards");
@@ -544,13 +563,13 @@ public class ElasticsearchIO {
       HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
       response =
           restClient.performRequest("GET", endPoint, params, queryEntity, new BasicHeader("", ""));
-      JsonObject searchResult = parseResponse(response);
+      JsonNode searchResult = parseResponse(response);
       updateScrollId(searchResult);
       return readNextBatchAndReturnFirstDocument(searchResult);
     }
 
-    private void updateScrollId(JsonObject searchResult) {
-      scrollId = searchResult.getAsJsonPrimitive("_scroll_id").getAsString();
+    private void updateScrollId(JsonNode searchResult) {
+      scrollId = searchResult.path("_scroll_id").asText();
     }
 
     @Override
@@ -571,15 +590,15 @@ public class ElasticsearchIO {
                 Collections.<String, String>emptyMap(),
                 scrollEntity,
                 new BasicHeader("", ""));
-        JsonObject searchResult = parseResponse(response);
+        JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
       }
     }
 
-    private boolean readNextBatchAndReturnFirstDocument(JsonObject searchResult) {
+    private boolean readNextBatchAndReturnFirstDocument(JsonNode searchResult) {
       //stop if no more data
-      JsonArray hits = searchResult.getAsJsonObject("hits").getAsJsonArray("hits");
+      JsonNode hits = searchResult.path("hits").path("hits");
       if (hits.size() == 0) {
         current = null;
         batchIterator = null;
@@ -587,8 +606,8 @@ public class ElasticsearchIO {
       }
       // list behind iterator is empty
       List<String> batch = new ArrayList<>();
-      for (JsonElement hit : hits) {
-        String document = hit.getAsJsonObject().getAsJsonObject("_source").toString();
+      for (JsonNode hit : hits) {
+        String document = hit.path("_source").toString();
         batch.add(document);
       }
       batchIterator = batch.listIterator();
@@ -780,26 +799,26 @@ public class ElasticsearchIO {
                 Collections.<String, String>emptyMap(),
                 requestBody,
                 new BasicHeader("", ""));
-        JsonObject searchResult = parseResponse(response);
-        boolean errors = searchResult.getAsJsonPrimitive("errors").getAsBoolean();
+        JsonNode searchResult = parseResponse(response);
+        boolean errors = searchResult.path("errors").asBoolean();
         if (errors) {
           StringBuilder errorMessages =
               new StringBuilder(
                   "Error writing to Elasticsearch, some elements could not be inserted:");
-          JsonArray items = searchResult.getAsJsonArray("items");
+          JsonNode items = searchResult.path("items");
           //some items present in bulk might have errors, concatenate error messages
-          for (JsonElement item : items) {
-            JsonObject creationObject = item.getAsJsonObject().getAsJsonObject("create");
-            JsonObject error = creationObject.getAsJsonObject("error");
+          for (JsonNode item : items) {
+            JsonNode creationObject = item.path("create");
+            JsonNode error = creationObject.get("error");
             if (error != null) {
-              String type = error.getAsJsonPrimitive("type").getAsString();
-              String reason = error.getAsJsonPrimitive("reason").getAsString();
-              String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
+              String type = error.path("type").asText();
+              String reason = error.path("reason").asText();
+              String docId = creationObject.path("_id").asText();
               errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
-              JsonObject causedBy = error.getAsJsonObject("caused_by");
+              JsonNode causedBy = error.get("caused_by");
               if (causedBy != null) {
-                String cbReason = causedBy.getAsJsonPrimitive("reason").getAsString();
-                String cbType = causedBy.getAsJsonPrimitive("type").getAsString();
+                String cbReason = causedBy.path("reason").asText();
+                String cbType = causedBy.path("type").asText();
                 errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
               }
             }

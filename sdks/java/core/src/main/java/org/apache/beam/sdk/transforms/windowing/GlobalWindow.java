@@ -47,6 +47,16 @@ public class GlobalWindow extends BoundedWindow {
     return END_OF_GLOBAL_WINDOW;
   }
 
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof GlobalWindow;
+  }
+
+  @Override
+  public int hashCode() {
+    return GlobalWindow.class.hashCode();
+  }
+
   private GlobalWindow() {}
 
   /**
@@ -61,6 +71,14 @@ public class GlobalWindow extends BoundedWindow {
     @Override
     public GlobalWindow decode(InputStream inStream, Context context) {
       return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    public void verifyDeterministic() {}
+
+    @Override
+    public boolean consistentWithEquals() {
+      return true;
     }
 
     @Override

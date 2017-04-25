@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import java.io.Serializable;
 import java.util.Arrays;
+
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -31,25 +32,28 @@ public class KafkaRecord<K, V> implements Serializable {
   private final int partition;
   private final long offset;
   private final KV<K, V> kv;
+  private final long timestamp;
 
   public KafkaRecord(
       String topic,
       int partition,
       long offset,
+      long timestamp,
       K key,
       V value) {
-    this(topic, partition, offset, KV.of(key, value));
+    this(topic, partition, offset, timestamp, KV.of(key, value));
   }
 
   public KafkaRecord(
       String topic,
       int partition,
       long offset,
+      long timestamp,
       KV<K, V> kv) {
-
     this.topic = topic;
     this.partition = partition;
     this.offset = offset;
+    this.timestamp = timestamp;
     this.kv = kv;
   }
 
@@ -69,9 +73,13 @@ public class KafkaRecord<K, V> implements Serializable {
     return kv;
   }
 
+  public long getTimestamp() {
+    return timestamp;
+  }
+
   @Override
   public int hashCode() {
-    return Arrays.deepHashCode(new Object[]{topic, partition, offset, kv});
+    return Arrays.deepHashCode(new Object[]{topic, partition, offset, timestamp, kv});
   }
 
   @Override
@@ -82,6 +90,7 @@ public class KafkaRecord<K, V> implements Serializable {
       return topic.equals(other.topic)
           && partition == other.partition
           && offset == other.offset
+          && timestamp == other.timestamp
           && kv.equals(other.kv);
     } else {
       return false;

@@ -559,9 +559,9 @@ class RangeTracker(object):
 
 
 class Sink(HasDisplayData):
-  """A resource that can be written to using the ``df.io.Write`` transform.
+  """A resource that can be written to using the ``beam.io.Write`` transform.
 
-  Here ``df`` stands for Dataflow Python code imported in following manner.
+  Here ``beam`` stands for Apache Beam Python code imported in following manner.
   ``import apache_beam as beam``.
 
   A parallel write to an ``iobase.Sink`` consists of three phases:
@@ -571,9 +571,6 @@ class Sink(HasDisplayData):
   2. A parallel write phase where workers write *bundles* of records
   3. A sequential *finalization* phase (e.g., committing the writes, merging
      output files, etc.)
-
-  For exact definition of a Dataflow bundle please see
-  https://cloud.google.com/dataflow/faq.
 
   Implementing a new sink requires extending two classes.
 
@@ -594,8 +591,8 @@ class Sink(HasDisplayData):
   single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
-  See also ``df.io.fileio.FileSink`` which provides a simpler API for writing
-  sinks that produce files.
+  See also ``apache_beam.io.fileio.FileSink`` which provides a simpler API
+  for writing sinks that produce files.
 
   **Execution of the Write transform**
 
@@ -692,7 +689,7 @@ class Sink(HasDisplayData):
 
   For more information on creating new sinks please refer to the official
   documentation at
-  ``https://cloud.google.com/dataflow/model/custom-io#creating-sinks``.
+  ``https://beam.apache.org/documentation/sdks/python-custom-io#creating-sinks``
   """
 
   def initialize_write(self):
@@ -808,8 +805,7 @@ class Read(ptransform.PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    else:
-      return self.source.coder
+    return self.source.coder
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
@@ -907,7 +903,7 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
-    return do_once | 'finalize_write' >> core.FlatMap(
+    return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
@@ -948,8 +944,8 @@ class _WriteKeyedBundleDoFn(core.DoFn):
   def process(self, element, init_result):
     bundle = element
     writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
-    for element in bundle[1]:  # values
-      writer.write(element)
+    for e in bundle[1]:  # values
+      writer.write(e)
     return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 

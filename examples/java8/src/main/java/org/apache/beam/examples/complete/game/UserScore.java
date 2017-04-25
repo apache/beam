@@ -165,9 +165,8 @@ public class UserScore {
 
       return gameInfo
         .apply(MapElements
-            .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore()))
-            .withOutputType(
-                TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())))
+            .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+            .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore())))
         .apply(Sum.<String>integersPerKey());
     }
   }

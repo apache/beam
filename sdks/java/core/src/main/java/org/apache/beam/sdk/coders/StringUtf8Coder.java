@@ -127,7 +127,7 @@ public class StringUtf8Coder extends AtomicCoder<String> {
    * the byte size of the encoding plus the encoded length prefix.
    */
   @Override
-  protected long getEncodedElementByteSize(String value, Context context)
+  public long getEncodedElementByteSize(String value, Context context)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
@@ -135,11 +135,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
     if (context.isWholeStream) {
       return Utf8.encodedLength(value);
     } else {
-      CountingOutputStream countingStream =
-          new CountingOutputStream(ByteStreams.nullOutputStream());
-      DataOutputStream stream = new DataOutputStream(countingStream);
-      writeString(value, stream);
-      return countingStream.getCount();
+      try (CountingOutputStream countingStream =
+          new CountingOutputStream(ByteStreams.nullOutputStream())) {
+        DataOutputStream stream = new DataOutputStream(countingStream);
+        writeString(value, stream);
+        return countingStream.getCount();
+      }
     }
   }
 }

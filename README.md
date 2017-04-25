@@ -61,6 +61,7 @@ Have ideas for new SDKs or DSLs? See the [JIRA](https://issues.apache.org/jira/b
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:
 
 - The `DirectRunner` runs the pipeline on your local machine.
+- The `ApexRunner` runs the pipeline on an Apache Hadoop YARN cluster (or in embedded mode).
 - The `DataflowRunner` submits the pipeline to the [Google Cloud Dataflow](http://cloud.google.com/dataflow/).
 - The `FlinkRunner` runs the pipeline on an Apache Flink cluster. The code has been donated from [dataArtisans/flink-dataflow](https://github.com/dataArtisans/flink-dataflow) and is now part of Beam.
 - The `SparkRunner` runs the pipeline on an Apache Spark cluster. The code has been donated from [cloudera/spark-dataflow](https://github.com/cloudera/spark-dataflow) and is now part of Beam.
@@ -95,6 +96,8 @@ To get involved in Apache Beam:
 * [Subscribe](mailto:user-subscribe@beam.apache.org) or [mail](mailto:user@beam.apache.org) the [user@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-user/) list.
 * [Subscribe](mailto:dev-subscribe@beam.apache.org) or [mail](mailto:dev@beam.apache.org) the [dev@beam.apache.org](http://mail-archives.apache.org/mod_mbox/beam-dev/) list.
 * Report issues on [JIRA](https://issues.apache.org/jira/browse/BEAM).
+
+We also have a [contributor's guide](https://beam.apache.org/contribute/contribution-guide/).
 
 ## More Information
 

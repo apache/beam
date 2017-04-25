@@ -117,7 +117,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         ExecutorService executor) {
       this.evaluationContext = evaluationContext;
       this.outputPCollection =
-          (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
+          (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs().values());
       this.resultBuilder = StepTransformResult.withoutHold(transform);
       this.minimumDynamicSplitSize = minimumDynamicSplitSize;
       this.produceSplitExecutor = executor;
@@ -196,7 +196,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       long estimatedBytes = source.getEstimatedSizeBytes(options);
       long bytesPerBundle = estimatedBytes / targetParallelism;
       List<? extends BoundedSource<T>> bundles =
-          source.splitIntoBundles(bytesPerBundle, options);
+          source.split(bytesPerBundle, options);
       ImmutableList.Builder<CommittedBundle<BoundedSourceShard<T>>> shards =
           ImmutableList.builder();
       for (BoundedSource<T> bundle : bundles) {

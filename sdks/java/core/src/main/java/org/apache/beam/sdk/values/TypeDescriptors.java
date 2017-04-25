@@ -184,10 +184,9 @@ public class TypeDescriptors {
    * <pre>
    * {@code
    * PCollection<String> words = ...;
-   * PCollection<KV<String, String>> words = words.apply(
-   *            FlatMapElements.via(...)
-   *            .withOutputType(
-   *              TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.strings())));
+   * PCollection<KV<String, String>> words = words.apply(FlatMapElements
+   *         .into(TypeDescriptors.kv(TypeDescriptors.strings(), TypeDescriptors.strings()))
+   *         .via(...));
    * }
    * </pre>
    * @param key The {@link TypeDescriptor} for the key
@@ -215,9 +214,9 @@ public class TypeDescriptors {
    * <pre>
    * {@code
    * PCollection<String> words = ...;
-   * PCollection<Set<String>> words = words.apply(
-   *            FlatMapElements.via(...)
-   *            .withOutputType(TypeDescriptors.sets(TypeDescriptors.strings())));
+   * PCollection<Set<String>> words = words.apply(FlatMapElements
+   *         .into(TypeDescriptors.sets(TypeDescriptors.strings()))
+   *         .via(...));
    * }
    * </pre>
    * @param element The {@link TypeDescriptor} for the set
@@ -243,9 +242,9 @@ public class TypeDescriptors {
    * <pre>
    * {@code
    * PCollection<String> words = ...;
-   * PCollection<List<String>> words = words.apply(
-   *            FlatMapElements.via(...)
-   *            .withOutputType(TypeDescriptors.lists(TypeDescriptors.strings())));
+   * PCollection<List<String>> words = words.apply(FlatMapElements
+   *         .into(TypeDescriptors.lists(TypeDescriptors.strings()))
+   *         .via(...));
    * }
    * </pre>
    * @param element The {@link TypeDescriptor} for the list
@@ -271,9 +270,9 @@ public class TypeDescriptors {
    * <pre>
    * {@code
    * PCollection<String> words = ...;
-   * PCollection<Iterable<String>> words = words.apply(
-   *            FlatMapElements.via(...)
-   *            .withOutputType(TypeDescriptors.iterables(TypeDescriptors.strings())));
+   * PCollection<Iterable<String>> words = words.apply(FlatMapElements
+   *         .into(TypeDescriptors.iterables(TypeDescriptors.strings()))
+   *         .via(...));
    * }
    * </pre>
    * @param iterable The {@link TypeDescriptor} for the iterable

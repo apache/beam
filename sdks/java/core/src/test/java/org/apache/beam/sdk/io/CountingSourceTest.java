@@ -32,8 +32,8 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -83,7 +83,7 @@ public class CountingSourceTest {
   public TestPipeline p = TestPipeline.create();
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBoundedSource() {
     long numElements = 1000;
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
@@ -93,7 +93,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testEmptyBoundedSource() {
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(0)));
 
@@ -102,7 +102,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testBoundedSourceSplits() throws Exception {
     long numElements = 1000;
     long numSplits = 10;
@@ -110,7 +110,7 @@ public class CountingSourceTest {
 
     BoundedSource<Long> initial = CountingSource.upTo(numElements);
     List<? extends BoundedSource<Long>> splits =
-        initial.splitIntoBundles(splitSizeBytes, p.getOptions());
+        initial.split(splitSizeBytes, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     // Assemble all the splits into one flattened PCollection, also verify their sizes.
@@ -155,7 +155,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUnboundedSource() {
     long numElements = 1000;
 
@@ -174,7 +174,7 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUnboundedSourceTimestamps() {
     long numElements = 1000;
 
@@ -227,14 +227,14 @@ public class CountingSourceTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(ValidatesRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
     long numElements = 1000;
     int numSplits = 10;
 
     UnboundedSource<Long, ?> initial = CountingSource.unbounded();
     List<? extends UnboundedSource<Long, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -262,7 +262,7 @@ public class CountingSourceTest {
     UnboundedCountingSource initial =
         CountingSource.createUnbounded().withRate(elementsPerPeriod, period);
     List<? extends UnboundedSource<Long, ?>> splits =
-        initial.generateInitialSplits(numSplits, p.getOptions());
+        initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;

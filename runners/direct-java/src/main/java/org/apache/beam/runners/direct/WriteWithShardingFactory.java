@@ -21,50 +21,50 @@ package org.apache.beam.runners.direct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TaggedPValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides {@link Write} {@link PTransform PTransforms}
- * with an unspecified number of shards with a write with a specified number of shards. The number
- * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
+ * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles}
+ * {@link PTransform PTransforms} with an unspecified number of shards with a write with a
+ * specified number of shards. The number of shards is the log base 10 of the number of input
+ * records, with up to 2 additional shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write<InputT>> {
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
-      Write<InputT> transform) {
+  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
+      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
 
-      return transform.withSharding(new LogElementShardsWithDrift<InputT>());
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform),
+        transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
   }
 
   @Override
-  public PCollection<InputT> getInput(List<TaggedPValue> inputs, Pipeline p) {
-    return (PCollection<InputT>) Iterables.getOnlyElement(inputs).getValue();
-  }
-
-  @Override
-  public Map<PValue, ReplacementOutput> mapOutputs(List<TaggedPValue> outputs, PDone newOutput) {
+  public Map<PValue, ReplacementOutput> mapOutputs(
+      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
     return Collections.emptyMap();
   }
 
@@ -74,6 +74,7 @@ class WriteWithShardingFactory<InputT>
     @Override
     public PCollectionView<Integer> expand(PCollection<T> records) {
       return records
+          .apply(Window.<T>into(new GlobalWindows()))
           .apply("CountRecords", Count.<T>globally())
           .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
           .apply(View.<Integer>asSingleton());
@@ -108,7 +109,7 @@ class WriteWithShardingFactory<InputT>
 
     private int calculateShards(long totalRecords) {
       if (totalRecords == 0) {
-        // Write out at least one shard, even if there is no input.
+        // WriteFiles out at least one shard, even if there is no input.
         return 1;
       }
       // Windows get their own number of random extra shards. This is stored in a side input, so

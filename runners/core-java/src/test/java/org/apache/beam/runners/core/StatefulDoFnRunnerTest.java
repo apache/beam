@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -114,7 +113,14 @@ public class StatefulDoFnRunnerTest {
     DoFn<KV<String, Integer>, Integer> fn = new MyDoFn();
 
     DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
-        fn, getDoFnRunner(fn), mockStepContext, aggregatorFactory, WINDOWING_STRATEGY);
+        fn,
+        getDoFnRunner(fn),
+        mockStepContext,
+        aggregatorFactory,
+        WINDOWING_STRATEGY,
+        new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
+        new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+            fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
 
     runner.startBundle();
 
@@ -124,13 +130,6 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
     assertEquals(1L, droppedDueToLateness.sum);
-
-    runner.onTimer("processTimer", window, timestamp, TimeDomain.PROCESSING_TIME);
-    assertEquals(2L, droppedDueToLateness.sum);
-
-    runner.onTimer("synchronizedProcessTimer", window, timestamp,
-        TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
-    assertEquals(3L, droppedDueToLateness.sum);
 
     runner.finishBundle();
   }
@@ -143,7 +142,14 @@ public class StatefulDoFnRunnerTest {
     StateTag<Object, ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
 
     DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
-        fn, getDoFnRunner(fn), mockStepContext, aggregatorFactory, WINDOWING_STRATEGY);
+        fn,
+        getDoFnRunner(fn),
+        mockStepContext,
+        aggregatorFactory,
+        WINDOWING_STRATEGY,
+        new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
+        new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+            fn, stateInternals, (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder()));
 
     Instant elementTime = new Instant(1);
 
@@ -167,8 +173,16 @@ public class StatefulDoFnRunnerTest {
         2, (int) stateInternals.state(windowNamespace(WINDOW_2), stateTag).read());
 
     // advance watermark past end of WINDOW_1 + allowed lateness
+    // the cleanup timer is set to window.maxTimestamp() + allowed lateness + 1
+    // to ensure that state is still available when a user timer for window.maxTimestamp() fires
     advanceInputWatermark(
-        timerInternals, WINDOW_1.maxTimestamp().plus(ALLOWED_LATENESS + 1), runner);
+        timerInternals,
+        WINDOW_1.maxTimestamp()
+            .plus(ALLOWED_LATENESS)
+            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+            .plus(1), // so the watermark is past the GC horizon, not on it
+        runner);
+
     assertTrue(
         stateInternals.isEmptyForTesting(
             stateInternals.state(windowNamespace(WINDOW_1), stateTag)));
@@ -178,7 +192,13 @@ public class StatefulDoFnRunnerTest {
 
     // advance watermark past end of WINDOW_2 + allowed lateness
     advanceInputWatermark(
-        timerInternals, WINDOW_2.maxTimestamp().plus(ALLOWED_LATENESS + 1), runner);
+        timerInternals,
+        WINDOW_2.maxTimestamp()
+            .plus(ALLOWED_LATENESS)
+            .plus(StatefulDoFnRunner.TimeInternalsCleanupTimer.GC_DELAY_MS)
+            .plus(1), // so the watermark is past the GC horizon, not on it
+        runner);
+
     assertTrue(
         stateInternals.isEmptyForTesting(
             stateInternals.state(windowNamespace(WINDOW_2), stateTag)));
@@ -251,5 +271,4 @@ public class StatefulDoFnRunnerTest {
       return Sum.ofLongs();
     }
   }
-
 }

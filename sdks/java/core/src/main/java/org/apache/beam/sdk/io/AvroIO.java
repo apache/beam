@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
+
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -76,8 +77,7 @@ import org.apache.beam.sdk.values.PDone;
  *     p.apply(AvroIO.Read.from("/path/to/file.avro")
  *                 .withSchema(AvroAutoGenClass.class));
  *
- * // A Read from a GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Read from a GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
  *     p.apply(AvroIO.Read
@@ -86,11 +86,21 @@ import org.apache.beam.sdk.values.PDone;
  * } </pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use
- * {@link AvroIO.Write}, specifying {@link AvroIO.Write#to} to specify
+ * {@link AvroIO.Write}, specifying {@link AvroIO.Write#to(String)} to specify
  * the path of the file to write to (e.g., a local filename or sharded
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}).
+ * {@code "gs://<bucket>/<filepath>"}). {@link AvroIO.Write#to(FileBasedSink.FilenamePolicy)}
+ * can also be used to specify a custom file naming policy.
+ *
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner -
+ * {@link AvroIO.Write.Bound#withWindowedWrites()} will cause windowing and triggering to be
+ * preserved. When producing windowed writes, the number of output shards must be set explicitly
+ * using {@link AvroIO.Write.Bound#withNumShards(int)}; some runners may set this for you to a
+ * runner-chosen value, so you may need not set it yourself. A
+ * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
+ * unique filenames.
  *
  * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
  * write specific records, such as Avro-generated classes, provide an
@@ -106,8 +116,7 @@ import org.apache.beam.sdk.values.PDone;
  * records.apply(AvroIO.Write.to("/path/to/file.avro")
  *                           .withSchema(AvroAutoGenClass.class));
  *
- * // A Write to a sharded GCS file (runs locally and via the Google Cloud
- * // Dataflow service):
+ * // A Write to a sharded GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
  * records.apply("WriteToAvro", AvroIO.Write
@@ -122,7 +131,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <h3>Permissions</h3>
  * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
  */
 public class AvroIO {
@@ -138,8 +147,8 @@ public class AvroIO {
      * with the given name or pattern. This can be a local filename
      * or filename pattern (if running locally), or a Google Cloud
      * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or via
-     * the Google Cloud Dataflow service). Standard
+     * {@code "gs://<bucket>/<filepath>"} (if running locally or
+     * using remote execution). Standard
      * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
      * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
@@ -360,7 +369,7 @@ public class AvroIO {
      * with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
      * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or via the Google Cloud Dataflow service).
+     * (if running locally or using remote execution).
      *
      * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link Bound#withNumShards}, and end
@@ -368,6 +377,14 @@ public class AvroIO {
      */
     public static Bound<GenericRecord> to(String prefix) {
       return new Bound<>(GenericRecord.class).to(prefix);
+    }
+
+    /**
+     * Returns a {@link PTransform} that writes to the file(s) specified by the provided
+     * {@link FileBasedSink.FilenamePolicy}.
+     */
+    public static Bound<GenericRecord> to(FileBasedSink.FilenamePolicy filenamePolicy) {
+      return new Bound<>(GenericRecord.class).to(filenamePolicy);
     }
 
     /**
@@ -498,6 +515,9 @@ public class AvroIO {
       final Schema schema;
       /** An option to indicate if output validation is desired. Default is true. */
       final boolean validate;
+      final boolean windowedWrites;
+      FileBasedSink.FilenamePolicy filenamePolicy;
+
       /**
        * The codec used to encode the blocks in the Avro file. String value drawn from those in
        * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -517,7 +537,9 @@ public class AvroIO {
             null,
             true,
             DEFAULT_CODEC,
-            ImmutableMap.<String, Object>of());
+            ImmutableMap.<String, Object>of(),
+            false,
+            null);
       }
 
       Bound(
@@ -530,7 +552,9 @@ public class AvroIO {
           Schema schema,
           boolean validate,
           SerializableAvroCodecFactory codec,
-          Map<String, Object> metadata) {
+          Map<String, Object> metadata,
+          boolean windowedWrites,
+          FileBasedSink.FilenamePolicy filenamePolicy) {
         super(name);
         this.filenamePrefix = filenamePrefix;
         this.filenameSuffix = filenameSuffix;
@@ -540,6 +564,8 @@ public class AvroIO {
         this.schema = schema;
         this.validate = validate;
         this.codec = codec;
+        this.windowedWrites = windowedWrites;
+        this.filenamePolicy = filenamePolicy;
 
         Map<String, String> badKeys = Maps.newLinkedHashMap();
         for (Map.Entry<String, Object> entry : metadata.entrySet()) {
@@ -575,7 +601,25 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
+      }
+
+      public Bound<T> to(FileBasedSink.FilenamePolicy filenamePolicy) {
+        return new Bound<>(
+            name,
+            filenamePrefix,
+            filenameSuffix,
+            numShards,
+            shardTemplate,
+            type,
+            schema,
+            validate,
+            codec,
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -598,7 +642,9 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -627,7 +673,9 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -649,7 +697,9 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -672,7 +722,25 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
+      }
+
+      public Bound<T> withWindowedWrites() {
+        return new Bound<>(
+            name,
+            filenamePrefix,
+            filenameSuffix,
+            numShards,
+            shardTemplate,
+            type,
+            schema,
+            validate,
+            codec,
+            metadata,
+            true,
+            filenamePolicy);
       }
 
       /**
@@ -695,7 +763,9 @@ public class AvroIO {
             ReflectData.get().getSchema(type),
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -716,7 +786,9 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -751,7 +823,9 @@ public class AvroIO {
             schema,
             false,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -771,7 +845,9 @@ public class AvroIO {
             schema,
             validate,
             new SerializableAvroCodecFactory(codec),
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       /**
@@ -791,30 +867,48 @@ public class AvroIO {
             schema,
             validate,
             codec,
-            metadata);
+            metadata,
+            windowedWrites,
+            filenamePolicy);
       }
 
       @Override
       public PDone expand(PCollection<T> input) {
-        if (filenamePrefix == null) {
+        if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
               "need to set the filename prefix of an AvroIO.Write transform");
+        }
+        if (filenamePolicy != null && filenamePrefix != null) {
+          throw new IllegalStateException(
+              "cannot set both a filename policy and a filename prefix");
         }
         if (schema == null) {
           throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
         }
 
-        org.apache.beam.sdk.io.Write<T> write =
-            org.apache.beam.sdk.io.Write.to(
-                new AvroSink<>(
-                    filenamePrefix,
-                    filenameSuffix,
-                    shardTemplate,
-                    AvroCoder.of(type, schema),
-                    codec,
-                    metadata));
+        WriteFiles<T> write = null;
+        if (filenamePolicy != null) {
+          write = WriteFiles.to(
+              new AvroSink<>(
+                  filenamePolicy,
+                  AvroCoder.of(type, schema),
+                  codec,
+                  metadata));
+        } else {
+          write = WriteFiles.to(
+              new AvroSink<>(
+                  filenamePrefix,
+                  filenameSuffix,
+                  shardTemplate,
+                  AvroCoder.of(type, schema),
+                  codec,
+                  metadata));
+        }
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
+        }
+        if (windowedWrites) {
+          write = write.withWindowedWrites();
         }
         return input.apply("Write", write);
       }
@@ -939,6 +1033,18 @@ public class AvroIO {
     private final AvroCoder<T> coder;
     private final SerializableAvroCodecFactory codec;
     private final ImmutableMap<String, Object> metadata;
+
+    @VisibleForTesting
+    AvroSink(
+        FilenamePolicy filenamePolicy,
+        AvroCoder<T> coder,
+        SerializableAvroCodecFactory codec,
+        ImmutableMap<String, Object> metadata) {
+      super(filenamePolicy);
+      this.coder = coder;
+      this.codec = codec;
+      this.metadata = metadata;
+    }
 
     @VisibleForTesting
     AvroSink(

@@ -22,7 +22,7 @@ package org.apache.beam.sdk.util.state;
  *
  * @param <T> The type of elements in the bag.
  */
-public interface BagState<T> extends CombiningState<T, Iterable<T>> {
+public interface BagState<T> extends GroupingState<T, Iterable<T>> {
   @Override
   BagState<T> readLater();
 }

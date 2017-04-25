@@ -34,7 +34,6 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -66,7 +65,7 @@ public class HDFSFileSinkTest {
     Sink.WriteOperation<T, String> writeOperation =
         (Sink.WriteOperation<T, String>) sink.createWriteOperation(options);
     Sink.Writer<T, String> writer = writeOperation.createWriter(options);
-    writer.open(UUID.randomUUID().toString());
+    writer.openUnwindowed(UUID.randomUUID().toString(),  -1, -1);
     for (T t: toWrite) {
       writer.write(t);
     }

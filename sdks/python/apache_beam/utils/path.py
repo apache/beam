@@ -43,5 +43,4 @@ def join(path, *paths):
     # posixpath.join('gs://bucket/path', '/to/file') return '/to/file' instead
     # of the slightly less surprising result 'gs://bucket/path//to/file'.
     return '/'.join((path,) + paths)
-  else:
-    return os.path.join(path, *paths)
+  return os.path.join(path, *paths)

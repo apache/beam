@@ -58,7 +58,7 @@ class AnnotationTests(unittest.TestCase):
         def fnc_test_deprecated_without_since_should_fail():
           return 'lol'
         fnc_test_deprecated_without_since_should_fail()
-      assert len(w) == 0
+      assert not w
 
   def test_experimental_with_current(self):
     with warnings.catch_warnings(record=True) as w:

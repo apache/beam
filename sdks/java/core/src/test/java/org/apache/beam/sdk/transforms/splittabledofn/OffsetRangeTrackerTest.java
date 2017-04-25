@@ -95,7 +95,7 @@ public class OffsetRangeTrackerTest {
 
   @Test
   public void testNonMonotonicClaim() throws Exception {
-    expected.expectMessage("Trying to claim offset 103 while last claimed was 110");
+    expected.expectMessage("Trying to claim offset 103 while last attempted was 110");
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     assertTrue(tracker.tryClaim(105));
     assertTrue(tracker.tryClaim(110));
@@ -107,5 +107,52 @@ public class OffsetRangeTrackerTest {
     expected.expectMessage("Trying to claim offset 90 before start of the range [100, 200)");
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     tracker.tryClaim(90);
+  }
+
+  @Test
+  public void testCheckDoneAfterTryClaimPastEndOfRange() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertTrue(tracker.tryClaim(150));
+    assertTrue(tracker.tryClaim(175));
+    assertFalse(tracker.tryClaim(220));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckDoneAfterTryClaimAtEndOfRange() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertTrue(tracker.tryClaim(150));
+    assertTrue(tracker.tryClaim(175));
+    assertFalse(tracker.tryClaim(200));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckDoneAfterTryClaimRightBeforeEndOfRange() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertTrue(tracker.tryClaim(150));
+    assertTrue(tracker.tryClaim(175));
+    assertTrue(tracker.tryClaim(199));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckDoneWhenNotDone() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertTrue(tracker.tryClaim(150));
+    assertTrue(tracker.tryClaim(175));
+    expected.expectMessage(
+        "Last attempted offset was 175 in range [100, 200), "
+            + "claiming work in [176, 200) was not attempted");
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckDoneWhenExplicitlyMarkedDone() {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertTrue(tracker.tryClaim(150));
+    assertTrue(tracker.tryClaim(175));
+    tracker.markDone();
+    tracker.checkDone();
   }
 }

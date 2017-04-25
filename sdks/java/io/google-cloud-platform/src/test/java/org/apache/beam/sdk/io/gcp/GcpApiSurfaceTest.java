@@ -44,21 +44,23 @@ public class GcpApiSurfaceTest {
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
-            .pruningPattern("java[.]lang.*");
+            .pruningPattern("java[.]lang.*")
+            .pruningPattern("java[.]util.*");
 
     @SuppressWarnings("unchecked")
     final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
+            classesInPackage("com.google.api.client.googleapis"),
+            classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.bigquery.model"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigtable.config"),
+            Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
-            // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
-            classesInPackage("com.google.common.collect"),
             // via Bigtable, PR above out to fix.
             classesInPackage("com.google.datastore.v1"),
             classesInPackage("com.google.protobuf"),

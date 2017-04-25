@@ -38,11 +38,13 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -52,7 +54,9 @@ import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.hamcrest.Matchers;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -80,7 +84,7 @@ public class WriteWithShardingFactoryTest {
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
     String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
-    // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
+    // TextIO is implemented in terms of the WriteFiles PTransform. When sharding is not specified,
     // resharding should be automatically applied
     p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
 
@@ -117,8 +121,16 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    Write<Object> original = Write.to(new TestSink());
-    assertThat(factory.getReplacementTransform(original), not(equalTo((Object) original)));
+    WriteFiles<Object> original = WriteFiles.to(new TestSink());
+    PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
+
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
+        AppliedPTransform.of(
+            "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+
+    assertThat(
+        factory.getReplacementTransform(originalApplication).getTransform(),
+        not(equalTo((Object) original)));
   }
 
   @Test
@@ -170,13 +182,14 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void keyBasedOnCountFnFewElementsExtraShards() throws Exception {
+    long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
+    PCollection<Long> inputCount = p.apply(Create.of(countValue));
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            inputCount, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     CalculateShardsFn fn = new CalculateShardsFn(3);
     DoFnTester<Long, Integer> fnTester = DoFnTester.of(fn);
 
-    long countValue = (long) WriteWithShardingFactory.MIN_SHARDS_FOR_LOG + 3;
     fnTester.setSideInput(elementCountView, GlobalWindow.INSTANCE, countValue);
 
     List<Integer> kvs = fnTester.processBundle(10L);
@@ -194,19 +207,16 @@ public class WriteWithShardingFactoryTest {
     assertThat(shards, containsInAnyOrder(13));
   }
 
-  @Test
-  public void getInputSucceeds() {
-    PCollection<String> original = p.apply(Create.of("foo"));
-    PCollection<?> input = factory.getInput(original.expand(), p);
-    assertThat(input, Matchers.<PCollection<?>>equalTo(original));
-  }
+  private static class TestSink extends FileBasedSink<Object> {
+    public TestSink() {
+      super("", "");
+    }
 
-  private static class TestSink extends Sink<Object> {
     @Override
     public void validate(PipelineOptions options) {}
 
     @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<Object> createWriteOperation(PipelineOptions options) {
       throw new IllegalArgumentException("Should not be used");
     }
   }
