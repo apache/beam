@@ -53,6 +53,7 @@ import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
+import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -223,7 +224,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
       private final AvroCoder<T> myCoder = AvroCoder.this;
       @Override
       public DatumReader<T> initialValue() {
-        return myCoder.createDatumReader();
+        if (myCoder.type.equals(GenericRecord.class)) {
+          return new GenericDatumReader<>(myCoder.schemaSupplier.get());
+        } else {
+          return new ReflectDatumReader<>(myCoder.schemaSupplier.get());
+        }
       }
     };
     this.writer =
@@ -313,22 +318,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a new {@link DatumReader} that can be used to read from an Avro file directly. Assumes
-   * the schema used to read is the same as the schema that was used when writing.
-   */
-  // TODO: once we can remove this deprecated function, inline in constructor.
-  public DatumReader<T> createDatumReader() {
-    if (type.equals(GenericRecord.class)) {
-      return new GenericDatumReader<>(schemaSupplier.get());
-    } else {
-      return new ReflectDatumReader<>(schemaSupplier.get());
-    }
-  }
-
-  /**
    * Returns a new {@link DatumWriter} that can be used to write to an Avro file directly.
+   *
+   * @deprecated used as an internal implementation detail of {@link AvroIO}. For internal use only.
    */
   // TODO: once we can remove this deprecated function, inline in constructor.
+  @Deprecated
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumWriter<>(schemaSupplier.get());
