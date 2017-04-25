@@ -29,7 +29,7 @@ class FlatMapTranslator implements BatchOperatorTranslator<FlatMap> {
     DataSet<?> input = context.getSingleInputStream(operator);
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
     return input
-        .flatMap(new BatchUnaryFunctorWrapper<>(mapper))
+        .flatMap(new BatchUnaryFunctorWrapper(mapper))
         .returns((Class) BatchElement.class)
         .setParallelism(operator.getParallelism())
         .name(operator.getName());

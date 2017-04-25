@@ -16,8 +16,8 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 public final class TimeInterval
-    extends Window
-    implements TimedWindow<TimeInterval>, Comparable<TimeInterval> {
+    extends Window<TimeInterval>
+    implements TimedWindow {
 
   private final long startMillis;
   private final long endMillis;

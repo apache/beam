@@ -40,6 +40,4 @@ class UnionTranslator implements BatchOperatorTranslator<Union> {
     Optional<DataSet> reduce = inputs.stream().reduce((l, r) -> l.union(r));
     return reduce.get();
   }
-
-
 }

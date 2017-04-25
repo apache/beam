@@ -30,7 +30,7 @@ class FlatMapTranslator implements StreamingOperatorTranslator<FlatMap> {
     DataStream<?> input = context.getSingleInputStream(operator);
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
     return input
-        .flatMap(new StreamingUnaryFunctorWrapper<>(mapper))
+        .flatMap(new StreamingUnaryFunctorWrapper(mapper))
         .returns((Class) StreamingElement.class)
         .name(operator.getName())
         .setParallelism(operator.getParallelism());

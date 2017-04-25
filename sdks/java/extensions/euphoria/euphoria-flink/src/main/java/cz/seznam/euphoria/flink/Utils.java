@@ -28,17 +28,20 @@ public class Utils {
       implements KeySelector<K, V>, ResultTypeQueryable {
 
     private final KeySelector<K, V> inner;
-    private final Class clz;
+    private final TypeInformation typeInfo;
 
     QueryableKeySelector(KeySelector<K, V> inner) {
       this(inner, Object.class);
     }
 
     QueryableKeySelector(KeySelector<K, V> inner, Class<? super V> clz) {
-      this.inner = inner;
-      this.clz = clz;
+      this(inner, TypeInformation.of(clz));
     }
 
+    QueryableKeySelector(KeySelector<K, V> inner, TypeInformation typeInfo) {
+      this.inner = inner;
+      this.typeInfo = typeInfo;
+    }
 
     @Override
     public V getKey(K in) throws Exception {
@@ -47,7 +50,7 @@ public class Utils {
 
     @Override
     public TypeInformation getProducedType() {
-      return TypeInformation.of(clz);
+      return typeInfo;
     }
 
   }
@@ -83,4 +86,8 @@ public class Utils {
     return new QueryableKeySelector<>(inner, clz);
   }
 
+  public static <K, V> KeySelector<K, V> wrapQueryable(
+      KeySelector<K, V> inner, TypeInformation<V> typeInfo) {
+    return new QueryableKeySelector<>(inner, typeInfo);
+  }
 }

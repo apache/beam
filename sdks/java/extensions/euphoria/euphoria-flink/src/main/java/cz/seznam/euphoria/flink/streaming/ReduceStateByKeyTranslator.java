@@ -113,7 +113,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               .setParallelism(input.getParallelism());
       reduced = (DataStream) windowed.keyBy(new KeyedMultiWindowedElementKeyExtractor())
               .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
-                      new KeyedMultiWindowedElementWindowOperator<>(
+                      new KeyedMultiWindowedElementWindowOperator(
                               windowing, stateFactory, stateCombiner,
                               context.isLocalMode(), descriptorsCacheMaxSize))
               .setParallelism(operator.getParallelism());

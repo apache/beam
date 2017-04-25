@@ -13,27 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.core.client.dataset.partitioning;
 
-import cz.seznam.euphoria.core.client.operator.Union;
-import org.apache.spark.api.java.JavaRDD;
-
+import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 
-class UnionTranslator implements SparkOperatorTranslator<Union> {
+class RangePartitioner<T extends Comparable<? super T> & Serializable> 
+implements Partitioner<T> {
+  
+  private final List<T> ranges;
+  
+  public RangePartitioner(List<T> ranges) {
+    this.ranges = ranges;
+  }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public JavaRDD<?> translate(Union operator,
-                              SparkExecutorContext context) {
-
-    List<JavaRDD<?>> inputs = context.getInputs(operator);
-    if (inputs.size() != 2) {
-      throw new IllegalStateException("Union operator needs 2 inputs");
+  public int getPartition(T element) {
+    int search = Collections.binarySearch(ranges, element);
+    if (search < 0) {
+      return ((-search) - 1);
     }
-    JavaRDD<?> left = inputs.get(0);
-    JavaRDD<?> right = inputs.get(1);
-
-    return left.union((JavaRDD) right);
+    return search;
   }
 }
