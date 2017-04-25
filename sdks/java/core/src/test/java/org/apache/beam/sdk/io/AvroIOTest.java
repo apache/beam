@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -100,20 +99,6 @@ public class AvroIOTest {
   @BeforeClass
   public static void setupClass() {
     IOChannelUtils.registerIOFactoriesAllowOverride(TestPipeline.testingPipelineOptions());
-  }
-
-  @Test
-  public void testReadWithoutValidationFlag() throws Exception {
-    AvroIO.Read.Bound<GenericRecord> read = AvroIO.Read.from("gs://bucket/foo*/baz");
-    assertTrue(read.needsValidation());
-    assertFalse(read.withoutValidation().needsValidation());
-  }
-
-  @Test
-  public void testWriteWithoutValPuidationFlag() throws Exception {
-    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write.to("gs://bucket/foo/baz");
-    assertTrue(write.needsValidation());
-    assertFalse(write.withoutValidation().needsValidation());
   }
 
   @Test
@@ -546,12 +531,10 @@ public class AvroIOTest {
 
   @Test
   public void testReadDisplayData() {
-    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
-        .withoutValidation();
+    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*");
 
     DisplayData displayData = DisplayData.from(read);
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
-    assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   @Test
@@ -560,8 +543,7 @@ public class AvroIOTest {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
     AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
-        .withSchema(Schema.create(Schema.Type.STRING))
-        .withoutValidation();
+        .withSchema(Schema.create(Schema.Type.STRING));
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("AvroIO.Read should include the file pattern in its primitive transform",
@@ -576,7 +558,6 @@ public class AvroIOTest {
         .withSuffix("bar")
         .withSchema(GenericClass.class)
         .withNumShards(100)
-        .withoutValidation()
         .withCodec(CodecFactory.snappyCodec());
 
     DisplayData displayData = DisplayData.from(write);
@@ -586,7 +567,6 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
-    assertThat(displayData, hasDisplayItem("validation", false));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
   }
 

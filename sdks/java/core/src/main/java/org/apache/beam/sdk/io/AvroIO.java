@@ -18,14 +18,12 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
 
-import java.io.IOException;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -46,7 +44,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -185,18 +182,6 @@ public class AvroIO {
     }
 
     /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * that has GCS path validation on pipeline creation disabled.
-     *
-     * <p>This can be useful in the case where the GCS input location does
-     * not exist at the pipeline creation time, but is expected to be available
-     * at execution time.
-     */
-    public static Bound<GenericRecord> withoutValidation() {
-      return new Bound<>(GenericRecord.class).withoutValidation();
-    }
-
-    /**
      * A {@link PTransform} that reads from an Avro file (or multiple Avro
      * files matching a pattern) and returns a bounded {@link PCollection} containing
      * the decoding of each record.
@@ -213,19 +198,16 @@ public class AvroIO {
       /** The schema of the input file. */
       @Nullable
       final Schema schema;
-      /** An option to indicate if input validation is desired. Default is true. */
-      final boolean validate;
 
       Bound(Class<T> type) {
-        this(null, null, type, null, true);
+        this(null, null, type, null);
       }
 
-      Bound(String name, String filepattern, Class<T> type, Schema schema, boolean validate) {
+      Bound(String name, String filepattern, Class<T> type, Schema schema) {
         super(name);
         this.filepattern = filepattern;
         this.type = type;
         this.schema = schema;
-        this.validate = validate;
       }
 
       /**
@@ -237,7 +219,7 @@ public class AvroIO {
        * <p>Does not modify this object.
        */
       public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, type, schema, validate);
+        return new Bound<>(name, filepattern, type, schema);
       }
 
       /**
@@ -251,7 +233,7 @@ public class AvroIO {
        * the resulting PCollection
        */
       public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type), validate);
+        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type));
       }
 
       /**
@@ -261,7 +243,7 @@ public class AvroIO {
        * <p>Does not modify this object.
        */
       public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(name, filepattern, GenericRecord.class, schema, validate);
+        return new Bound<>(name, filepattern, GenericRecord.class, schema);
       }
 
       /**
@@ -275,20 +257,6 @@ public class AvroIO {
         return withSchema((new Schema.Parser()).parse(schema));
       }
 
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that has GCS input path validation on pipeline creation disabled.
-       *
-       * <p>Does not modify this object.
-       *
-       * <p>This can be useful in the case where the GCS input location does
-       * not exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       */
-      public Bound<T> withoutValidation() {
-        return new Bound<>(name, filepattern, type, schema, false);
-      }
-
       @Override
       public PCollection<T> expand(PBegin input) {
         if (filepattern == null) {
@@ -297,17 +265,6 @@ public class AvroIO {
         }
         if (schema == null) {
           throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
-        }
-        if (validate) {
-          try {
-            checkState(
-                !IOChannelUtils.getFactory(filepattern).match(filepattern).isEmpty(),
-                "Unable to find any files matching %s",
-                filepattern);
-          } catch (IOException e) {
-            throw new IllegalStateException(
-                String.format("Failed to validate %s", filepattern), e);
-          }
         }
 
         @SuppressWarnings("unchecked")
@@ -329,9 +286,7 @@ public class AvroIO {
         super.populateDisplayData(builder);
         builder
           .addIfNotNull(DisplayData.item("filePattern", filepattern)
-            .withLabel("Input File Pattern"))
-          .addIfNotDefault(DisplayData.item("validation", validate)
-            .withLabel("Validation Enabled"), true);
+            .withLabel("Input File Pattern"));
       }
 
       @Override
@@ -345,10 +300,6 @@ public class AvroIO {
 
       public Schema getSchema() {
         return schema;
-      }
-
-      public boolean needsValidation() {
-        return validate;
       }
     }
 
@@ -513,8 +464,6 @@ public class AvroIO {
       /** The schema of the output file. */
       @Nullable
       final Schema schema;
-      /** An option to indicate if output validation is desired. Default is true. */
-      final boolean validate;
       final boolean windowedWrites;
       FileBasedSink.FilenamePolicy filenamePolicy;
 
@@ -535,7 +484,6 @@ public class AvroIO {
             DEFAULT_SHARD_TEMPLATE,
             type,
             null,
-            true,
             DEFAULT_CODEC,
             ImmutableMap.<String, Object>of(),
             false,
@@ -550,7 +498,6 @@ public class AvroIO {
           String shardTemplate,
           Class<T> type,
           Schema schema,
-          boolean validate,
           SerializableAvroCodecFactory codec,
           Map<String, Object> metadata,
           boolean windowedWrites,
@@ -562,7 +509,6 @@ public class AvroIO {
         this.shardTemplate = shardTemplate;
         this.type = type;
         this.schema = schema;
-        this.validate = validate;
         this.codec = codec;
         this.windowedWrites = windowedWrites;
         this.filenamePolicy = filenamePolicy;
@@ -599,7 +545,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -615,7 +560,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -640,7 +584,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -671,7 +614,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -695,7 +637,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -720,7 +661,6 @@ public class AvroIO {
             "",
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -736,7 +676,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             true,
@@ -761,7 +700,6 @@ public class AvroIO {
             shardTemplate,
             type,
             ReflectData.get().getSchema(type),
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -784,7 +722,6 @@ public class AvroIO {
             shardTemplate,
             GenericRecord.class,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -821,7 +758,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            false,
             codec,
             metadata,
             windowedWrites,
@@ -843,7 +779,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             new SerializableAvroCodecFactory(codec),
             metadata,
             windowedWrites,
@@ -865,7 +800,6 @@ public class AvroIO {
             shardTemplate,
             type,
             schema,
-            validate,
             codec,
             metadata,
             windowedWrites,
@@ -930,9 +864,6 @@ public class AvroIO {
             .addIfNotDefault(DisplayData.item("numShards", numShards)
                 .withLabel("Maximum Output Shards"),
                 0)
-            .addIfNotDefault(DisplayData.item("validation", validate)
-                .withLabel("Validation Enabled"),
-                true)
             .addIfNotDefault(DisplayData.item("codec", codec.toString())
                 .withLabel("Avro Compression Codec"),
                 DEFAULT_CODEC.toString());
@@ -990,10 +921,6 @@ public class AvroIO {
 
       public Schema getSchema() {
         return schema;
-      }
-
-      public boolean needsValidation() {
-        return validate;
       }
 
       public CodecFactory getCodec() {
