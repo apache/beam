@@ -442,7 +442,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         OUT, JoinState, W> reduce;
 
     name = getName() + "::ReduceStateByKey";
-    reduce = new ReduceStateByKey<>(
+    reduce = new ReduceStateByKey(
               name,
               flow,
               union.output(),

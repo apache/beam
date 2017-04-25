@@ -30,6 +30,6 @@ class FlatMapTranslator implements SparkOperatorTranslator<FlatMap> {
     final JavaRDD<?> input = context.getSingleInput(operator);
     final UnaryFunctor<?, ?> mapper = operator.getFunctor();
 
-    return input.flatMap(new UnaryFunctorWrapper<>((UnaryFunctor) mapper));
+    return input.flatMap(new UnaryFunctorWrapper((UnaryFunctor) mapper));
   }
 }

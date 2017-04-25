@@ -22,10 +22,10 @@ import java.io.Serializable;
  * thereby grouping input elements into chunks
  * for further processing in small (micro-)batches.
  * <p>
- * Subclasses should implement {@code equals()} and {@code hashCode()} so that logically
+ * Subclasses should implement {@code equals()}, {@code hashCode()} and {@code compareTo()} so that logically
  * same windows are treated the same.
  */
-public abstract class Window implements Serializable {
+public abstract class Window<T extends Window<T>> implements Serializable, Comparable<T> {
 
   @Override
   public abstract int hashCode();
