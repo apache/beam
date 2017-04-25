@@ -35,12 +35,10 @@ public class HadoopResourceId implements ResourceId {
    * Constructs a HadoopResourceId from the provided absolute path. If only a relative path is
    * available, you can create a {@link HadoopResourceId} from the absolute path of the root of the
    * server, and then use resolve to add the relative path to the root.
-   * @param path
-   * @return
    */
   public static HadoopResourceId fromPath(Path path) {
-    checkNotNull(path);
-    checkArgument(path.isAbsolute());
+    checkNotNull(path, "path must not be null");
+    checkArgument(path.isAbsolute(), "path must be absolute");
     return new HadoopResourceId(path);
   }
 
