@@ -288,7 +288,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     final StateSupport.MergeFromStateMerger<IN, IN, Sorted<IN>> stateCombiner = 
         new StateSupport.MergeFromStateMerger<>();
     final SortByComparator<IN, S> comparator = new SortByComparator<>(sortByFn);
-    ReduceStateByKey<IN, IN, IN, Integer, IN, Integer, IN, Sorted<IN>, W> reduce = 
+    ReduceStateByKey<IN, Integer, IN, IN, Sorted<IN>, W> reduce =
         new ReduceStateByKey<>(getName() + "::ReduceStateByKey", flow, input,
                 keyExtractor,
                 e -> e,

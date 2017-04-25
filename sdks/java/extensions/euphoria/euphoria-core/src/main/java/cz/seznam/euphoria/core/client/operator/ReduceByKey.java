@@ -44,10 +44,8 @@ import java.util.Objects;
  * Operator performing state-less aggregation by given reduce function.
  *
  * @param <IN> Type of input records
- * @param <KIN> Type of records entering #keyBy and #valueBy methods
  * @param <KEY> Output type of #keyBy method
  * @param <VALUE> Output type of #valueBy method
- * @param <KEYOUT> Type of output key
  * @param <OUT> Type of output value
  */
 @Recommended(
@@ -59,10 +57,10 @@ import java.util.Objects;
     repartitions = 1
 )
 public class ReduceByKey<
-    IN, KIN, KEY, VALUE, KEYOUT, OUT, W extends Window>
+    IN, KEY, VALUE, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, KIN, KEY, Pair<KEYOUT, OUT>, W,
-        ReduceByKey<IN, KIN, KEY, VALUE, KEYOUT, OUT, W>> {
+        IN, IN, IN, KEY, Pair<KEY, OUT>, W,
+        ReduceByKey<IN, KEY, VALUE, OUT, W>> {
 
   public static class OfBuilder {
     private final String name;
@@ -216,7 +214,7 @@ public class ReduceByKey<
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       Flow flow = input.getFlow();
-      ReduceByKey<IN, IN, KEY, VALUE, KEY, OUT, W>
+      ReduceByKey<IN, KEY, VALUE, OUT, W>
           reduce =
           new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
               windowing, eventTimeAssigner, reducer, getPartitioning());
@@ -234,13 +232,13 @@ public class ReduceByKey<
   }
 
   final ReduceFunction<VALUE, OUT> reducer;
-  final UnaryFunction<KIN, VALUE> valueExtractor;
+  final UnaryFunction<IN, VALUE> valueExtractor;
 
   ReduceByKey(String name,
               Flow flow,
               Dataset<IN> input,
-              UnaryFunction<KIN, KEY> keyExtractor,
-              UnaryFunction<KIN, VALUE> valueExtractor,
+              UnaryFunction<IN, KEY> keyExtractor,
+              UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
               @Nullable ExtractEventTime<IN> eventTimeAssigner,
               ReduceFunction<VALUE, OUT> reducer,
@@ -254,7 +252,7 @@ public class ReduceByKey<
     return reducer;
   }
 
-  public UnaryFunction<KIN, VALUE> getValueExtractor() {
+  public UnaryFunction<IN, VALUE> getValueExtractor() {
     return valueExtractor;
   }
 
