@@ -19,7 +19,7 @@
 
 """State sampler for tracking time spent in execution steps.
 
-The state sampler profiles the time spent in each step of a Dataflow pipeline.
+The state sampler profiles the time spent in each step of a pipeline.
 Operations (defined in executor.py) which are executed as part of a MapTask are
 instrumented with context managers provided by StateSampler.scoped_state().
 These context managers change the internal state of the StateSampler during each

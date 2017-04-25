@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Python Dataflow worker logging."""
+"""Python worker logging."""
 
 import json
 import logging

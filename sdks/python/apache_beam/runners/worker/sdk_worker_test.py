@@ -30,8 +30,8 @@ from concurrent import futures
 from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
-from apache_beam.runners.worker.data_plane import GrpcClientDataChannelFactory
 from apache_beam.runners.worker import portpicker
 
 
@@ -65,7 +65,6 @@ class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
 class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
-
     fns = [beam_fn_api_pb2.FunctionSpec(id=str(ix)) for ix in range(4)]
     test_port = portpicker.pick_unused_port()
 
@@ -96,7 +95,8 @@ class SdkWorkerTest(unittest.TestCase):
     source = RangeSource(0, 100)
     expected_splits = list(source.split(30))
 
-    worker = sdk_harness.SdkWorker(None, GrpcClientDataChannelFactory())
+    worker = sdk_harness.SdkWorker(
+        None, data_plane.GrpcClientDataChannelFactory())
     worker.register(
         beam_fn_api_pb2.RegisterRequest(
             process_bundle_descriptor=[beam_fn_api_pb2.ProcessBundleDescriptor(

@@ -230,7 +230,7 @@ Attributes:
   combine_fn: A serialized CombineFn object to be used after executing the
     GroupAlsoByWindows operation. May be None if not a combining operation.
   phase: Possible values are 'all', 'add', 'merge', and 'extract'.
-    The dataflow optimizer may split the user combiner in 3 separate
+    A runner optimizer may split the user combiner in 3 separate
     phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
     fit. The phase attribute dictates which DoFn is actually running in
     the worker. May be None if not a combining operation.
@@ -253,7 +253,7 @@ WorkerCombineFn = build_worker_instruction(
 Attributes:
   serialized_fn: A serialized CombineFn object to be used.
   phase: Possible values are 'all', 'add', 'merge', and 'extract'.
-    The dataflow optimizer may split the user combiner in 3 separate
+    A runner optimizer may split the user combiner in 3 separate
     phases (ADD, MERGE, and EXTRACT), on separate VMs, as it sees
     fit. The phase attribute dictates which DoFn is actually running in
     the worker.
@@ -304,8 +304,6 @@ def get_coder_from_spec(coder_spec):
 
   # Ignore the wrappers in these encodings.
   # TODO(silviuc): Make sure with all the renamings that names below are ok.
-  ignored_wrappers = (
-      'com.google.cloud.dataflow.sdk.util.TimerOrElement$TimerOrElementCoder')
   if coder_spec['@type'] in ignored_wrappers:
     assert len(coder_spec['component_encodings']) == 1
     coder_spec = coder_spec['component_encodings'][0]

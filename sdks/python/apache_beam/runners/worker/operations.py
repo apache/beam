@@ -109,7 +109,7 @@ class Operation(object):
     """Initializes a worker operation instance.
 
     Args:
-      operation_name: The system name assigned by the Dataflow service for this
+      operation_name: The system name assigned by the runner for this
         operation.
       spec: A operation_specs.Worker* instance.
       counter_factory: The CounterFactory to use for our counters.

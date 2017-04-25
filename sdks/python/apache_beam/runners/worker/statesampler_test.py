@@ -21,10 +21,20 @@ import logging
 import time
 import unittest
 
+from nose.plugins.skip import SkipTest
+
 from apache_beam.utils.counters import CounterFactory
 
 
 class StateSamplerTest(unittest.TestCase):
+
+  def setUp(self):
+    try:
+      global statesampler
+      import statesampler
+    except ImportError:
+      raise SkipTest('State sampler not compiled.')
+    super(StateSamplerTest, self).setUp()
 
   def test_basic_sampler(self):
     # Set up state sampler.
@@ -44,7 +54,7 @@ class StateSamplerTest(unittest.TestCase):
     sampler.stop()
     sampler.commit_counters()
 
-    # Test that sampled state timings are within 5% of expected values.
+    # Test that sampled state timings are close to their expected values.
     expected_counter_values = {
         'basic-statea-msecs': 100,
         'basic-stateb-msecs': 200,
@@ -84,13 +94,6 @@ class StateSamplerTest(unittest.TestCase):
     # take 0.17us when compiled in opt mode or 0.48 us when compiled with in
     # debug mode).
     self.assertLess(overhead_us, 10.0)
-
-
-try:
-  from apache_beam.runners.worker import statesampler
-except ImportError:
-  # No compiler.
-  del StateSamplerTest
 
 
 if __name__ == '__main__':
