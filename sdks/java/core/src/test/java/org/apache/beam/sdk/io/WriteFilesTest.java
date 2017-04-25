@@ -29,7 +29,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -39,12 +38,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -64,7 +64,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -149,7 +148,8 @@ public class WriteFilesTest {
   }
 
   private String getBaseOutputFilename() {
-    return appendToTempFolder("baseoutput");
+    return getBaseOutputDirectory()
+        .resolve("file", StandardResolveOptions.RESOLVE_FILE).toString();
   }
 
   /**
@@ -188,6 +188,15 @@ public class WriteFilesTest {
         Optional.of(1));
   }
 
+  private ResourceId getBaseOutputDirectory() {
+    return LocalResources.fromFile(tmpFolder.getRoot(), true)
+        .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY);
+
+  }
+  private SimpleSink makeSimpleSink() {
+    return new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "simple");
+  }
+
   @Test
   @Category(NeedsRunner.class)
   public void testCustomShardedWrite() throws IOException {
@@ -204,7 +213,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
 
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "");
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
@@ -270,7 +279,7 @@ public class WriteFilesTest {
 
   @Test
   public void testBuildWrite() {
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "");
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
@@ -293,7 +302,7 @@ public class WriteFilesTest {
 
   @Test
   public void testDisplayData() {
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "") {
+    SimpleSink sink = new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
@@ -308,7 +317,7 @@ public class WriteFilesTest {
 
   @Test
   public void testShardedDisplayData() {
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "") {
+    SimpleSink sink = new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
@@ -323,7 +332,7 @@ public class WriteFilesTest {
 
   @Test
   public void testCustomShardStrategyDisplayData() {
-    SimpleSink sink = new SimpleSink(getBaseOutputFilename(), "") {
+    SimpleSink sink = new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "") {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
@@ -354,7 +363,7 @@ public class WriteFilesTest {
    * methods on a test sink in the correct order, as well as verifies that the elements of a
    * PCollection are written to the sink.
    */
-  private static void runWrite(
+  private void runWrite(
       List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName) throws IOException {
     runShardedWrite(inputs, transform, baseName, Optional.<Integer>absent());
@@ -366,7 +375,7 @@ public class WriteFilesTest {
    * verifies that the elements of a PCollection are written to the sink. If numConfiguredShards
    * is not null, also verifies that the output number of shards is correct.
    */
-  private static void runShardedWrite(
+  private void runShardedWrite(
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
@@ -382,7 +391,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
 
-    SimpleSink sink = new SimpleSink(baseName, "");
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
@@ -399,8 +408,10 @@ public class WriteFilesTest {
                                 Optional<Integer> numExpectedShards) throws IOException {
     List<File> outputFiles = Lists.newArrayList();
     final String pattern = baseName + "*";
-    for (String outputFileName : IOChannelUtils.getFactory(pattern).match(pattern)) {
-      outputFiles.add(new File(outputFileName));
+    List<Metadata> metadata =
+        FileSystems.match(Collections.singletonList(pattern)).get(0).metadata();
+    for (Metadata meta : metadata) {
+      outputFiles.add(new File(meta.resourceId().toString()));
     }
     if (numExpectedShards.isPresent()) {
       assertEquals(numExpectedShards.get().intValue(), outputFiles.size());

@@ -27,7 +27,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** A {@link FileBasedSink} for Avro files. */
@@ -37,24 +38,13 @@ class AvroSink<T> extends FileBasedSink<T> {
   private final ImmutableMap<String, Object> metadata;
 
   AvroSink(
+      ValueProvider<ResourceId> outputPrefix,
       FilenamePolicy filenamePolicy,
       AvroCoder<T> coder,
       SerializableAvroCodecFactory codec,
       ImmutableMap<String, Object> metadata) {
-    super(filenamePolicy);
-    this.coder = coder;
-    this.codec = codec;
-    this.metadata = metadata;
-  }
-
-  AvroSink(
-      String baseOutputFilename,
-      String extension,
-      String fileNameTemplate,
-      AvroCoder<T> coder,
-      SerializableAvroCodecFactory codec,
-      ImmutableMap<String, Object> metadata) {
-    super(baseOutputFilename, extension, fileNameTemplate);
+    // Avro handle compression internally using the codec.
+    super(outputPrefix, filenamePolicy, CompressionType.UNCOMPRESSED);
     this.coder = coder;
     this.codec = codec;
     this.metadata = metadata;
@@ -82,7 +72,7 @@ class AvroSink<T> extends FileBasedSink<T> {
     }
 
     @Override
-    public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
+    public FileBasedWriter<T> createWriter() throws Exception {
       return new AvroWriter<>(this, coder, codec, metadata);
     }
   }

@@ -41,7 +41,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -197,7 +197,7 @@ public class IOChannelUtils {
   public static WritableByteChannel create(String prefix, String shardTemplate,
       String suffix, int numShards, String mimeType) throws IOException {
     if (numShards == 1) {
-      return create(FileBasedSink.constructName(prefix, shardTemplate, suffix, 0, 1),
+      return create(DefaultFilenamePolicy.constructName(prefix, shardTemplate, suffix, 0, 1),
                     mimeType);
     }
 
@@ -209,7 +209,7 @@ public class IOChannelUtils {
     Set<String> outputNames = new HashSet<>();
     for (int i = 0; i < numShards; i++) {
       String outputName =
-          FileBasedSink.constructName(prefix, shardTemplate, suffix, i, numShards);
+          DefaultFilenamePolicy.constructName(prefix, shardTemplate, suffix, i, numShards);
       if (!outputNames.add(outputName)) {
         throw new IllegalArgumentException(
             "Shard name collision detected for: " + outputName);

@@ -26,7 +26,6 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
@@ -38,6 +37,7 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -120,7 +120,7 @@ public class NumberedShardedFile implements ShardedFile {
       try {
         // Match inputPath which may contains glob
         Collection<Metadata> files = Iterables.getOnlyElement(
-            FileSystems.match(ImmutableList.of(filePattern))).metadata();
+            FileSystems.match(Collections.singletonList(filePattern))).metadata();
 
         LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePattern);
 

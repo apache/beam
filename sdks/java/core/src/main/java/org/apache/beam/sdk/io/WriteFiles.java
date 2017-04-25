@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -254,7 +255,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // Lazily initialize the Writer
       if (writer == null) {
         LOG.info("Opening writer for write operation {}", writeOperation);
-        writer = writeOperation.createWriter(c.getPipelineOptions());
+        writer = writeOperation.createWriter();
 
         if (windowedWrites) {
           writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), UNKNOWN_SHARDNUM,
@@ -318,7 +319,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // In a sharded write, single input element represents one shard. We can open and close
       // the writer in each call to processElement.
       LOG.info("Opening writer for write operation {}", writeOperation);
-      FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
+      FileBasedWriter<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
         writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
             numShards);
@@ -474,7 +475,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                 ParDo.of(new WriteShardedBundles(null)));
       }
     }
-    results.setCoder(writeOperation.getFileResultCoder());
+    results.setCoder(FileResultCoder.of());
 
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
@@ -484,7 +485,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // whenever new data arrives.
       PCollection<KV<Void, FileResult>> keyedResults =
           results.apply("AttachSingletonKey", WithKeys.<Void, FileResult>of((Void) null));
-      keyedResults.setCoder(KvCoder.of(VoidCoder.of(), writeOperation.getFileResultCoder()));
+      keyedResults.setCoder(KvCoder.of(VoidCoder.of(), FileResultCoder.of()));
 
       // Is the continuation trigger sufficient?
       keyedResults
@@ -494,7 +495,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
             public void processElement(ProcessContext c) throws Exception {
               LOG.info("Finalizing write operation {}.", writeOperation);
               List<FileResult> results = Lists.newArrayList(c.element().getValue());
-              writeOperation.finalize(results, c.getPipelineOptions());
+              writeOperation.finalize(results);
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }));
@@ -540,7 +541,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                     "Creating {} empty output shards in addition to {} written for a total of {}.",
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
-                  FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
+                  FileBasedWriter<T> writer = writeOperation.createWriter();
                   writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
                       UNKNOWN_NUMSHARDS);
                   FileResult emptyWrite = writer.close();
@@ -548,7 +549,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                 }
                 LOG.debug("Done creating extra shards.");
               }
-              writeOperation.finalize(results, c.getPipelineOptions());
+              writeOperation.finalize(results);
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }).withSideInputs(sideInputs.build()));
