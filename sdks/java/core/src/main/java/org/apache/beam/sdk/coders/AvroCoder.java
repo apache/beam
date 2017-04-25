@@ -322,7 +322,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   // TODO: once we can remove this deprecated function, inline in constructor.
   @Deprecated
   @VisibleForTesting
-  DatumReader<T> createDatumReader() {
+  public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
       return new GenericDatumReader<>(schemaSupplier.get());
     } else {
