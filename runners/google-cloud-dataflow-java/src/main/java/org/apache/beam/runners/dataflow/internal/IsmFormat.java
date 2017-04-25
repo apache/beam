@@ -20,10 +20,7 @@ package org.apache.beam.runners.dataflow.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.Structs.addLong;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
@@ -43,11 +40,8 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -170,20 +164,20 @@ public class IsmFormat {
   /**
    * A {@link Coder} for {@link IsmRecord}s.
    *
-   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used
-   * to materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder
-   * is combined with an {@code IsmSink} will one produce an Ism file.
+   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used to
+   * materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder is combined with
+   * an {@code IsmSink} will one produce an Ism file.
    *
    * <p>The {@link IsmRecord} encoded format is:
+   *
    * <ul>
-   *   <li>encoded key component 1 using key component coder 1</li>
-   *   <li>...</li>
-   *   <li>encoded key component N using key component coder N</li>
-   *   <li>encoded value using value coder</li>
+   *   <li>encoded key component 1 using key component coder 1
+   *   <li>...
+   *   <li>encoded key component N using key component coder N
+   *   <li>encoded value using value coder
    * </ul>
    */
-  public static class IsmRecordCoder<V>
-      extends CustomCoder<IsmRecord<V>> {
+  public static class IsmRecordCoder<V> extends CustomCoder<IsmRecord<V>> {
     /** Returns an IsmRecordCoder with the specified key component coders, value coder. */
     public static <V> IsmRecordCoder<V> of(
         int numberOfShardKeyCoders,
@@ -200,24 +194,6 @@ public class IsmFormat {
           numberOfMetadataShardKeyCoders,
           keyComponentCoders,
           valueCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static IsmRecordCoder<?> of(
-        @JsonProperty(PropertyNames.NUM_SHARD_CODERS) int numberOfShardCoders,
-        @JsonProperty(PropertyNames.NUM_METADATA_SHARD_CODERS) int numberOfMetadataShardCoders,
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() >= 2,
-          "Expecting at least 2 components, got " + components.size());
-      return of(
-          numberOfShardCoders,
-          numberOfMetadataShardCoders,
-          components.subList(0, components.size() - 1),
-          components.get(components.size() - 1));
     }
 
     private final int numberOfShardKeyCoders;
@@ -376,14 +352,6 @@ public class IsmFormat {
           .addAll(keyComponentCoders)
           .add(valueCoder)
           .build();
-    }
-
-    @Override
-    protected CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addLong(result, PropertyNames.NUM_SHARD_CODERS, numberOfShardKeyCoders);
-      addLong(result, PropertyNames.NUM_METADATA_SHARD_CODERS, numberOfMetadataShardKeyCoders);
-      return result;
     }
 
     @Override
