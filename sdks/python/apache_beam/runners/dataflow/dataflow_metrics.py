@@ -121,6 +121,9 @@ class DataflowMetrics(MetricResults):
     # Now we create the MetricResult elements.
     result = []
     for metric_key, metric in metrics_by_name.iteritems():
+      if (metric['tentative'].scalar is None or
+          metric['committed'].scalar is None):
+        continue
       attempted = metric['tentative'].scalar.integer_value
       committed = metric['committed'].scalar.integer_value
       result.append(MetricResult(metric_key,
