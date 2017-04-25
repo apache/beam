@@ -32,7 +32,7 @@ from apitools.base.py import exceptions
 
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
@@ -336,10 +336,9 @@ class Job(object):
     # for GCS staging locations where the potential for such clashes is high.
     if self.google_cloud_options.staging_location.startswith('gs://'):
       path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
-      filesystem = get_filesystem(self.google_cloud_options.staging_location)
-      self.google_cloud_options.staging_location = filesystem.join(
+      self.google_cloud_options.staging_location = FileSystems.join(
           self.google_cloud_options.staging_location, path_suffix)
-      self.google_cloud_options.temp_location = filesystem.join(
+      self.google_cloud_options.temp_location = FileSystems.join(
           self.google_cloud_options.temp_location, path_suffix)
 
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)

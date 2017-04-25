@@ -465,7 +465,8 @@ class FileSystem(object):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def create(self, path, mime_type, compression_type):
+  def create(self, path, mime_type='application/octet-stream',
+             compression_type=CompressionTypes.AUTO):
     """Returns a write channel for the given file path.
 
     Args:
@@ -478,7 +479,8 @@ class FileSystem(object):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def open(self, path, mime_type, compression_type):
+  def open(self, path, mime_type='application/octet-stream',
+           compression_type=CompressionTypes.AUTO):
     """Returns a read channel for the given file path.
 
     Args:

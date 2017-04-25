@@ -63,7 +63,7 @@ import tempfile
 
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
@@ -157,7 +157,6 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
       name patterns.
   """
   resources = []
-  staging_filesystem = get_filesystem(staging_location)
   staging_temp_dir = None
   local_packages = []
   for package in extra_packages:
@@ -190,14 +189,13 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
       local_packages.append(package)
 
   if staging_temp_dir:
-    temp_fs = get_filesystem(staging_temp_dir)
     local_packages.extend(
-        [temp_fs.join(staging_temp_dir, f) for f in os.listdir(
+        [FileSystems.join(staging_temp_dir, f) for f in os.listdir(
             staging_temp_dir)])
 
   for package in local_packages:
     basename = os.path.basename(package)
-    staged_path = staging_filesystem.join(staging_location, basename)
+    staged_path = FileSystems.join(staging_location, basename)
     file_copy(package, staged_path)
     resources.append(basename)
   # Create a file containing the list of extra packages and stage it.
@@ -210,7 +208,7 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   with open(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), 'wt') as f:
     for package in local_packages:
       f.write('%s\n' % os.path.basename(package))
-  staged_path = staging_filesystem.join(staging_location, EXTRA_PACKAGES_FILE)
+  staged_path = FileSystems.join(staging_location, EXTRA_PACKAGES_FILE)
   # Note that the caller of this function is responsible for deleting the
   # temporary folder where all temp files are created, including this one.
   file_copy(os.path.join(temp_dir, EXTRA_PACKAGES_FILE), staged_path)
@@ -285,16 +283,14 @@ def stage_job_resources(
     raise RuntimeError(
         'The --temp_location option must be specified.')
 
-  filesystem = get_filesystem(google_cloud_options.staging_location)
-
   # Stage a requirements file if present.
   if setup_options.requirements_file is not None:
     if not os.path.isfile(setup_options.requirements_file):
       raise RuntimeError('The file %s cannot be found. It was specified in the '
                          '--requirements_file command line option.' %
                          setup_options.requirements_file)
-    staged_path = filesystem.join(google_cloud_options.staging_location,
-                                  REQUIREMENTS_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   REQUIREMENTS_FILE)
     file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
     requirements_cache_path = (
@@ -308,8 +304,8 @@ def stage_job_resources(
     populate_requirements_cache(
         setup_options.requirements_file, requirements_cache_path)
     for pkg in  glob.glob(os.path.join(requirements_cache_path, '*')):
-      file_copy(pkg, filesystem.join(google_cloud_options.staging_location,
-                                     os.path.basename(pkg)))
+      file_copy(pkg, FileSystems.join(google_cloud_options.staging_location,
+                                      os.path.basename(pkg)))
       resources.append(os.path.basename(pkg))
 
   # Handle a setup file if present.
@@ -327,8 +323,8 @@ def stage_job_resources(
           'setup.py instead of %s' % setup_options.setup_file)
     tarball_file = _build_setup_package(setup_options.setup_file, temp_dir,
                                         build_setup_args)
-    staged_path = filesystem.join(google_cloud_options.staging_location,
-                                  WORKFLOW_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   WORKFLOW_TARBALL_FILE)
     file_copy(tarball_file, staged_path)
     resources.append(WORKFLOW_TARBALL_FILE)
 
@@ -347,8 +343,8 @@ def stage_job_resources(
     pickled_session_file = os.path.join(temp_dir,
                                         names.PICKLED_MAIN_SESSION_FILE)
     pickler.dump_session(pickled_session_file)
-    staged_path = filesystem.join(google_cloud_options.staging_location,
-                                  names.PICKLED_MAIN_SESSION_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.PICKLED_MAIN_SESSION_FILE)
     file_copy(pickled_session_file, staged_path)
     resources.append(names.PICKLED_MAIN_SESSION_FILE)
 
@@ -362,8 +358,8 @@ def stage_job_resources(
     else:
       stage_tarball_from_remote_location = False
 
-    staged_path = filesystem.join(google_cloud_options.staging_location,
-                                  names.DATAFLOW_SDK_TARBALL_FILE)
+    staged_path = FileSystems.join(google_cloud_options.staging_location,
+                                   names.DATAFLOW_SDK_TARBALL_FILE)
     if stage_tarball_from_remote_location:
       # If --sdk_location is not specified then the appropriate package
       # will be obtained from PyPI (https://pypi.python.org) based on the

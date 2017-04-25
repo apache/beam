@@ -28,7 +28,7 @@ from apache_beam.internal import util
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.value_provider import ValueProvider
 from apache_beam.utils.value_provider import StaticValueProvider
@@ -91,10 +91,6 @@ class FileSink(iobase.Sink):
     self.shard_name_format = self._template_to_format(shard_name_template)
     self.compression_type = compression_type
     self.mime_type = mime_type
-    if file_path_prefix.is_accessible():
-      self._file_system = get_filesystem(file_path_prefix.get())
-    else:
-      self._file_system = None
 
   def display_data(self):
     return {'shards':
@@ -115,10 +111,7 @@ class FileSink(iobase.Sink):
     The returned file handle is passed to ``write_[encoded_]record`` and
     ``close``.
     """
-    if self._file_system is None:
-      self._file_system = get_filesystem(self.file_path_prefix.get())
-    return self._file_system.create(temp_path, self.mime_type,
-                                    self.compression_type)
+    return FileSystems.create(temp_path, self.mime_type, self.compression_type)
 
   def write_record(self, file_handle, value):
     """Writes a single record go the file handle returned by ``open()``.
@@ -149,9 +142,7 @@ class FileSink(iobase.Sink):
     file_name_suffix = self.file_name_suffix.get()
     tmp_dir = file_path_prefix + file_name_suffix + time.strftime(
         '-temp-%Y-%m-%d_%H-%M-%S')
-    if self._file_system is None:
-      self._file_system = get_filesystem(file_path_prefix)
-    self._file_system.mkdirs(tmp_dir)
+    FileSystems.mkdirs(tmp_dir)
     return tmp_dir
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
@@ -177,7 +168,7 @@ class FileSink(iobase.Sink):
 
     source_files = []
     destination_files = []
-    chunk_size = self._file_system.CHUNK_SIZE
+    chunk_size = FileSystems.get_chunk_size(file_path_prefix)
     for shard_num, shard in enumerate(writer_results):
       final_name = ''.join([
           file_path_prefix, self.shard_name_format % dict(
@@ -204,10 +195,8 @@ class FileSink(iobase.Sink):
       """_rename_batch executes batch rename operations."""
       source_files, destination_files = batch
       exceptions = []
-      if self._file_system is None:
-        self._file_system = get_filesystem(file_path_prefix)
       try:
-        self._file_system.rename(source_files, destination_files)
+        FileSystems.rename(source_files, destination_files)
         return exceptions
       except BeamIOError as exp:
         if exp.exception_details is None:
@@ -220,7 +209,7 @@ class FileSink(iobase.Sink):
             if isinstance(exception, IOError):
               # May have already been copied.
               try:
-                if self._file_system.exists(dest):
+                if FileSystems.exists(dest):
                   should_report = False
               except Exception as exists_e:  # pylint: disable=broad-except
                 logging.warning('Exception when checking if file %s exists: '
@@ -250,7 +239,7 @@ class FileSink(iobase.Sink):
                  time.time() - start_time)
 
     try:
-      self._file_system.delete([init_result])
+      FileSystems.delete([init_result])
     except IOError:
       # May have already been removed.
       pass
