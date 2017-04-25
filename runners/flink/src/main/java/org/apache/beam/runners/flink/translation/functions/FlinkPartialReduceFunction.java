@@ -17,28 +17,18 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
-import org.apache.beam.runners.core.PerKeyCombineFnRunner;
-import org.apache.beam.runners.core.PerKeyCombineFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.util.Collector;
-import org.joda.time.Instant;
 
 /**
  * This is is the first step for executing a {@link org.apache.beam.sdk.transforms.Combine.PerKey}
@@ -54,7 +44,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
   protected final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn;
 
-  protected final WindowingStrategy<?, W> windowingStrategy;
+  protected final WindowingStrategy<Object, W> windowingStrategy;
 
   protected final SerializedPipelineOptions serializedOptions;
 
@@ -62,7 +52,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
 
   public FlinkPartialReduceFunction(
       CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn,
-      WindowingStrategy<?, W> windowingStrategy,
+      WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
@@ -83,90 +73,22 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     FlinkSideInputReader sideInputReader =
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
-    PerKeyCombineFnRunner<K, InputT, AccumT, ?> combineFnRunner =
-        PerKeyCombineFnRunners.create(combineFn);
+    AbstractFlinkCombineRunner<K, InputT, AccumT, AccumT, W> reduceRunner;
 
-    @SuppressWarnings("unchecked")
-    OutputTimeFn<? super BoundedWindow> outputTimeFn =
-        (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
-
-    // get all elements so that we can sort them, has to fit into
-    // memory
-    // this seems very unprudent, but correct, for now
-    ArrayList<WindowedValue<KV<K, InputT>>> sortedInput = Lists.newArrayList();
-    for (WindowedValue<KV<K, InputT>> inputValue : elements) {
-      for (WindowedValue<KV<K, InputT>> exploded : inputValue.explodeWindows()) {
-        sortedInput.add(exploded);
-      }
-    }
-    Collections.sort(sortedInput, new Comparator<WindowedValue<KV<K, InputT>>>() {
-      @Override
-      public int compare(
-          WindowedValue<KV<K, InputT>> o1,
-          WindowedValue<KV<K, InputT>> o2) {
-        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp()
-            .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
-      }
-    });
-
-    // iterate over the elements that are sorted by window timestamp
-    //
-    final Iterator<WindowedValue<KV<K, InputT>>> iterator = sortedInput.iterator();
-
-    // create accumulator using the first elements key
-    WindowedValue<KV<K, InputT>> currentValue = iterator.next();
-    K key = currentValue.getValue().getKey();
-    BoundedWindow currentWindow = Iterables.getFirst(currentValue.getWindows(), null);
-    InputT firstValue = currentValue.getValue().getValue();
-    AccumT accumulator = combineFnRunner.createAccumulator(key,
-        options, sideInputReader, currentValue.getWindows());
-    accumulator = combineFnRunner.addInput(key, accumulator, firstValue,
-        options, sideInputReader, currentValue.getWindows());
-
-    // we use this to keep track of the timestamps assigned by the OutputTimeFn
-    Instant windowTimestamp =
-        outputTimeFn.assignOutputTime(currentValue.getTimestamp(), currentWindow);
-
-    while (iterator.hasNext()) {
-      WindowedValue<KV<K, InputT>> nextValue = iterator.next();
-      BoundedWindow nextWindow = Iterables.getOnlyElement(nextValue.getWindows());
-
-      if (nextWindow.equals(currentWindow)) {
-        // continue accumulating
-        InputT value = nextValue.getValue().getValue();
-        accumulator = combineFnRunner.addInput(key, accumulator, value,
-            options, sideInputReader, currentValue.getWindows());
-
-        windowTimestamp = outputTimeFn.combine(
-            windowTimestamp,
-            outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow));
-
-      } else {
-        // emit the value that we currently have
-        out.collect(
-            WindowedValue.of(
-                KV.of(key, accumulator),
-                windowTimestamp,
-                currentWindow,
-                PaneInfo.NO_FIRING));
-
-        currentWindow = nextWindow;
-        currentValue = nextValue;
-        InputT value = nextValue.getValue().getValue();
-        accumulator = combineFnRunner.createAccumulator(key,
-            options, sideInputReader, currentValue.getWindows());
-        accumulator = combineFnRunner.addInput(key, accumulator, value,
-            options, sideInputReader, currentValue.getWindows());
-        windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
-      }
+    if (!windowingStrategy.getWindowFn().isNonMerging()
+        && !windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
+      reduceRunner = new HashingFlinkCombineRunner<>();
+    } else {
+      reduceRunner = new SortingFlinkCombineRunner<>();
     }
 
-    // emit the final accumulator
-    out.collect(
-        WindowedValue.of(
-            KV.of(key, accumulator),
-            windowTimestamp,
-            currentWindow,
-            PaneInfo.NO_FIRING));
+    reduceRunner.combine(
+        new AbstractFlinkCombineRunner.PartialFlinkCombiner<>(combineFn),
+        windowingStrategy,
+        sideInputReader,
+        options,
+        elements,
+        out);
+
   }
 }
