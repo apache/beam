@@ -148,6 +148,10 @@ public class BigtableIOTest {
     bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
   }
 
+  private static ByteKey makeByteKey(ByteString key) {
+    return ByteKey.copyFrom(key.asReadOnlyByteBuffer());
+  }
+
   @Test
   public void testReadBuildsCorrectly() {
     BigtableIO.Read read =
@@ -328,7 +332,7 @@ public class BigtableIOTest {
           @Override
           public boolean apply(@Nullable Row input) {
             verifyNotNull(input, "input");
-            return range.containsKey(ByteKey.of(input.getKey()));
+            return range.containsKey(makeByteKey(input.getKey()));
           }
         }));
   }
@@ -790,7 +794,7 @@ public class BigtableIOTest {
     public ByteKeyRange getTableRange(String tableId) {
       verifyTableExists(tableId);
       SortedMap<ByteString, ByteString> data = tables.get(tableId);
-      return ByteKeyRange.of(ByteKey.of(data.firstKey()), ByteKey.of(data.lastKey()));
+      return ByteKeyRange.of(makeByteKey(data.firstKey()), makeByteKey(data.lastKey()));
     }
 
     public void createTable(String tableId) {
@@ -890,7 +894,7 @@ public class BigtableIOTest {
       while (rows.hasNext()) {
         entry = rows.next();
         if (!filter.apply(entry.getKey())
-            || !source.getRange().containsKey(ByteKey.of(entry.getKey()))) {
+            || !source.getRange().containsKey(makeByteKey(entry.getKey()))) {
           // Does not match row filter or does not match source range. Skip.
           entry = null;
           continue;
@@ -969,7 +973,7 @@ public class BigtableIOTest {
   private static final class ByteStringComparator implements Comparator<ByteString>, Serializable {
     @Override
     public int compare(ByteString o1, ByteString o2) {
-      return ByteKey.of(o1).compareTo(ByteKey.of(o2));
+      return makeByteKey(o1).compareTo(makeByteKey(o2));
     }
   }
 }
