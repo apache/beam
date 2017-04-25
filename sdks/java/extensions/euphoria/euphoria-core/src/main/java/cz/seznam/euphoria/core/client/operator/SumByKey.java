@@ -37,11 +37,9 @@ import java.util.Objects;
     state = StateComplexity.CONSTANT,
     repartitions = 1
 )
-public class SumByKey<
-    IN, KEY, W extends Window>
+public class SumByKey<IN, KEY, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, Long>, W,
-        SumByKey<IN, KEY, W>> {
+        IN, IN, IN, KEY, Pair<KEY, Long>, W, SumByKey<IN, KEY, W>> {
   
   public static class OfBuilder {
     private final String name;
@@ -167,7 +165,7 @@ public class SumByKey<
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    ReduceByKey<IN, IN, KEY, Long, KEY, Long, W> reduceByKey =
+    ReduceByKey<IN, KEY, Long, Long, W> reduceByKey =
         new ReduceByKey<>(getName(), input.getFlow(), input,
         keyExtractor, valueExtractor, windowing, eventTimeAssigner,
                 Sums.ofLongs(), getPartitioning());
