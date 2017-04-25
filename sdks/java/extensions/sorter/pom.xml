@@ -28,32 +28,10 @@
 
   <artifactId>beam-sdks-java-extensions-sorter</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Extensions :: Sorter</name>
-  
-  <properties>
-    <hadoop.version>2.7.1</hadoop.version>
-  </properties>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <systemPropertyVariables>
-            <beamUseDummyRunner>false</beamUseDummyRunner>
-          </systemPropertyVariables>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
+  <properties>
+    <hadoop.version>2.7.3</hadoop.version>
+  </properties>
 
   <dependencies>
     <dependency>
