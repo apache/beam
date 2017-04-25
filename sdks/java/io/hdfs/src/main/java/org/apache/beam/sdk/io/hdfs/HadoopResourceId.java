@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.hdfs;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.net.URI;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
@@ -29,7 +30,7 @@ import org.apache.hadoop.fs.Path;
  */
 public class HadoopResourceId implements ResourceId {
 
-  private final Path path;
+  private final URI uri;
 
   /**
    * Constructs a HadoopResourceId from the provided absolute path. If only a relative path is
@@ -43,7 +44,7 @@ public class HadoopResourceId implements ResourceId {
   }
 
   private HadoopResourceId(Path path) {
-    this.path = path;
+    this.uri = path.toUri();
   }
 
   @Override
@@ -59,7 +60,7 @@ public class HadoopResourceId implements ResourceId {
           "ResolveOptions: [%s] ends with '/', which is not supported for RESOLVE_FILE.",
           other);
     }
-    return new HadoopResourceId(new Path(path, other));
+    return new HadoopResourceId(new Path(new Path(uri), other));
   }
 
   @Override
@@ -71,15 +72,15 @@ public class HadoopResourceId implements ResourceId {
 
   @Override
   public String getScheme() {
-    return path.toUri().getScheme();
+    return uri.getScheme();
   }
 
   public Path getPath() {
-    return path;
+    return new Path(uri);
   }
 
   @Override
   public String toString() {
-    return path.toString();
+    return uri.toString();
   }
 }
