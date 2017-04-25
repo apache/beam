@@ -47,7 +47,7 @@ public class SpannerCSVLoader {
 
     void setTable(String value);
   }
-  /** Constructs and executes the processing pipeline based upon command options. */
+
   public static void main(String[] args) throws Exception {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
@@ -63,7 +63,7 @@ public class SpannerCSVLoader {
     p.run().waitUntilFinish();
   }
 
-  public static void createDatabase(Options options) {
+  private static void createDatabase(Options options) {
     Spanner client = SpannerOptions.getDefaultInstance().getService();
 
     DatabaseAdminClient databaseAdminClient = client.getDatabaseAdminClient();
