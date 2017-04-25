@@ -149,12 +149,11 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
   static class RBKKeySelector
           implements KeySelector<BatchElement<Window, Pair>, Integer> {
 
-    private final Tuple2 tuple = new Tuple2();
-    
     @Override
     public Integer getKey(
             BatchElement<Window, Pair> value) {
 
+      Tuple2 tuple = new Tuple2();
       tuple.f0 = value.getWindow();
       tuple.f1 =  value.getElement().getFirst();
       return tuple.hashCode();
