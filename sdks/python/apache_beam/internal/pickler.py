@@ -94,6 +94,7 @@ def _nested_type_wrapper(fun):
 
   return wrapper
 
+
 # Monkey patch the standard pickler dispatch table entry for type objects.
 # Dill, for certain types, defers to the standard pickler (including type
 # objects). We wrap the standard handler using type_wrapper() because
@@ -109,6 +110,8 @@ dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
 # on some versions of Python.
 def reject_generators(unused_pickler, unused_obj):
   raise TypeError("can't (safely) pickle generator objects")
+
+
 dill.dill.Pickler.dispatch[types.GeneratorType] = reject_generators
 
 

@@ -78,5 +78,6 @@ class TestStreamTest(unittest.TestCase):
                TimestampedValue('a', timestamp.MAX_TIMESTAMP)
            ]))
 
+
 if __name__ == '__main__':
   unittest.main()

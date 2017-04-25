@@ -107,6 +107,8 @@ def symmetric_binary_op(state, unused_arg):
     state.stack.append(type(a)(union(element_type(a), element_type(b))))
   else:
     state.stack.append(Any)
+
+
 # Except for int ** -int
 binary_power = inplace_power = symmetric_binary_op
 binary_multiply = inplace_multiply = symmetric_binary_op
@@ -137,6 +139,7 @@ def binary_subscr(state, unused_arg):
   else:
     out = element_type(tos)
   state.stack.append(out)
+
 
 # As far as types are concerned.
 binary_lshift = inplace_lshift = binary_rshift = inplace_rshift = pop_top
@@ -275,10 +278,10 @@ import_from = push_value(Any)
 def load_global(state, arg):
   state.stack.append(state.get_global(arg))
 
+
 # setup_loop
 # setup_except
 # setup_finally
-
 store_map = pop_two
 
 

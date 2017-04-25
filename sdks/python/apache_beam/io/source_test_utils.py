@@ -479,6 +479,7 @@ def assert_split_at_fraction_binary(
         source, expected_items, num_items_to_read_before_split,
         middle_fraction, middle_result, right_fraction, right_result, stats)
 
+
 MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM = 100
 MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL = 1000
 

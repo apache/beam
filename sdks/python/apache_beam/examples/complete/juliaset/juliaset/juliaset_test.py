@@ -81,6 +81,7 @@ class JuliaSetTest(unittest.TestCase):
     # TODO(silviuc): Reactivate the test when --image_output is supported.
     # self.assertTrue(os.stat(temp_image_file).st_size > 0)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
