@@ -103,8 +103,7 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  # TODO(BEAM-2068): Upgrade google-apitools once the issue is fixed.
-  'google-apitools==0.5.8',
+  'google-apitools==0.5.10',
   'proto-google-cloud-datastore-v1==0.90.0',
   'googledatastore==7.0.1',
   # GCP packages required by tests
