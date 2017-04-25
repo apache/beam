@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import com.google.protobuf.ByteString;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -92,7 +91,6 @@ public class CoderRegistry implements CoderProvider {
     // Register the standard coders first so they are choosen as the default
     Multimap<Class<?>, CoderFactory> codersToRegister = HashMultimap.create();
     codersToRegister.put(Byte.class, CoderFactories.fromStaticMethods(ByteCoder.class));
-    codersToRegister.put(ByteString.class, CoderFactories.fromStaticMethods(ByteStringCoder.class));
     codersToRegister.put(Double.class, CoderFactories.fromStaticMethods(DoubleCoder.class));
     codersToRegister.put(Instant.class, CoderFactories.fromStaticMethods(InstantCoder.class));
     codersToRegister.put(Integer.class, CoderFactories.fromStaticMethods(VarIntCoder.class));
