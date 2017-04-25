@@ -219,7 +219,7 @@ public class ExampleUtils {
   /**
    * Returns a Pubsub client builder using the specified {@link PubsubOptions}.
    */
-  public static Pubsub.Builder newPubsubClient(PubsubOptions options) {
+  private static Pubsub.Builder newPubsubClient(PubsubOptions options) {
     return new Pubsub.Builder(Transport.getTransport(), Transport.getJsonFactory(),
         chainHttpRequestInitializer(
             options.getGcpCredential(),
