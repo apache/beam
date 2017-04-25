@@ -57,6 +57,8 @@ class ReifyWindowsFn(core.DoFn):
   def process(self, element, window=core.DoFn.WindowParam):
     key, values = element
     yield "%s @ %s" % (key, window), values
+
+
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 

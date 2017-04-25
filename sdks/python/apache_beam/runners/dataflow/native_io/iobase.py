@@ -33,6 +33,7 @@ def _dict_printable_fields(dict_object, skip_fields):
           if (value or value == 0)
           and name not in skip_fields]
 
+
 _minor_fields = ['coder', 'key_coder', 'value_coder',
                  'config_bytes', 'elements',
                  'append_trailing_newlines', 'strip_trailing_newlines',

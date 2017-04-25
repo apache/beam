@@ -194,5 +194,6 @@ class TestDataflowMetrics(unittest.TestCase):
                      sorted(expected_counters,
                             key=lambda x: x.key.metric.name))
 
+
 if __name__ == '__main__':
   unittest.main()

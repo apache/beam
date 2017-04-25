@@ -226,6 +226,7 @@ class ConcatSourceTest(unittest.TestCase):
                           ])
     source_test_utils.assert_split_at_fraction_exhaustive(source)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
