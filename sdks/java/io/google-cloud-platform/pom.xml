@@ -139,6 +139,7 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
@@ -185,6 +186,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client-jackson2</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

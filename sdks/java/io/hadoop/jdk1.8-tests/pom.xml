@@ -125,7 +125,6 @@
   </profiles>
 
   <properties>
-    <log4j.core.version>2.6.2</log4j.core.version>
     <hadoop.common.version>2.7.0</hadoop.common.version>
     <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
@@ -140,11 +139,18 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- compile dependencies -->
@@ -164,20 +170,9 @@
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-common</artifactId>
       <scope>test</scope>
       <classifier>tests</classifier>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>2.6.2</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.elasticsearch.plugin</groupId>
@@ -207,6 +202,7 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-hadoop</artifactId>
       <version>${elasticsearch.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.datastax.cassandra</groupId>

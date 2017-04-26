@@ -28,7 +28,6 @@
   <description>IO to read data from data sources which implement Hadoop Input Format.</description>
 
   <properties>
-    <log4j.core.version>2.6.2</log4j.core.version>
     <hadoop.common.version>2.7.0</hadoop.common.version>
     <guava.version>19.0</guava.version>
   </properties>
@@ -76,17 +75,6 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
       <classifier>tests</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
-      <version>${log4j.core.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
