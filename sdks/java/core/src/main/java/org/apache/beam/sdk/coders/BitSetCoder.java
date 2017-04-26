@@ -15,21 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 
 /**
- * Coder for the BitSet used to track child-trigger finished states.
+ * Coder for {@link BitSet}.
  */
 public class BitSetCoder extends CustomCoder<BitSet> {
-
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
@@ -42,6 +38,9 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   @Override
   public void encode(BitSet value, OutputStream outStream, Context context)
       throws CoderException, IOException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null BitSet");
+    }
     BYTE_ARRAY_CODER.encodeAndOwn(value.toByteArray(), outStream, context);
   }
 
@@ -55,5 +54,10 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
         "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
+  }
+
+  @Override
+  public boolean consistentWithEquals() {
+    return true;
   }
 }

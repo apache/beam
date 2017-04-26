@@ -33,6 +33,7 @@ import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -91,6 +92,7 @@ public class CoderRegistry implements CoderProvider {
     // Register the standard coders first so they are chosen as the default
     Multimap<Class<?>, CoderFactory> codersToRegister = HashMultimap.create();
     codersToRegister.put(Byte.class, CoderFactories.fromStaticMethods(ByteCoder.class));
+    codersToRegister.put(BitSet.class, CoderFactories.fromStaticMethods(BitSetCoder.class));
     codersToRegister.put(Double.class, CoderFactories.fromStaticMethods(DoubleCoder.class));
     codersToRegister.put(Instant.class, CoderFactories.fromStaticMethods(InstantCoder.class));
     codersToRegister.put(Integer.class, CoderFactories.fromStaticMethods(VarIntCoder.class));
