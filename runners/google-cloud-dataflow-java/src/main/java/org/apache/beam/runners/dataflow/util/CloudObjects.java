@@ -18,8 +18,11 @@
 
 package org.apache.beam.runners.dataflow.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.CloudObject;
@@ -32,19 +35,38 @@ public class CloudObjects {
   private CloudObjects() {}
 
   static final Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
-      CODER_TRANSLATORS = populateCoderInitializers();
+      CODER_TRANSLATORS = populateCoderTranslators();
+  static final Map<String, CloudObjectTranslator<? extends Coder>>
+      CLOUD_OBJECT_CLASS_NAME_TRANSLATORS = populateCloudObjectTranslators();
 
   private static Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
-      populateCoderInitializers() {
+      populateCoderTranslators() {
     ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
-    // TODO: Implement
+    for (CoderCloudObjectTranslatorRegistrar coderRegistrar :
+        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
+      builder.putAll(coderRegistrar.classesToTranslators());
+    }
     return builder.build();
   }
 
+  private static Map<String, CloudObjectTranslator<? extends Coder>>
+      populateCloudObjectTranslators() {
+    ImmutableMap.Builder<String, CloudObjectTranslator<? extends Coder>> builder =
+        ImmutableMap.builder();
+    for (CoderCloudObjectTranslatorRegistrar coderRegistrar :
+        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
+      builder.putAll(coderRegistrar.classNamesToTranslators());
+    }
+    return builder.build();
+  }
+
+  /**
+   * Convert the provided {@link Coder} into a {@link CloudObject}.
+   */
   public static CloudObject asCloudObject(Coder<?> coder) {
-    CloudObjectTranslator<Coder<?>> translator =
-        (CloudObjectTranslator<Coder<?>>) CODER_TRANSLATORS.get(coder.getClass());
+    CloudObjectTranslator<Coder> translator =
+        (CloudObjectTranslator<Coder>) CODER_TRANSLATORS.get(coder.getClass());
     if (translator != null) {
       return translator.toCloudObject(coder);
     } else if (coder instanceof CustomCoder) {
@@ -67,18 +89,13 @@ public class CloudObjects {
   }
 
   public static Coder<?> coderFromCloudObject(CloudObject cloudObject) {
-    if (cloudObject.getClassName().equals(CustomCoder.class.getName())) {
-      return customCoderFromCloudObject(cloudObject);
-    }
-    throw new IllegalArgumentException(
-        String.format("Unknown Cloud Object Class Name %s", cloudObject.getClassName()));
-  }
-
-  private static Coder<?> customCoderFromCloudObject(CloudObject cloudObject) {
-    String type = Structs.getString(cloudObject, "type");
-    String serializedCoder = Structs.getString(cloudObject, "serialized_coder");
-    return (CustomCoder<?>)
-        SerializableUtils.deserializeFromByteArray(
-            StringUtils.jsonStringToByteArray(serializedCoder), type);
+    CloudObjectTranslator<? extends Coder> translator =
+        CLOUD_OBJECT_CLASS_NAME_TRANSLATORS.get(cloudObject.getClassName());
+    checkArgument(
+        translator != null,
+        "Unknown %s class %s",
+        Coder.class.getSimpleName(),
+        cloudObject.getClassName());
+    return translator.fromCloudObject(cloudObject);
   }
 }
