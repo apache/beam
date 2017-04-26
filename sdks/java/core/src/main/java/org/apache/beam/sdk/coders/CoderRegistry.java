@@ -89,7 +89,7 @@ public class CoderRegistry implements CoderProvider {
   private static final Map<Class<?>, CoderFactory> REGISTERED_CODER_FACTORIES_PER_CLASS;
 
   static {
-    // Register the standard coders first so they are choosen as the default
+    // Register the standard coders first so they are chosen as the default
     Multimap<Class<?>, CoderFactory> codersToRegister = HashMultimap.create();
     codersToRegister.put(Byte.class, CoderFactories.fromStaticMethods(ByteCoder.class));
     codersToRegister.put(ByteString.class, CoderFactories.fromStaticMethods(ByteStringCoder.class));
