@@ -47,6 +47,7 @@ class HourlyTeamScoreTest(unittest.TestCase):
       beam.assert_that(result, beam.equal_to([
           ('team1', 18), ('team2', 2), ('team3', 13)]))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

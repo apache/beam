@@ -96,6 +96,7 @@ def annotate(label, since, current):
     return inner
   return _annotate
 
+
 # Use partial application to customize each annotation.
 # 'current' will be optional in both deprecated and experimental
 # while 'since' will be mandatory for deprecated.

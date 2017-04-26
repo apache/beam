@@ -402,6 +402,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
       actual_data = p | ReadFromTFRecord(path+'-*', validate=True)
       beam.assert_that(actual_data, beam.equal_to(expected_data))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

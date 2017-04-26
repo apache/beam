@@ -726,6 +726,7 @@ class TestSingleFileSource(unittest.TestCase):
       read_data.extend(data_from_split)
     self.assertItemsEqual(expected_data[2:9], read_data)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

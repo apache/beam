@@ -48,5 +48,6 @@ class AutocompleteTest(unittest.TestCase):
         ]))
     p.run()
 
+
 if __name__ == '__main__':
   unittest.main()
