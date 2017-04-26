@@ -97,8 +97,7 @@ public class Latest {
   }
 
   /**
-   * A {@link Combine.CombineFn} that computes the latest element from a set of inputs. This is
-   * particularly useful as an {@link Aggregator}.
+   * A {@link Combine.CombineFn} that computes the latest element from a set of inputs.
    *
    * @param <T> Type of input element.
    * @see Latest

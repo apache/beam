@@ -43,7 +43,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -284,9 +283,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             context);
     executor.start(graph.getRootTransforms());
 
-    Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
-        pipeline.getAggregatorSteps();
-    DirectPipelineResult result = new DirectPipelineResult(executor, context, aggregatorSteps);
+    DirectPipelineResult result = new DirectPipelineResult(executor, context);
     if (options.isBlockOnRun()) {
       try {
         result.waitUntilFinish();
@@ -353,16 +350,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
     private final EvaluationContext evaluationContext;
-    private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps;
     private State state;
 
     private DirectPipelineResult(
         PipelineExecutor executor,
-        EvaluationContext evaluationContext,
-        Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps) {
+        EvaluationContext evaluationContext) {
       this.executor = executor;
       this.evaluationContext = evaluationContext;
-      this.aggregatorSteps = aggregatorSteps;
       // Only ever constructed after the executor has started.
       this.state = State.RUNNING;
     }

@@ -192,7 +192,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
           }
         },
         NullSideInputReader.empty(),
-        null,
         SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder),
         serializedOptions.get());
   }
