@@ -107,6 +107,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       LocalResourceId src = srcResourceIds.get(i);
       LocalResourceId dst = destResourceIds.get(i);
       LOG.debug("Copying {} to {}", src, dst);
+      File parent = dst.getCurrentDirectory().getPath().toFile();
+      if (!parent.exists()) {
+        checkArgument(
+            parent.mkdirs() || parent.exists(),
+            "Unable to make output directory %s in order to copy into file %s",
+            parent,
+            dst.getPath());
+      }
       // Copy the source file, replacing the existing destination.
       // Paths.get(x) will not work on Windows OSes cause of the ":" after the drive letter.
       Files.copy(
@@ -131,6 +139,14 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       LocalResourceId src = srcResourceIds.get(i);
       LocalResourceId dst = destResourceIds.get(i);
       LOG.debug("Renaming {} to {}", src, dst);
+      File parent = dst.getCurrentDirectory().getPath().toFile();
+      if (!parent.exists()) {
+        checkArgument(
+            parent.mkdirs() || parent.exists(),
+            "Unable to make output directory %s in order to move into file %s",
+            parent,
+            dst.getPath());
+      }
       // Rename the source file, replacing the existing destination.
       Files.move(
           src.getPath(),
@@ -143,7 +159,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {
-      LOG.debug("deleting file {}", resourceId);
+      LOG.debug("Deleting file {}", resourceId);
       Files.delete(resourceId.getPath());
     }
   }
