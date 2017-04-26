@@ -321,7 +321,7 @@ public class AvroIOTest {
   public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class })
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWrite() throws Throwable {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     final String outputFilePrefix = baseOutputFile.getAbsolutePath();
@@ -393,7 +393,9 @@ public class AvroIOTest {
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getAbsolutePath(), outputFile.exists());
       try (DataFileReader<GenericClass> reader =
-               new DataFileReader<>(outputFile, new GenericDatumReader<GenericClass>())) {
+               new DataFileReader<>(outputFile,
+                   new ReflectDatumReader<GenericClass>(
+                       ReflectData.get().getSchema(GenericClass.class)))) {
         Iterators.addAll(actualElements, reader);
       }
       outputFile.delete();
