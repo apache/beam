@@ -104,7 +104,7 @@ class V1TestUtil {
     }
 
     entityBuilder.setKey(keyBuilder.build());
-    entityBuilder.getMutableProperties().put("value", makeValue(value).build());
+    entityBuilder.putProperties("value", makeValue(value).build());
     return entityBuilder.build();
   }
 
