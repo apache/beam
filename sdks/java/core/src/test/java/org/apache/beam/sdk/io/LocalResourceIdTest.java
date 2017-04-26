@@ -226,12 +226,14 @@ public class LocalResourceIdTest {
   @Test
   public void testToString() throws Exception {
     File someFile = tmpFolder.newFile("somefile");
-    LocalResourceId fileResource = LocalResourceId.fromPath(someFile.toPath(), false);
+    LocalResourceId fileResource =
+        LocalResourceId.fromPath(someFile.toPath(), /* isDirectory */ false);
     assertThat(fileResource.toString(), not(endsWith(File.separator)));
     assertThat(fileResource.toString(), containsString("somefile"));
     assertThat(fileResource.toString(), startsWith(tmpFolder.getRoot().getAbsolutePath()));
 
-    LocalResourceId dirResource = LocalResourceId.fromPath(someFile.toPath(), true);
+    LocalResourceId dirResource =
+        LocalResourceId.fromPath(someFile.toPath(), /* isDirectory */ true);
     assertThat(dirResource.toString(), endsWith(File.separator));
     assertThat(dirResource.toString(), containsString("somefile"));
     assertThat(dirResource.toString(), startsWith(tmpFolder.getRoot().getAbsolutePath()));
