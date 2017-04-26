@@ -18,14 +18,13 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
  * A factory that creates {@link UncommittedBundle UncommittedBundles}.
  */
-public interface BundleFactory {
+interface BundleFactory {
   /**
    * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle do not
    * belong to a {@link PCollection}.

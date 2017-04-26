@@ -60,7 +60,7 @@ import org.joda.time.Instant;
  * of {@link InMemoryState}. Whenever state that exists in the underlying {@link StateTable} is
  * accessed, an independent copy will be created within this table.
  */
-public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
+class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   private final CopyOnAccessInMemoryStateTable table;
 
   private K key;
