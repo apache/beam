@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -166,10 +166,10 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateTag<? super K, WatermarkHoldState<W>> address,
-        OutputTimeFn<? super W> outputTimeFn) {
-      return new SparkWatermarkHoldState<>(namespace, address, outputTimeFn);
+    public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
+        StateTag<? super K, WatermarkHoldState> address,
+        TimestampCombiner timestampCombiner) {
+      return new SparkWatermarkHoldState(namespace, address, timestampCombiner);
     }
   }
 
@@ -250,21 +250,21 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
   }
 
-  private class SparkWatermarkHoldState<W extends BoundedWindow>
-      extends AbstractState<Instant> implements WatermarkHoldState<W> {
+  private class SparkWatermarkHoldState extends AbstractState<Instant>
+      implements WatermarkHoldState {
 
-    private final OutputTimeFn<? super W> outputTimeFn;
+    private final TimestampCombiner timestampCombiner;
 
     public SparkWatermarkHoldState(
         StateNamespace namespace,
-        StateTag<?, WatermarkHoldState<W>> address,
-        OutputTimeFn<? super W> outputTimeFn) {
+        StateTag<?, WatermarkHoldState> address,
+        TimestampCombiner timestampCombiner) {
       super(namespace, address, InstantCoder.of());
-      this.outputTimeFn = outputTimeFn;
+      this.timestampCombiner = timestampCombiner;
     }
 
     @Override
-    public SparkWatermarkHoldState<W> readLater() {
+    public SparkWatermarkHoldState readLater() {
       return this;
     }
 
@@ -276,7 +276,10 @@ class SparkStateInternals<K> implements StateInternals<K> {
     @Override
     public void add(Instant outputTime) {
       Instant combined = read();
-      combined = (combined == null) ? outputTime : outputTimeFn.combine(combined, outputTime);
+      combined =
+          (combined == null)
+              ? outputTime
+              : getTimestampCombiner().combine(combined, outputTime);
       writeValue(combined);
     }
 
@@ -295,8 +298,8 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public OutputTimeFn<? super W> getOutputTimeFn() {
-      return outputTimeFn;
+    public TimestampCombiner getTimestampCombiner() {
+      return timestampCombiner;
     }
   }
 

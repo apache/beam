@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -35,8 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -252,20 +254,19 @@ public class WindowFnTestUtils {
 
   /**
    * Verifies that later-ending merged windows from any of the timestamps hold up output of
-   * earlier-ending windows, using the provided {@link WindowFn} and {@link OutputTimeFn}.
+   * earlier-ending windows, using the provided {@link WindowFn} and {@link TimestampCombiner}.
    *
    * <p>Given a list of lists of timestamps, where each list is expected to merge into a single
    * window with end times in ascending order, assigns and merges windows for each list (as though
-   * each were a separate key/user session). Then maps each timestamp in the list according to
-   * {@link OutputTimeFn#assignOutputTime outputTimeFn.assignOutputTime()} and
-   * {@link OutputTimeFn#combine outputTimeFn.combine()}.
+   * each were a separate key/user session). Then combines each timestamp in the list according to
+   * the provided {@link TimestampCombiner}.
    *
    * <p>Verifies that a overlapping windows do not hold each other up via the watermark.
    */
   public static <T, W extends IntervalWindow>
   void validateGetOutputTimestamps(
       WindowFn<T, W> windowFn,
-      OutputTimeFn<? super W> outputTimeFn,
+      TimestampCombiner timestampCombiner,
       List<List<Long>> timestampsPerWindow) throws Exception {
 
     // Assign windows to each timestamp, then merge them, storing the merged windows in
@@ -300,10 +301,11 @@ public class WindowFnTestUtils {
 
       List<Instant> outputInstants = new ArrayList<>();
       for (long inputTimestamp : timestampsForWindow) {
-        outputInstants.add(outputTimeFn.assignOutputTime(new Instant(inputTimestamp), window));
+        outputInstants.add(
+            assignOutputTime(timestampCombiner, new Instant(inputTimestamp), window));
       }
 
-      combinedOutputTimestamps.add(OutputTimeFns.combineOutputTimes(outputTimeFn, outputInstants));
+      combinedOutputTimestamps.add(combineOutputTimes(timestampCombiner, outputInstants));
     }
 
     // Consider windows in increasing order of max timestamp; ensure the output timestamp is after
@@ -319,6 +321,39 @@ public class WindowFnTestUtils {
       }
 
       earlierEndingWindow = window;
+    }
+  }
+
+  private static Instant assignOutputTime(
+      TimestampCombiner timestampCombiner, Instant inputTimestamp, BoundedWindow window) {
+    switch (timestampCombiner) {
+      case EARLIEST:
+      case LATEST:
+        return inputTimestamp;
+      case END_OF_WINDOW:
+        return window.maxTimestamp();
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unknown %s: %s", TimestampCombiner.class, timestampCombiner));
+    }
+  }
+
+  private static Instant combineOutputTimes(
+      TimestampCombiner timestampCombiner, Iterable<Instant> outputInstants) {
+    checkArgument(
+        !Iterables.isEmpty(outputInstants),
+        "Cannot combine zero instants with %s",
+        timestampCombiner);
+    switch(timestampCombiner) {
+      case EARLIEST:
+        return Ordering.natural().min(outputInstants);
+      case LATEST:
+        return Ordering.natural().max(outputInstants);
+      case END_OF_WINDOW:
+        return outputInstants.iterator().next();
+      default:
+        throw new IllegalArgumentException(
+            String.format("Unknown %s: %s", TimestampCombiner.class, timestampCombiner));
     }
   }
 }

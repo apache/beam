@@ -41,7 +41,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -241,7 +241,7 @@ public class CoGroupByKeyTest implements Serializable {
             Arrays.asList(0L, 2L, 4L, 6L, 8L))
         .apply("WindowClicks", Window.<KV<Integer, String>>into(
             FixedWindows.of(new Duration(4)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()));
+            .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, String>> purchasesTable =
         createInput("CreatePurchases",
@@ -250,7 +250,7 @@ public class CoGroupByKeyTest implements Serializable {
             Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L))
         .apply("WindowPurchases", Window.<KV<Integer, String>>into(
             FixedWindows.of(new Duration(4)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()));
+            .withTimestampCombiner(TimestampCombiner.EARLIEST));
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(clicksTag, clicksTable)

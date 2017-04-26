@@ -29,8 +29,9 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -72,9 +73,8 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     // sort exploded inputs.
     Iterable<WindowedValue<KV<K, InputT>>> sortedInputs = sortByWindows(wkvi.explodeWindows());
 
-    @SuppressWarnings("unchecked")
-    OutputTimeFn<? super BoundedWindow> outputTimeFn =
-        (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
+    TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
+    WindowFn<?, BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
     //--- inputs iterator, by window order.
     final Iterator<WindowedValue<KV<K, InputT>>> iterator = sortedInputs.iterator();
@@ -87,9 +87,13 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     accumulator = combineFn.addInput(key, accumulator, currentInput.getValue().getValue(),
         ctxtForInput(currentInput));
 
-    // keep track of the timestamps assigned by the OutputTimeFn.
+    // keep track of the timestamps assigned by the TimestampCombiner.
     Instant windowTimestamp =
-        outputTimeFn.assignOutputTime(currentInput.getTimestamp(), currentWindow);
+        timestampCombiner.assign(
+            currentWindow,
+            windowingStrategy
+                .getWindowFn()
+                .getOutputTime(currentInput.getTimestamp(), currentWindow));
 
     // accumulate the next windows, or output.
     List<WindowedValue<KV<K, AccumT>>> output = Lists.newArrayList();
@@ -112,8 +116,12 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
         // keep accumulating and carry on ;-)
         accumulator = combineFn.addInput(key, accumulator, nextValue.getValue().getValue(),
             ctxtForInput(nextValue));
-        windowTimestamp = outputTimeFn.combine(windowTimestamp,
-            outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow));
+        windowTimestamp =
+            timestampCombiner.combine(
+                windowTimestamp,
+                timestampCombiner.assign(
+                    currentWindow,
+                    windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow)));
       } else {
         // moving to the next window, first add the current accumulation to output
         // and initialize the accumulator.
@@ -124,7 +132,9 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
         accumulator = combineFn.addInput(key, accumulator, nextValue.getValue().getValue(),
             ctxtForInput(nextValue));
         currentWindow = nextWindow;
-        windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);
+        windowTimestamp =
+            timestampCombiner.assign(
+                currentWindow, windowFn.getOutputTime(nextValue.getTimestamp(), currentWindow));
       }
     }
 
@@ -170,8 +180,7 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     Iterable<WindowedValue<KV<K, AccumT>>> sortedAccumulators = sortByWindows(accumulators);
 
     @SuppressWarnings("unchecked")
-    OutputTimeFn<? super BoundedWindow> outputTimeFn =
-        (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
+    TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
 
     //--- accumulators iterator, by window order.
     final Iterator<WindowedValue<KV<K, AccumT>>> iterator = sortedAccumulators.iterator();
@@ -183,7 +192,7 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     List<AccumT> currentWindowAccumulators = Lists.newArrayList();
     currentWindowAccumulators.add(currentValue.getValue().getValue());
 
-    // keep track of the timestamps assigned by the OutputTimeFn,
+    // keep track of the timestamps assigned by the TimestampCombiner,
     // in createCombiner we already merge the timestamps assigned
     // to individual elements, here we will just merge them.
     List<Instant> windowTimestamps = Lists.newArrayList();
@@ -215,7 +224,7 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
         // add the current accumulation to the output and initialize the accumulation.
 
         // merge the timestamps of all accumulators to merge.
-        Instant mergedTimestamp = outputTimeFn.merge(currentWindow, windowTimestamps);
+        Instant mergedTimestamp = timestampCombiner.merge(currentWindow, windowTimestamps);
 
         // merge accumulators.
         // transforming a KV<K, Iterable<AccumT>> into a KV<K, Iterable<AccumT>>.
@@ -241,7 +250,7 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
     }
 
     // merge the last chunk of accumulators.
-    Instant mergedTimestamp = outputTimeFn.merge(currentWindow, windowTimestamps);
+    Instant mergedTimestamp = timestampCombiner.merge(currentWindow, windowTimestamps);
     Iterable<AccumT> accumsToMerge = Iterables.unmodifiableIterable(currentWindowAccumulators);
     WindowedValue<KV<K, Iterable<AccumT>>> preMergeWindowedValue = WindowedValue.of(
         KV.of(key, accumsToMerge), mergedTimestamp, currentWindow, PaneInfo.NO_FIRING);
