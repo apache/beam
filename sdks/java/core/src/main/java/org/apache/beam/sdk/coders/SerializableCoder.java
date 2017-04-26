@@ -152,6 +152,6 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   // This coder inherits isRegisterByteSizeObserverCheap,
   // getEncodedElementByteSize and registerByteSizeObserver
-  // from StandardCoder. Looks like we cannot do much better
+  // from StructuredCoder. Looks like we cannot do much better
   // in this case.
 }

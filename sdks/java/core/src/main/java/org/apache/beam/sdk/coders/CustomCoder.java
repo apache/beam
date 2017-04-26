@@ -40,7 +40,7 @@ import org.apache.beam.sdk.util.StringUtils;
  *
  * @param <T> the type of elements handled by this coder
  */
-public abstract class CustomCoder<T> extends StandardCoder<T>
+public abstract class CustomCoder<T> extends StructuredCoder<T>
     implements Serializable {
 
   @JsonCreator
@@ -116,5 +116,5 @@ public abstract class CustomCoder<T> extends StandardCoder<T>
 
   // This coder inherits isRegisterByteSizeObserverCheap,
   // getEncodedElementByteSize and registerByteSizeObserver
-  // from StandardCoder. Override if we can do better.
+  // from StructuredCoder. Override if we can do better.
 }

@@ -34,15 +34,15 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Test case for {@link StandardCoder}.
+ * Test case for {@link StructuredCoder}.
  */
 @RunWith(JUnit4.class)
-public class StandardCoderTest {
+public class StructuredCoderTest {
 
   /**
    * A coder for nullable {@code Boolean} values that is consistent with equals.
    */
-  private static class NullBooleanCoder extends StandardCoder<Boolean> {
+  private static class NullBooleanCoder extends StructuredCoder<Boolean> {
 
     private static final long serialVersionUID = 0L;
 
@@ -104,7 +104,7 @@ public class StandardCoderTest {
   /**
    * A coder for nullable boxed {@code Boolean} values that is not consistent with equals.
    */
-  private static class ObjectIdentityBooleanCoder extends StandardCoder<ObjectIdentityBoolean> {
+  private static class ObjectIdentityBooleanCoder extends StructuredCoder<ObjectIdentityBoolean> {
 
     private static final long serialVersionUID = 0L;
 
@@ -152,8 +152,8 @@ public class StandardCoderTest {
   }
 
   /**
-   * Tests that {@link StandardCoder#structuralValue()} is correct whenever a subclass has a correct
-   * {@link Coder#consistentWithEquals()}.
+   * Tests that {@link StructuredCoder#structuralValue()} is correct whenever a subclass has a
+   * correct {@link Coder#consistentWithEquals()}.
    */
   @Test
   public void testStructuralValue() throws Exception {
@@ -177,12 +177,12 @@ public class StandardCoderTest {
   }
 
   /**
-   * Test for verifying {@link StandardCoder#toString()}.
+   * Test for verifying {@link StructuredCoder#toString()}.
    */
   @Test
   public void testToString() {
     Assert.assertThat(new ObjectIdentityBooleanCoder().toString(),
-        CoreMatchers.equalTo("StandardCoderTest$ObjectIdentityBooleanCoder"));
+        CoreMatchers.equalTo("StructuredCoderTest$ObjectIdentityBooleanCoder"));
 
     ObjectIdentityBooleanCoder coderWithArgs = new ObjectIdentityBooleanCoder() {
       @Override
@@ -194,7 +194,7 @@ public class StandardCoderTest {
     };
 
     Assert.assertThat(coderWithArgs.toString(),
-        CoreMatchers.equalTo("StandardCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
+        CoreMatchers.equalTo("StructuredCoderTest$1(BigDecimalCoder,BigIntegerCoder)"));
   }
 
   @Test
@@ -210,7 +210,7 @@ public class StandardCoderTest {
         CoreMatchers.equalTo(TypeDescriptor.of(String.class)));
   }
 
-  private static class Foo<T> extends StandardCoder<T> {
+  private static class Foo<T> extends StructuredCoder<T> {
 
     @Override
     public void encode(T value, OutputStream outStream, Coder.Context context)

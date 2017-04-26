@@ -40,8 +40,8 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -60,8 +60,8 @@ import org.junit.runners.Parameterized.Parameters;
 /** Tests for {@link Coders}. */
 @RunWith(Enclosed.class)
 public class CodersTest {
-  private static final Set<StandardCoder<?>> KNOWN_CODERS =
-      ImmutableSet.<StandardCoder<?>>builder()
+  private static final Set<StructuredCoder<?>> KNOWN_CODERS =
+      ImmutableSet.<StructuredCoder<?>>builder()
           .add(ByteArrayCoder.of())
           .add(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()))
           .add(VarLongCoder.of())
@@ -85,12 +85,12 @@ public class CodersTest {
       // Validates that every known coder in the Coders class is represented in a "Known Coder"
       // tests, which demonstrates that they are serialized via components and specified URNs rather
       // than java serialized
-      Set<Class<? extends StandardCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
-      Set<Class<? extends StandardCoder>> knownCoderTests = new HashSet<>();
-      for (StandardCoder<?> coder : KNOWN_CODERS) {
+      Set<Class<? extends StructuredCoder>> knownCoderClasses = Coders.KNOWN_CODER_URNS.keySet();
+      Set<Class<? extends StructuredCoder>> knownCoderTests = new HashSet<>();
+      for (StructuredCoder<?> coder : KNOWN_CODERS) {
         knownCoderTests.add(coder.getClass());
       }
-      Set<Class<? extends StandardCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
+      Set<Class<? extends StructuredCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
       missingKnownCoders.removeAll(knownCoderTests);
       checkState(
           missingKnownCoders.isEmpty(),

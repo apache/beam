@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
  * via the class name and recursively using {@link #getComponents}.
  *
- * <p>To extend {@link StandardCoder}, override the following methods as appropriate:
+ * <p>To extend {@link StructuredCoder}, override the following methods as appropriate:
  *
  * <ul>
  *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.</li>
@@ -45,8 +45,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       expensive.</li>
  * </ul>
  */
-public abstract class StandardCoder<T> implements Coder<T> {
-  protected StandardCoder() {}
+public abstract class StructuredCoder<T> implements Coder<T> {
+  protected StructuredCoder() {}
 
   /**
    * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
@@ -63,7 +63,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} if the two {@link StandardCoder} instances have the
+   * @return {@code true} if the two {@link StructuredCoder} instances have the
    * same class and equal components.
    */
   @Override
@@ -71,7 +71,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
     if (o == null || this.getClass() != o.getClass()) {
       return false;
     }
-    StandardCoder<?> that = (StandardCoder<?>) o;
+    StructuredCoder<?> that = (StructuredCoder<?>) o;
     return this.getComponents().equals(that.getComponents());
   }
 
@@ -110,7 +110,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
    *       equivalent to the {@link #getCoderArguments}.</li>
    * </ul>
    *
-   * <p>{@link StandardCoder} implementations should override {@link #initializeCloudObject}
+   * <p>{@link StructuredCoder} implementations should override {@link #initializeCloudObject}
    * to customize the {@link CloudObject} representation.
    */
   @Override
@@ -131,7 +131,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
 
   /**
    * Subclasses should override this method to customize the {@link CloudObject}
-   * representation. {@link StandardCoder#asCloudObject} delegates to this method
+   * representation. {@link StructuredCoder#asCloudObject} delegates to this method
    * to provide an initial {@link CloudObject}.
    *
    * <p>The default implementation returns a {@link CloudObject} using
@@ -144,7 +144,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code false} unless it is overridden. {@link StandardCoder#registerByteSizeObserver}
+   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
    *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
    *         unless it is overridden. This is considered expensive.
    */
@@ -170,7 +170,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   /**
    * {@inheritDoc}
    *
-   * <p>For {@link StandardCoder} subclasses, this notifies {@code observer} about the byte size
+   * <p>For {@link StructuredCoder} subclasses, this notifies {@code observer} about the byte size
    * of the encoded value using this coder as returned by {@link #getEncodedElementByteSize}.
    */
   @Override
@@ -199,7 +199,7 @@ public abstract class StandardCoder<T> implements Coder<T> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code false} for {@link StandardCoder} unless overridden.
+   * @return {@code false} for {@link StructuredCoder} unless overridden.
    */
   @Override
   public boolean consistentWithEquals() {

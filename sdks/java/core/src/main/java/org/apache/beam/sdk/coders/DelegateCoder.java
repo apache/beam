@@ -170,7 +170,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   private final CodingFunction<IntermediateT, T> fromFn;
 
   // null unless the user explicitly provides a TypeDescriptor.
-  // If null, then the machinery from the superclass (StandardCoder) will be used
+  // If null, then the machinery from the superclass (StructuredCoder) will be used
   // to try to deduce a good type descriptor.
   @Nullable private final TypeDescriptor<T> typeDescriptor;
 
