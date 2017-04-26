@@ -55,10 +55,13 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricMatchers;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.SinkMetrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -569,34 +572,64 @@ public class KafkaIOTest {
 
     p.apply(readStep,
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+
     PipelineResult result = p.run();
+
+    String splitId = "0";
+
+    MetricName elementsRead = SourceMetrics.elementsRead().getName();
+    MetricName elementsReadBySplit = SourceMetrics.elementsReadBySplit(splitId).getName();
+    MetricName bytesRead = SourceMetrics.bytesRead().getName();
+    MetricName bytesReadBySplit = SourceMetrics.bytesReadBySplit(splitId).getName();
+    MetricName backlogElementsOfSplit = SourceMetrics.backlogElementsOfSplit(splitId).getName();
+    MetricName backlogBytesOfSplit = SourceMetrics.backlogBytesOfSplit(splitId).getName();
+
     MetricQueryResults metrics = result.metrics().queryMetrics(
-        MetricsFilter.builder()
-            .addNameFilter(MetricNameFilter.inNamespace("io"))
-            .addNameFilter(MetricNameFilter.inNamespace("io.splits"))
-            .build());
+        MetricsFilter.builder().build());
 
     Iterable<MetricResult<Long>> counters = metrics.counters();
     Iterable<MetricResult<GaugeResult>> gauges = metrics.gauges();
 
     assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult("io", "messagesConsumed", readStep, 1000L)));
+        MetricMatchers.attemptedMetricsResult(
+            elementsRead.namespace(),
+            elementsRead.name(),
+            readStep,
+            1000L)));
 
     assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult("io.splits", "0.messagesConsumed", readStep, 1000L)));
+        MetricMatchers.attemptedMetricsResult(
+            elementsReadBySplit.namespace(),
+            elementsReadBySplit.name(),
+            readStep,
+            1000L)));
 
     assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult("io", "bytesConsumed", readStep, 12000L)));
+        MetricMatchers.attemptedMetricsResult(
+            bytesRead.namespace(),
+            bytesRead.name(),
+            readStep,
+            12000L)));
 
     assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult("io.splits", "0.bytesConsumed", readStep, 12000L)));
+        MetricMatchers.attemptedMetricsResult(
+            bytesReadBySplit.namespace(),
+            bytesReadBySplit.name(),
+            readStep,
+            12000L)));
 
     assertThat(gauges, hasItem(
-        attemptedMetricsResult("io.splits", "0.backlog.messages", readStep,
+        attemptedMetricsResult(
+            backlogElementsOfSplit.namespace(),
+            backlogElementsOfSplit.name(),
+            readStep,
             GaugeResult.create(0L, Instant.now()))));
 
     assertThat(gauges, hasItem(
-        attemptedMetricsResult("io.splits", "0.backlog.bytes", readStep,
+        attemptedMetricsResult(
+            backlogBytesOfSplit.namespace(),
+            backlogBytesOfSplit.name(),
+            readStep,
             GaugeResult.create(0L, Instant.now()))));
   }
 
@@ -830,13 +863,20 @@ public class KafkaIOTest {
 
       PipelineResult result = p.run();
 
+      MetricName elementsWritten = SinkMetrics.elementsWritten().getName();
+
       MetricQueryResults metrics = result.metrics().queryMetrics(
           MetricsFilter.builder()
-              .addNameFilter(MetricNameFilter.inNamespace("io"))
+              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.namespace()))
               .build());
 
+
       assertThat(metrics.counters(), hasItem(
-          MetricMatchers.attemptedMetricsResult("io", "messagesProduced", "writeToKafka", 1000L)));
+          MetricMatchers.attemptedMetricsResult(
+              elementsWritten.namespace(),
+              elementsWritten.name(),
+              "writeToKafka",
+              1000L)));
 
       completionThread.shutdown();
     }
