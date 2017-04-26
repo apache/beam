@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
@@ -45,7 +46,8 @@ class LocalResourceId implements ResourceId {
   }
 
   private LocalResourceId(Path path, boolean isDirectory) {
-    this.pathString = path.normalize().toString();
+    this.pathString = path.toAbsolutePath().normalize().toString()
+        + (isDirectory ? File.separatorChar : "");
     this.isDirectory = isDirectory;
   }
 
