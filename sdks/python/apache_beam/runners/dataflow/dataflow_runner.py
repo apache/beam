@@ -76,7 +76,7 @@ class DataflowRunner(PipelineRunner):
   def poll_for_job_completion(runner, result):
     """Polls for the specified job to finish running (successfully or not)."""
     last_message_time = None
-    last_message_id = None
+    last_message_hash = None
 
     last_error_rank = float('-inf')
     last_error_msg = None
@@ -126,19 +126,20 @@ class DataflowRunner(PipelineRunner):
         messages, page_token = runner.dataflow_client.list_messages(
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
-          if last_message_id is not None and m.id == last_message_id:
+          message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
+          m_hash = hash(message)
+
+          if last_message_hash is not None and m_hash == last_message_hash:
             # Skip the first message if it is the last message we got in the
             # previous round. This can happen because we use the
             # last_message_time as a parameter of the query for new messages.
             continue
           last_message_time = m.time
-          last_message_id = m.id
+          last_message_hash = m_hash
           # Skip empty messages.
           if m.messageImportance is None:
             continue
-          logging.info(
-              '%s: %s: %s: %s', m.id, m.time, m.messageImportance,
-              m.messageText)
+          logging.info(message)
           if str(m.messageImportance) == 'JOB_MESSAGE_ERROR':
             if rank_error(m.messageText) >= last_error_rank:
               last_error_rank = rank_error(m.messageText)
