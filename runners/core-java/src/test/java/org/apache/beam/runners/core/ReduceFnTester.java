@@ -51,10 +51,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -110,9 +106,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * be used to exercise some of the more subtle behavior of WatermarkHold.
    */
   private boolean autoAdvanceOutputWatermark = true;
-
-  private final InMemoryLongSumAggregator droppedDueToClosedWindow =
-      new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
 
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
@@ -303,7 +296,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         timerInternals,
         testOutputter,
         sideInputReader,
-        droppedDueToClosedWindow,
         reduceFn,
         options);
   }
@@ -400,10 +392,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public Instant getOutputWatermark() {
     return timerInternals.currentOutputWatermarkTime();
-  }
-
-  public long getElementsDroppedDueToClosedWindow() {
-    return droppedDueToClosedWindow.getSum();
   }
 
   /**
@@ -609,34 +597,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     @Override
     public BoundedWindow window() {
       return window;
-    }
-  }
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
-    private final String name;
-    private long sum = 0;
-
-    public InMemoryLongSumAggregator(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(Long value) {
-      sum += value;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
-    }
-
-    public long getSum() {
-      return sum;
     }
   }
 }

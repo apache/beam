@@ -37,7 +37,6 @@ import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOption
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternalsFactory;
-import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.Triggers;
@@ -193,7 +192,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
         },
         NullSideInputReader.empty(),
         null,
-        SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder),
         serializedOptions.get());
   }
 

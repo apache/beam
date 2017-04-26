@@ -107,7 +107,6 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
             timerInternals,
             outputter,
             new UnsupportedSideInputReader("GroupAlsoByWindow"),
-            droppedDueToClosedWindow,
             reduceFn,
             runtimeContext.getPipelineOptions());
 

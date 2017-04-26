@@ -261,7 +261,6 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                               timerInternals,
                               outputHolder,
                               new UnsupportedSideInputReader("GroupAlsoByWindow"),
-                              droppedDueToClosedWindow,
                               reduceFn,
                               runtimeContext.getPipelineOptions());
 

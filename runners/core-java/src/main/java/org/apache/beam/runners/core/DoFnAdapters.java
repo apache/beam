@@ -19,9 +19,6 @@ package org.apache.beam.runners.core;
 
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AggregatorRetriever;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
@@ -72,7 +69,7 @@ public class DoFnAdapters {
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
-      super(AggregatorRetriever.getDelegatingAggregators(fn));
+      super();
       this.fn = fn;
       this.invoker = DoFnInvokers.invokerFor(fn);
     }
@@ -143,7 +140,6 @@ public class DoFnAdapters {
     private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
-      super.setupDelegateAggregators();
     }
 
     @Override
@@ -169,13 +165,6 @@ public class DoFnAdapters {
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.outputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name,
-        CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return context.createAggregatorInternal(name, combiner);
     }
 
     @Override
@@ -262,12 +251,6 @@ public class DoFnAdapters {
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.outputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return context.createAggregatorInternal(name, combiner);
     }
 
     @Override

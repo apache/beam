@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
@@ -68,14 +67,6 @@ class AggregatorPipelineExtractor {
     }
 
     private Collection<Aggregator<?, ?>> getAggregators(PTransform<?, ?> transform) {
-      if (transform != null) {
-        if (transform instanceof ParDo.SingleOutput) {
-          return AggregatorRetriever.getAggregators(((ParDo.SingleOutput<?, ?>) transform).getFn());
-        } else if (transform instanceof ParDo.MultiOutput) {
-          return AggregatorRetriever.getAggregators(
-              ((ParDo.MultiOutput<?, ?>) transform).getFn());
-        }
-      }
       return Collections.emptyList();
     }
 
