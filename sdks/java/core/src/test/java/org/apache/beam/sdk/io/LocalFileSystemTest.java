@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -299,6 +301,26 @@ public class LocalFileSystemTest {
         .getPath();
     assertTrue(
         toFilenames(localFileSystem.match(ImmutableList.of(pattern.toString()))).isEmpty());
+  }
+
+  @Test
+  public void testMatchNewResource() throws Exception {
+    LocalResourceId fileResource =
+        localFileSystem
+            .matchNewResource("/some/test/resource/path", false /* isDirectory */);
+    LocalResourceId dirResource =
+        localFileSystem
+            .matchNewResource("/some/test/resource/path", true /* isDirectory */);
+    assertNotEquals(fileResource, dirResource);
+    assertThat(
+        fileResource.getCurrentDirectory().resolve(
+            "path", StandardResolveOptions.RESOLVE_DIRECTORY),
+        equalTo(dirResource.getCurrentDirectory()));
+    assertThat(
+        fileResource.getCurrentDirectory().resolve(
+            "path", StandardResolveOptions.RESOLVE_DIRECTORY),
+        equalTo(dirResource.getCurrentDirectory()));
+    assertThat(dirResource.toString(), equalTo("/some/test/resource/path/"));
   }
 
   private void createFileWithContent(Path path, String content) throws Exception {

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.fs;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.io.FileSystem;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 
 /**
@@ -27,7 +28,21 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
  * <p>{@link ResourceId} is hierarchical and composed of a sequence of directory
  * and file name elements separated by a special separator or delimiter.
  *
- * <p>TODO: add examples for how ResourceId is constructed and used.
+ * <p>{@link ResourceId ResourceIds} are created using {@link FileSystems}. The two primary
+ * mechanisms are:
+ *
+ * <ul>
+ *   <li>{@link FileSystems#match(java.util.List)}, which takes a list of {@link String} resource
+ *   names or globs, queries the {@link FileSystem} for resources matching these specifications,
+ *   and returns a {@link MatchResult} for each glob. This is typically used when reading from
+ *   files.
+ *
+ *   <li>{@link FileSystems#matchNewResource(String, boolean)}, which takes a {@link String} full
+ *   resource name and type (file or directory) and generates a {@link FileSystem}-specific
+ *   {@code ResourceId} for that resource. This call does not verify the presence or absence of that
+ *   resource in the file system. This call is typically used when creating new directories or files
+ *   to generate {@link ResourceId ResourceIds} for resources that may not yet exist.
+ * </ul>
  */
 public interface ResourceId extends Serializable {
 

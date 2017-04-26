@@ -34,6 +34,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -162,6 +163,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
       LOG.debug("Deleting file {}", resourceId);
       Files.delete(resourceId.getPath());
     }
+  }
+
+  @Override
+  protected LocalResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    Path path = Paths.get(singleResourceSpec);
+    return LocalResourceId.fromPath(path, isDirectory);
   }
 
   private MatchResult matchOne(String spec) throws IOException {
