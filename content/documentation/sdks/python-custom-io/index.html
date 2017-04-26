@@ -342,6 +342,7 @@
 <div class="highlighter-rouge"><pre class="highlight"><code>class CountingSource(iobase.BoundedSource):
 
   def __init__(self, count):
+    self.records_read = Metrics.counter(self.__class__, 'recordsRead')
     self._count = count
 
   def estimate_size(self):
@@ -359,6 +360,7 @@
     for i in range(self._count):
       if not range_tracker.try_claim(i):
         return
+      self.records_read.inc()
       yield i
 
   def split(self, desired_bundle_size, start_position=None,
