@@ -28,6 +28,7 @@
 
   <properties>
     <beam.version>0.7.0-SNAPSHOT</beam.version>
+    <surefire-plugin.version>2.20</surefire-plugin.version>
   </properties>
 
   <repositories>
