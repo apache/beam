@@ -44,6 +44,8 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -118,14 +120,14 @@ public class SparkRunnerDebuggerTest {
     KafkaIO.Read<String, String> read = KafkaIO.<String, String>read()
         .withBootstrapServers("mykafka:9092")
         .withTopics(Collections.singletonList("my_input_topic"))
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of());
+        .withKeyDeserializer(StringDeserializer.class)
+        .withValueDeserializer(StringDeserializer.class);
 
     KafkaIO.Write<String, String> write = KafkaIO.<String, String>write()
         .withBootstrapServers("myotherkafka:9092")
         .withTopic("my_output_topic")
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(StringUtf8Coder.of());
+        .withKeySerializer(StringSerializer.class)
+        .withValueSerializer(StringSerializer.class);
 
     KvCoder<String, String> stringKvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
