@@ -21,18 +21,25 @@ package org.apache.beam.runners.dataflow.util;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
 
-/** Created by tgroh on 4/26/17. */
+/**
+ * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of {@link
+ * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
+ */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
   @Override
-  public Map<String, CloudObjectTranslator<?>> classNamesToTranslators() {
+  public Map<String, CloudObjectTranslator<? extends Coder>> classNamesToTranslators() {
+    // TODO: Add translators
     return Collections.emptyMap();
   }
 
   @Override
-  public Map<Class<?>, CloudObjectTranslator<?>> classesToTranslators() {
+  public Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
+      classesToTranslators() {
+    // TODO: Add translato
     return Collections.emptyMap();
   }
 }
