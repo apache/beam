@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -124,7 +123,7 @@ public class StateSpecFunctions {
 
         // Initial high/low watermarks.
         Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
-        Instant highWatermark;
+        final Instant highWatermark;
 
         // if state exists, use it, otherwise it's first time so use the startCheckpointMark.
         // startCheckpointMark may be EmptyCheckpointMark (the Spark Java API tries to apply
@@ -146,13 +145,15 @@ public class StateSpecFunctions {
         }
 
         // create reader.
-        BoundedSource.BoundedReader<T> reader;
-        Stopwatch stopwatch = Stopwatch.createStarted();
+        final MicrobatchSource.Reader/*<T>*/ microbatchReader;
+        final Stopwatch stopwatch = Stopwatch.createStarted();
         long readDurationMillis = 0;
 
         try {
-          reader = microbatchSource.getOrCreateReader(runtimeContext.getPipelineOptions(),
-              checkpointMark);
+          microbatchReader =
+              (MicrobatchSource.Reader)
+                  microbatchSource.getOrCreateReader(runtimeContext.getPipelineOptions(),
+                                                     checkpointMark);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -165,16 +166,19 @@ public class StateSpecFunctions {
                 GlobalWindow.Coder.INSTANCE);
         try {
           // measure how long a read takes per-partition.
-          boolean finished = !reader.start();
+          boolean finished = !microbatchReader.start();
           while (!finished) {
-            WindowedValue<T> wv = WindowedValue.of(reader.getCurrent(),
-                reader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+            final WindowedValue<T> wv =
+                WindowedValue.of((T) microbatchReader.getCurrent(),
+                                 microbatchReader.getCurrentTimestamp(),
+                                 GlobalWindow.INSTANCE,
+                                 PaneInfo.NO_FIRING);
             readValues.add(CoderHelpers.toByteArray(wv, coder));
-            finished = !reader.advance();
+            finished = !microbatchReader.advance();
           }
 
           // end-of-read watermark is the high watermark, but don't allow decrease.
-          Instant sourceWatermark = ((MicrobatchSource.Reader) reader).getWatermark();
+          final Instant sourceWatermark = microbatchReader.getWatermark();
           highWatermark = sourceWatermark.isAfter(lowWatermark) ? sourceWatermark : lowWatermark;
 
           readDurationMillis = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
@@ -186,8 +190,8 @@ public class StateSpecFunctions {
 
           // if the Source does not supply a CheckpointMark skip updating the state.
           @SuppressWarnings("unchecked")
-          CheckpointMarkT finishedReadCheckpointMark =
-              (CheckpointMarkT) ((MicrobatchSource.Reader) reader).getCheckpointMark();
+          final CheckpointMarkT finishedReadCheckpointMark =
+              (CheckpointMarkT) microbatchReader.getCheckpointMark();
           byte[] codedCheckpoint = new byte[0];
           if (finishedReadCheckpointMark != null) {
             codedCheckpoint = CoderHelpers.toByteArray(finishedReadCheckpointMark, checkpointCoder);

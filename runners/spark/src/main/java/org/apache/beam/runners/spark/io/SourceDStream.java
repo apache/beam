@@ -104,7 +104,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     try {
       this.numPartitions =
           createMicrobatchSource()
-              .split(initialParallelism, options)
+              .split(options)
               .size();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -124,8 +124,14 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
 
 
   private MicrobatchSource<T, CheckpointMarkT> createMicrobatchSource() {
-    return new MicrobatchSource<>(unboundedSource, boundReadDuration, initialParallelism,
-        boundMaxRecords, -1, id(), readerCacheInterval);
+    return new MicrobatchSource<>(
+        unboundedSource,
+        boundReadDuration,
+        initialParallelism,
+        boundMaxRecords,
+        -1,
+        id(),
+        readerCacheInterval);
   }
 
   @Override
