@@ -937,11 +937,6 @@ public class CombineTest implements Serializable {
               throws CoderException, IOException {
             return new Accumulator(StringUtf8Coder.of().decode(inStream, context));
           }
-
-          @Override
-          public String getEncodingId() {
-            return "CombineTest.TestKeyedCombineFn.getAccumulatorCoder()";
-          }
         };
       }
     }

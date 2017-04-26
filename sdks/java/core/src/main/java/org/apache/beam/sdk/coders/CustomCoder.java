@@ -33,8 +33,7 @@ import org.apache.beam.sdk.util.StringUtils;
  * serialization.
  *
  * <p>To complete an implementation, subclasses must implement {@link Coder#encode}
- * and {@link Coder#decode} methods. Anonymous subclasses must furthermore override
- * {@link #getEncodingId}.
+ * and {@link Coder#decode} methods.
  *
  * <p>Not to be confused with {@link SerializableCoder} that encodes objects that implement the
  * {@link Serializable} interface.
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.util.StringUtils;
  */
 public abstract class CustomCoder<T> extends StandardCoder<T>
     implements Serializable {
+
   @JsonCreator
   @Deprecated
   public static CustomCoder<?> of(
@@ -112,27 +112,6 @@ public abstract class CustomCoder<T> extends StandardCoder<T>
     throw new NonDeterministicException(this,
         "CustomCoder implementations must override verifyDeterministic,"
         + " or they are presumed nondeterministic.");
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @return The canonical class name for this coder. For stable data formats that are independent
-   *         of class name, it is recommended to override this method.
-   *
-   * @throws UnsupportedOperationException when an anonymous class is used, since they do not have
-   *         a stable canonical class name.
-   */
-  @Override
-  public String getEncodingId() {
-    if (getClass().isAnonymousClass()) {
-      throw new UnsupportedOperationException(
-          String.format("Anonymous CustomCoder subclass %s must override getEncodingId()."
-              + " Otherwise, convert to a named class and getEncodingId() will be automatically"
-              + " generated from the fully qualified class name.",
-              getClass()));
-    }
-    return getClass().getCanonicalName();
   }
 
   // This coder inherits isRegisterByteSizeObserverCheap,

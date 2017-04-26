@@ -78,11 +78,6 @@ public class BigEndianLongCoder extends CustomCoder<Long> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

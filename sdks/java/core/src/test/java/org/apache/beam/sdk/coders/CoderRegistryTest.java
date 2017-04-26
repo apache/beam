@@ -30,7 +30,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -491,16 +490,6 @@ public class CoderRegistryTest {
         MyValue value, ElementByteSizeObserver observer, Context context)
         throws Exception {
       observer.update(0L);
-    }
-
-    @Override
-    public String getEncodingId() {
-      return getClass().getName();
-    }
-
-    @Override
-    public Collection<String> getAllowedEncodings() {
-      return Collections.singletonList(getEncodingId());
     }
 
     @Override

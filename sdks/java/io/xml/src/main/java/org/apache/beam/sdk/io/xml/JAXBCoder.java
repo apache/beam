@@ -135,11 +135,6 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public String getEncodingId() {
-    return getJAXBClass().getName();
-  }
-
-  @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return TypeDescriptor.of(jaxbClass);
   }

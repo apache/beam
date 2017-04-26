@@ -86,10 +86,4 @@ public class TableRowJsonCoder extends CustomCoder<TableRow> {
   public TypeDescriptor<TableRow> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }
-
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
 }

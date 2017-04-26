@@ -217,40 +217,6 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     return Objects.hash(protoMessageClass, extensionHostClasses);
   }
 
-  /**
-   * The encoding identifier is designed to support evolution as per the design of Protocol
-   * Buffers. In order to use this class effectively, carefully follow the advice in the Protocol
-   * Buffers documentation at
-   * <a href="https://developers.google.com/protocol-buffers/docs/proto#updating">Updating
-   * A Message Type</a>.
-   *
-   * <p>In particular, the encoding identifier is guaranteed to be the same for {@link ProtoCoder}
-   * instances of the same principal message class, with the same registered extension host classes,
-   * and otherwise distinct. Note that the encoding ID does not encode any version of the message
-   * or extensions, nor does it include the message schema.
-   *
-   * <p>When modifying a message class, here are the broadest guidelines; see the above link
-   * for greater detail.
-   *
-   * <ul>
-   * <li>Do not change the numeric tags for any fields.
-   * <li>Never remove a <code>required</code> field.
-   * <li>Only add <code>optional</code> or <code>repeated</code> fields, with sensible defaults.
-   * <li>When changing the type of a field, consult the Protocol Buffers documentation to ensure
-   * the new and old types are interchangeable.
-   * </ul>
-   *
-   * <p>Code consuming this message class should be prepared to support <i>all</i> versions of
-   * the class until it is certain that no remaining serialized instances exist.
-   *
-   * <p>If backwards incompatible changes must be made, the best recourse is to change the name
-   * of your Protocol Buffers message class.
-   */
-  @Override
-  public String getEncodingId() {
-    return protoMessageClass.getName() + getSortedExtensionClasses().toString();
-  }
-
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     ProtobufUtil.verifyDeterministic(this);

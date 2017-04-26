@@ -87,11 +87,6 @@ public class DoubleCoder extends CustomCoder<Double> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

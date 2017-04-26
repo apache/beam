@@ -225,14 +225,6 @@ public class SerializableCoderTest implements Serializable {
   }
 
   @Test
-  public void testPojoEncodingId() throws Exception {
-    Coder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
-    CoderProperties.coderHasEncodingId(
-        coder,
-        String.format("%s:%s", MyRecord.class.getName(), MyRecord.serialVersionUID));
-  }
-
-  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(
         SerializableCoder.of(MyRecord.class).getEncodedTypeDescriptor(),

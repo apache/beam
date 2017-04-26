@@ -213,13 +213,6 @@ public class JAXBCoderTest {
   }
 
   @Test
-  public void testEncodingId() throws Exception {
-    Coder<TestType> coder = JAXBCoder.of(TestType.class);
-    CoderProperties.coderHasEncodingId(
-        coder, TestType.class.getName());
-  }
-
-  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(
         JAXBCoder.of(TestType.class).getEncodedTypeDescriptor(),
