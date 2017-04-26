@@ -21,10 +21,12 @@ package org.apache.beam.runners.spark.metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import org.apache.beam.sdk.metrics.CounterData;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricData;
 import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -58,7 +60,7 @@ public class SparkMetricResults extends MetricResults {
           FluentIterable
               .from(SparkMetricsContainer.getCounters())
               .filter(matchesFilter(filter))
-              .transform(TO_COUNTER_RESULT)
+              .transform(SparkMetricResults.<Long, CounterData>extractResult())
               .toList();
     }
 
@@ -68,7 +70,7 @@ public class SparkMetricResults extends MetricResults {
           FluentIterable
               .from(SparkMetricsContainer.getDistributions())
               .filter(matchesFilter(filter))
-              .transform(TO_DISTRIBUTION_RESULT)
+              .transform(SparkMetricResults.<DistributionResult, DistributionData>extractResult())
               .toList();
     }
 
@@ -78,7 +80,7 @@ public class SparkMetricResults extends MetricResults {
           FluentIterable
               .from(SparkMetricsContainer.getGauges())
               .filter(matchesFilter(filter))
-              .transform(TO_GAUGE_RESULT)
+              .transform(SparkMetricResults.<GaugeResult, GaugeData>extractResult())
               .toList();
     }
 
@@ -92,50 +94,23 @@ public class SparkMetricResults extends MetricResults {
     }
   }
 
-  private static final Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>
-      TO_DISTRIBUTION_RESULT =
-      new Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>() {
-        @Override
-        public MetricResult<DistributionResult> apply(MetricUpdate<DistributionData> metricResult) {
-          if (metricResult != null) {
-            MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getUpdate().extractResult());
-          } else {
-            return null;
-          }
+  private static <MetricResultT, MetricDataT extends MetricData<MetricResultT>>
+  Function<MetricUpdate<MetricDataT>, MetricResult<MetricResultT>> extractResult() {
+    return new Function<MetricUpdate<MetricDataT>, MetricResult<MetricResultT>>() {
+      @Override
+      public MetricResult<MetricResultT> apply(MetricUpdate<MetricDataT> metricResult) {
+        if (metricResult != null) {
+          MetricKey key = metricResult.getKey();
+          return new SparkMetricResult<>(
+              key.metricName(),
+              key.stepName(),
+              metricResult.getUpdate().extractResult());
+        } else {
+          return null;
         }
-      };
-
-  private static final Function<MetricUpdate<Long>, MetricResult<Long>>
-      TO_COUNTER_RESULT =
-      new Function<MetricUpdate<Long>, MetricResult<Long>>() {
-        @Override
-        public MetricResult<Long> apply(MetricUpdate<Long> metricResult) {
-          if (metricResult != null) {
-            MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getUpdate());
-          } else {
-            return null;
-          }
-        }
-      };
-
-  private static final Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>
-      TO_GAUGE_RESULT =
-      new Function<MetricUpdate<GaugeData>, MetricResult<GaugeResult>>() {
-        @Override
-        public MetricResult<GaugeResult> apply(MetricUpdate<GaugeData> metricResult) {
-          if (metricResult != null) {
-            MetricKey key = metricResult.getKey();
-            return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getUpdate().extractResult());
-          } else {
-            return null;
-          }
-        }
-      };
+      }
+    };
+  }
 
   private static class SparkMetricResult<T> implements MetricResult<T> {
     private final MetricName name;

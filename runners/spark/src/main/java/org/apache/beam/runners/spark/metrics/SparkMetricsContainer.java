@@ -28,8 +28,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import org.apache.beam.sdk.metrics.CounterData;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.GaugeData;
+import org.apache.beam.sdk.metrics.MetricData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
@@ -46,7 +48,7 @@ public class SparkMetricsContainer implements Serializable {
 
   private transient volatile LoadingCache<String, MetricsContainer> metricsContainers;
 
-  private final Map<MetricKey, MetricUpdate<Long>> counters = new HashMap<>();
+  private final Map<MetricKey, MetricUpdate<CounterData>> counters = new HashMap<>();
   private final Map<MetricKey, MetricUpdate<DistributionData>> distributions = new HashMap<>();
   private final Map<MetricKey, MetricUpdate<GaugeData>> gauges = new HashMap<>();
 
@@ -66,7 +68,7 @@ public class SparkMetricsContainer implements Serializable {
     }
   }
 
-  static Collection<MetricUpdate<Long>> getCounters() {
+  static Collection<MetricUpdate<CounterData>> getCounters() {
     SparkMetricsContainer sparkMetricsContainer = getInstance();
     sparkMetricsContainer.materialize();
     return sparkMetricsContainer.counters.values();
@@ -84,9 +86,9 @@ public class SparkMetricsContainer implements Serializable {
 
   public SparkMetricsContainer update(SparkMetricsContainer other) {
     other.materialize();
-    this.updateCounters(other.counters.values());
-    this.updateDistributions(other.distributions.values());
-    this.updateGauges(other.gauges.values());
+    performUpdates(counters, other.counters.values());
+    performUpdates(distributions, other.distributions.values());
+    performUpdates(gauges, other.gauges.values());
     return this;
   }
 
@@ -112,40 +114,27 @@ public class SparkMetricsContainer implements Serializable {
     if (metricsContainers != null) {
       for (MetricsContainer container : metricsContainers.asMap().values()) {
         MetricUpdates cumulative = container.getCumulative();
-        this.updateCounters(cumulative.counterUpdates());
-        this.updateDistributions(cumulative.distributionUpdates());
-        this.updateGauges(cumulative.gaugeUpdates());
+        performUpdates(counters, cumulative.counterUpdates());
+        performUpdates(distributions, cumulative.distributionUpdates());
+        performUpdates(gauges, cumulative.gaugeUpdates());
       }
       metricsContainers = null;
     }
   }
 
-  private void updateCounters(Iterable<MetricUpdate<Long>> updates) {
-    for (MetricUpdate<Long> update : updates) {
+  @SuppressWarnings("unchecked")
+  private <ResultT, MetricDataT extends MetricData<ResultT>> void performUpdates(
+      Map<MetricKey, MetricUpdate<MetricDataT>> existing,
+      Iterable<MetricUpdate<MetricDataT>> updates) {
+    for (MetricUpdate<MetricDataT> update : updates) {
       MetricKey key = update.getKey();
-      MetricUpdate<Long> current = counters.get(key);
-      counters.put(key, current != null
-          ? MetricUpdate.create(key, current.getUpdate() + update.getUpdate()) : update);
-    }
-  }
-
-  private void updateDistributions(Iterable<MetricUpdate<DistributionData>> updates) {
-    for (MetricUpdate<DistributionData> update : updates) {
-      MetricKey key = update.getKey();
-      MetricUpdate<DistributionData> current = distributions.get(key);
-      distributions.put(key, current != null
-          ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate())) : update);
-    }
-  }
-
-  private void updateGauges(Iterable<MetricUpdate<GaugeData>> updates) {
-    for (MetricUpdate<GaugeData> update : updates) {
-      MetricKey key = update.getKey();
-      MetricUpdate<GaugeData> current = gauges.get(key);
-      gauges.put(
-          key,
+      MetricUpdate<MetricDataT> current = existing.get(key);
+      existing.put(key,
           current != null
-              ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate()))
+              ?
+              (MetricUpdate<MetricDataT>) MetricUpdate
+                  .create(key, current.getUpdate()
+                      .combine(update.getUpdate()))
               : update);
     }
   }

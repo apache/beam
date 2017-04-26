@@ -109,16 +109,16 @@ public class MetricsTest implements Serializable {
     Counter counter = Metrics.counter(NS, NAME);
     CounterCell cell = container.getCounter(METRIC_NAME);
     counter.inc();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(1L));
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(CounterData.create(1L)));
 
     counter.inc(47L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(48L));
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(CounterData.create(48L)));
 
     counter.dec(5L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(43L));
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(CounterData.create(43L)));
 
     counter.dec();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
+    assertThat(cell.getCumulative(), CoreMatchers.equalTo(CounterData.create(42L)));
   }
 
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class})

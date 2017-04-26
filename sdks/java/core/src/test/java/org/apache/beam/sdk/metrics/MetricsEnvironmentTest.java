@@ -52,8 +52,10 @@ public class MetricsEnvironmentTest {
 
     MetricUpdates updates1 = c1.getUpdates();
     MetricUpdates updates2 = c2.getUpdates();
-    assertThat(updates1.counterUpdates(), contains(metricUpdate("ns", "name", "step1", 1L)));
-    assertThat(updates2.counterUpdates(), contains(metricUpdate("ns", "name", "step2", -1L)));
+    assertThat(updates1.counterUpdates(),
+        contains(metricUpdate("ns", "name", "step1", CounterData.create(1L))));
+    assertThat(updates2.counterUpdates(),
+        contains(metricUpdate("ns", "name", "step2", CounterData.create(-1L))));
   }
 
   @Test

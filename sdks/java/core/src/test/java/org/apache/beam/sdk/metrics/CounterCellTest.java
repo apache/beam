@@ -37,16 +37,17 @@ public class CounterCellTest {
   public void testDeltaAndCumulative() {
     cell.inc(5);
     cell.inc(7);
-    assertThat(cell.getCumulative(), equalTo(12L));
-    assertThat("getCumulative is idempotent", cell.getCumulative(), equalTo(12L));
+    assertThat(cell.getCumulative(), equalTo(CounterData.create(12L)));
+    assertThat("getCumulative is idempotent", cell.getCumulative(),
+        equalTo(CounterData.create(12L)));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();
     assertThat(cell.getDirty().beforeCommit(), equalTo(false));
-    assertThat(cell.getCumulative(), equalTo(12L));
+    assertThat(cell.getCumulative(), equalTo(CounterData.create(12L)));
 
     cell.inc(30);
-    assertThat(cell.getCumulative(), equalTo(42L));
+    assertThat(cell.getCumulative(), equalTo(CounterData.create(42L)));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();

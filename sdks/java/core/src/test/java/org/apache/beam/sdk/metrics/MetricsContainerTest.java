@@ -41,8 +41,8 @@ public class MetricsContainerTest {
     CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
     assertThat("All counters should start out dirty",
         container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 0L),
-        metricUpdate("name2", 0L)));
+        metricUpdate("name1", CounterData.create(0L)),
+        metricUpdate("name2", CounterData.create(0L))));
     container.commitUpdates();
     assertThat("After commit no counters should be dirty",
         container.getUpdates().counterUpdates(), emptyIterable());
@@ -51,13 +51,13 @@ public class MetricsContainerTest {
     c2.inc(4L);
 
     assertThat(container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+        metricUpdate("name1", CounterData.create(5L)),
+        metricUpdate("name2", CounterData.create(4L))));
 
     assertThat("Since we haven't committed, updates are still included",
         container.getUpdates().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+        metricUpdate("name1", CounterData.create(5L)),
+        metricUpdate("name2", CounterData.create(4L))));
 
     container.commitUpdates();
     assertThat("After commit there are no updates",
@@ -65,7 +65,7 @@ public class MetricsContainerTest {
 
     c1.inc(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
-        metricUpdate("name1", 13L)));
+        metricUpdate("name1", CounterData.create(13L))));
   }
 
   @Test
@@ -81,13 +81,13 @@ public class MetricsContainerTest {
     container.commitUpdates();
     assertThat("Committing updates shouldn't affect cumulative counter values",
         container.getCumulative().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 5L),
-        metricUpdate("name2", 4L)));
+        metricUpdate("name1", CounterData.create(5L)),
+        metricUpdate("name2", CounterData.create(4L))));
 
     c1.inc(8L);
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
-        metricUpdate("name1", 13L),
-        metricUpdate("name2", 4L)));
+        metricUpdate("name1", CounterData.create(13L)),
+        metricUpdate("name2", CounterData.create(4L))));
   }
 
   @Test

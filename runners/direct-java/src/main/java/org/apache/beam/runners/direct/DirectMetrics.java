@@ -31,10 +31,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.sdk.metrics.CounterData;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricData;
 import org.apache.beam.sdk.metrics.MetricFiltering;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -54,10 +56,25 @@ class DirectMetrics extends MetricResults {
   // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
   private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
 
-  private interface MetricAggregation<UpdateT, ResultT> {
-    UpdateT zero();
-    UpdateT combine(Iterable<UpdateT> updates);
-    ResultT extract(UpdateT data);
+  private static class MetricAggregation<UpdateT extends MetricData<ResultT>, ResultT> {
+    UpdateT initialValue;
+
+    public MetricAggregation(UpdateT zero) {
+      this.initialValue = zero;
+    }
+
+    @SuppressWarnings("unchecked")
+    UpdateT combine(Iterable<UpdateT> updates) {
+      UpdateT value = initialValue;
+      for (UpdateT update : updates) {
+        value = (UpdateT) value.combine(update);
+      }
+      return value;
+    }
+
+    ResultT extract(UpdateT data) {
+      return data.extractResult();
+    }
   }
 
   /**
@@ -66,7 +83,7 @@ class DirectMetrics extends MetricResults {
    * @param <UpdateT> The type of raw data received and aggregated across updates.
    * @param <ResultT> The type of result extracted from the data.
    */
-  private static class DirectMetric<UpdateT, ResultT> {
+  private static class DirectMetric<UpdateT extends MetricData<ResultT>, ResultT> {
     private final MetricAggregation<UpdateT, ResultT> aggregation;
 
     private final AtomicReference<UpdateT> finishedCommitted;
@@ -80,8 +97,8 @@ class DirectMetrics extends MetricResults {
 
     public DirectMetric(MetricAggregation<UpdateT, ResultT> aggregation) {
       this.aggregation = aggregation;
-      finishedCommitted = new AtomicReference<>(aggregation.zero());
-      finishedAttempted = aggregation.zero();
+      finishedCommitted = new AtomicReference<>(aggregation.initialValue);
+      finishedAttempted = aggregation.initialValue;
     }
 
     /**
@@ -151,78 +168,12 @@ class DirectMetrics extends MetricResults {
     }
   }
 
-  private static final MetricAggregation<Long, Long> COUNTER =
-      new MetricAggregation<Long, Long>() {
-    @Override
-    public Long zero() {
-      return 0L;
-    }
-
-    @Override
-    public Long combine(Iterable<Long> updates) {
-      long value = 0;
-      for (long update : updates) {
-        value += update;
-      }
-      return value;
-    }
-
-    @Override
-    public Long extract(Long data) {
-      return data;
-    }
-  };
-
-  private static final MetricAggregation<DistributionData, DistributionResult> DISTRIBUTION =
-      new MetricAggregation<DistributionData, DistributionResult>() {
-        @Override
-        public DistributionData zero() {
-          return DistributionData.EMPTY;
-        }
-
-        @Override
-        public DistributionData combine(Iterable<DistributionData> updates) {
-          DistributionData result = DistributionData.EMPTY;
-          for (DistributionData update : updates) {
-            result = result.combine(update);
-          }
-          return result;
-        }
-
-        @Override
-        public DistributionResult extract(DistributionData data) {
-          return data.extractResult();
-        }
-      };
-
-  private static final MetricAggregation<GaugeData, GaugeResult> GAUGE =
-      new MetricAggregation<GaugeData, GaugeResult>() {
-        @Override
-        public GaugeData zero() {
-          return GaugeData.empty();
-        }
-
-        @Override
-        public GaugeData combine(Iterable<GaugeData> updates) {
-          GaugeData result = GaugeData.empty();
-          for (GaugeData update : updates) {
-            result = result.combine(update);
-          }
-          return result;
-        }
-
-        @Override
-        public GaugeResult extract(GaugeData data) {
-          return data.extractResult();
-        }
-      };
-
   /** The current values of counters in memory. */
-  private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
-      new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
+  private MetricsMap<MetricKey, DirectMetric<CounterData, Long>> counters =
+      new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<CounterData, Long>>() {
         @Override
-        public DirectMetric<Long, Long> createInstance(MetricKey unusedKey) {
-          return new DirectMetric<>(COUNTER);
+        public DirectMetric<CounterData, Long> createInstance(MetricKey unusedKey) {
+          return new DirectMetric<>(new MetricAggregation<>(CounterData.EMPTY));
         }
       });
   private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
@@ -231,7 +182,7 @@ class DirectMetrics extends MetricResults {
         @Override
         public DirectMetric<DistributionData, DistributionResult> createInstance(
             MetricKey unusedKey) {
-          return new DirectMetric<>(DISTRIBUTION);
+          return new DirectMetric<>(new MetricAggregation<>(DistributionData.EMPTY));
         }
       });
   private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
@@ -240,7 +191,7 @@ class DirectMetrics extends MetricResults {
             @Override
             public DirectMetric<GaugeData, GaugeResult> createInstance(
                 MetricKey unusedKey) {
-              return new DirectMetric<>(GAUGE);
+              return new DirectMetric<>(new MetricAggregation<>(GaugeData.empty()));
             }
           });
 
@@ -273,7 +224,7 @@ class DirectMetrics extends MetricResults {
   @Override
   public MetricQueryResults queryMetrics(MetricsFilter filter) {
     ImmutableList.Builder<MetricResult<Long>> counterResults = ImmutableList.builder();
-    for (Entry<MetricKey, DirectMetric<Long, Long>> counter : counters.entries()) {
+    for (Entry<MetricKey, DirectMetric<CounterData, Long>> counter : counters.entries()) {
       maybeExtractResult(filter, counterResults, counter);
     }
     ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults =
@@ -308,7 +259,7 @@ class DirectMetrics extends MetricResults {
 
   /** Apply metric updates that represent physical counter deltas to the current metric values. */
   public void updatePhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
-    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
+    for (MetricUpdate<CounterData> counter : updates.counterUpdates()) {
       counters.get(counter.getKey()).updatePhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
@@ -322,7 +273,7 @@ class DirectMetrics extends MetricResults {
   }
 
   public void commitPhysical(CommittedBundle<?> bundle, MetricUpdates updates) {
-    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
+    for (MetricUpdate<CounterData> counter : updates.counterUpdates()) {
       counters.get(counter.getKey()).commitPhysical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
@@ -337,7 +288,7 @@ class DirectMetrics extends MetricResults {
 
   /** Apply metric updates that represent new logical values from a bundle being committed. */
   public void commitLogical(CommittedBundle<?> bundle, MetricUpdates updates) {
-    for (MetricUpdate<Long> counter : updates.counterUpdates()) {
+    for (MetricUpdate<CounterData> counter : updates.counterUpdates()) {
       counters.get(counter.getKey()).commitLogical(bundle, counter.getUpdate());
     }
     for (MetricUpdate<DistributionData> distribution : updates.distributionUpdates()) {
