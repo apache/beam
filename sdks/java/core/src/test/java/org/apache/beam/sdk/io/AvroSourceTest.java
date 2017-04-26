@@ -49,6 +49,7 @@ import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.io.AvroSource.AvroMetadata;
 import org.apache.beam.sdk.io.AvroSource.AvroReader;
 import org.apache.beam.sdk.io.AvroSource.AvroReader.Seeker;
 import org.apache.beam.sdk.io.BlockBasedSource.BlockBasedReader;
@@ -58,7 +59,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -435,8 +435,8 @@ public class AvroSourceTest {
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
     Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = AvroSource.from(filename).withSchema(schemaA);
@@ -454,8 +454,8 @@ public class AvroSourceTest {
     String filename = generateTestFile("tmp.avro", birds, SyncBehavior.SYNC_DEFAULT, 0,
         AvroCoder.of(Bird.class), DataFileConstants.NULL_CODEC);
     Metadata fileMetadata = FileSystems.matchSingleFileSpec(filename);
-    String schemaA = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
-    String schemaB = AvroUtils.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaA = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
+    String schemaB = AvroSource.readMetadataFromFile(fileMetadata.resourceId()).getSchemaString();
     assertNotSame(schemaA, schemaB);
 
     AvroSource<GenericRecord> sourceA = (AvroSource<GenericRecord>) AvroSource.from(filename)
@@ -655,6 +655,37 @@ public class AvroSourceTest {
     DisplayData displayData = DisplayData.from(source);
     assertThat(displayData, hasDisplayItem("filePattern", "foobar.txt"));
     assertThat(displayData, hasDisplayItem("minBundleSize", 1234));
+  }
+
+  @Test
+  public void testReadMetadataWithCodecs() throws Exception {
+    // Test reading files generated using all codecs.
+    String codecs[] = {DataFileConstants.NULL_CODEC, DataFileConstants.BZIP2_CODEC,
+        DataFileConstants.DEFLATE_CODEC, DataFileConstants.SNAPPY_CODEC,
+        DataFileConstants.XZ_CODEC};
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+
+    for (String codec : codecs) {
+      String filename = generateTestFile(
+          codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+
+      Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+      AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
+      assertEquals(codec, metadata.getCodec());
+    }
+  }
+
+  @Test
+  public void testReadSchemaString() throws Exception {
+    List<Bird> expected = createRandomRecords(DEFAULT_RECORD_COUNT);
+    String codec = DataFileConstants.NULL_CODEC;
+    String filename = generateTestFile(
+        codec, expected, SyncBehavior.SYNC_DEFAULT, 0, AvroCoder.of(Bird.class), codec);
+    Metadata fileMeta = FileSystems.matchSingleFileSpec(filename);
+    AvroMetadata metadata = AvroSource.readMetadataFromFile(fileMeta.resourceId());
+    // By default, parse validates the schema, which is what we want.
+    Schema schema = new Schema.Parser().parse(metadata.getSchemaString());
+    assertEquals(4, schema.getFields().size());
   }
 
   /**
