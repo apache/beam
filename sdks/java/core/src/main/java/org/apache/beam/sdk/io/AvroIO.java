@@ -23,18 +23,19 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
-
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -1041,7 +1042,11 @@ public class AvroIO {
       @SuppressWarnings("deprecation") // uses internal test functionality.
       @Override
       protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        dataFileWriter = new DataFileWriter<>(coder.createDatumWriter()).setCodec(codec.getCodec());
+        DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
+            ? new GenericDatumWriter<T>(coder.getSchema())
+            : new ReflectDatumWriter<T>(coder.getSchema());
+
+        dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec.getCodec());
         for (Map.Entry<String, Object> entry : metadata.entrySet()) {
           Object v = entry.getValue();
           if (v instanceof String) {

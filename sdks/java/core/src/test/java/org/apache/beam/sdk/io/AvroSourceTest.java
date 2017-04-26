@@ -42,11 +42,13 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroSource.AvroMetadata;
@@ -98,7 +100,9 @@ public class AvroSourceTest {
     String path = tmpFile.toString();
 
     FileOutputStream os = new FileOutputStream(tmpFile);
-    DatumWriter<T> datumWriter = coder.createDatumWriter();
+    DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
+        ? new GenericDatumWriter<T>(coder.getSchema())
+        : new ReflectDatumWriter<T>(coder.getSchema());
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       writer.setCodec(CodecFactory.fromString(codec));
       writer.create(coder.getSchema(), os);
