@@ -69,7 +69,7 @@ from functools import wraps
 warnings.simplefilter("once")
 
 
-def annotate(label, since, current):
+def annotate(label, since, current, extra_message=None):
   """Decorates a function with a deprecated or experimental annotation.
 
   Args:
@@ -90,6 +90,8 @@ def annotate(label, since, current):
       message = '%s is %s' % (fnc.__name__, label)
       if label == 'deprecated':
         message += ' since %s' % since
+        if extra_message is not None:
+          message += '. ' + extra_message
       message += '. Use %s instead.'% current if current else '.'
       warnings.warn(message, warning_type)
       return fnc(*args, **kwargs)
