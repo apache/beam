@@ -42,10 +42,6 @@ import org.slf4j.LoggerFactory;
  * Implements a request initializer that adds retry handlers to all
  * HttpRequests.
  *
- * <p>This allows chaining through to another HttpRequestInitializer, since
- * clients have exactly one HttpRequestInitializer, and Credential is also
- * a required HttpRequestInitializer.
- *
  * <p>Also can take a HttpResponseInterceptor to be applied to the responses.
  */
 public class RetryHttpRequestInitializer implements HttpRequestInitializer {
@@ -121,9 +117,6 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
     }
   }
 
-  @Deprecated
-  private final HttpRequestInitializer chained;
-
   private final HttpResponseInterceptor responseInterceptor;  // response Interceptor to use
 
   private final NanoClock nanoClock;  // used for testing
@@ -137,37 +130,12 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   }
 
   /**
-   * @param chained a downstream HttpRequestInitializer, which will also be
-   *                applied to HttpRequest initialization.  May be null.
-   *
-   * @deprecated use {@link #RetryHttpRequestInitializer}.
-   */
-  @Deprecated
-  public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained) {
-    this(chained, Collections.<Integer>emptyList());
-  }
-
-  /**
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
   public RetryHttpRequestInitializer(Collection<Integer> additionalIgnoredResponseCodes) {
     this(additionalIgnoredResponseCodes, null);
   }
 
-
-  /**
-   * @param chained a downstream HttpRequestInitializer, which will also be
-   *                applied to HttpRequest initialization.  May be null.
-   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
-   *
-   * @deprecated use {@link #RetryHttpRequestInitializer(Collection)}.
-   */
-  @Deprecated
-  public RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
-      Collection<Integer> additionalIgnoredResponseCodes) {
-    this(chained, additionalIgnoredResponseCodes, null);
-  }
-
   /**
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    * @param responseInterceptor HttpResponseInterceptor to be applied on all requests. May be null.
@@ -175,40 +143,20 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   public RetryHttpRequestInitializer(
       Collection<Integer> additionalIgnoredResponseCodes,
       @Nullable HttpResponseInterceptor responseInterceptor) {
-    this(null, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes,
-        responseInterceptor);
-  }
-
-  /**
-   * @param chained a downstream HttpRequestInitializer, which will also be applied to HttpRequest
-   * initialization.  May be null.
-   * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
-   * @param responseInterceptor HttpResponseInterceptor to be applied on all requests. May be null.
-   *
-   * @deprecated use {@link #RetryHttpRequestInitializer(Collection, HttpResponseInterceptor)}.
-   */
-  @Deprecated
-  public RetryHttpRequestInitializer(
-      @Nullable HttpRequestInitializer chained,
-      Collection<Integer> additionalIgnoredResponseCodes,
-      @Nullable HttpResponseInterceptor responseInterceptor) {
-    this(chained, NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes,
+    this(NanoClock.SYSTEM, Sleeper.DEFAULT, additionalIgnoredResponseCodes,
         responseInterceptor);
   }
 
   /**
    * Visible for testing.
    *
-   * @param chained a downstream HttpRequestInitializer, which will also be
-   *                applied to HttpRequest initialization.  May be null.
    * @param nanoClock used as a timing source for knowing how much time has elapsed.
    * @param sleeper used to sleep between retries.
    * @param additionalIgnoredResponseCodes a list of HTTP status codes that should not be logged.
    */
-  RetryHttpRequestInitializer(@Nullable HttpRequestInitializer chained,
+  RetryHttpRequestInitializer(
       NanoClock nanoClock, Sleeper sleeper, Collection<Integer> additionalIgnoredResponseCodes,
       HttpResponseInterceptor responseInterceptor) {
-    this.chained = chained;
     this.nanoClock = nanoClock;
     this.sleeper = sleeper;
     this.ignoredResponseCodes.addAll(additionalIgnoredResponseCodes);
@@ -217,10 +165,6 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
   @Override
   public void initialize(HttpRequest request) throws IOException {
-    if (chained != null) {
-      chained.initialize(request);
-    }
-
     // Set a timeout for hanging-gets.
     // TODO: Do this exclusively for work requests.
     request.setReadTimeout(HANGING_GET_TIMEOUT_SEC * 1000);
