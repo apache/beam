@@ -1,11 +1,39 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.gcp.spanner;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.cloud.spanner.*;
+
+import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -19,11 +47,7 @@ import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 
 
 /**
@@ -34,11 +58,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * <h3>Writing to Cloud Spanner</h3>
  * <strong>Status: Experimental.</strong>
- * <p>
- * {@link SpannerIO#writeTo} batches together and concurrently writes a set of {@link Mutation}s.
  *
+ * <p>{@link SpannerIO#writeTo} batches together and concurrently writes a set of {@link Mutation}s.
  * To configure Cloud Spanner sink, you must apply {@link SpannerIO#writeTo} transform to
- * {@link PCollection<Mutation>} and specify instance and database identifiers.
+ * {@link PCollection} and specify instance and database identifiers.
  * For example, following code sketches out a pipeline that imports data from the CSV file to Cloud
  * Spanner.
  *
