@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.io.InputStream;
@@ -224,17 +223,20 @@ public class AvroCoder<T> extends CustomCoder<T> {
       private final AvroCoder<T> myCoder = AvroCoder.this;
       @Override
       public DatumReader<T> initialValue() {
-        return myCoder.createDatumReader();
+        return myCoder.getType().equals(GenericRecord.class)
+            ? new GenericDatumReader<T>(myCoder.getSchema())
+            : new ReflectDatumReader<T>(myCoder.getSchema());
       }
     };
-    this.writer =
-        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-          private final AvroCoder<T> myCoder = AvroCoder.this;
-          @Override
-          public DatumWriter<T> initialValue() {
-            return myCoder.createDatumWriter();
-          }
-        };
+    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
+      private final AvroCoder<T> myCoder = AvroCoder.this;
+      @Override
+      public DatumWriter<T> initialValue() {
+        return myCoder.getType().equals(GenericRecord.class)
+            ? new GenericDatumWriter<T>(myCoder.getSchema())
+            : new ReflectDatumWriter<T>(myCoder.getSchema());
+      }
+    };
   }
 
   /**
@@ -310,39 +312,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
   public void verifyDeterministic() throws NonDeterministicException {
     if (!nonDeterministicReasons.isEmpty()) {
       throw new NonDeterministicException(this, nonDeterministicReasons);
-    }
-  }
-
-  /**
-   * Returns a new {@link DatumReader} that can be used to read from an Avro file directly. Assumes
-   * the schema used to read is the same as the schema that was used when writing.
-   *
-   * @deprecated For {@code AvroCoder} internal use only.
-   */
-  // TODO: once we can remove this deprecated function, inline in constructor.
-  @Deprecated
-  @VisibleForTesting
-  public DatumReader<T> createDatumReader() {
-    if (type.equals(GenericRecord.class)) {
-      return new GenericDatumReader<>(schemaSupplier.get());
-    } else {
-      return new ReflectDatumReader<>(schemaSupplier.get());
-    }
-  }
-
-  /**
-   * Returns a new {@link DatumWriter} that can be used to write to an Avro file directly.
-   *
-   * @deprecated For {@code AvroCoder} internal use only.
-   */
-  @Deprecated
-  @VisibleForTesting
-  // TODO: once we can remove this deprecated function, inline in constructor.
-  public DatumWriter<T> createDatumWriter() {
-    if (type.equals(GenericRecord.class)) {
-      return new GenericDatumWriter<>(schemaSupplier.get());
-    } else {
-      return new ReflectDatumWriter<>(schemaSupplier.get());
     }
   }
 

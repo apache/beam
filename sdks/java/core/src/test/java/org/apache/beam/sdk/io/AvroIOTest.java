@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -41,7 +40,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
@@ -49,6 +47,8 @@ import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
+import org.apache.avro.reflect.ReflectData;
+import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.AvroIO.Write.Bound;
@@ -321,7 +321,7 @@ public class AvroIOTest {
   public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
 
   @Test
-  @Category({ValidatesRunner.class, UsesTestStream.class })
+  @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testWindowedAvroIOWrite() throws Throwable {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     final String outputFilePrefix = baseOutputFile.getAbsolutePath();
@@ -393,8 +393,9 @@ public class AvroIOTest {
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getAbsolutePath(), outputFile.exists());
       try (DataFileReader<GenericClass> reader =
-               new DataFileReader<>(outputFile, AvroCoder.of(
-                   GenericClass.class).createDatumReader())) {
+               new DataFileReader<>(outputFile,
+                   new ReflectDatumReader<GenericClass>(
+                       ReflectData.get().getSchema(GenericClass.class)))) {
         Iterators.addAll(actualElements, reader);
       }
       outputFile.delete();
@@ -504,7 +505,8 @@ public class AvroIOTest {
     for (File outputFile : expectedFiles) {
       assertTrue("Expected output file " + outputFile.getName(), outputFile.exists());
       try (DataFileReader<String> reader =
-          new DataFileReader<>(outputFile, AvroCoder.of(String.class).createDatumReader())) {
+          new DataFileReader<>(outputFile,
+              new ReflectDatumReader(ReflectData.get().getSchema(String.class)))) {
         Iterators.addAll(actualElements, reader);
       }
     }
