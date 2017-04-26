@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -190,7 +190,7 @@ public class CountingSource {
   private static class BoundedCountingReader extends OffsetBasedSource.OffsetBasedReader<Long> {
     private long current;
 
-    private final Counter elementsRead = Metrics.counter("io", "elementsRead");
+    private final Counter elementsRead = SourceMetrics.elementsRead();
 
     public BoundedCountingReader(OffsetBasedSource<Long> source) {
       super(source);
@@ -354,7 +354,7 @@ public class CountingSource {
     private Instant currentTimestamp;
     private Instant firstStarted;
 
-    private final Counter elementsRead = Metrics.counter("io", "elementsRead");
+    private final Counter elementsRead = SourceMetrics.elementsRead();
 
     public UnboundedCountingReader(UnboundedCountingSource source, CounterMark mark) {
       this.source = source;

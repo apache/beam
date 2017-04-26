@@ -131,6 +131,10 @@ public class Metrics {
     @Override public void dec(long n) {
       inc(-1 * n);
     }
+
+    @Override public MetricName getName() {
+      return name;
+    }
   }
 
   /**
@@ -150,6 +154,10 @@ public class Metrics {
         container.getDistribution(name).update(value);
       }
     }
+
+    @Override public MetricName getName() {
+      return name;
+    }
   }
 
   /**
@@ -168,6 +176,10 @@ public class Metrics {
       if (container != null) {
         container.getGauge(name).set(value);
       }
+    }
+
+    @Override public MetricName getName() {
+      return name;
     }
   }
 }
