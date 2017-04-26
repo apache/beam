@@ -73,7 +73,7 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createBundle(created).commit(Instant.now()),
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
@@ -81,7 +81,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getUncommittedElementsEqualInput() {
-    DirectRunner.CommittedBundle<Integer> bundle =
+    CommittedBundle<Integer> bundle =
         bundleFactory.createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
@@ -89,11 +89,11 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             bundle,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(),
-        Matchers.<DirectRunner.CommittedBundle<?>>equalTo(bundle));
+        Matchers.<CommittedBundle<?>>equalTo(bundle));
   }
 
   @Test
@@ -102,7 +102,7 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             null,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(), nullValue());
@@ -110,7 +110,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getOutputsEqualInput() {
-    List<? extends DirectRunner.CommittedBundle<?>> outputs =
+    List<? extends CommittedBundle<?>> outputs =
         ImmutableList.of(bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
             WindowingStrategy.globalDefault(),
             PCollection.IsBounded.BOUNDED)).commit(Instant.now()),

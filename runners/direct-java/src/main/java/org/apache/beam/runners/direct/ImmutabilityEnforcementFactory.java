@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
