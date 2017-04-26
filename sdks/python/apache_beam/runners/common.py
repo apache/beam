@@ -95,23 +95,15 @@ class DoFnSignature(object):
     self._validate()
 
   def _validate(self):
-    # start_bundle and finish_bundle methods should only have ContextParam as a
-    # default argument.
-    self._validate_start_bundle()
-    self._validate_finish_bundle()
-    self._validate_process()
-
-  def _validate_start_bundle(self):
     self._validate_bundle_method(self.start_bundle_method)
-
-  def _validate_finish_bundle(self):
     self._validate_bundle_method(self.finish_bundle_method)
-
-  def _validate_process(self):
-    pass
 
   def _validate_bundle_method(self, method_wrapper):
     # Bundle methods may only contain ContextParam.
+
+    # Here we use the fact that every DoFn parameter defined in core.DoFn has
+    # the value that is the same as the name of the parameter and ends with
+    # string 'Param'.
     unsupported_dofn_params = [i for i in core.DoFn.__dict__ if (
         i.endswith('Param') and i != 'ContextParam')]
 

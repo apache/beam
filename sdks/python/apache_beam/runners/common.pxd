@@ -40,12 +40,6 @@ cdef class DoFnSignature(object):
   cdef public DoFnMethodWrapper finish_bundle_method
   cdef public object do_fn
 
-  cdef _validate(self)
-  cdef _validate_start_bundle(self)
-  cdef _validate_finish_bundle(self)
-  cdef _validate_process(self)
-  cdef _validate_bundle_method(self, DoFnMethodWrapper bundle_method)
-
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
