@@ -214,22 +214,22 @@ public class FileSystems {
    * @param destResourceIds the references of the destination resources
    */
   public static void copy(
-      List<ResourceId> srcResourceIds,
-      List<ResourceId> destResourceIds,
-      MoveOptions... moveOptions) throws IOException {
-    validateOnlyScheme(srcResourceIds, destResourceIds);
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
 
-    List<ResourceId> srcToCopy;
-    List<ResourceId> destToCopy;
+    List<ResourceId> srcToCopy = srcResourceIds;
+    List<ResourceId> destToCopy = destResourceIds;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToCopy = existings.getKey();
       destToCopy = existings.getValue();
-    } else {
-      srcToCopy = srcResourceIds;
-      destToCopy = destResourceIds;
     }
     if (srcToCopy.isEmpty()) {
       return;
@@ -252,22 +252,22 @@ public class FileSystems {
    * @param destResourceIds the references of the destination resources
    */
   public static void rename(
-      List<ResourceId> srcResourceIds,
-      List<ResourceId> destResourceIds,
-      MoveOptions... moveOptions) throws IOException {
-    validateOnlyScheme(srcResourceIds, destResourceIds);
-    List<ResourceId> srcToRename;
-    List<ResourceId> destToRename;
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
 
+    List<ResourceId> srcToRename = srcResourceIds;
+    List<ResourceId> destToRename = destResourceIds;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
       destToRename = existings.getValue();
-    } else {
-      srcToRename = srcResourceIds;
-      destToRename = destResourceIds;
     }
     if (srcToRename.isEmpty()) {
       return;
@@ -288,6 +288,11 @@ public class FileSystems {
    */
   public static void delete(
       Collection<ResourceId> resourceIds, MoveOptions... moveOptions) throws IOException {
+    if (resourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
+
     Collection<ResourceId> resourceIdsToDelete;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
@@ -329,6 +334,12 @@ public class FileSystems {
 
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return KV.of(Collections.<ResourceId>emptyList(), Collections.<ResourceId>emptyList());
+    }
+
     List<ResourceId> srcToHandle = new ArrayList<>();
     List<ResourceId> destToHandle = new ArrayList<>();
 
@@ -342,13 +353,19 @@ public class FileSystems {
     return KV.of(srcToHandle, destToHandle);
   }
 
-  private static void validateOnlyScheme(
+  private static void validateSrcDestLists(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) {
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source resource ids %s must equal number of destination resource ids %s",
         srcResourceIds.size(),
         destResourceIds.size());
+
+    if (srcResourceIds.isEmpty()) {
+      // nothing more to validate.
+      return;
+    }
+
     Set<String> schemes = FluentIterable.from(srcResourceIds)
         .append(destResourceIds)
         .transform(new Function<ResourceId, String>() {
