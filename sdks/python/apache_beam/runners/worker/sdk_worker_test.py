@@ -32,7 +32,6 @@ from apache_beam.io.iobase import SourceBundle
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
-from apache_beam.runners.worker import portpicker
 
 
 class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
@@ -66,7 +65,6 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_fn_registration(self):
     fns = [beam_fn_api_pb2.FunctionSpec(id=str(ix)) for ix in range(4)]
-    test_port = portpicker.pick_unused_port()
 
     process_bundle_descriptors = [beam_fn_api_pb2.ProcessBundleDescriptor(
         id=str(100+ix),
@@ -80,7 +78,7 @@ class SdkWorkerTest(unittest.TestCase):
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_fn_api_pb2.add_BeamFnControlServicer_to_server(test_controller, server)
-    server.add_insecure_port("[::]:%s" % test_port)
+    test_port = server.add_insecure_port("[::]:0")
     server.start()
 
     channel = grpc.insecure_channel("localhost:%s" % test_port)
@@ -125,8 +123,6 @@ class SdkWorkerTest(unittest.TestCase):
     source = RangeSource(0, 100)
     expected_splits = list(source.split(30))
 
-    test_port = portpicker.pick_unused_port()
-
     test_controller = BeamFnControlServicer([
         beam_fn_api_pb2.InstructionRequest(
             instruction_id="register_request",
@@ -147,7 +143,7 @@ class SdkWorkerTest(unittest.TestCase):
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_fn_api_pb2.add_BeamFnControlServicer_to_server(test_controller, server)
-    server.add_insecure_port("[::]:%s" % test_port)
+    test_port = server.add_insecure_port("[::]:0")
     server.start()
 
     channel = grpc.insecure_channel("localhost:%s" % test_port)

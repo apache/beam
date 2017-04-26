@@ -37,7 +37,6 @@ from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import portpicker
 from apache_beam.runners.worker import sdk_worker
 
 
@@ -433,12 +432,10 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.state_handler = FnApiRunner.SimpleState()
       self.control_server = grpc.server(
           futures.ThreadPoolExecutor(max_workers=10))
-      self.control_port = portpicker.pick_unused_port()
-      self.control_server.add_insecure_port('[::]:%s' % self.control_port)
+      self.control_port = self.control_server.add_insecure_port('[::]:0')
 
       self.data_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-      self.data_port = portpicker.pick_unused_port()
-      self.data_server.add_insecure_port('[::]:%s' % self.data_port)
+      self.data_port = self.data_server.add_insecure_port('[::]:0')
 
       self.control_handler = streaming_rpc_handler(
           beam_fn_api_pb2.BeamFnControlServicer, 'Control')

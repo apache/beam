@@ -31,7 +31,6 @@ from concurrent import futures
 
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import portpicker
 
 
 def timeout(timeout_secs):
@@ -62,11 +61,10 @@ class DataChannelTest(unittest.TestCase):
   def test_grpc_data_channel(self):
     data_channel_service = data_plane.GrpcServerDataChannel()
 
-    test_port = portpicker.pick_unused_port()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     beam_fn_api_pb2.add_BeamFnDataServicer_to_server(
         data_channel_service, server)
-    server.add_insecure_port('[::]:%s' % test_port)
+    test_port = server.add_insecure_port('[::]:0')
     server.start()
 
     data_channel_stub = beam_fn_api_pb2.BeamFnDataStub(

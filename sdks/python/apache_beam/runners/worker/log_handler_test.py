@@ -24,7 +24,6 @@ from concurrent import futures
 
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import log_handler
-from apache_beam.runners.worker import portpicker
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2.BeamFnLoggingServicer):
@@ -44,11 +43,10 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
-    self.test_port = portpicker.pick_unused_port()
     self.server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_fn_api_pb2.add_BeamFnLoggingServicer_to_server(
         self.test_logging_service, self.server)
-    self.server.add_insecure_port('[::]:%s' % self.test_port)
+    self.test_port = self.server.add_insecure_port('[::]:0')
     self.server.start()
 
     self.logging_service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
