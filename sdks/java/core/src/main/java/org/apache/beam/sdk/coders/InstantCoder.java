@@ -97,11 +97,6 @@ public class InstantCoder extends CustomCoder<Instant> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

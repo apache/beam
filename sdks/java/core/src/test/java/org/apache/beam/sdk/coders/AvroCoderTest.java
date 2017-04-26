@@ -240,12 +240,6 @@ public class AvroCoderTest {
   }
 
   @Test
-  public void testPojoEncodingId() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-    CoderProperties.coderHasEncodingId(coder, Pojo.class.getName());
-  }
-
-  @Test
   public void testGenericRecordEncoding() throws Exception {
     String schemaString =
         "{\"namespace\": \"example.avro\",\n"

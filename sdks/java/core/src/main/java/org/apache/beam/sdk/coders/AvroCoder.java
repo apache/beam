@@ -240,39 +240,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * The encoding identifier is designed to support evolution as per the design of Avro
-   * In order to use this class effectively, carefully read the Avro
-   * documentation at
-   * <a href="https://avro.apache.org/docs/1.7.7/spec.html#Schema+Resolution">Schema Resolution</a>
-   * to ensure that the old and new schema <i>match</i>.
-   *
-   * <p>In particular, this encoding identifier is guaranteed to be the same for {@code AvroCoder}
-   * instances of the same principal class, and otherwise distinct. The schema is not included
-   * in the identifier.
-   *
-   * <p>When modifying a class to be encoded as Avro, here are some guidelines; see the above link
-   * for greater detail.
-   *
-   * <ul>
-   * <li>Avoid changing field names.
-   * <li>Never remove a <code>required</code> field.
-   * <li>Only add <code>optional</code> fields, with sensible defaults.
-   * <li>When changing the type of a field, consult the Avro documentation to ensure the new and
-   * old types are interchangeable.
-   * </ul>
-   *
-   * <p>Code consuming this message class should be prepared to support <i>all</i> versions of
-   * the class until it is certain that no remaining serialized instances exist.
-   *
-   * <p>If backwards incompatible changes must be made, the best recourse is to change the name
-   * of your class.
-   */
-  @Override
-  public String getEncodingId() {
-    return type.getName();
-  }
-
-  /**
    * Returns the type this coder encodes/decodes.
    */
   public Class<T> getType() {

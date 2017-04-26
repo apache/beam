@@ -124,18 +124,6 @@ public class ProtoCoderTest {
   }
 
   @Test
-  public void testEncodingId() throws Exception {
-    Coder<MessageA> coderA = ProtoCoder.of(MessageA.class);
-    CoderProperties.coderHasEncodingId(coderA, MessageA.class.getName() + "[]");
-
-    ProtoCoder<MessageC> coder =
-        ProtoCoder.of(MessageC.class).withExtensionsFrom(Proto2CoderTestMessages.class);
-    CoderProperties.coderHasEncodingId(
-        coder,
-        String.format("%s[%s]", MessageC.class.getName(), Proto2CoderTestMessages.class.getName()));
-  }
-
-  @Test
   public void encodeNullThrowsCoderException() throws Exception {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null MessageA");

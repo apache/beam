@@ -69,11 +69,6 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

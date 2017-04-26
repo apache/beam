@@ -193,11 +193,6 @@ public class Count {
         protected long getEncodedElementByteSize(long[] value, Context context) {
           return VarInt.getLength(value[0]);
         }
-
-        @Override
-        public String getEncodingId() {
-          return "VarLongSingletonArray";
-        }
       };
     }
   }

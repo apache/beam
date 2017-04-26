@@ -624,11 +624,6 @@ public class IsmFormat {
     public boolean consistentWithEquals() {
       return true;
     }
-
-    @Override
-    public String getEncodingId() {
-      return "";
-    }
   }
 
   /**
@@ -693,11 +688,6 @@ public class IsmFormat {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
           + VarInt.getLength(value.getUnsharedKeySize());
-    }
-
-    @Override
-    public String getEncodingId() {
-      return "";
     }
   }
 
@@ -778,11 +768,6 @@ public class IsmFormat {
     public long getEncodedElementByteSize(Footer value, Coder.Context context)
         throws Exception {
       return Footer.FIXED_LENGTH;
-    }
-
-    @Override
-    public String getEncodingId() {
-      return "";
     }
   }
 }

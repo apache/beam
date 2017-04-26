@@ -79,11 +79,6 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

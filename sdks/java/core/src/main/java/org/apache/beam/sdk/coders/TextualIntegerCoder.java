@@ -65,11 +65,6 @@ public class TextualIntegerCoder extends CustomCoder<Integer> {
   }
 
   @Override
-  public String getEncodingId() {
-    return "";
-  }
-
-  @Override
   public TypeDescriptor<Integer> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }

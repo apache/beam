@@ -22,8 +22,6 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -177,15 +175,5 @@ public class NullableCoder<T> extends CustomCoder<T> {
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return valueCoder.getEncodedTypeDescriptor();
-  }
-
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
-  @Override
-  public Collection<String> getAllowedEncodings() {
-    return Collections.emptyList();
   }
 }
