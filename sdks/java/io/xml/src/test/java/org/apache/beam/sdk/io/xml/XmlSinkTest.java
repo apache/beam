@@ -26,9 +26,11 @@ import static org.junit.Assert.assertNotNull;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
+import java.io.InputStreamReader;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,7 +84,26 @@ public class XmlSinkTest {
     List<String> lines = Arrays.asList("<birds>", "<bird>", "<species>robin</species>",
         "<adjective>bemused</adjective>", "</bird>", "<bird>", "<species>goose</species>",
         "<adjective>evasive</adjective>", "</bird>", "</birds>");
-    runTestWrite(writer, bundle, lines);
+    runTestWrite(writer, bundle, lines, StandardCharsets.UTF_8.name());
+  }
+
+  @Test
+  public void testXmlWriterCharset() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    XmlWriteOperation<Bird> writeOp =
+        XmlIO.<Bird>write()
+            .toFilenamePrefix(testFilePrefix)
+            .withRecordClass(Bird.class)
+            .withRootElement("birds")
+            .withCharset(StandardCharsets.ISO_8859_1)
+            .createSink()
+            .createWriteOperation(options);
+    XmlWriter<Bird> writer = writeOp.createWriter(options);
+
+    List<Bird> bundle = Lists.newArrayList(new Bird("bréche", "pinçon"));
+    List<String> lines = Arrays.asList("<birds>", "<bird>", "<species>pinçon</species>",
+        "<adjective>bréche</adjective>", "</bird>", "</birds>");
+    runTestWrite(writer, bundle, lines, StandardCharsets.ISO_8859_1.name());
   }
 
   /**
@@ -181,14 +202,16 @@ public class XmlSinkTest {
   /**
    * Write a bundle with an XmlWriter and verify the output is expected.
    */
-  private <T> void runTestWrite(XmlWriter<T> writer, List<T> bundle, List<String> expected)
+  private <T> void runTestWrite(XmlWriter<T> writer, List<T> bundle, List<String> expected,
+                                String charset)
       throws Exception {
     File tmpFile = tmpFolder.newFile("foo.txt");
     try (FileOutputStream fileOutputStream = new FileOutputStream(tmpFile)) {
       writeBundle(writer, bundle, fileOutputStream.getChannel());
     }
     List<String> lines = new ArrayList<>();
-    try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
+    try (BufferedReader reader = new BufferedReader(
+        new InputStreamReader(new FileInputStream(tmpFile), charset))) {
       for (;;) {
         String line = reader.readLine();
         if (line == null) {

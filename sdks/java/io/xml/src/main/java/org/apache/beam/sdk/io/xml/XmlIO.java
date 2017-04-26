@@ -211,10 +211,20 @@ public class XmlIO {
    *  ...
    * </words>
    * }</pre>
+   *
+   * <p>By default the UTF-8 charset is used. This can be overridden, for example:
+   *
+   * <pre>{@code
+   * p.apply(XmlIO.<Type>write()
+   *      .withRecordClass(Type.class)
+   *      .withRootElement(root_element)
+   *      .withCharset(StandardCharsets.ISO_8859_1)
+   *      .toFilenamePrefix(output_filename));
+   * }</pre>
    */
   // CHECKSTYLE.ON: JavadocStyle
   public static <T> Write<T> write() {
-    return new AutoValue_XmlIO_Write.Builder<T>().build();
+    return new AutoValue_XmlIO_Write.Builder<T>().setCharset("UTF-8").build();
   }
 
   /** Implementation of {@link #read}. */
@@ -432,6 +442,9 @@ public class XmlIO {
     @Nullable
     abstract String getRootElement();
 
+    @Nullable
+    abstract String getCharset();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -441,6 +454,8 @@ public class XmlIO {
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
       abstract Builder<T> setRootElement(String rootElement);
+
+      abstract Builder<T> setCharset(String charset);
 
       abstract Write<T> build();
     }
@@ -469,11 +484,17 @@ public class XmlIO {
       return toBuilder().setRootElement(rootElement).build();
     }
 
+    /** Sets the charset used to write the file. */
+    public Write<T> withCharset(Charset charset) {
+      return toBuilder().setCharset(charset.name()).build();
+    }
+
     @Override
     public void validate(PCollection<T> input) {
       checkNotNull(getRecordClass(), "Missing a class to bind to a JAXB context.");
       checkNotNull(getRootElement(), "Missing a root element name.");
       checkNotNull(getFilenamePrefix(), "Missing a filename to write to.");
+      checkNotNull(getCharset(), "Missing charset");
       try {
         JAXBContext.newInstance(getRecordClass());
       } catch (JAXBException e) {
@@ -498,7 +519,9 @@ public class XmlIO {
           .addIfNotNull(
               DisplayData.item("rootElement", getRootElement()).withLabel("XML Root Element"))
           .addIfNotNull(
-              DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"));
+              DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"))
+          .addIfNotNull(
+              DisplayData.item("charset", getCharset()).withLabel("Charset"));
     }
   }
 }
