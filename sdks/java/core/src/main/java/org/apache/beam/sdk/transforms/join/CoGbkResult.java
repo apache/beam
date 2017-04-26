@@ -269,7 +269,7 @@ public class CoGbkResult {
 
     @SuppressWarnings("rawtypes")
     private IterableCoder tagListCoder(int unionTag) {
-      return IterableCoder.of(unionCoder.getComponents().get(unionTag));
+      return IterableCoder.of(unionCoder.getElementCoders().get(unionTag));
     }
 
     @Override

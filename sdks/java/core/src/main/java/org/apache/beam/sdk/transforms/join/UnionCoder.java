@@ -91,6 +91,10 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
     return elementCoders;
   }
 
+  public List<? extends Coder<?>> getElementCoders() {
+    return elementCoders;
+  }
+
   /**
    * Since this coder uses elementCoders.get(index) and coders that are known to run in constant
    * time, we defer the return value to that coder.
