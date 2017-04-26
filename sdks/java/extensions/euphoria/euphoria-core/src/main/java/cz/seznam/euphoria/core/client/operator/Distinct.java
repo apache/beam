@@ -159,9 +159,8 @@ public class Distinct<IN, ELEM, W extends Window>
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = input.getFlow();
     String name = getName() + "::" + "ReduceByKey";
-    ReduceByKey<IN, IN, ELEM, Void, IN, Void, W>
-        reduce;
-    reduce = new ReduceByKey<>(name,
+    ReduceByKey<IN, ELEM, Void, Void, W> reduce =
+        new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
             windowing, eventTimeAssigner,
             (CombinableReduceFunction<Void>) e -> null, partitioning);

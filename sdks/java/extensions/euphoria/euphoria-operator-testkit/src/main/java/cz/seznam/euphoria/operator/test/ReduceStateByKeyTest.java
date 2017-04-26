@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.operator.test;
 
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
@@ -27,7 +26,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -44,6 +42,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -641,8 +640,7 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory(ReduceByKeyTest.SumState::new)
                 .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5)),
-                          (ExtractEventTime<Pair<String, Integer>>) Pair::getSecond)
+                .windowBy(Time.of(Duration.ofSeconds(5)), Pair::getSecond)
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to
