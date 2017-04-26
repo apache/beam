@@ -115,13 +115,11 @@ public class DoFnRunners {
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
           DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner,
           StepContext stepContext,
-          WindowingStrategy<?, W> windowingStrategy,
-          Aggregator<Long, Long> droppedDueToLatenessAggregator) {
+          WindowingStrategy<?, W> windowingStrategy) {
     return new LateDataDroppingDoFnRunner<>(
         wrappedRunner,
         windowingStrategy,
-        stepContext.timerInternals(),
-        droppedDueToLatenessAggregator);
+        stepContext.timerInternals());
   }
 
   /**

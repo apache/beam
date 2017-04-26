@@ -178,7 +178,6 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
               new UnsupportedSideInputReader("GroupAlsoByWindow"),
-              droppedDueToClosedWindow,
               reduceFn,
               evaluationContext.getPipelineOptions());
 
