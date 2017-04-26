@@ -18,20 +18,21 @@
 
 package org.apache.beam.runners.dataflow.util;
 
-import org.apache.beam.sdk.util.CloudObject;
+import com.google.auto.service.AutoService;
+import java.util.Collections;
+import java.util.Map;
 
-/**
- * An translator that takes an object and creates a {@link CloudObject} which can be converted back
- * to the original object.
- */
-public interface CloudObjectTranslator<T> {
-  /**
-   * Converts the provided object into an equivalent {@link CloudObject}.
-   */
-  CloudObject toCloudObject(T target);
+/** Created by tgroh on 4/26/17. */
+@AutoService(CoderCloudObjectTranslatorRegistrar.class)
+public class DefaultCoderCloudObjectTranslatorRegistrar
+    implements CoderCloudObjectTranslatorRegistrar {
+  @Override
+  public Map<String, CloudObjectTranslator<?>> classNamesToTranslators() {
+    return Collections.emptyMap();
+  }
 
-  /**
-   * Converts back into the original object from a provided {@link CloudObject}.
-   */
-  T fromCloudObject(CloudObject cloudObject);
+  @Override
+  public Map<Class<?>, CloudObjectTranslator<?>> classesToTranslators() {
+    return Collections.emptyMap();
+  }
 }
