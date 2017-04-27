@@ -74,6 +74,11 @@ def construct_pipeline(renames):
   """A reverse words snippet as an example for constructing a pipeline."""
   import re
 
+  # This is duplicate of the import statement in
+  # pipelines_constructing_creating tag below, but required to avoid
+  # Unresolved reference in ReverseWords class
+  import apache_beam as beam
+
   class ReverseWords(beam.PTransform):
     """A PTransform that reverses individual elements in a PCollection."""
 
@@ -85,6 +90,7 @@ def construct_pipeline(renames):
     return True
 
   # [START pipelines_constructing_creating]
+  import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
@@ -155,6 +161,7 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
+  # [START model_pcollection]
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
@@ -169,7 +176,6 @@ def model_pcollection(argv):
   pipeline_options = PipelineOptions(argv)
   my_options = pipeline_options.view_as(MyOptions)
 
-  # [START model_pcollection]
   p = beam.Pipeline(options=pipeline_options)
 
   (p
@@ -1006,9 +1012,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   # types.)
   # [START model_multiple_pcollections_flatten]
   merged = (
-      # [START model_multiple_pcollections_tuple]
       (pcoll1, pcoll2, pcoll3)
-      # [END model_multiple_pcollections_tuple]
       # A list of tuples can be "piped" directly into a Flatten transform.
       | beam.Flatten())
   # [END model_multiple_pcollections_flatten]
