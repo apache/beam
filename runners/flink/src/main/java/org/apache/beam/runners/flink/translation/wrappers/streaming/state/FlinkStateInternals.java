@@ -32,7 +32,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.sdk.util.state.BagState;
@@ -185,12 +185,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       }
 
       @Override
-      public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-          StateTag<? super K, WatermarkHoldState> address,
-          TimestampCombiner timestampCombiner) {
+      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+          StateTag<? super K, WatermarkHoldState<W>> address,
+          OutputTimeFn<? super W> outputTimeFn) {
 
         return new FlinkWatermarkHoldState<>(
-            flinkStateBackend, FlinkStateInternals.this, address, namespace, timestampCombiner);
+            flinkStateBackend, FlinkStateInternals.this, address, namespace, outputTimeFn);
       }
     });
   }
@@ -912,9 +912,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   }
 
   private static class FlinkWatermarkHoldState<K, W extends BoundedWindow>
-      implements WatermarkHoldState {
-    private final StateTag<? super K, WatermarkHoldState> address;
-    private final TimestampCombiner timestampCombiner;
+      implements WatermarkHoldState<W> {
+    private final StateTag<? super K, WatermarkHoldState<W>> address;
+    private final OutputTimeFn<? super W> outputTimeFn;
     private final StateNamespace namespace;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
@@ -923,11 +923,11 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     public FlinkWatermarkHoldState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         FlinkStateInternals<K> flinkStateInternals,
-        StateTag<? super K, WatermarkHoldState> address,
+        StateTag<? super K, WatermarkHoldState<W>> address,
         StateNamespace namespace,
-        TimestampCombiner timestampCombiner) {
+        OutputTimeFn<? super W> outputTimeFn) {
       this.address = address;
-      this.timestampCombiner = timestampCombiner;
+      this.outputTimeFn = outputTimeFn;
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateInternals = flinkStateInternals;
@@ -937,12 +937,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public TimestampCombiner getTimestampCombiner() {
-      return timestampCombiner;
+    public OutputTimeFn<? super W> getOutputTimeFn() {
+      return outputTimeFn;
     }
 
     @Override
-    public WatermarkHoldState readLater() {
+    public WatermarkHoldState<W> readLater() {
       return this;
     }
 
@@ -983,7 +983,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
           state.update(value);
           flinkStateInternals.watermarkHolds.put(namespace.stringKey(), value);
         } else {
-          Instant combined = timestampCombiner.combine(current, value);
+          Instant combined = outputTimeFn.combine(current, value);
           state.update(combined);
           flinkStateInternals.watermarkHolds.put(namespace.stringKey(), combined);
         }
@@ -1035,7 +1035,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       if (!address.equals(that.address)) {
         return false;
       }
-      if (!timestampCombiner.equals(that.timestampCombiner)) {
+      if (!outputTimeFn.equals(that.outputTimeFn)) {
         return false;
       }
       return namespace.equals(that.namespace);
@@ -1045,7 +1045,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     @Override
     public int hashCode() {
       int result = address.hashCode();
-      result = 31 * result + timestampCombiner.hashCode();
+      result = 31 * result + outputTimeFn.hashCode();
       result = 31 * result + namespace.hashCode();
       return result;
     }

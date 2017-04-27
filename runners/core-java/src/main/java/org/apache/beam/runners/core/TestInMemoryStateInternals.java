@@ -52,7 +52,7 @@ public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
     Instant minimum = null;
     for (State storage : inMemoryState.values()) {
       if (storage instanceof WatermarkHoldState) {
-        Instant hold = ((WatermarkHoldState) storage).read();
+        Instant hold = ((WatermarkHoldState<?>) storage).read();
         if (minimum == null || (hold != null && hold.isBefore(minimum))) {
           minimum = hold;
         }

@@ -47,9 +47,9 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -171,7 +171,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * <ul>
    * <li>State: Bag of hold timestamps.
    * <li>State style: RENAMED
-   * <li>Merging: Depending on {@link TimestampCombiner}, may need to be recalculated on merging.
+   * <li>Merging: Depending on {@link OutputTimeFn}, may need to be recalculated on merging.
    * When a pane fires it may be necessary to add (back) an end-of-window or garbage collection
    * hold.
    * <li>Lifetime: Cleared when a pane fires or when the window is garbage collected.

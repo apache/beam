@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -60,8 +60,8 @@ public class HashingFlinkCombineRunner<
 
 
     @SuppressWarnings("unchecked")
-    TimestampCombiner timestampCombiner = windowingStrategy.getTimestampCombiner();
-    WindowFn<Object, W> windowFn = windowingStrategy.getWindowFn();
+    OutputTimeFn<? super BoundedWindow> outputTimeFn =
+        (OutputTimeFn<? super BoundedWindow>) windowingStrategy.getOutputTimeFn();
 
     // Flink Iterable can be iterated over only once.
     List<WindowedValue<KV<K, InputT>>> inputs = new ArrayList<>();
@@ -87,21 +87,14 @@ public class HashingFlinkCombineRunner<
           AccumT accumT = flinkCombiner.firstInput(key, currentValue.getValue().getValue(),
               options, sideInputReader, singletonW);
           Instant windowTimestamp =
-              timestampCombiner.assign(
-                  mergedWindow, windowFn.getOutputTime(currentValue.getTimestamp(), mergedWindow));
+              outputTimeFn.assignOutputTime(currentValue.getTimestamp(), mergedWindow);
           accumAndInstant = new Tuple2<>(accumT, windowTimestamp);
           mapState.put(mergedWindow, accumAndInstant);
         } else {
           accumAndInstant.f0 = flinkCombiner.addInput(key, accumAndInstant.f0,
               currentValue.getValue().getValue(), options, sideInputReader, singletonW);
-          accumAndInstant.f1 =
-              timestampCombiner.combine(
-                  accumAndInstant.f1,
-                  timestampCombiner.assign(
-                      mergedWindow,
-                      windowingStrategy
-                          .getWindowFn()
-                          .getOutputTime(currentValue.getTimestamp(), mergedWindow)));
+          accumAndInstant.f1 = outputTimeFn.combine(accumAndInstant.f1,
+              outputTimeFn.assignOutputTime(currentValue.getTimestamp(), mergedWindow));
         }
       }
       if (iterator.hasNext()) {

@@ -43,7 +43,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.GroupingState;
@@ -288,12 +289,13 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
 
-    TimestampCombiner timestampCombiner = TimestampCombiner.EARLIEST;
+    OutputTimeFn<BoundedWindow> outputTimeFn =
+        OutputTimeFns.outputAtEarliestInputTimestamp();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    StateTag<Object, WatermarkHoldState> stateTag =
-        StateTags.watermarkStateInternal("wmstate", timestampCombiner);
-    WatermarkHoldState underlyingValue = underlying.state(namespace, stateTag);
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> stateTag =
+        StateTags.watermarkStateInternal("wmstate", outputTimeFn);
+    WatermarkHoldState<?> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), nullValue());
 
     underlyingValue.add(new Instant(250L));
@@ -301,7 +303,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    WatermarkHoldState copyOnAccessState = internals.state(namespace, stateTag);
+    WatermarkHoldState<BoundedWindow> copyOnAccessState = internals.state(namespace, stateTag);
     assertThat(copyOnAccessState.read(), equalTo(new Instant(250L)));
 
     copyOnAccessState.add(new Instant(100L));
@@ -311,7 +313,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     copyOnAccessState.add(new Instant(500L));
     assertThat(copyOnAccessState.read(), equalTo(new Instant(100L)));
 
-    WatermarkHoldState reReadUnderlyingValue =
+    WatermarkHoldState<BoundedWindow> reReadUnderlyingValue =
         underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
   }
@@ -512,15 +514,15 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
 
-    StateTag<Object, WatermarkHoldState> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState firstHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> firstHold =
         internals.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(22L));
 
-    StateTag<Object, WatermarkHoldState> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState secondHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(2L));
 
@@ -544,18 +546,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     };
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
-    StateTag<Object, WatermarkHoldState> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState firstHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(22L));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
 
-    StateTag<Object, WatermarkHoldState> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState secondHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(244L));
 
@@ -581,18 +583,18 @@ public class CopyOnAccessInMemoryStateInternalsTest {
         };
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", null);
-    StateTag<Object, WatermarkHoldState> firstHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState firstHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> firstHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> firstHold =
         underlying.state(StateNamespaces.window(null, first), firstHoldAddress);
     firstHold.add(new Instant(224L));
 
     CopyOnAccessInMemoryStateInternals<String> internals =
         CopyOnAccessInMemoryStateInternals.withUnderlying("foo", underlying.commit());
 
-    StateTag<Object, WatermarkHoldState> secondHoldAddress =
-        StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    WatermarkHoldState secondHold =
+    StateTag<Object, WatermarkHoldState<BoundedWindow>> secondHoldAddress =
+        StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    WatermarkHoldState<BoundedWindow> secondHold =
         internals.state(StateNamespaces.window(null, second), secondHoldAddress);
     secondHold.add(new Instant(24L));
 
@@ -608,7 +610,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     internals
         .state(
             StateNamespaces.global(),
-            StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST))
+            StateTags.watermarkStateInternal("foo", OutputTimeFns.outputAtEarliestInputTimestamp()))
         .add(new Instant(1234L));
 
     thrown.expect(IllegalStateException.class);

@@ -118,7 +118,7 @@ public class SessionsTest {
   }
 
   /**
-   * Test to confirm that {@link Sessions} with the default {@link TimestampCombiner} holds up the
+   * Test to confirm that {@link Sessions} with the default {@link OutputTimeFn} holds up the
    * watermark potentially indefinitely.
    */
   @Test
@@ -126,7 +126,7 @@ public class SessionsTest {
     try {
       WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
           Sessions.withGapDuration(Duration.millis(10)),
-          TimestampCombiner.EARLIEST,
+          OutputTimeFns.outputAtEarliestInputTimestamp(),
           ImmutableList.of(
               (List<Long>) ImmutableList.of(1L, 3L),
               (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
@@ -148,7 +148,7 @@ public class SessionsTest {
   public void testValidOutputAtEndTimes() throws Exception {
     WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
         Sessions.withGapDuration(Duration.millis(10)),
-        TimestampCombiner.END_OF_WINDOW,
+        OutputTimeFns.outputAtEndOfWindow(),
           ImmutableList.of(
               (List<Long>) ImmutableList.of(1L, 3L),
               (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));

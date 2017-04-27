@@ -76,7 +76,7 @@ public class WindowingTest implements Serializable {
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply("Window",
               Window.<String>into(windowFn)
-                  .withTimestampCombiner(TimestampCombiner.EARLIEST))
+                  .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
           .apply(Count.<String>perElement())
           .apply("FormatCounts", ParDo.of(new FormatCountsDoFn()))
           .setCoder(StringUtf8Coder.of());

@@ -366,7 +366,7 @@ public class WindowTest implements Serializable {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testTimestampCombinerDefault() {
+  public void testOutputTimeFnDefault() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline
@@ -400,7 +400,7 @@ public class WindowTest implements Serializable {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testTimestampCombinerEndOfWindow() {
+  public void testOutputTimeFnEndOfWindow() {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline.apply(
@@ -408,7 +408,7 @@ public class WindowTest implements Serializable {
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
+            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new DoFn<KV<Integer, Iterable<String>>, Void>() {
           @ProcessElement
@@ -426,14 +426,14 @@ public class WindowTest implements Serializable {
     AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
     Duration allowedLateness = Duration.standardMinutes(10);
     Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
-    TimestampCombiner timestampCombiner = TimestampCombiner.END_OF_WINDOW;
+    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
 
     Window<?> window = Window
         .into(windowFn)
         .triggering(triggerBuilder)
         .accumulatingFiredPanes()
         .withAllowedLateness(allowedLateness, closingBehavior)
-        .withTimestampCombiner(timestampCombiner);
+        .withOutputTimeFn(outputTimeFn);
 
     DisplayData displayData = DisplayData.from(window);
 
@@ -446,7 +446,7 @@ public class WindowTest implements Serializable {
     assertThat(displayData,
         hasDisplayItem("allowedLateness", allowedLateness));
     assertThat(displayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
-    assertThat(displayData, hasDisplayItem("timestampCombiner", timestampCombiner.toString()));
+    assertThat(displayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
   }
 
   @Test
@@ -456,14 +456,14 @@ public class WindowTest implements Serializable {
     AfterWatermark.FromEndOfWindow triggerBuilder = AfterWatermark.pastEndOfWindow();
     Duration allowedLateness = Duration.standardMinutes(10);
     Window.ClosingBehavior closingBehavior = Window.ClosingBehavior.FIRE_IF_NON_EMPTY;
-    TimestampCombiner timestampCombiner = TimestampCombiner.END_OF_WINDOW;
+    OutputTimeFn<BoundedWindow> outputTimeFn = OutputTimeFns.outputAtEndOfWindow();
 
     Window<?> window = Window
         .into(windowFn)
         .triggering(triggerBuilder)
         .accumulatingFiredPanes()
         .withAllowedLateness(allowedLateness, closingBehavior)
-        .withTimestampCombiner(timestampCombiner);
+        .withOutputTimeFn(outputTimeFn);
 
     DisplayData primitiveDisplayData =
         Iterables.getOnlyElement(
@@ -478,8 +478,7 @@ public class WindowTest implements Serializable {
     assertThat(primitiveDisplayData,
         hasDisplayItem("allowedLateness", allowedLateness));
     assertThat(primitiveDisplayData, hasDisplayItem("closingBehavior", closingBehavior.toString()));
-    assertThat(
-        primitiveDisplayData, hasDisplayItem("timestampCombiner", timestampCombiner.toString()));
+    assertThat(primitiveDisplayData, hasDisplayItem("outputTimeFn", outputTimeFn.getClass()));
   }
 
   @Test
@@ -498,7 +497,7 @@ public class WindowTest implements Serializable {
     assertThat(displayData, not(hasDisplayItem("accumulationMode")));
     assertThat(displayData, not(hasDisplayItem("allowedLateness")));
     assertThat(displayData, not(hasDisplayItem("closingBehavior")));
-    assertThat(displayData, not(hasDisplayItem("timestampCombiner")));
+    assertThat(displayData, not(hasDisplayItem("outputTimeFn")));
   }
 
   @Test
@@ -507,7 +506,7 @@ public class WindowTest implements Serializable {
     assertThat(DisplayData.from(onlyHasAccumulationMode), not(hasDisplayItem(hasKey(isOneOf(
         "windowFn",
         "trigger",
-        "timestampCombiner",
+        "outputTimeFn",
         "allowedLateness",
         "closingBehavior")))));
 

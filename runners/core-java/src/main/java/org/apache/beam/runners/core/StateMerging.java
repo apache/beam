@@ -218,24 +218,24 @@ public class StateMerging {
    */
   public static <K, W extends BoundedWindow> void prefetchWatermarks(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, WatermarkHoldState> address) {
-    Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(address);
-    WatermarkHoldState result = context.access(address);
+      StateTag<? super K, WatermarkHoldState<W>> address) {
+    Map<W, WatermarkHoldState<W>> map = context.accessInEachMergingWindow(address);
+    WatermarkHoldState<W> result = context.access(address);
     if (map.isEmpty()) {
       // Nothing to prefetch.
       return;
     }
     if (map.size() == 1 && map.values().contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
+        && result.getOutputTimeFn().dependsOnlyOnEarliestInputTimestamp()) {
       // Nothing to change.
       return;
     }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
+    if (result.getOutputTimeFn().dependsOnlyOnWindow()) {
       // No need to read existing holds.
       return;
     }
     // Prefetch.
-    for (WatermarkHoldState source : map.values()) {
+    for (WatermarkHoldState<W> source : map.values()) {
       prefetchRead(source);
     }
   }
@@ -250,7 +250,7 @@ public class StateMerging {
    */
   public static <K, W extends BoundedWindow> void mergeWatermarks(
       MergingStateAccessor<K, W> context,
-      StateTag<? super K, WatermarkHoldState> address,
+      StateTag<? super K, WatermarkHoldState<W>> address,
       W mergeResult) {
     mergeWatermarks(
         context.accessInEachMergingWindow(address).values(), context.access(address), mergeResult);
@@ -261,31 +261,31 @@ public class StateMerging {
    * into {@code result}, where the final merge result window is {@code mergeResult}.
    */
   public static <W extends BoundedWindow> void mergeWatermarks(
-      Collection<WatermarkHoldState> sources, WatermarkHoldState result,
+      Collection<WatermarkHoldState<W>> sources, WatermarkHoldState<W> result,
       W resultWindow) {
     if (sources.isEmpty()) {
       // Nothing to merge.
       return;
     }
     if (sources.size() == 1 && sources.contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
+        && result.getOutputTimeFn().dependsOnlyOnEarliestInputTimestamp()) {
       // Nothing to merge.
       return;
     }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
+    if (result.getOutputTimeFn().dependsOnlyOnWindow()) {
       // Clear sources.
-      for (WatermarkHoldState source : sources) {
+      for (WatermarkHoldState<W> source : sources) {
         source.clear();
       }
       // Update directly from window-derived hold.
-      Instant hold =
-          result.getTimestampCombiner().assign(resultWindow, BoundedWindow.TIMESTAMP_MIN_VALUE);
+      Instant hold = result.getOutputTimeFn().assignOutputTime(
+          BoundedWindow.TIMESTAMP_MIN_VALUE, resultWindow);
       checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
       result.add(hold);
     } else {
       // Prefetch.
       List<ReadableState<Instant>> futures = new ArrayList<>(sources.size());
-      for (WatermarkHoldState source : sources) {
+      for (WatermarkHoldState<W> source : sources) {
         futures.add(source);
       }
       // Read.
@@ -297,12 +297,12 @@ public class StateMerging {
         }
       }
       // Clear sources.
-      for (WatermarkHoldState source : sources) {
+      for (WatermarkHoldState<W> source : sources) {
         source.clear();
       }
       if (!outputTimesToMerge.isEmpty()) {
         // Merge and update.
-        result.add(result.getTimestampCombiner().merge(resultWindow, outputTimesToMerge));
+        result.add(result.getOutputTimeFn().merge(resultWindow, outputTimesToMerge));
       }
     }
   }

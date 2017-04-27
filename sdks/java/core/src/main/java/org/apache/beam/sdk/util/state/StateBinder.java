@@ -21,7 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
 /**
  * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
@@ -63,11 +63,11 @@ public interface StateBinder<K> {
   /**
    * Bind to a watermark {@link StateSpec}.
    *
-   * <p>This accepts the {@link TimestampCombiner} that dictates how watermark hold timestamps added
-   * to the returned {@link WatermarkHoldState} are to be combined.
+   * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps added to
+   * the returned {@link WatermarkHoldState} are to be combined.
    */
-  <W extends BoundedWindow> WatermarkHoldState bindWatermark(
+  <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
       String id,
-      StateSpec<? super K, WatermarkHoldState> spec,
-      TimestampCombiner timestampCombiner);
+      StateSpec<? super K, WatermarkHoldState<W>> spec,
+      OutputTimeFn<? super W> outputTimeFn);
 }

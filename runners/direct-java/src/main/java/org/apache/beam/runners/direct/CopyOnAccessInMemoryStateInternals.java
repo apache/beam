@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -213,7 +213,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       Instant earliest = BoundedWindow.TIMESTAMP_MAX_VALUE;
       for (State existingState : this.values()) {
         if (existingState instanceof WatermarkHoldState) {
-          Instant hold = ((WatermarkHoldState) existingState).read();
+          Instant hold = ((WatermarkHoldState<?>) existingState).read();
           if (hold != null && hold.isBefore(earliest)) {
             earliest = hold;
           }
@@ -276,18 +276,18 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       public StateBinder<K> forNamespace(final StateNamespace namespace, final StateContext<?> c) {
         return new StateBinder<K>() {
           @Override
-          public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-              StateTag<? super K, WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+          public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+              StateTag<? super K, WatermarkHoldState<W>> address,
+              OutputTimeFn<? super W> outputTimeFn) {
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
-              InMemoryState<? extends WatermarkHoldState> existingState =
-                  (InMemoryState<? extends WatermarkHoldState>)
+              InMemoryState<? extends WatermarkHoldState<W>> existingState =
+                  (InMemoryState<? extends WatermarkHoldState<W>>)
                   underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
               return new InMemoryWatermarkHold<>(
-                  timestampCombiner);
+                  outputTimeFn);
             }
           }
 
@@ -419,7 +419,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
               State state =
                   readTo.get(namespace, existingState.getKey(), StateContexts.nullContext());
               if (state instanceof WatermarkHoldState) {
-                Instant hold = ((WatermarkHoldState) state).read();
+                Instant hold = ((WatermarkHoldState<?>) state).read();
                 if (hold != null && hold.isBefore(earliestHold)) {
                   earliestHold = hold;
                 }
@@ -434,9 +434,9 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       public StateBinder<K> forNamespace(final StateNamespace namespace, final StateContext<?> c) {
         return new StateBinder<K>() {
           @Override
-          public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-              StateTag<? super K, WatermarkHoldState> address,
-              TimestampCombiner timestampCombiner) {
+          public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+              StateTag<? super K, WatermarkHoldState<W>> address,
+              OutputTimeFn<? super W> outputTimeFn) {
             return underlying.get(namespace, address, c);
           }
 

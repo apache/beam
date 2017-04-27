@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -156,10 +156,10 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-        StateTag<? super K, WatermarkHoldState> address,
-        TimestampCombiner timestampCombiner) {
-      return new InMemoryWatermarkHold<W>(timestampCombiner);
+    public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+        StateTag<? super K, WatermarkHoldState<W>> address,
+        OutputTimeFn<? super W> outputTimeFn) {
+      return new InMemoryWatermarkHold<W>(outputTimeFn);
     }
 
     @Override
@@ -233,19 +233,19 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
    * An {@link InMemoryState} implementation of {@link WatermarkHoldState}.
    */
   public static final class InMemoryWatermarkHold<W extends BoundedWindow>
-      implements WatermarkHoldState, InMemoryState<InMemoryWatermarkHold<W>> {
+      implements WatermarkHoldState<W>, InMemoryState<InMemoryWatermarkHold<W>> {
 
-    private final TimestampCombiner timestampCombiner;
+    private final OutputTimeFn<? super W> outputTimeFn;
 
     @Nullable
     private Instant combinedHold = null;
 
-    public InMemoryWatermarkHold(TimestampCombiner timestampCombiner) {
-      this.timestampCombiner = timestampCombiner;
+    public InMemoryWatermarkHold(OutputTimeFn<? super W> outputTimeFn) {
+      this.outputTimeFn = outputTimeFn;
     }
 
     @Override
-    public InMemoryWatermarkHold readLater() {
+    public InMemoryWatermarkHold<W> readLater() {
       return this;
     }
 
@@ -263,10 +263,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
     @Override
     public void add(Instant outputTime) {
-      combinedHold =
-          combinedHold == null
-              ? outputTime
-              : timestampCombiner.combine(combinedHold, outputTime);
+      combinedHold = combinedHold == null ? outputTime
+          : outputTimeFn.combine(combinedHold, outputTime);
     }
 
     @Override
@@ -289,8 +287,8 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public TimestampCombiner getTimestampCombiner() {
-      return timestampCombiner;
+    public OutputTimeFn<? super W> getOutputTimeFn() {
+      return outputTimeFn;
     }
 
     @Override
@@ -301,7 +299,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public InMemoryWatermarkHold<W> copy() {
       InMemoryWatermarkHold<W> that =
-          new InMemoryWatermarkHold<>(timestampCombiner);
+          new InMemoryWatermarkHold<>(outputTimeFn);
       that.combinedHold = this.combinedHold;
       return that;
     }

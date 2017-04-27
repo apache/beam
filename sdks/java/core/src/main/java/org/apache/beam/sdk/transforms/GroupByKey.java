@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -98,7 +97,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * for details on the estimation.
  *
  * <p>The timestamp for each emitted pane is determined by the
- * {@link Window#withTimestampCombiner(TimestampCombiner)} windowing operation}.
+ * {@link Window#withOutputTimeFn windowing operation}.
  * The output {@code PCollection} will have the same {@link WindowFn}
  * as the input.
  *
