@@ -133,7 +133,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorFactory,
             windowingStrategy.getWindowFn());
   }
 
@@ -240,7 +239,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -257,7 +255,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         StepContext stepContext,
-        AggregatorFactory aggregatorFactory,
         WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
@@ -273,7 +270,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       this.stepContext = stepContext;
-      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
     }
 
