@@ -17,15 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.Sleeper;
+import com.google.api.services.cloudresourcemanager.CloudResourceManager;
+import com.google.api.services.cloudresourcemanager.model.Project;
+import com.google.api.services.storage.model.Bucket;
 import com.google.auth.Credentials;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.security.GeneralSecurityException;
 import java.util.Locale;
 import java.util.Map;
@@ -38,9 +47,12 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.DefaultBucket;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
+import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,13 +219,18 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location.
    */
   class GcpTempLocationFactory implements DefaultValueFactory<String> {
+    private static final FluentBackoff BACKOFF_FACTORY =
+        FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+    static final String DEFAULT_REGION = "us-central1";
+    static final Logger LOG = LoggerFactory.getLogger(GcpTempLocationFactory.class);
 
     @Override
     @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (isNullOrEmpty(tempLocation)) {
-        tempLocation = DefaultBucket.tryCreateDefaultBucket(options);
+        tempLocation = tryCreateDefaultBucket(options, Transport.newCloudResourceManagerClient(
+            options.as(CloudResourceManagerOptions.class)).build());
         options.setTempLocation(tempLocation);
       } else {
         try {
@@ -226,6 +243,109 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         }
       }
       return tempLocation;
+    }
+
+    /**
+     * Creates a default bucket or verifies the existence and proper access control
+     * of an existing default bucket.  Returns the location if successful.
+     */
+    @VisibleForTesting
+    static String tryCreateDefaultBucket(
+        PipelineOptions options, CloudResourceManager crmClient) {
+      GcsOptions gcpOptions = options.as(GcsOptions.class);
+
+      final String projectId = gcpOptions.getProject();
+      checkArgument(!isNullOrEmpty(projectId),
+          "--project is a required option.");
+
+      // Look up the project number, to create a default bucket with a stable
+      // name with no special characters.
+      long projectNumber = 0L;
+      try {
+        projectNumber = getProjectNumber(projectId, crmClient);
+      } catch (IOException e) {
+        throw new RuntimeException("Unable to verify project with ID " + projectId, e);
+      }
+      String region = DEFAULT_REGION;
+      if (!isNullOrEmpty(gcpOptions.getZone())) {
+        region = getRegionFromZone(gcpOptions.getZone());
+      }
+      final String bucketName =
+          "dataflow-staging-" + region + "-" + projectNumber;
+      LOG.info("No staging location provided, attempting to use default bucket: {}",
+          bucketName);
+      Bucket bucket = new Bucket()
+          .setName(bucketName)
+          .setLocation(region);
+      // Always try to create the bucket before checking access, so that we do not
+      // race with other pipelines that may be attempting to do the same thing.
+      try {
+        gcpOptions.getGcsUtil().createBucket(projectId, bucket);
+      } catch (FileAlreadyExistsException e) {
+        LOG.debug("Bucket '{}'' already exists, verifying access.", bucketName);
+      } catch (IOException e) {
+        throw new RuntimeException("Unable create default bucket.", e);
+      }
+
+      // Once the bucket is expected to exist, verify that it is correctly owned
+      // by the project executing the job.
+      try {
+        long owner = gcpOptions.getGcsUtil().bucketOwner(
+            GcsPath.fromComponents(bucketName, ""));
+        checkArgument(
+            owner == projectNumber,
+            "Bucket owner does not match the project from --project:"
+                + " %s vs. %s", owner, projectNumber);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Unable to determine the owner of the default bucket at gs://" + bucketName, e);
+      }
+      return "gs://" + bucketName;
+    }
+
+    /**
+     * Returns the project number or throws an exception if the project does not
+     * exist or has other access exceptions.
+     */
+    private static long getProjectNumber(
+        String projectId,
+        CloudResourceManager crmClient) throws IOException {
+      return getProjectNumber(
+          projectId,
+          crmClient,
+          BACKOFF_FACTORY.backoff(),
+          Sleeper.DEFAULT);
+    }
+
+    /**
+     * Returns the project number or throws an error if the project does not
+     * exist or has other access errors.
+     */
+    private static long getProjectNumber(
+        String projectId,
+        CloudResourceManager crmClient,
+        BackOff backoff,
+        Sleeper sleeper) throws IOException {
+      CloudResourceManager.Projects.Get getProject =
+          crmClient.projects().get(projectId);
+      try {
+        Project project = ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(getProject),
+            backoff,
+            RetryDeterminer.SOCKET_ERRORS,
+            IOException.class,
+            sleeper);
+        return project.getProjectNumber();
+      } catch (Exception e) {
+        throw new IOException("Unable to get project number", e);
+      }
+    }
+
+    @VisibleForTesting
+    static String getRegionFromZone(String zone) {
+      String[] zoneParts = zone.split("-");
+      checkArgument(zoneParts.length >= 2, "Invalid zone provided: %s", zone);
+      return zoneParts[0] + "-" + zoneParts[1];
     }
   }
 }

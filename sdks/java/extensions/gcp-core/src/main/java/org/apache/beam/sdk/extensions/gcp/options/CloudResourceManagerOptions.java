@@ -17,14 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.util.GcpProjectUtil;
 
 /**
  * Properties needed when using Google CloudResourceManager with the Apache Beam SDK.
@@ -33,14 +29,4 @@ import org.apache.beam.sdk.util.GcpProjectUtil;
     + "https://cloud.google.com/resource-manager/ for details on CloudResourceManager.")
 public interface CloudResourceManagerOptions extends ApplicationNameOptions, GcpOptions,
     PipelineOptions, StreamingOptions {
-  /**
-   * The GcpProjectUtil instance that should be used to communicate with Google Cloud Storage.
-   */
-  @JsonIgnore
-  @Description("The GcpProjectUtil instance that should be used to communicate"
-               + " with Google Cloud Resource Manager.")
-  @Default.InstanceFactory(GcpProjectUtil.GcpProjectUtilFactory.class)
-  @Hidden
-  GcpProjectUtil getGcpProjectUtil();
-  void setGcpProjectUtil(GcpProjectUtil value);
 }
