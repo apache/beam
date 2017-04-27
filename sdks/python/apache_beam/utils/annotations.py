@@ -91,9 +91,9 @@ def annotate(label, since, current, extra_message):
       message = '%s is %s' % (fnc.__name__, label)
       if label == 'deprecated':
         message += ' since %s' % since
-      if extra_message is not None:
-        message += '. ' + extra_message
       message += '. Use %s instead.' % current if current else '.'
+      if extra_message:
+        message += '. ' + extra_message
       warnings.warn(message, warning_type)
       return fnc(*args, **kwargs)
     return inner
