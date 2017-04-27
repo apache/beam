@@ -98,12 +98,4 @@ public class CloudObjects {
         cloudObject.getClassName());
     return translator.fromCloudObject(cloudObject);
   }
-
-  private static Coder<?> customCoderFromCloudObject(CloudObject cloudObject) {
-    String type = Structs.getString(cloudObject, "type");
-    String serializedCoder = Structs.getString(cloudObject, "serialized_coder");
-    return (CustomCoder<?>)
-        SerializableUtils.deserializeFromByteArray(
-            StringUtils.jsonStringToByteArray(serializedCoder), type);
-  }
 }
