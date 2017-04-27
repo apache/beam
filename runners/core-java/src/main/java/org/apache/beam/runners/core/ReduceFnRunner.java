@@ -264,7 +264,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return activeWindows.getActiveAndNewWindows().isEmpty();
   }
 
-  private Set<W> openWindows(Collection<W> windows) {
+  private Set<W> windowsThatAreOpen(Collection<W> windows) {
     Set<W> result = new HashSet<>();
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.Context directContext = contextFactory.base(
@@ -339,7 +339,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     prefetchWindowsForValues(windows);
 
     // All windows that are open before element processing may need to fire.
-    Set<W> windowsToConsider = openWindows(windows);
+    Set<W> windowsToConsider = windowsThatAreOpen(windows);
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
