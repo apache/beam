@@ -15,35 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.storage;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.google.auto.service.AutoService;
-import javax.annotation.Nonnull;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.io.FileSystem;
-import org.apache.beam.sdk.io.FileSystemRegistrar;
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 
 /**
- * {@link AutoService} registrar for the {@link GcsFileSystem}.
+ * A registrar containing the default GCP options.
  */
-@AutoService(FileSystemRegistrar.class)
-public class GcsFileSystemRegistrar implements FileSystemRegistrar {
-
-  static final String GCS_SCHEME = "gs";
-
+@AutoService(PipelineOptionsRegistrar.class)
+public class GcpPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
-    checkNotNull(
-        options,
-        "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
-    return new GcsFileSystem(options.as(GcsOptions.class));
-  }
-
-  @Override
-  public String getScheme() {
-    return GCS_SCHEME;
+  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
+    return ImmutableList.<Class<? extends PipelineOptions>>builder()
+        .add(GcpOptions.class)
+        .add(GcsOptions.class)
+        .add(GoogleApiDebugOptions.class)
+        .build();
   }
 }

@@ -61,7 +61,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 
 /**
  * A helper class for talking to Pubsub via grpc.

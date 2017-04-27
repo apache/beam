@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.options;
+package org.apache.beam.sdk.extensions.gcp.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -24,8 +24,9 @@ import static org.junit.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects.Delete;
 import com.google.api.services.storage.Storage;
-import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
-import org.apache.beam.sdk.util.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GoogleApiDebugOptions.GoogleApiTracer;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.Transport;
 import org.junit.Test;
 import org.junit.runner.RunWith;
