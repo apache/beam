@@ -33,7 +33,6 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -500,16 +499,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     List<T> resultElems = new ArrayList<>(peekOutputElements(tag));
     clearOutputElements(tag);
     return resultElems;
-  }
-
-  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      String name, CombineFn<?, AccumT, AggregateT> combiner) {
-    @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(name);
-    if (accumulator == null) {
-      accumulator = combiner.createAccumulator();
-    }
-    return combiner.extractOutput(accumulator);
   }
 
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
