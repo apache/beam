@@ -577,7 +577,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 
 ```py
 pc = ...
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average_define
 %}```
 
 If you are combining a `PCollection` of key-value pairs, [per-key combining](#transforms-combine-per-key) is often enough. If you need the combining strategy to change based on the key (for example, MIN for some users and MAX for other users), you can define a `KeyedCombineFn` to access the key within the combining strategy.
@@ -598,7 +598,7 @@ PCollection<Integer> sum = pc.apply(
 # sum combines the elements in the input PCollection.
 # The resulting PCollection, called result, contains one value: the sum of all the elements in the input PCollection.
 pc = ...
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:combine_custom_average_execute
 %}```
 
 ##### Global windowing:
@@ -727,6 +727,7 @@ PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 ```py
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
+students = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_multiple_pcollections_partition
 %}
 
@@ -811,7 +812,7 @@ Side inputs are useful if your `ParDo` needs to inject additional data when proc
 # Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their actual values.
 # For example, using pvalue.AsIter(pcoll) at pipeline construction time results in an iterable of the actual elements of pcoll being passed into each process invocation.
 # In this example, side inputs are passed to a FlatMap transform as extra arguments and consumed by filter_using_length.
-
+words = ...
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_pardo_side_input
 %}
 
