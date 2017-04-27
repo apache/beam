@@ -32,8 +32,9 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
-import org.apache.beam.sdk.options.CloudResourceManagerOptions;
-import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
+import org.apache.beam.sdk.extensions.gcp.options.CloudResourceManagerOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 
 /**
  * Helpers for cloud communication.

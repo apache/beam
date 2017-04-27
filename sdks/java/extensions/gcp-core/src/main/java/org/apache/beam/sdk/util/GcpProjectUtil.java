@@ -25,7 +25,7 @@ import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import org.apache.beam.sdk.options.CloudResourceManagerOptions;
+import org.apache.beam.sdk.extensions.gcp.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
