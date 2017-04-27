@@ -574,6 +574,32 @@ public final class TransformTranslator {
     };
   }
 
+  private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
+    return new TransformEvaluator<Reshuffle<K, V>>() {
+      @Override public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<KV<K, V>>> inRDD =
+            ((BoundedDataset<KV<K, V>>) context.borrowDataset(transform)).getRDD();
+        @SuppressWarnings("unchecked")
+        final WindowingStrategy<?, W> windowingStrategy =
+            (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
+        @SuppressWarnings("unchecked")
+        final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
+        @SuppressWarnings("unchecked")
+        final WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
+
+        final Coder<K> keyCoder = coder.getKeyCoder();
+        final WindowedValue.WindowedValueCoder<V> wvCoder =
+            WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+
+        JavaRDD<WindowedValue<KV<K, V>>> reshuffled =
+            GroupCombineFunctions.reshuffle(inRDD, keyCoder, wvCoder);
+
+        context.putDataset(transform, new BoundedDataset<>(reshuffled));
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
 
