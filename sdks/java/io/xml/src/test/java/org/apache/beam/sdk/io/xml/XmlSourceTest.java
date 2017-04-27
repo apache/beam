@@ -21,9 +21,7 @@ import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionE
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -38,6 +36,8 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import javax.xml.bind.ValidationEvent;
+import javax.xml.bind.ValidationEventHandler;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -49,7 +49,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.Matchers;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -162,6 +161,29 @@ public class XmlSourceTest {
       "<trains>"
       + "<train size=\"small\"><name>Cédric</name><number>7</number><color>blue</color></train>"
       + "</trains>";
+
+  @XmlRootElement
+  static class TinyTrain {
+    public TinyTrain(String name) {
+      this.name = name;
+    }
+
+    public TinyTrain() {
+    }
+
+    public String name = null;
+
+    @Override
+    public String toString() {
+      String str = "Train[";
+      if (name != null) {
+        str = str + "name=" + name;
+      }
+      str = str + "]";
+      return str;
+    }
+  }
+
 
   @XmlRootElement
   static class Train {
@@ -277,10 +299,10 @@ public class XmlSourceTest {
     return file;
   }
 
-  private List<Train> readEverythingFromReader(Reader<Train> reader) throws IOException {
-    List<Train> results = new ArrayList<>();
+  private  <T> List<T> readEverythingFromReader(Reader<T> reader) throws IOException {
+    List<T> results = new ArrayList<>();
     for (boolean available = reader.start(); available; available = reader.advance()) {
-      Train train = reader.getCurrent();
+      T train = reader.getCurrent();
       results.add(train);
     }
     return results;
@@ -396,6 +418,14 @@ public class XmlSourceTest {
   }
 
   List<String> trainsToStrings(List<Train> input) {
+    List<String> strings = new ArrayList<>();
+    for (Object data : input) {
+      strings.add(data.toString());
+    }
+    return strings;
+  }
+
+  List<String> tinyTrainsToStrings(List<TinyTrain> input) {
     List<String> strings = new ArrayList<>();
     for (Object data : input) {
       strings.add(data.toString());
@@ -522,9 +552,16 @@ public class XmlSourceTest {
   }
 
   @Test
-  public void testReadXMLInvalidRecordClass() throws IOException {
+  public void testReadXMLInvalidRecordClassWithCustomEventHandler() throws IOException {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+
+    ValidationEventHandler validationEventHandler = new ValidationEventHandler() {
+      @Override
+      public boolean handleEvent(ValidationEvent event) {
+        throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
+      }
+    };
 
     BoundedSource<WrongTrainType> source =
         XmlIO.<WrongTrainType>read()
@@ -532,12 +569,13 @@ public class XmlSourceTest {
             .withRootElement("trains")
             .withRecordElement("train")
             .withRecordClass(WrongTrainType.class)
+            .withValidationEventHandler(validationEventHandler)
             .createSource();
 
     exception.expect(RuntimeException.class);
 
     // JAXB internationalizes the error message. So this is all we can match for.
-    exception.expectMessage(both(containsString("name")).and(Matchers.containsString("something")));
+    exception.expectMessage("MyCustomValidationEventHandler failure mesage");
     try (Reader<WrongTrainType> reader = source.createReader(null)) {
 
       List<WrongTrainType> results = new ArrayList<>();
@@ -546,6 +584,35 @@ public class XmlSourceTest {
         results.add(train);
       }
     }
+  }
+
+  @Test
+  public void testReadXmlWithAdditionalFieldsShouldNotThrowException() throws  IOException{
+    File file = tempFolder.newFile("trainXMLSmall");
+    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+
+    BoundedSource<TinyTrain> source =
+        XmlIO.<TinyTrain>read()
+            .from(file.toPath().toString())
+            .withRootElement("trains")
+            .withRecordElement("train")
+            .withRecordClass(TinyTrain.class)
+            .createSource();
+
+    List<TinyTrain> expectedResults =
+        ImmutableList.of(
+            new TinyTrain("Thomas"),
+            new TinyTrain("Henry"),
+            new TinyTrain("Toby"),
+            new TinyTrain("Gordon"),
+            new TinyTrain("Emily"),
+            new TinyTrain("Percy")
+        );
+
+    assertThat(
+        tinyTrainsToStrings(expectedResults),
+        containsInAnyOrder(
+            tinyTrainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
   }
 
   @Test

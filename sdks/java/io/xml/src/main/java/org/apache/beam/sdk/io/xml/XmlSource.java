@@ -33,8 +33,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.ValidationEvent;
-import javax.xml.bind.ValidationEventHandler;
 import javax.xml.stream.FactoryConfigurationError;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -141,14 +139,9 @@ public class XmlSource<T> extends FileBasedSource<T> {
       try {
         JAXBContext jaxbContext = JAXBContext.newInstance(getCurrentSource().spec.getRecordClass());
         jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-
-        // Throw errors if validation fails. JAXB by default ignores validation errors.
-        jaxbUnmarshaller.setEventHandler(new ValidationEventHandler() {
-          @Override
-          public boolean handleEvent(ValidationEvent event) {
-            throw new RuntimeException(event.getMessage(), event.getLinkedException());
-          }
-        });
+        if (getCurrentSource().spec.getValidationEventHandler() != null) {
+          jaxbUnmarshaller.setEventHandler(getCurrentSource().spec.getValidationEventHandler());
+        }
       } catch (JAXBException e) {
         throw new RuntimeException(e);
       }
