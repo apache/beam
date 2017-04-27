@@ -185,30 +185,44 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
                        org.apache.flink.util.Collector<BatchElement<Window, Pair>> out) {
 
       // Tuple2[Window, Key] => Reduced Value
-      Map<Tuple2, BatchElement<Window, Pair>> reducedValues = new HashMap<>();
+      Map<Tuple2, TimestampedElement> reducedValues = new HashMap<>();
 
       for (BatchElement<Window, Pair> batchElement : values) {
         Object key = batchElement.getElement().getFirst();
         Window window = batchElement.getWindow();
 
         Tuple2 kw = new Tuple2<>(window, key);
-        BatchElement<Window, Pair> val = reducedValues.get(kw);
+
+        // TimestampedElement holds only timestamp and reduced value.
+        // Key and window is stored separately in key part of the HashMap.
+        TimestampedElement val = reducedValues.get(kw);
         if (val == null) {
-          reducedValues.put(kw, batchElement);
+
+          // It is necessary here to make a copy of the input element
+          // because of the reported bug in Apache Flink.
+          // See https://issues.apache.org/jira/browse/FLINK-6394
+          reducedValues.put(kw, new TimestampedElement(
+                  batchElement.getTimestamp(),
+                  batchElement.getElement().getSecond()));
         } else {
           Object reduced =
-                  reducer.apply(Arrays.asList(val.getElement().getSecond(),
+                  reducer.apply(Arrays.asList(val.getElement(),
                           batchElement.getElement().getSecond()));
 
-          reducedValues.put(kw, new BatchElement<>(
-                  window,
-                  Math.max(val.getTimestamp(), batchElement.getTimestamp()),
-                  Pair.of(key, reduced)));
+          val.setElement(reduced);
+          val.setTimestamp(Math.max(val.getTimestamp(), batchElement.getTimestamp()));
         }
       }
 
-      for (Map.Entry<Tuple2, BatchElement<Window, Pair>> e : reducedValues.entrySet()) {
-        out.collect(e.getValue());
+      for (Map.Entry<Tuple2, TimestampedElement> e : reducedValues.entrySet()) {
+        Window window = (Window) e.getKey().f0;
+        Object key = e.getKey().f1;
+
+        out.collect(new BatchElement<>(
+                window,
+                e.getValue().getTimestamp(),
+                Pair.of(key, e.getValue().getElement())
+        ));
       }
     }
 
