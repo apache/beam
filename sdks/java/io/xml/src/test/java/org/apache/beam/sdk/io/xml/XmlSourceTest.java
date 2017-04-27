@@ -179,7 +179,6 @@ public class XmlSourceTest {
     @Override
     public String toString() {
       String str = "Train[";
-      boolean first = true;
       if (name != null) {
         str = str + "name=" + name;
       }
@@ -588,6 +587,37 @@ public class XmlSourceTest {
         results.add(train);
       }
     }
+  }
+
+  @Test
+  public void testReadXmlwithAdditionnalFieldsShouldNotThrowException() throws  IOException{
+    File file = tempFolder.newFile("trainXMLSmall");
+    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+
+    BoundedSource<TinyTrain> source =
+            XmlIO.<TinyTrain>read()
+                    .from(file.toPath().toString())
+                    .withRootElement("trains")
+                    .withRecordElement("train")
+                    .withRecordClass(TinyTrain.class)
+                    .createSource();
+
+    List<TinyTrain> expectedResults =
+            ImmutableList.of(
+                    new TinyTrain("Thomas"),
+                    new TinyTrain("Henry"),
+                    new TinyTrain("Toby"),
+                    new TinyTrain("Gordon"),
+                    new TinyTrain("Emily"),
+                    new TinyTrain("Percy")
+
+            );
+
+    assertThat(
+            tinyTrainsToStrings(expectedResults),
+            containsInAnyOrder(
+                    tinyTrainsToStrings(readEverythingFromReader(source.createReader(null)))
+                            .toArray()));
   }
 
   @Test

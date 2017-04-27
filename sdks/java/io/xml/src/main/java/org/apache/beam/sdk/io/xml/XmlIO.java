@@ -415,7 +415,7 @@ public class XmlIO {
 
     @VisibleForTesting
     BoundedSource<T> createSource() {
-      XmlSource<T> source = new XmlSource<>(this, getValidationEventHandler());
+      XmlSource<T> source = new XmlSource<>(this);
       switch (getCompressionType()) {
         case UNCOMPRESSED:
           return source;

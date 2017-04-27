@@ -33,7 +33,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.ValidationEventHandler;
 import javax.xml.stream.FactoryConfigurationError;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -54,30 +53,24 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   private final XmlIO.Read<T> spec;
 
-  private ValidationEventHandler validationEventHandler;
-
-  XmlSource(XmlIO.Read<T> spec, ValidationEventHandler validationEventHandler) {
+  XmlSource(XmlIO.Read<T> spec) {
     super(StaticValueProvider.of(spec.getFileOrPatternSpec()), spec.getMinBundleSize());
     this.spec = spec;
-    this.validationEventHandler = validationEventHandler;
   }
 
-  private XmlSource(XmlIO.Read<T> spec, Metadata metadata, long startOffset, long endOffset,
-                    ValidationEventHandler validationEventHandler) {
+  private XmlSource(XmlIO.Read<T> spec, Metadata metadata, long startOffset, long endOffset) {
     super(metadata, spec.getMinBundleSize(), startOffset, endOffset);
     this.spec = spec;
-    this.validationEventHandler = validationEventHandler;
   }
 
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
-    return new XmlSource<T>(spec.from(metadata.toString()), metadata, start, end,
-            validationEventHandler);
+    return new XmlSource<T>(spec.from(metadata.toString()), metadata, start, end);
   }
 
   @Override
   protected FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
-    return new XMLReader<T>(this, validationEventHandler);
+    return new XMLReader<T>(this);
   }
 
   @Override
@@ -94,10 +87,6 @@ public class XmlSource<T> extends FileBasedSource<T> {
   @Override
   public Coder<T> getDefaultOutputCoder() {
     return JAXBCoder.of(spec.getRecordClass());
-  }
-
-  public ValidationEventHandler getValidationEventHandler() {
-    return validationEventHandler;
   }
 
 
@@ -144,15 +133,15 @@ public class XmlSource<T> extends FileBasedSource<T> {
     // Byte offset of the current record in the XML file provided when creating the source.
     private long currentByteOffset = 0;
 
-    public XMLReader(XmlSource<T> source, ValidationEventHandler validationEventHandler) {
+    public XMLReader(XmlSource<T> source) {
       super(source);
 
       // Set up a JAXB Unmarshaller that can be used to unmarshall record objects.
       try {
         JAXBContext jaxbContext = JAXBContext.newInstance(getCurrentSource().spec.getRecordClass());
         jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-        if (source.getValidationEventHandler() != null){
-          jaxbUnmarshaller.setEventHandler(source.getValidationEventHandler());
+        if (getCurrentSource().spec.getValidationEventHandler() != null){
+          jaxbUnmarshaller.setEventHandler(getCurrentSource().spec.getValidationEventHandler());
         }
       } catch (JAXBException e) {
         throw new RuntimeException(e);
