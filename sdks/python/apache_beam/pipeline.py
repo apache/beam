@@ -52,7 +52,6 @@ import os
 import shutil
 import tempfile
 
-from google.protobuf import wrappers_pb2
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.internal import pickler
@@ -60,8 +59,6 @@ from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 from apache_beam.utils.pipeline_options import StandardOptions
@@ -514,12 +511,15 @@ class AppliedPTransform(object):
 
   def to_runner_api(self, context):
     from apache_beam.runners.api import beam_runner_api_pb2
+
+    def transform_to_runner_api(transform, context):
+      if transform is None:
+        return None
+      else:
+        return transform.to_runner_api(context)
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
-        spec=beam_runner_api_pb2.FunctionSpec(
-            urn=urns.PICKLED_TRANSFORM,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=pickler.dumps(self.transform)))),
+        spec=transform_to_runner_api(self.transform, context),
         subtransforms=[context.transforms.get_id(part) for part in self.parts],
         # TODO(BEAM-115): Side inputs.
         inputs={tag: context.pcollections.get_id(pc)
@@ -533,9 +533,7 @@ class AppliedPTransform(object):
   def from_runner_api(proto, context):
     result = AppliedPTransform(
         parent=None,
-        transform=pickler.loads(
-            proto_utils.unpack_Any(proto.spec.parameter,
-                                   wrappers_pb2.BytesValue).value),
+        transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
         inputs=[
             context.pcollections.get_by_id(id) for id in proto.inputs.values()])
