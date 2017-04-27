@@ -163,7 +163,7 @@ public class SpannerIO {
    * <p>See <a href="https://cloud.google.com/spanner"/>
    *
    * <p>Commits are non-transactional.  If a commit fails, it will be retried (up to
-   * {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}. times). This means that the
+   * {@link SpannerIO#MAX_RETRIES}. times). This means that the
    * mutation operation should be idempotent.
    */
   @VisibleForTesting
