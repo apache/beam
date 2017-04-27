@@ -161,7 +161,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     {
       activeReducers = new HashMap<>();
       for (BatchElement<?, Pair> batchElement : values) {
-        Object key = batchElement.getElement().getKey();
+        Object key = batchElement.getElement().getFirst();
 
         GroupReducer reducer = activeReducers.get(key);
         if (reducer == null) {
