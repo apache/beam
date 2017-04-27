@@ -49,7 +49,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -239,38 +238,6 @@ public class EvaluationContextTest {
             .state(StateNamespaces.global(), intBag)
             .read(),
         emptyIterable());
-  }
-
-  @Test
-  public void handleResultCommitsAggregators() {
-    Class<?> fn = getClass();
-    DirectExecutionContext fooContext =
-        context.getExecutionContext(createdProducer, null);
-    DirectExecutionContext.StepContext stepContext = fooContext.createStepContext(
-        "STEP", createdProducer.getTransform().getName());
-    AggregatorContainer container = context.getAggregatorContainer();
-    AggregatorContainer.Mutator mutator = container.createMutator();
-    mutator.createAggregatorForDoFn(fn, stepContext, "foo", Sum.ofLongs()).addValue(4L);
-
-    TransformResult<?> result =
-        StepTransformResult.withoutHold(createdProducer)
-            .withAggregatorChanges(mutator)
-            .build();
-    context.handleResult(null, ImmutableList.<TimerData>of(), result);
-    assertThat((Long) context.getAggregatorContainer().getAggregate("STEP", "foo"), equalTo(4L));
-
-    AggregatorContainer.Mutator mutatorAgain = container.createMutator();
-    mutatorAgain.createAggregatorForDoFn(fn, stepContext, "foo", Sum.ofLongs()).addValue(12L);
-
-    TransformResult<?> secondResult =
-        StepTransformResult.withoutHold(downstreamProducer)
-            .withAggregatorChanges(mutatorAgain)
-            .build();
-    context.handleResult(
-        context.createBundle(created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
-        secondResult);
-    assertThat((Long) context.getAggregatorContainer().getAggregate("STEP", "foo"), equalTo(16L));
   }
 
   @Test
