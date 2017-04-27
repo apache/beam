@@ -15,29 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
-
-import static org.junit.Assert.assertEquals;
-
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
-/** Tests for {@link GcsIOChannelFactoryTest}. */
-@RunWith(JUnit4.class)
-public class GcsIOChannelFactoryTest {
-  private GcsIOChannelFactory factory;
-
-  @Before
-  public void setUp() {
-    factory = GcsIOChannelFactory.fromOptions(PipelineOptionsFactory.as(GcsOptions.class));
-  }
-
-  @Test
-  public void testResolve() throws Exception {
-    assertEquals("gs://bucket/object", factory.resolve("gs://bucket", "object"));
-  }
-}
+/**
+ * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for
+ * configuring pipeline execution for Google Cloud Platform components.
+ */
+package org.apache.beam.sdk.extensions.gcp.options;

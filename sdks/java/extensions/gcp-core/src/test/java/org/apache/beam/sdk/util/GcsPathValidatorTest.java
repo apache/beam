@@ -20,7 +20,8 @@ package org.apache.beam.sdk.util;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Before;
