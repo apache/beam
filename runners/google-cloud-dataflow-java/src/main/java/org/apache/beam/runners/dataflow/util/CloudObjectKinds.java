@@ -21,28 +21,13 @@ package org.apache.beam.runners.dataflow.util;
 import org.apache.beam.sdk.util.CloudObject;
 
 /**
- * A translator that takes an object and creates a {@link CloudObject} which can be converted back
- * to the original object.
+ * Known kinds of {@link CloudObject}.
  */
-public interface CloudObjectTranslator<T> {
-  /**
-   * Converts the provided object into an equivalent {@link CloudObject}.
-   */
-  CloudObject toCloudObject(T target);
-
-  /**
-   * Converts back into the original object from a provided {@link CloudObject}.
-   */
-  T fromCloudObject(CloudObject cloudObject);
-
-  /**
-   * Gets the class this {@link CloudObjectTranslator} is capable of converting.
-   */
-  Class<? extends T> getSupportedClass();
-
-  /**
-   * Gets the class name that will represent the {@link CloudObject} created by this {@link
-   * CloudObjectTranslator}.
-   */
-  String cloudObjectClassName();
+class CloudObjectKinds {
+  static final String KIND_GLOBAL_WINDOW = "kind:global_window";
+  static final String KIND_INTERVAL_WINDOW = "kind:interval_window";
+  static final String KIND_LENGTH_PREFIX = "kind:length_prefix";
+  static final String KIND_PAIR = "kind:pair";
+  static final String KIND_STREAM = "kind:stream";
+  static final String KIND_WINDOWED_VALUE = "kind:windowed_value";
 }
