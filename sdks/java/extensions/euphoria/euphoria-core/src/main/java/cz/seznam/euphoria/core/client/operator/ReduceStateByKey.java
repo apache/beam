@@ -88,51 +88,31 @@ public class ReduceStateByKey<
         IN, IN, IN, KEY, Pair<KEY, OUT>, W, ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>>
 {
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
-    /**
-     * Specifies the input dataset to reduce.
-     *
-     * @param <IN> the type of elements in the input dataset
-     *
-     * @param input the input dataset to recuce
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
-     */
-    public <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
-      return new DatasetBuilder1<>(name, input);
+    @Override
+    public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+      return new KeyByBuilder<>(name, input);
     }
   }
 
   // builder classes used when input is Dataset<IN> ----------------------
 
-  public static class DatasetBuilder1<IN> {
+  public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
     private final String name;
     private final Dataset<IN> input;
 
-    DatasetBuilder1(String name, Dataset<IN> input) {
+    KeyByBuilder(String name, Dataset<IN> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
 
-    /**
-     * Specifies the function to derive the keys from the
-     * {@link ReduceStateByKey operator's} input elements.
-     *
-     * @param <KEY> the type of the extracted key
-     *
-     * @param keyExtractor a user defined function to extract keys from the
-     *                      processed input dataset's elements
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
-     */
+    @Override
     public <KEY> DatasetBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new DatasetBuilder2<>(name, input, keyExtractor);
     }
@@ -151,7 +131,7 @@ public class ReduceStateByKey<
 
     /**
      * Specifies the function to derive a value from the
-     * {@link ReduceStateByKey operator's} input elements to get later
+     * {@link ReduceStateByKey} operator's input elements to get
      * accumulated by a later supplied state implementation.
      *
      * @param <VALUE> the type of the extracted values
@@ -248,7 +228,7 @@ public class ReduceStateByKey<
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
           extends PartitioningBuilder<KEY,  DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>
-      implements OutputBuilder<Pair<KEY, OUT>>
+      implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, OUT>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -274,22 +254,7 @@ public class ReduceStateByKey<
       this.stateMerger = Objects.requireNonNull(stateMerger);
     }
 
-    /**
-     * Specifies the windowing strategy to be applied to the
-     * {@link ReduceStateByKey operator's} input dataset without specifying
-     * an {@link ExtractEventTime event time assigner.} Unless the operator
-     * is already preceded by an event time assignment, it will process in
-     * the input elements in ingestion time.
-     *
-     * @param <W> the type of the windowing
-     *
-     * @param windowing the windowing strategy to apply to the input dataset
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
-     *
-     * @see #windowBy(Windowing, ExtractEventTime)
-     */
+    @Override
     public <W extends Window>
     DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<IN, W> windowing)
@@ -297,19 +262,7 @@ public class ReduceStateByKey<
       return windowBy(windowing, null);
     }
 
-    /**
-     * Specifies the windowing strategy to be applied to the
-     * {@link ReduceStateByKey operator's} input dataset specifying
-     * an {@link ExtractEventTime event time assigner} to (re-)assign
-     * the element's logical timestamp.
-     *
-     * @param <W> the type of the windowing
-     *
-     * @param windowing the windowing strategy to apply to the input dataset
-     *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceStateByKey} operator
-     */
+    @Override
     public <W extends Window>
     DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
@@ -318,12 +271,6 @@ public class ReduceStateByKey<
               Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
 
-    /**
-     * Finalizes the built {@link ReduceStateByKey} operator and retrieves
-     * its output dataset.
-     *
-     * @return the dataset representing the new operator's output
-     */
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
@@ -337,7 +284,7 @@ public class ReduceStateByKey<
           W extends Window>
       extends PartitioningBuilder<
           KEY,DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>>
-      implements OutputBuilder<Pair<KEY, OUT>> {
+      implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
     private final Dataset<IN> input;
@@ -373,12 +320,6 @@ public class ReduceStateByKey<
       this.eventTimeAssigner = eventTimeAssigner;
     }
 
-    /**
-     * Finalizes the built {@link ReduceStateByKey} operator and retrieves
-     * its output dataset.
-     *
-     * @return the dataset representing the new operator's output
-     */
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       Flow flow = input.getFlow();
@@ -406,8 +347,8 @@ public class ReduceStateByKey<
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
-    return new DatasetBuilder1<>("ReduceStateByKey", input);
+  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+    return new KeyByBuilder<>("ReduceStateByKey", input);
   }
 
   /**

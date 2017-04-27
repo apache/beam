@@ -37,7 +37,23 @@ public interface Executor {
   class Result {}
 
   /** 
-   * Submit flow as a job. Asynchronous operation.
+   * Submits flow as a job. The returned object is an instance of {@link CompletableFuture}
+   * which holds the asynchronous execution of the job. Client can wait for the result
+   * synchronously, or different executions can be chained/composed with methods provided
+   * by the {@link CompletableFuture}.<p>
+   * 
+   * Example:
+   * 
+   * <pre>{@code
+   *   CompletableFuture<Result> preparation = exec.submit(flow1);
+   *   CompletableFuture<Result> execution = preparation.thenCompose(r -> exec.submit(flow2));
+   *   CompletableFuture<Result> allJobs = execution.thenCompose(r -> exec.submit(flow3));
+   * 
+   *   allJobs.handle((result, err) -> {
+   *     // clean after completion
+   *   });
+   * }</pre>
+   * 
    * @param flow {@link Flow} to be submitted
    * @return future of the job's execution
    */

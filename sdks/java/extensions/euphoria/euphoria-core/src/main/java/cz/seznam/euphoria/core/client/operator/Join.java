@@ -32,8 +32,8 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
-
 import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
@@ -52,8 +52,7 @@ import java.util.Objects;
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
-    Join<LEFT, RIGHT, KEY, OUT, W>>
-    implements OutputBuilder<Pair<KEY, OUT>> {
+    Join<LEFT, RIGHT, KEY, OUT, W>> {
 
   public static class OfBuilder {
     private final String name;
@@ -123,7 +122,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       extends PartitioningBuilder<KEY, WindowingBuilder<LEFT, RIGHT, KEY, OUT>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
+      implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;
@@ -193,7 +192,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   public static class OutputBuilder<
       LEFT, RIGHT, KEY, OUT, W extends Window>
       extends PartitioningBuilder<KEY, OutputBuilder<LEFT, RIGHT, KEY, OUT, W>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
+      implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;

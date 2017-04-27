@@ -142,7 +142,6 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     }
   }
 
-
   private static class Reducer implements
           Function2<TimestampedElement, TimestampedElement, TimestampedElement> {
 

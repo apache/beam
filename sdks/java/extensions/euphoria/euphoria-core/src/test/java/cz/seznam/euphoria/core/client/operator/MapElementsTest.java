@@ -53,6 +53,6 @@ public class MapElementsTest {
             .output();
 
     MapElements map = (MapElements) flow.operators().iterator().next();
-    assertEquals("Map", map.getName());
+    assertEquals("MapElements", map.getName());
   }
 }

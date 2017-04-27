@@ -24,19 +24,25 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 
 import java.util.Objects;
 
+/**
+ * Simple one-to-one transformation of input elements. It is a special usage of {@link FlatMap}
+ * with exactly one output element for every one input element. No context is provided inside
+ * the map function.
+ */
 @Derived(
     state = StateComplexity.ZERO,
     repartitions = 0
 )
 public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
-
+    
+    @Override
     public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
       return new UsingBuilder<>(name, input);
     }
@@ -51,13 +57,20 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
       this.input = Objects.requireNonNull(input);
     }
 
+    /**
+     * The mapping function that takes input element and outputs the OUT type element.
+     * 
+     * @param <OUT> type of output elements
+     * @param mapper the mapping function
+     * @return the next builder to complete the setup of the
+     *         {@link MapElements} operator
+     */
     public <OUT> OutputBuilder<IN, OUT> using(UnaryFunction<IN, OUT> mapper) {
       return new OutputBuilder<>(name, input, mapper);
     }
   }
 
-  public static class OutputBuilder<IN, OUT>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<OUT> {
+  public static class OutputBuilder<IN, OUT> implements Builders.Output<OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, OUT> mapper;
@@ -78,10 +91,30 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
   }
 
+  /**
+   * Starts building a nameless {@link MapElements} operator to process
+   * the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   *
+   * @param input the input data set to be processed
+   *
+   * @return a builder to complete the setup of the new operator
+   *
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
   public static <IN> UsingBuilder<IN> of(Dataset<IN> input) {
-    return new UsingBuilder<>("Map", input);
+    return new UsingBuilder<>("MapElements", input);
   }
 
+  /**
+   * Starts building a named {@link MapElements} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   *
+   * @return a builder to complete the setup of the new operator
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
@@ -105,6 +138,4 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
         new FlatMap<IN, OUT>(getName(), getFlow(), input,
             (i, c) -> c.collect(mapper.apply(i))));
   }
-
-
 }
