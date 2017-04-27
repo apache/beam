@@ -161,7 +161,6 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
-  # [START model_pcollection]
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
@@ -176,18 +175,21 @@ def model_pcollection(argv):
   pipeline_options = PipelineOptions(argv)
   my_options = pipeline_options.view_as(MyOptions)
 
+  # [START model_pcollection]
   p = beam.Pipeline(options=pipeline_options)
 
-  (p
-   | beam.Create([
-       'To be, or not to be: that is the question: ',
-       'Whether \'tis nobler in the mind to suffer ',
-       'The slings and arrows of outrageous fortune, ',
-       'Or to take arms against a sea of troubles, '])
+  lines = (p
+           | beam.Create([
+               'To be, or not to be: that is the question: ',
+               'Whether \'tis nobler in the mind to suffer ',
+               'The slings and arrows of outrageous fortune, ',
+               'Or to take arms against a sea of troubles, ']))
+  # [END model_pcollection]
+
+  (lines
    | beam.io.WriteToText(my_options.output))
 
   result = p.run()
-  # [END model_pcollection]
   result.wait_until_finish()
 
 
