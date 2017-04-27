@@ -100,6 +100,16 @@ public interface ResourceId extends Serializable {
    */
   String getScheme();
 
+
+  /**
+   * Returns the name of the file or directory denoted by this {@code ResourceId}. The file name
+   * is the farthest element from the root in the directory hierarchy.
+   *
+   * @return a string representing the name of file or directory, or null if there are zero
+   * components.
+   */
+  String getFilename();
+
   /**
    * Returns the string representation of this {@link ResourceId}.
    *

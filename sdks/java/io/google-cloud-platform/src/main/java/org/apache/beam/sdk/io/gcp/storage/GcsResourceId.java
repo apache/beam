@@ -91,6 +91,17 @@ public class GcsResourceId implements ResourceId {
     return GcsFileSystemRegistrar.GCS_SCHEME;
   }
 
+  @Override
+  public String getFilename() {
+    if (gcsPath.getNameCount() < 1) {
+      return null;
+    } else if (gcsPath.getNameCount() == 1) {
+      return gcsPath.getBucket();
+    } else {
+      return gcsPath.getFileName().toString();
+    }
+  }
+
   GcsPath getGcsPath() {
     return gcsPath;
   }

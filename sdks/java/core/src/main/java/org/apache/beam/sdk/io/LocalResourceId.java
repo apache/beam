@@ -92,6 +92,12 @@ class LocalResourceId implements ResourceId {
     }
   }
 
+  @Override
+  public String getFilename() {
+    Path fileName = getPath().getFileName();
+    return fileName == null ? null : fileName.toString();
+  }
+
   private LocalResourceId resolveLocalPath(String other, ResolveOptions resolveOptions) {
     return new LocalResourceId(
         getPath().resolve(other),
