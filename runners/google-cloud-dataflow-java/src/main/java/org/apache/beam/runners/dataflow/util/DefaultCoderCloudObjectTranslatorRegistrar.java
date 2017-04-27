@@ -24,8 +24,8 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of {@link
- * Coder} {@link CloudObjectTranslator Cloud Object Translators}.
+ * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of
+ * {@link Coder} {@link CloudObjectTranslator Cloud Object Translators}.
  */
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
