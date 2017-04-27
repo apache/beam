@@ -63,5 +63,4 @@ public class StateAwareWindowWiseSingleInputOperator<
   public Dataset<OUT> output() {
     return output;
   }
-
 }

@@ -32,11 +32,30 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
-
 import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Emits top element for defined keys and windows. The elements are compared by comparable 
+ * objects extracted by user defined function applied on input elements.
+ * 
+ * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
+ * input operator are used.<p>
+ * 
+ * Example:
+ * 
+ * <pre>{@code
+ *  TopPerKey.of(elements)
+ *       .keyBy(e -> (byte) 0)
+ *       .valueBy(e -> e)
+ *       .scoreBy(Pair::getSecond)
+ *       .setNumPartitions(1)
+ *       .output();
+ * }</pre>
+ * 
+ * The examples above finds global maximum of all elements.
+ */
 @Derived(
     state = StateComplexity.CONSTANT,
     repartitions = 1
@@ -92,19 +111,20 @@ public class TopPerKey<
     }
   }
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
+    @Override
     public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
       return new KeyByBuilder<>(name, input);
     }
   }
 
-  public static class KeyByBuilder<IN> {
+  public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
     private final String name;
     private final Dataset<IN> input;
 
@@ -113,6 +133,7 @@ public class TopPerKey<
       this.input = requireNonNull(input);
     }
 
+    @Override
     public <K> ValueByBuilder<IN, K> keyBy(UnaryFunction<IN, K> keyFn) {
       return new ValueByBuilder<>(name, input, requireNonNull(keyFn));
     }
@@ -159,7 +180,7 @@ public class TopPerKey<
 
   public static class WindowByBuilder<IN, K, V, S extends Comparable<S>>
       extends PartitioningBuilder<K, WindowByBuilder<IN, K, V, S>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
+      implements Builders.WindowBy<IN>, Builders.Output<Triple<K, V, S>>
   {
     private String name;
     private final Dataset<IN> input;
@@ -182,12 +203,14 @@ public class TopPerKey<
       this.scoreFn = requireNonNull(scoreFn);
     }
 
+    @Override
     public <W extends Window>
     OutputBuilder<IN, K, V, S, W>
     windowBy(Windowing<IN, W> windowing) {
       return windowBy(windowing, null);
     }
 
+    @Override
     public <W extends Window>
     OutputBuilder<IN, K, V, S, W>
     windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
@@ -205,7 +228,7 @@ public class TopPerKey<
   public static class OutputBuilder<
       IN, K, V, S extends Comparable<S>, W extends Window>
       extends PartitioningBuilder<K, OutputBuilder<IN, K, V, S, W>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
+      implements Builders.Output<Triple<K, V, S>>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -248,10 +271,30 @@ public class TopPerKey<
     }
   }
 
-  public static <I> KeyByBuilder<I> of(Dataset<I> input) {
+  /**
+   * Starts building a nameless {@link TopPerKey} operator to process
+   * the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   *
+   * @param input the input data set to be processed
+   *
+   * @return a builder to complete the setup of the new operator
+   *
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
     return new KeyByBuilder<>("TopPerKey", input);
   }
 
+  /**
+   * Starts building a named {@link TopPerKey} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   *
+   * @return a builder to complete the setup of the new operator
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }

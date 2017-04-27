@@ -39,7 +39,9 @@ import java.lang.annotation.Target;
 })
 public @interface Experimental {
 
- /** A human readable hint about the experiment. */
+ /** 
+  * @return a human readable hint about the experiment. 
+  */
  String value() default "";
 
 }

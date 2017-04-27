@@ -53,7 +53,7 @@ import java.util.Objects;
     state = StateComplexity.ZERO,
     repartitions = 0
 )
-public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
+public class Union<IN> extends Operator<IN, IN> {
 
   public static class OfBuilder {
     private final String name;
@@ -81,7 +81,7 @@ public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
   }
 
   public static class OutputBuilder<IN>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN> {
+      implements Builders.Output<IN> {
     private final String name;
     private final Dataset<IN> left;
     private final Dataset<IN> right;
@@ -92,12 +92,6 @@ public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
       this.right = Objects.requireNonNull(right);
     }
 
-    /**
-     * Finalizes the setup of the {@link Union} operator and retrieves
-     * the dataset representing the union of the two inputs.
-     *
-     * @return the dataset representing both input datasets
-     */
     @Override
     public Dataset<IN> output() {
       Flow flow = left.getFlow();
