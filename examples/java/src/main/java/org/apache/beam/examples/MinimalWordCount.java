@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples;
 
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -83,7 +84,7 @@ public class MinimalWordCount {
      .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
                        @ProcessElement
                        public void processElement(ProcessContext c) {
-                         for (String word : c.element().split("[^a-zA-Z']+")) {
+                         for (String word : c.element().split(ExampleUtils.TOKENIZER_PATTERN)) {
                            if (!word.isEmpty()) {
                              c.output(word);
                            }

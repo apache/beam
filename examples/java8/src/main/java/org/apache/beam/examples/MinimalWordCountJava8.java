@@ -36,6 +36,9 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class MinimalWordCountJava8 {
 
+  private static String TOKENIZER_PATTERN = "[^\\p{L}]+";
+
+
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     // In order to run your pipeline, you need to make following runner specific changes:
@@ -55,10 +58,12 @@ public class MinimalWordCountJava8 {
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
+//    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
+    p.apply(TextIO.Read.from("/Users/pbarna/Documents/gergo/SzerbAntal-Utas.txt"))
+
      .apply(FlatMapElements
          .into(TypeDescriptors.strings())
-         .via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+"))))
+         .via((String word) -> Arrays.asList(word.split(TOKENIZER_PATTERN))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
@@ -66,7 +71,8 @@ public class MinimalWordCountJava8 {
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
 
      // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
-     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
+//     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
+      .apply(TextIO.Write.to("counts"));
 
     p.run().waitUntilFinish();
   }

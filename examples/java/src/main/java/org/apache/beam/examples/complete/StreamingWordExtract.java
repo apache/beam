@@ -57,7 +57,7 @@ public class StreamingWordExtract {
   static class ExtractWords extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String[] words = c.element().split("[^a-zA-Z']+");
+      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
       for (String word : words) {
         if (!word.isEmpty()) {
           c.output(word);
