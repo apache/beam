@@ -145,7 +145,7 @@ requests which do not pass the full build lifecycle as defined by the
   
 ## Contact us
 
-* Feel free to open an issue in [issue tracker](https://github.com/seznam/euphoria/issues)
+* Feel free to open an issue in the [issue tracker](https://github.com/seznam/euphoria/issues)
 * In case of questions you can contact us via [Gitter channel](https://gitter.im/euphoria-api/Lobby) or e-mail directly any of the project members
 
 ### Euphoria Team
