@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
+
+import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.common.WriteOneFilePerWindow.PerWindowFiles;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -152,7 +154,7 @@ public class WindowedWordCountIT {
     SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
     for (String line :
         inputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff())) {
-      String[] words = line.split("[^a-zA-Z']+");
+      String[] words = line.split(ExampleUtils.TOKENIZER_PATTERN);
 
       for (String word : words) {
         if (!word.isEmpty()) {
