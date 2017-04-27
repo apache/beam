@@ -60,6 +60,9 @@ import static java.util.Objects.requireNonNull;
  * partitions differs from 1 (single partition), the program crashes, because runtime does not 
  * know how to partition the result. Input sampling is not supported for now.<p> 
  * 
+ * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
+ * input operator are used.<p>
+ * 
  * Example:
  *
  * <pre>{@code
@@ -133,13 +136,14 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     }
   }
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
+    @Override
     public <IN> ByBuilder<IN> of(Dataset<IN> input) {
       return new ByBuilder<>(name, input);
     }
@@ -154,6 +158,14 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
       this.input = requireNonNull(input);
     }
 
+    /**
+     * The extractor function that defines the {@link Comparable} object which is used 
+     * in sorting.
+     * 
+     * @param <S> type of comparable object
+     * @param sortByFn the extractor function
+     * @return the next builder to complete the setup of the {@link Sort} operator
+     */
     public <S extends Comparable<? super S>> WindowByBuilder<IN, S> by(UnaryFunction<IN, S> sortByFn) {
       return new WindowByBuilder<>(name, input, requireNonNull(sortByFn));
     }
@@ -161,7 +173,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
 
   public static class WindowByBuilder<IN, S extends Comparable<? super S>>
       extends PartitioningBuilder<S, WindowByBuilder<IN, S>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
+      implements Builders.WindowBy<IN>, Builders.Output<IN>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -178,12 +190,14 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
       this.sortByFn = requireNonNull(sortByFn);
     }
 
+    @Override
     public <W extends Window>
     OutputBuilder<IN, S, W>
     windowBy(Windowing<IN, W> windowing) {
       return windowBy(windowing, null);
     }
 
+    @Override
     public <W extends Window>
     OutputBuilder<IN, S, W>
     windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
@@ -201,7 +215,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
   public static class OutputBuilder<
       IN, S extends Comparable<? super S>, W extends Window>
       extends PartitioningBuilder<S, OutputBuilder<IN, S, W>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
+      implements Builders.Output<IN>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -245,10 +259,30 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     }
   }
 
-  public static <I> ByBuilder<I> of(Dataset<I> input) {
+  /**
+   * Starts building a nameless {@link Sort} operator to process
+   * the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   *
+   * @param input the input data set to be processed
+   *
+   * @return a builder to complete the setup of the new operator
+   *
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> ByBuilder<IN> of(Dataset<IN> input) {
     return new ByBuilder<>("Sort", input);
   }
 
+  /**
+   * Starts building a named {@link Sort} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   *
+   * @return a builder to complete the setup of the new operator
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
