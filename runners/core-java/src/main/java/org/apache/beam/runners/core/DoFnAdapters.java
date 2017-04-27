@@ -69,7 +69,6 @@ public class DoFnAdapters {
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
-      super();
       this.fn = fn;
       this.invoker = DoFnInvokers.invokerFor(fn);
     }

@@ -73,7 +73,6 @@ import org.joda.time.Instant;
  *
  * <ul>
  * <li>Tracking the windows that are active (have buffered data) as elements arrive and triggers are
- *
  *  fired.
  * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it when the
  *     trigger fires.
@@ -113,7 +112,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final Counter droppedDueToClosedWindow;
 
-  public static final String DROPED_DUE_TO_CLOSED_WINDOW = "droppedDueToClosedWindow";
+  public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "droppedDueToClosedWindow";
 
   private final K key;
 
@@ -228,7 +227,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.outputter = outputter;
     this.reduceFn = reduceFn;
     this.droppedDueToClosedWindow = Metrics.counter(ReduceFnRunner.class,
-        DROPED_DUE_TO_CLOSED_WINDOW);
+        DROPPED_DUE_TO_CLOSED_WINDOW);
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectWindowingStrategy =

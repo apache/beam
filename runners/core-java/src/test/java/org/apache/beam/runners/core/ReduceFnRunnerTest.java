@@ -173,7 +173,7 @@ public class ReduceFnRunnerTest {
 
     long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(1, droppedElements);
   }
@@ -455,7 +455,7 @@ public class ReduceFnRunnerTest {
     // Nothing dropped.
     long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(0, droppedElements);
 
@@ -517,7 +517,7 @@ public class ReduceFnRunnerTest {
     injectElement(tester, 8);
     droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(0, droppedElements);
 
@@ -1090,7 +1090,7 @@ public class ReduceFnRunnerTest {
             SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
         .withTrigger(AfterWatermark.pastEndOfWindow())
         .withAllowedLateness(Duration.millis(1000)),
-        Sum.ofIntegers().<String>asKeyedFn(), VarIntCoder.of());
+        Sum.ofIntegers(), VarIntCoder.of());
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
@@ -1100,7 +1100,7 @@ public class ReduceFnRunnerTest {
 
     long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(0, droppedElements);
 
@@ -1112,7 +1112,7 @@ public class ReduceFnRunnerTest {
 
     droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(1, droppedElements);
 
@@ -1123,7 +1123,7 @@ public class ReduceFnRunnerTest {
 
     droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(4, droppedElements);
   }
@@ -1173,7 +1173,7 @@ public class ReduceFnRunnerTest {
 
     long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(0, droppedElements);
   }
@@ -1225,7 +1225,7 @@ public class ReduceFnRunnerTest {
 
     long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
         MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPED_DUE_TO_CLOSED_WINDOW))
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
         .getCumulative().longValue();
     assertEquals(0, droppedElements);
   }

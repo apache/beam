@@ -641,8 +641,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * This method should be called by runners before any processing methods.
    */
   @Deprecated
-  public final void prepareForProcessing() {
-  }
+  public final void prepareForProcessing() {}
 
   /**
    * {@inheritDoc}

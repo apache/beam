@@ -33,6 +33,7 @@ import org.apache.beam.sdk.values.PValue;
  * Retrieves {@link Aggregator Aggregators} at each {@link ParDo} and returns a {@link Map} of
  * {@link Aggregator} to the {@link PTransform PTransforms} in which it is present.
  */
+@Deprecated
 class AggregatorPipelineExtractor {
   private final Pipeline pipeline;
 
