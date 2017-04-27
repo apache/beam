@@ -51,8 +51,8 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -318,14 +318,14 @@ public class GroupByKeyTest {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testOutputTimeFnEarliest() {
+  public void testTimestampCombinerEarliest() {
 
     p.apply(
         Create.timestamped(
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))
+            .withTimestampCombiner(TimestampCombiner.EARLIEST))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(0))));
 
@@ -339,13 +339,13 @@ public class GroupByKeyTest {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testOutputTimeFnLatest() {
+  public void testTimestampCombinerLatest() {
     p.apply(
         Create.timestamped(
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
         .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp()))
+            .withTimestampCombiner(TimestampCombiner.LATEST))
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(10))));
 

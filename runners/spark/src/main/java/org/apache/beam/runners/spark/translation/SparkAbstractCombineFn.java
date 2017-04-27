@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public class SparkAbstractCombineFn implements Serializable {
   protected final SparkRuntimeContext runtimeContext;
   protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
-  protected final WindowingStrategy<?, ?> windowingStrategy;
+  protected final WindowingStrategy<?, BoundedWindow> windowingStrategy;
 
 
   public SparkAbstractCombineFn(
@@ -59,7 +59,7 @@ public class SparkAbstractCombineFn implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy) {
     this.runtimeContext = runtimeContext;
     this.sideInputs = sideInputs;
-    this.windowingStrategy = windowingStrategy;
+    this.windowingStrategy = (WindowingStrategy<?, BoundedWindow>) windowingStrategy;
   }
 
   // each Spark task should get it's own copy of this SparkKeyedCombineFn, and since Spark tasks
