@@ -31,7 +31,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 public final class LocalResources {
 
   public static ResourceId fromFile(File file, boolean isDirectory) {
-    return LocalResourceId.fromPath(Paths.get(file.getPath()), isDirectory);
+    return LocalResourceId.fromPath(file.toPath(), isDirectory);
   }
 
   public static ResourceId fromPath(Path path, boolean isDirectory) {
