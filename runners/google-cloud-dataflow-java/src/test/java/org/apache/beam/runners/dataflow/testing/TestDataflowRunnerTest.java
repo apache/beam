@@ -17,15 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.testing;
 
-import static org.apache.beam.runners.dataflow.testing.TestDataflowRunner.LEGACY_WATERMARK_METRIC_SUFFIX;
-import static org.apache.beam.runners.dataflow.testing.TestDataflowRunner.WATERMARK_METRIC_SUFFIX;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -69,7 +65,6 @@ import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.Transport;
@@ -96,9 +91,6 @@ public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Mock private MockHttpTransport transport;
   @Mock private MockLowLevelHttpRequest request;
-  @Mock private GcsUtil mockGcsUtil;
-
-  private static final BigDecimal DEFAULT_MAX_WATERMARK = new BigDecimal(-2);
 
   private TestDataflowPipelineOptions options;
   private Dataflow service;
@@ -142,8 +134,8 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
-    when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     assertEquals(mockJob, runner.run(p, mockRunner));
   }
 
@@ -162,8 +154,8 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
-    when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        false /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, false /* tentative */));
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -201,8 +193,8 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     try {
       runner.run(p, mockRunner);
@@ -232,8 +224,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute())
-        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */,
-            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     runner.run(p, mockRunner);
   }
@@ -253,8 +244,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(request.execute())
-        .thenReturn(generateMockStreamingMetricResponse(
-            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
+        .thenReturn(generateMockStreamingMetricResponse(ImmutableMap.<String, BigDecimal>of()));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     runner.run(p, mockRunner);
   }
@@ -274,8 +264,8 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     try {
       runner.run(p, mockRunner);
@@ -287,15 +277,11 @@ public class TestDataflowRunnerTest {
     fail("AssertionError expected");
   }
 
-  private LowLevelHttpResponse generateMockMetricResponse(boolean success, boolean tentative,
-                                                          Map<String, BigDecimal> additionalMetrics)
+  private LowLevelHttpResponse generateMockMetricResponse(boolean success, boolean tentative)
       throws Exception {
     MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
     response.setContentType(Json.MEDIA_TYPE);
     List<MetricUpdate> metrics = generateMockMetrics(success, tentative);
-    if (additionalMetrics != null && !additionalMetrics.isEmpty()) {
-      metrics.addAll(generateMockStreamingMetrics(additionalMetrics));
-    }
     JobMetrics jobMetrics = buildJobMetrics(metrics);
     response.setContent(jobMetrics.toPrettyString());
     return response;
@@ -427,8 +413,8 @@ public class TestDataflowRunnerTest {
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     try {
       runner.run(p, mockRunner);
@@ -448,8 +434,8 @@ public class TestDataflowRunnerTest {
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
     JobMetrics metrics = runner.getJobMetrics(job);
 
@@ -487,8 +473,8 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     runner.run(p, mockRunner);
   }
 
@@ -515,8 +501,8 @@ public class TestDataflowRunnerTest {
         .thenReturn(State.DONE);
 
     when(request.execute())
-        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */,
-            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */
+        ));
     runner.run(p, mockRunner);
   }
 
@@ -538,8 +524,8 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(true /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     runner.run(p, mockRunner);
   }
 
@@ -566,8 +552,7 @@ public class TestDataflowRunnerTest {
         .thenReturn(State.DONE);
 
     when(request.execute())
-        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */,
-            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
+        .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     runner.run(p, mockRunner);
   }
 
@@ -589,8 +574,8 @@ public class TestDataflowRunnerTest {
     p.getOptions().as(TestPipelineOptions.class)
         .setOnSuccessMatcher(new TestFailureMatcher());
 
-    when(request.execute()).thenReturn(generateMockMetricResponse(false /* success */,
-        true /* tentative */, null /* additionalMetrics */));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {
@@ -623,9 +608,8 @@ public class TestDataflowRunnerTest {
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);
 
-    when(request.execute()).thenReturn(
-        generateMockMetricResponse(false /* success */, true /* tentative */,
-            ImmutableMap.of(WATERMARK_METRIC_SUFFIX, new BigDecimal(100))));
+    when(request.execute())
+        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     try {
       runner.run(p, mockRunner);
     } catch (AssertionError expected) {

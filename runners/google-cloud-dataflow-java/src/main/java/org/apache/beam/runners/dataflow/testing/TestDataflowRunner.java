@@ -154,8 +154,15 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         success = checkForPAssertSuccess(job, getJobMetrics(job));
       }
       if (!success.isPresent()) {
-        throw new IllegalStateException(
-            "The dataflow did not output a success or failure metric.");
+        if (options.isStreaming()) {
+          LOG.warn(
+              "The dataflow did not output a success or failure metric."
+                  + " In rare situations, some PAsserts may not have run."
+                  + " This is a known limitation of Dataflow in streaming.");
+        } else {
+          throw new IllegalStateException(
+              "The dataflow did not output a success or failure metric.");
+        }
       } else if (!success.get()) {
         throw new AssertionError(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
