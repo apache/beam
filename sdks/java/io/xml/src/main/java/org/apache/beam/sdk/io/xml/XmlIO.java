@@ -27,6 +27,8 @@ import java.nio.charset.Charset;
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
+import javax.xml.bind.ValidationEventHandler;
+
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
@@ -253,6 +255,9 @@ public class XmlIO {
 
     abstract Builder<T> toBuilder();
 
+    @Nullable
+    abstract ValidationEventHandler getValidationEventHandler();
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setFileOrPatternSpec(String fileOrPatternSpec);
@@ -268,6 +273,8 @@ public class XmlIO {
       abstract Builder<T> setCompressionType(CompressionType compressionType);
 
       abstract Builder<T> setCharset(String charset);
+
+      abstract Builder<T> setValidationEventHandler(ValidationEventHandler validationEventHandler);
 
       abstract Read<T> build();
     }
@@ -363,6 +370,13 @@ public class XmlIO {
      */
     public Read<T> withCharset(Charset charset) {
       return toBuilder().setCharset(charset.name()).build();
+    }
+
+    /**
+     * Sets the Validation handler.
+     */
+    public Read<T> withValidationEventHandler(ValidationEventHandler validationEventHandler) {
+      return toBuilder().setValidationEventHandler(validationEventHandler).build();
     }
 
     @Override

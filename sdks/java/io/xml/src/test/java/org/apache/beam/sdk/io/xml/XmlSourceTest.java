@@ -38,6 +38,8 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import javax.xml.bind.ValidationEvent;
+import javax.xml.bind.ValidationEventHandler;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -164,6 +166,29 @@ public class XmlSourceTest {
       + "</trains>";
 
   @XmlRootElement
+  static class TinyTrain {
+    public TinyTrain(String name) {
+      this.name = name;
+    }
+
+    public TinyTrain() {
+    }
+
+    public String name = null;
+
+    @Override
+    public String toString() {
+      String str = "Train[";
+      if (name != null) {
+        str = str + "name=" + name;
+      }
+      str = str + "]";
+      return str;
+    }
+  }
+
+
+  @XmlRootElement
   static class Train {
     public static final int TRAIN_NUMBER_UNDEFINED = -1;
     public String name = null;
@@ -277,10 +302,10 @@ public class XmlSourceTest {
     return file;
   }
 
-  private List<Train> readEverythingFromReader(Reader<Train> reader) throws IOException {
-    List<Train> results = new ArrayList<>();
+  private  <T> List<T> readEverythingFromReader(Reader<T> reader) throws IOException {
+    List<T> results = new ArrayList<>();
     for (boolean available = reader.start(); available; available = reader.advance()) {
-      Train train = reader.getCurrent();
+      T train = reader.getCurrent();
       results.add(train);
     }
     return results;
@@ -396,6 +421,14 @@ public class XmlSourceTest {
   }
 
   List<String> trainsToStrings(List<Train> input) {
+    List<String> strings = new ArrayList<>();
+    for (Object data : input) {
+      strings.add(data.toString());
+    }
+    return strings;
+  }
+
+  List<String> tinyTrainsToStrings(List<TinyTrain> input) {
     List<String> strings = new ArrayList<>();
     for (Object data : input) {
       strings.add(data.toString());
@@ -526,13 +559,21 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
+    ValidationEventHandler validationEventHandler = new ValidationEventHandler() {
+      @Override
+      public boolean handleEvent(ValidationEvent event) {
+        throw new RuntimeException(event.getMessage(), event.getLinkedException());
+      }
+    };
+
     BoundedSource<WrongTrainType> source =
-        XmlIO.<WrongTrainType>read()
-            .from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .withRecordClass(WrongTrainType.class)
-            .createSource();
+            XmlIO.<WrongTrainType>read()
+                    .from(file.toPath().toString())
+                    .withRootElement("trains")
+                    .withRecordElement("train")
+                    .withRecordClass(WrongTrainType.class)
+                    .withValidationEventHandler(validationEventHandler)
+                    .createSource();
 
     exception.expect(RuntimeException.class);
 
@@ -546,6 +587,37 @@ public class XmlSourceTest {
         results.add(train);
       }
     }
+  }
+
+  @Test
+  public void testReadXmlwithAdditionnalFieldsShouldNotThrowException() throws  IOException{
+    File file = tempFolder.newFile("trainXMLSmall");
+    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
+
+    BoundedSource<TinyTrain> source =
+            XmlIO.<TinyTrain>read()
+                    .from(file.toPath().toString())
+                    .withRootElement("trains")
+                    .withRecordElement("train")
+                    .withRecordClass(TinyTrain.class)
+                    .createSource();
+
+    List<TinyTrain> expectedResults =
+            ImmutableList.of(
+                    new TinyTrain("Thomas"),
+                    new TinyTrain("Henry"),
+                    new TinyTrain("Toby"),
+                    new TinyTrain("Gordon"),
+                    new TinyTrain("Emily"),
+                    new TinyTrain("Percy")
+
+            );
+
+    assertThat(
+            tinyTrainsToStrings(expectedResults),
+            containsInAnyOrder(
+                    tinyTrainsToStrings(readEverythingFromReader(source.createReader(null)))
+                            .toArray()));
   }
 
   @Test
