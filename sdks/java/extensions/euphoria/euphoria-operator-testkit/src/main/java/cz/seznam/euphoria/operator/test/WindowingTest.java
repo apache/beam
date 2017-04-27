@@ -40,7 +40,6 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
@@ -48,6 +47,7 @@ import org.junit.Test;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
@@ -71,12 +71,12 @@ public class WindowingTest extends AbstractOperatorTest {
       protected Dataset<Triple<Instant, Type, Long>> getOutput(Dataset<Triple<Instant, Type, String>> input) {
         Dataset<ComparablePair<Type, String>> distinct =
                 Distinct.of(input)
-                        .mapped(t -> ComparablePair.of(t.getSecond(), t.getThird()))
+                        .mapped(t -> new ComparablePair<>(t.getSecond(), t.getThird()))
                         .windowBy(Time.of(Duration.ofHours(1)), t -> t.getFirst().toEpochMilli())
                         .output();
 
         Dataset<Pair<Type, Long>> reduced = ReduceByKey.of(distinct)
-                .keyBy(Pair::getFirst)
+                .keyBy(ComparablePair::getFirst)
                 .valueBy(p -> 1L)
                 .combineBy(Sums.ofLongs())
                 .windowBy(Time.of(Duration.ofHours(1)))
@@ -143,7 +143,7 @@ public class WindowingTest extends AbstractOperatorTest {
         // distinct implemented using raw ReduceStateByKey
         Dataset<Pair<ComparablePair<Type, String>, Object>> pairs =
                 ReduceStateByKey.of(input)
-                                .keyBy(t -> ComparablePair.of(t.getSecond(), t.getThird()))
+                                .keyBy(t -> new  ComparablePair<>(t.getSecond(), t.getThird()))
                                 .valueBy(t -> null)
                                 .stateFactory(DistinctState::new)
                                 .mergeStatesBy((t, os) -> {})
@@ -155,7 +155,7 @@ public class WindowingTest extends AbstractOperatorTest {
                 .output();
 
         Dataset<Pair<Type, Long>> reduced = ReduceByKey.of(distinct)
-                .keyBy(Pair::getFirst)
+                .keyBy(ComparablePair::getFirst)
                 .valueBy(p -> 1L)
                 .combineBy(Sums.ofLongs())
                 .windowBy(Time.of(Duration.ofHours(1)))
@@ -234,35 +234,47 @@ public class WindowingTest extends AbstractOperatorTest {
     }
   }
 
-  private static class ComparablePair<T0, T1>
-          extends Pair<T0, T1>
+  private static class ComparablePair<
+      T0 extends Comparable<T0>, T1 extends Comparable<T1>>
           implements Comparable<ComparablePair<T0, T1>> {
+    private final T0 first;
+    private final T1 second;
 
     ComparablePair(T0 first, T1 second) {
-      super(first, second);
-      Preconditions.checkArgument(first instanceof Comparable,
-              first.getClass() + " is required to implement Comparable");
-      Preconditions.checkArgument(second instanceof Comparable,
-              second.getClass() + " is required to implement Comparable");
+      this.first = first;
+      this.second = second;
     }
 
-    public static <T0, T1> ComparablePair<T0, T1> of(T0 first, T1 second) {
-      return new ComparablePair<>(first, second);
+    public T0 getFirst() {
+      return first;
+    }
+
+    public T1 getSecond() {
+      return second;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof ComparablePair) {
+        ComparablePair<?, ?> that = (ComparablePair<?, ?>) o;
+        return Objects.equals(this.first, that.first)
+            && Objects.equals(this.second, that.second);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(first, second);
     }
 
     @Override
     public int compareTo(ComparablePair<T0, T1> o) {
-      int result = compare(getFirst(), o.getFirst());
+      int result = getFirst().compareTo(o.getFirst());
       if (result == 0) {
-        result = compare(getSecond(), o.getSecond());
+        result = getSecond().compareTo(o.getSecond());
       }
-
       return result;
-    }
-
-    @SuppressWarnings("unchecked")
-    private int compare(Object obj1, Object obj2) {
-      return ((Comparable) obj1).compareTo(obj2);
     }
   }
 

@@ -20,12 +20,12 @@ import java.util.Objects;
 /**
  * Triple of any types.
  */
-public class Triple<F, S, T> {
+public final class Triple<F, S, T> {
   final F first;
   final S second;
   final T third;
 
-  protected Triple(F first, S second, T third) {
+  private Triple(F first, S second, T third) {
     this.first = first;
     this.second = second;
     this.third = third;

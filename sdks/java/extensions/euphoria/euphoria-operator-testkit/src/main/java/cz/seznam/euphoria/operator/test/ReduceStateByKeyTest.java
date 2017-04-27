@@ -65,17 +65,6 @@ import static org.junit.Assert.assertTrue;
 @Processing(Processing.Type.ALL)
 public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
-  static class WPair<W, K, V> extends Pair<K, V> {
-    private final W window;
-    WPair(W window, K first, V second) {
-      super(first, second);
-      this.window = window;
-    }
-    public W getWindow() {
-      return window;
-    }
-  }
-
   static class SortState extends State<Integer, Integer> {
 
     final ListStorage<Integer> data;
@@ -153,9 +142,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   @Test
   public void testSortWindowed() {
-    execute(new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
+    execute(new AbstractTestCase<Integer, Triple<Integer, Integer, Integer>>() {
       @Override
-      protected Dataset<WPair<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
+      protected Dataset<Triple<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
         Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(input)
             .keyBy(e -> e % 3)
             .valueBy(e -> e)
@@ -166,8 +155,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             .windowBy(new ReduceByKeyTest.TestWindowing())
             .output();
         return FlatMap.of(output)
-            .using((UnaryFunctor<Pair<Integer, Integer>, WPair<Integer, Integer, Integer>>)
-                (elem, c) -> c.collect(new WPair<>(((IntWindow) c.getWindow()).getValue(), elem.getFirst(), elem.getSecond())))
+            .using((UnaryFunctor<Pair<Integer, Integer>, Triple<Integer, Integer, Integer>>)
+                (elem, c) -> c.collect(Triple.of(((IntWindow) c.getWindow()).getValue(), elem.getFirst(), elem.getSecond())))
             .output();
       }
 
@@ -187,15 +176,15 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      public void validate(Partitions<WPair<Integer, Integer, Integer>> partitions) {
+      public void validate(Partitions<Triple<Integer, Integer, Integer>> partitions) {
         assertEquals(1, partitions.size());
-        List<WPair<Integer, Integer, Integer>> first = partitions.get(0);
+        List<Triple<Integer, Integer, Integer>> first = partitions.get(0);
         assertEquals(12, first.size());
 
         // map (window, key) -> list(data)
-        Map<Pair<Integer, Integer>, List<WPair<Integer, Integer, Integer>>>
+        Map<Pair<Integer, Integer>, List<Triple<Integer, Integer, Integer>>>
             windowKeyMap = first.stream()
-            .collect(Collectors.groupingBy(p -> Pair.of(p.getWindow(), p.getFirst())));
+            .collect(Collectors.groupingBy(p -> Pair.of(p.getFirst(), p.getSecond())));
 
         // two windows, three keys
         assertEquals(6, windowKeyMap.size());
@@ -224,8 +213,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
       }
 
-      List<Integer> flatten(List<WPair<Integer, Integer, Integer>> l) {
-        return l.stream().map(Pair::getSecond).collect(Collectors.toList());
+      List<Integer> flatten(List<Triple<Integer, Integer, Integer>> l) {
+        return l.stream().map(Triple::getThird).collect(Collectors.toList());
       }
     });
   }
