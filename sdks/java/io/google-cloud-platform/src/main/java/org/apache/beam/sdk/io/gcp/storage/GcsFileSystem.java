@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
@@ -37,6 +38,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -69,8 +71,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     List<GcsPath> nonGlobs = Lists.newArrayList();
     List<Boolean> isGlobBooleans = Lists.newArrayList();
 
-    for (int i = 0; i < gcsPaths.size(); ++i) {
-      GcsPath path = gcsPaths.get(i);
+    for (GcsPath path : gcsPaths) {
       if (GcsUtil.isGlob(path)) {
         globs.add(path);
         isGlobBooleans.add(true);
@@ -120,6 +121,22 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected void delete(Collection<GcsResourceId> resourceIds) throws IOException {
     options.getGcsUtil().remove(toFilenames(resourceIds));
+  }
+
+  @Override
+  protected GcsResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    if (isDirectory) {
+      if (!singleResourceSpec.endsWith("/")) {
+        singleResourceSpec += '/';
+      }
+    } else {
+      checkArgument(
+          !singleResourceSpec.endsWith("/"),
+          "Expected a file path, but [%s], ends with '/'. This is unsupported in GcsFileSystem.",
+          singleResourceSpec);
+    }
+    GcsPath path = GcsPath.fromUri(singleResourceSpec);
+    return GcsResourceId.fromGcsPath(path);
   }
 
   @Override
@@ -196,13 +213,15 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private MatchResult toMatchResult(StorageObjectOrIOException objectOrException) {
-    if (objectOrException.ioException() instanceof FileNotFoundException) {
-      return MatchResult.create(Status.NOT_FOUND, objectOrException.ioException());
-    } else if (objectOrException.ioException() != null) {
-      return MatchResult.create(Status.ERROR, objectOrException.ioException());
+    @Nullable IOException exception = objectOrException.ioException();
+    if (exception instanceof FileNotFoundException) {
+      return MatchResult.create(Status.NOT_FOUND, exception);
+    } else if (exception != null) {
+      return MatchResult.create(Status.ERROR, exception);
     } else {
-      return MatchResult.create(
-          Status.OK, new Metadata[]{toMetadata(objectOrException.storageObject())});
+      StorageObject object = objectOrException.storageObject();
+      assert object != null; // fix a warning; guaranteed by StorageObjectOrIOException semantics.
+      return MatchResult.create(Status.OK, new Metadata[]{toMetadata(object)});
     }
   }
 

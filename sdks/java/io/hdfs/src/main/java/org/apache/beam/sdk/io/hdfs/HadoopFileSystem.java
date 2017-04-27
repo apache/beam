@@ -68,4 +68,9 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   protected void delete(Collection<HadoopResourceId> resourceIds) throws IOException {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  protected HadoopResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    throw new UnsupportedOperationException();
+  }
 }

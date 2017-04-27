@@ -485,4 +485,19 @@ public class FileSystems {
       }
     }
   }
+
+  /**
+   * Returns a new {@link ResourceId} that represents the named resource of a type corresponding
+   * to the resource type.
+   *
+   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including
+   * any necessary escaping, for the underlying {@link FileSystem}.
+   *
+   * <p>This function may throw an {@link IllegalArgumentException} if given an invalid argument,
+   * such as when the specified {@code singleResourceSpec} is not a valid resource name.
+   */
+  public static ResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    return getFileSystemInternal(parseScheme(singleResourceSpec))
+        .matchNewResource(singleResourceSpec, isDirectory);
+  }
 }
