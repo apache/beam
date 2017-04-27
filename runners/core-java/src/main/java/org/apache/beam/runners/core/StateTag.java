@@ -27,7 +27,7 @@ import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
@@ -115,10 +115,11 @@ public interface StateTag<K, StateT extends State> extends Serializable {
     /**
      * Bind to a watermark {@link StateSpec}.
      *
-     * <p>This accepts the {@link TimestampCombiner} that dictates how watermark hold timestamps
-     * added to the returned {@link WatermarkHoldState} are to be combined.
+     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps added to
+     * the returned {@link WatermarkHoldState} are to be combined.
      */
-    <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-        StateTag<? super K, WatermarkHoldState> spec, TimestampCombiner timestampCombiner);
+    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+        StateTag<? super K, WatermarkHoldState<W>> spec,
+        OutputTimeFn<? super W> outputTimeFn);
   }
 }

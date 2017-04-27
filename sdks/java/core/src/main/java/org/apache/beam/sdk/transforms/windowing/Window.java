@@ -193,7 +193,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   @Nullable abstract AccumulationMode getAccumulationMode();
   @Nullable abstract Duration getAllowedLateness();
   @Nullable abstract ClosingBehavior getClosingBehavior();
-  @Nullable abstract TimestampCombiner getTimestampCombiner();
+  @Nullable abstract OutputTimeFn<?> getOutputTimeFn();
 
   abstract Builder<T> toBuilder();
 
@@ -204,7 +204,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     abstract Builder<T> setAccumulationMode(AccumulationMode mode);
     abstract Builder<T> setAllowedLateness(Duration allowedLateness);
     abstract Builder<T> setClosingBehavior(ClosingBehavior closingBehavior);
-    abstract Builder<T> setTimestampCombiner(TimestampCombiner timestampCombiner);
+    abstract Builder<T> setOutputTimeFn(OutputTimeFn<?> outputTimeFn);
 
     abstract Window<T> build();
   }
@@ -273,12 +273,12 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   /**
-   * <b><i>(Experimental)</i></b> Override the default {@link TimestampCombiner}, to control
+   * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
    * the output timestamp of values output from a {@link GroupByKey} operation.
    */
   @Experimental(Kind.OUTPUT_TIME)
-  public Window<T> withTimestampCombiner(TimestampCombiner timestampCombiner) {
-    return toBuilder().setTimestampCombiner(timestampCombiner).build();
+  public Window<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
+    return toBuilder().setOutputTimeFn(outputTimeFn).build();
   }
 
   /**
@@ -300,6 +300,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    * Get the output strategy of this {@link Window Window PTransform}. For internal use
    * only.
    */
+  // Rawtype cast of OutputTimeFn cannot be eliminated with intermediate variable, as it is
+  // casting between wildcards
   public WindowingStrategy<?, ?> getOutputStrategyInternal(
       WindowingStrategy<?, ?> inputStrategy) {
     WindowingStrategy<?, ?> result = inputStrategy;
@@ -318,8 +320,8 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
     }
-    if (getTimestampCombiner() != null) {
-      result = result.withTimestampCombiner(getTimestampCombiner());
+    if (getOutputTimeFn() != null) {
+      result = result.withOutputTimeFn(getOutputTimeFn());
     }
     return result;
   }
@@ -409,9 +411,9 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
         .withLabel("Window Closing Behavior"));
     }
 
-    if (getTimestampCombiner() != null) {
-      builder.add(DisplayData.item("timestampCombiner", getTimestampCombiner().toString())
-        .withLabel("Timestamp Combiner"));
+    if (getOutputTimeFn() != null) {
+      builder.add(DisplayData.item("outputTimeFn", getOutputTimeFn().getClass())
+        .withLabel("Output Time Function"));
     }
   }
 

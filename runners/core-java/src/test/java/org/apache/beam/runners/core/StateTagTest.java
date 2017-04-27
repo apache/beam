@@ -28,7 +28,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -97,11 +97,15 @@ public class StateTagTest {
 
   @Test
   public void testWatermarkBagEquality() {
-    StateTag<?, ?> foo1 = StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    StateTag<?, ?> foo2 = StateTags.watermarkStateInternal("foo", TimestampCombiner.EARLIEST);
-    StateTag<?, ?> bar = StateTags.watermarkStateInternal("bar", TimestampCombiner.EARLIEST);
+    StateTag<?, ?> foo1 = StateTags.watermarkStateInternal(
+        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    StateTag<?, ?> foo2 = StateTags.watermarkStateInternal(
+        "foo", OutputTimeFns.outputAtEarliestInputTimestamp());
+    StateTag<?, ?> bar = StateTags.watermarkStateInternal(
+        "bar", OutputTimeFns.outputAtEarliestInputTimestamp());
 
-    StateTag<?, ?> bar2 = StateTags.watermarkStateInternal("bar", TimestampCombiner.LATEST);
+    StateTag<?, ?> bar2 = StateTags.watermarkStateInternal(
+        "bar", OutputTimeFns.outputAtLatestInputTimestamp());
 
     // Same id, same fn.
     assertEquals(foo1, foo2);

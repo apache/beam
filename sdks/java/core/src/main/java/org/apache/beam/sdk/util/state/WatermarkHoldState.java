@@ -19,24 +19,25 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.joda.time.Instant;
 
 /**
- * A {@link State} accepting and aggregating output timestamps, which determines the time to which
- * the output watermark must be held.
+ * A {@link State} accepting and aggregating output timestamps, which determines
+ * the time to which the output watermark must be held.
  *
  * <p><b><i>For internal use only. This API may change at any time.</i></b>
  */
 @Experimental(Kind.STATE)
-public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
+public interface WatermarkHoldState<W extends BoundedWindow>
+    extends GroupingState<Instant, Instant> {
   /**
-   * Return the {@link TimestampCombiner} which will be used to determine a watermark hold time
-   * given an element timestamp, and to combine watermarks from windows which are about to be
-   * merged.
+   * Return the {@link OutputTimeFn} which will be used to determine a watermark hold time given
+   * an element timestamp, and to combine watermarks from windows which are about to be merged.
    */
-  TimestampCombiner getTimestampCombiner();
+  OutputTimeFn<? super W> getOutputTimeFn();
 
   @Override
-  WatermarkHoldState readLater();
+  WatermarkHoldState<W> readLater();
 }

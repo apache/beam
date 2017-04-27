@@ -29,7 +29,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
@@ -110,11 +110,11 @@ public class StateTags {
       }
 
       @Override
-      public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
+      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
           String id,
-          StateSpec<? super K, WatermarkHoldState> spec,
-          TimestampCombiner timestampCombiner) {
-        return binder.bindWatermark(tagForSpec(id, spec), timestampCombiner);
+          StateSpec<? super K, WatermarkHoldState<W>> spec,
+          OutputTimeFn<? super W> outputTimeFn) {
+        return binder.bindWatermark(tagForSpec(id, spec), outputTimeFn);
       }
     };
   }
@@ -228,10 +228,10 @@ public class StateTags {
   /**
    * Create a state tag for holding the watermark.
    */
-  public static <W extends BoundedWindow> StateTag<Object, WatermarkHoldState>
-      watermarkStateInternal(String id, TimestampCombiner timestampCombiner) {
+  public static <W extends BoundedWindow> StateTag<Object, WatermarkHoldState<W>>
+      watermarkStateInternal(String id, OutputTimeFn<? super W> outputTimeFn) {
     return new SimpleStateTag<>(
-        new StructuredId(id), StateSpecs.watermarkStateInternal(timestampCombiner));
+        new StructuredId(id), StateSpecs.watermarkStateInternal(outputTimeFn));
   }
 
   /**

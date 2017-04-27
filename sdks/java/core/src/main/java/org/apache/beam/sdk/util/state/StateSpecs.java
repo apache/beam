@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
 /**
  * Static utility methods for creating {@link StateSpec} instances.
@@ -208,9 +208,9 @@ public class StateSpecs {
 
   /** Create a state spec for holding the watermark. */
   public static <W extends BoundedWindow>
-      StateSpec<Object, WatermarkHoldState> watermarkStateInternal(
-          TimestampCombiner timestampCombiner) {
-    return new WatermarkStateSpecInternal<W>(timestampCombiner);
+      StateSpec<Object, WatermarkHoldState<W>> watermarkStateInternal(
+          OutputTimeFn<? super W> outputTimeFn) {
+    return new WatermarkStateSpecInternal<W>(outputTimeFn);
   }
 
   public static <K, InputT, AccumT, OutputT>
@@ -656,26 +656,26 @@ public class StateSpecs {
   /**
    * A specification for a state cell tracking a combined watermark hold.
    *
-   * <p>Includes the {@link TimestampCombiner} according to which the output times
+   * <p>Includes the {@link OutputTimeFn} according to which the output times
    * are combined.
    */
   private static class WatermarkStateSpecInternal<W extends BoundedWindow>
-      implements StateSpec<Object, WatermarkHoldState> {
+      implements StateSpec<Object, WatermarkHoldState<W>> {
 
     /**
      * When multiple output times are added to hold the watermark, this determines how they are
      * combined, and also the behavior when merging windows. Does not contribute to equality/hash
      * since we have at most one watermark hold spec per computation.
      */
-    private final TimestampCombiner timestampCombiner;
+    private final OutputTimeFn<? super W> outputTimeFn;
 
-    private WatermarkStateSpecInternal(TimestampCombiner timestampCombiner) {
-      this.timestampCombiner = timestampCombiner;
+    private WatermarkStateSpecInternal(OutputTimeFn<? super W> outputTimeFn) {
+      this.outputTimeFn = outputTimeFn;
     }
 
     @Override
-    public WatermarkHoldState bind(String id, StateBinder<?> visitor) {
-      return visitor.bindWatermark(id, this, timestampCombiner);
+    public WatermarkHoldState<W> bind(String id, StateBinder<?> visitor) {
+      return visitor.bindWatermark(id, this, outputTimeFn);
     }
 
     @Override
@@ -701,4 +701,5 @@ public class StateSpecs {
       return Objects.hash(getClass());
     }
   }
+
 }

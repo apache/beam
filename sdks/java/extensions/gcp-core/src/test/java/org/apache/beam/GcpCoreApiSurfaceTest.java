@@ -42,6 +42,7 @@ public class GcpCoreApiSurfaceTest {
             "com.google.api.services.cloudresourcemanager",
             "com.google.api.services.storage",
             "com.google.auth",
+            "com.google.protobuf",
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
             "com.fasterxml.jackson.databind",
