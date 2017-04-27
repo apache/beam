@@ -86,13 +86,16 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
     return valueCoder.decode(ByteStreams.limit(inStream, size), Context.OUTER);
   }
 
-  public Coder<?> getValueCoder() {
-    return valueCoder;
-  }
-
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
     return ImmutableList.of(valueCoder);
+  }
+
+  /**
+   * Gets the value coder that will be prefixed by the length.
+   */
+  public Coder<T> getValueCoder() {
+    return valueCoder;
   }
 
   /**

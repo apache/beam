@@ -19,9 +19,34 @@
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.auto.service.AutoService;
-import java.util.Collections;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.ImmutableSet;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.dataflow.internal.IsmFormat.FooterCoder;
+import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmShardCoder;
+import org.apache.beam.runners.dataflow.internal.IsmFormat.KeyPrefixCoder;
+import org.apache.beam.runners.dataflow.util.RandomAccessData.RandomAccessDataCoder;
+import org.apache.beam.sdk.coders.BigDecimalCoder;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.BigIntegerCoder;
+import org.apache.beam.sdk.coders.BitSetCoder;
+import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.DurationCoder;
+import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TextualIntegerCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 
 /**
  * The {@link CoderCloudObjectTranslatorRegistrar} containing the default collection of
@@ -30,15 +55,63 @@ import org.apache.beam.sdk.coders.Coder;
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
+  private static final List<CloudObjectTranslator<? extends Coder>> DEFAULT_TRANSLATORS =
+      ImmutableList.<CloudObjectTranslator<? extends Coder>>of(
+          CloudObjectTranslators.globalWindow(),
+          CloudObjectTranslators.intervalWindow(),
+          CloudObjectTranslators.bytes(),
+          CloudObjectTranslators.varInt(),
+          CloudObjectTranslators.lengthPrefix(),
+          CloudObjectTranslators.stream(),
+          CloudObjectTranslators.pair(),
+          CloudObjectTranslators.windowedValue(),
+          CloudObjectTranslators.custom());
+  @VisibleForTesting
+  static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
+      ImmutableSet.<Class<? extends Coder>>of(
+          BigDecimalCoder.class,
+          BigEndianIntegerCoder.class,
+          BigEndianLongCoder.class,
+          BigIntegerCoder.class,
+          BitSetCoder.class,
+          ByteCoder.class,
+          DoubleCoder.class,
+          DurationCoder.class,
+          FileResultCoder.class,
+          FooterCoder.class,
+          InstantCoder.class,
+          IsmShardCoder.class,
+          KeyPrefixCoder.class,
+          RandomAccessDataCoder.class,
+          StringUtf8Coder.class,
+          TableDestinationCoder.class,
+          TableRowJsonCoder.class,
+          TextualIntegerCoder.class,
+          VarIntCoder.class,
+          VoidCoder.class);
+
+  @Override
   public Map<String, CloudObjectTranslator<? extends Coder>> classNamesToTranslators() {
-    // TODO: Add translators
-    return Collections.emptyMap();
+    ImmutableMap.Builder<String, CloudObjectTranslator<? extends Coder>> nameToTranslators =
+        ImmutableMap.builder();
+    for (CloudObjectTranslator<? extends Coder> translator : classesToTranslators().values()) {
+      nameToTranslators.put(translator.cloudObjectClassName(), translator);
+    }
+    return nameToTranslators.build();
   }
 
   @Override
   public Map<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>
       classesToTranslators() {
-    // TODO: Add translato
-    return Collections.emptyMap();
+    Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
+        ImmutableMap.<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>>builder();
+    for (CloudObjectTranslator<? extends Coder> defaultTranslator : DEFAULT_TRANSLATORS) {
+      builder.put(defaultTranslator.getSupportedClass(), defaultTranslator);
+    }
+    for (Class<? extends Coder> atomicCoder : KNOWN_ATOMIC_CODERS) {
+      builder.put(atomicCoder, CloudObjectTranslators.atomic(atomicCoder));
+    }
+    return builder
+        .build();
   }
 }
