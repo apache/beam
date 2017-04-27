@@ -161,8 +161,8 @@ class DoFnInvoker(object):
     defaults = self.signature.start_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    self.output_processor.process_outputs(
-        None, self.signature.start_bundle_method.method_value(*args))
+    self.output_processor.start_bundle_outputs(
+        self.signature.start_bundle_method.method_value(*args))
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
@@ -170,8 +170,8 @@ class DoFnInvoker(object):
     defaults = self.signature.finish_bundle_method.defaults
     args = [self.context if d == core.DoFn.ContextParam else d
             for d in defaults]
-    self.output_processor.process_outputs(
-        None, self.signature.finish_bundle_method.method_value(*args))
+    self.output_processor.finish_bundle_outputs(
+        self.signature.finish_bundle_method.method_value(*args))
 
 
 class SimpleInvoker(DoFnInvoker):
@@ -436,13 +436,14 @@ class OutputProcessor(object):
     self.tagged_receivers = tagged_receivers
 
   def process_outputs(self, windowed_input_element, results):
-    """Dispatch the result of computation to the appropriate receivers.
+    """Dispatch the result of process computation to the appropriate receivers.
 
     A value wrapped in a OutputValue object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
     if results is None:
       return
+
     for result in results:
       tag = None
       if isinstance(result, OutputValue):
@@ -455,19 +456,6 @@ class OutputProcessor(object):
         if (windowed_input_element is not None
             and len(windowed_input_element.windows) != 1):
           windowed_value.windows *= len(windowed_input_element.windows)
-      elif windowed_input_element is None:
-        # Start and finish have no element from which to grab context,
-        # but may emit elements.
-        if isinstance(result, TimestampedValue):
-          value = result.value
-          timestamp = result.timestamp
-          assign_context = NoContext(value, timestamp)
-        else:
-          value = result
-          timestamp = -1
-          assign_context = NoContext(value)
-        windowed_value = WindowedValue(
-            value, timestamp, self.window_fn.assign(assign_context))
       elif isinstance(result, TimestampedValue):
         assign_context = WindowFn.AssignContext(result.timestamp, result.value)
         windowed_value = WindowedValue(
@@ -477,6 +465,50 @@ class OutputProcessor(object):
           windowed_value.windows *= len(windowed_input_element.windows)
       else:
         windowed_value = windowed_input_element.with_value(result)
+      if tag is None:
+        self.main_receivers.receive(windowed_value)
+      else:
+        self.tagged_receivers[tag].output(windowed_value)
+
+  def start_bundle_outputs(self, results):
+    """Validate that start_bundle does not output any elements"""
+    if results is None:
+      return
+    raise RuntimeError(
+        'Start Bundle should not output any elements but got %s' % results)
+
+  def finish_bundle_outputs(self, results):
+    """Dispatch the result of finish_bundle to the appropriate receivers.
+
+    A value wrapped in a OutputValue object will be unwrapped and
+    then dispatched to the appropriate indexed output.
+    """
+    if results is None:
+      return
+
+    for result in results:
+      tag = None
+      if isinstance(result, OutputValue):
+        tag = result.tag
+        if not isinstance(tag, basestring):
+          raise TypeError('In %s, tag %s is not a string' % (self, tag))
+        result = result.value
+
+      if isinstance(result, WindowedValue):
+        windowed_value = result
+      elif isinstance(result, TimestampedValue):
+        value = result.value
+        timestamp = result.timestamp
+        assign_context = NoContext(value, timestamp)
+        windowed_value = WindowedValue(
+            value, timestamp, self.window_fn.assign(assign_context))
+      else:
+        value = result
+        timestamp = -1
+        assign_context = NoContext(value)
+        windowed_value = WindowedValue(
+            value, timestamp, self.window_fn.assign(assign_context))
+
       if tag is None:
         self.main_receivers.receive(windowed_value)
       else:
