@@ -767,7 +767,7 @@ class CombineTest(unittest.TestCase):
   def test_custom_average(self):
     pc = [2, 3, 5, 7]
 
-    # [START combine_custom_average]
+    # [START combine_custom_average_define]
     class AverageFn(beam.CombineFn):
       def create_accumulator(self):
         return (0.0, 0)
@@ -781,8 +781,10 @@ class CombineTest(unittest.TestCase):
 
       def extract_output(self, (sum, count)):
         return sum / count if count else float('NaN')
+    # [END combine_custom_average_define]
+    # [START combine_custom_average_execute]
     average = pc | beam.CombineGlobally(AverageFn())
-    # [END combine_custom_average]
+    # [END combine_custom_average_execute]
     self.assertEqual([4.25], average)
 
   def test_keys(self):
