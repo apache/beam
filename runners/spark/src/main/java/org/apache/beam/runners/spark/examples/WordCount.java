@@ -47,7 +47,7 @@ public class WordCount {
   public static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
 
-    private static String TOKENIZER_PATTERN = "[^\\p{L}]+";
+    private static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
     @ProcessElement
     public void processElement(ProcessContext c) {

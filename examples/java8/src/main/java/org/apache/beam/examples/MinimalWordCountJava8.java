@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class MinimalWordCountJava8 {
 
-  private static String TOKENIZER_PATTERN = "[^\\p{L}]+";
+  private static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
 
   public static void main(String[] args) {

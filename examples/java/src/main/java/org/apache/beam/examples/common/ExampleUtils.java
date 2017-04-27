@@ -66,7 +66,7 @@ public class ExampleUtils {
 
   private static final int SC_NOT_FOUND = 404;
 
-  public static String TOKENIZER_PATTERN = "[^\\p{L}]+";
+  public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
 
   private final PipelineOptions options;
   private Bigquery bigQueryClient = null;
