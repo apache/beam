@@ -61,22 +61,14 @@ public class Repartition<IN>
     implements PartitioningAware<IN>
 {
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
-    /**
-     * Specifies the input dataset to be repartitioned.
-     *
-     * @param <IN> the type of elements in the input dataset
-     *
-     * @param input the input dataset to process
-     *
-     * @return the next builder to complete the setup of the repartition operator
-     */
+    @Override
     public <IN> OutputBuilder<IN> of(Dataset<IN> input) {
       return new OutputBuilder<>(name, input);
     }
@@ -84,7 +76,7 @@ public class Repartition<IN>
 
   public static class OutputBuilder<IN>
       extends PartitioningBuilder<IN, OutputBuilder<IN>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<IN>
+      implements Builders.Output<IN>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -96,12 +88,6 @@ public class Repartition<IN>
       this.input = Objects.requireNonNull(input);
     }
 
-    /**
-     * Finalizes the setup of the {@link Repartition} operator and retrieves
-     * the dataset representing the repartitioned input dataset.
-     *
-     * @return the dataset represeting the repartitioned input
-     */
     @Override
     public Dataset<IN> output() {
       Flow flow = input.getFlow();

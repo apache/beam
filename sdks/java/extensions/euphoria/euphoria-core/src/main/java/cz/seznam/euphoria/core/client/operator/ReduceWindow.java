@@ -32,7 +32,11 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import javax.annotation.Nullable;
 
 /**
- * Reduce all elements in window.
+ * Reduces all elements in window. The operator corresponds to {@link ReduceByKey} with
+ * the same key for all elements, so the actual key is defined only by window.<p>
+ * 
+ * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
+ * input operator are used.
  */
 @Derived(
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
@@ -44,11 +48,15 @@ public class ReduceWindow<
         IN, IN, IN, Byte, OUT, W,
             ReduceWindow<IN, VALUE, OUT, W>> {
   
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
+    
     final String name;
+    
     OfBuilder(String name) {
       this.name = name;
     }
+    
+    @Override
     public <T> ValueBuilder<T> of(Dataset<T> input) {
       return new ValueBuilder<>(name, input);
     }
@@ -99,7 +107,7 @@ public class ReduceWindow<
   }
 
   public static class OutputBuilder<T, VALUE, OUT>
-      implements OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
+      implements Builders.WindowBy<T>, OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
     
     private final String name;
     private final Dataset<T> input;
@@ -128,10 +136,14 @@ public class ReduceWindow<
       flow.add(operator);
       return operator.output();
     }
+    
+    @Override
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
       return windowBy(windowing, null);
     }
+    
+    @Override
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing, ExtractEventTime<T> eventTimeAssigner) {
       this.windowing = windowing;
@@ -145,14 +157,33 @@ public class ReduceWindow<
     }
   }
 
-  public static <T> ValueBuilder<T> of(Dataset<T> input) {
+  /**
+   * Starts building a nameless {@link ReduceWindow} operator to process
+   * the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   *
+   * @param input the input data set to be processed
+   *
+   * @return a builder to complete the setup of the new operator
+   *
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
+  public static <IN> ValueBuilder<IN> of(Dataset<IN> input) {
     return new ValueBuilder<>("ReduceWindow", input);
   }
 
+  /**
+   * Starts building a named {@link ReduceWindow} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   *
+   * @return a builder to complete the setup of the new operator
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
-
 
   final ReduceFunction<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;

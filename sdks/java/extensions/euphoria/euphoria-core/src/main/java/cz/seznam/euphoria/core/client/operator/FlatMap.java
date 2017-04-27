@@ -62,23 +62,14 @@ import java.util.Objects;
 )
 public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
-    /**
-     * Specifies the input dataset to be transformed.
-     *
-     * @param <IN> the type of elements of the input dataset
-     *
-     * @param input the input dataset
-     *
-     * @return the next builder to complete the setup
-     *          of the {@link FlatMap} operator
-     */
+    @Override
     public <IN> UsingBuilder<IN> of(Dataset<IN> input) {
       return new UsingBuilder<>(name, input);
     }
@@ -110,9 +101,7 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
   }
 
-  public static class OutputBuilder<IN, OUT>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<OUT>
-  {
+  public static class OutputBuilder<IN, OUT> implements Builders.Output<OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunctor<IN, OUT> functor;
@@ -123,12 +112,6 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
       this.functor = functor;
     }
 
-    /**
-     * Finalizes the setup of the {@link FlatMap} operator and retrieves the
-     * transformed dataset.
-     *
-     * @return the dataset representing the operator's transformed input
-     */
     @Override
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
