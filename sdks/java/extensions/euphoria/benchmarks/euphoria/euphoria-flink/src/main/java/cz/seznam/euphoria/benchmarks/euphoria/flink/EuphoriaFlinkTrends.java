@@ -69,13 +69,11 @@ public class EuphoriaFlinkTrends {
       AbstractStateBackend stateBackend = cfg.hasPath("rocksdb-checkpoint")
           ? new RocksDBStateBackend(cfg.getString("rocksdb-checkpoint"))
           : null;
-      boolean objectReuse = cfg.getBoolean("object-reuse");
       boolean dumpExecPlan = cfg.hasPath("dump-execution-plan") && cfg.getBoolean("dump-execution-plan");
 
       // ~ create the executor
       FlinkExecutor exec = new FlinkExecutor();
       exec.setDumpExecutionPlan(dumpExecPlan);
-      exec.setObjectReuse(objectReuse);
       Optional.ofNullable(allowedLateness).ifPresent(exec::setAllowedLateness);
       Optional.ofNullable(autoWatermarkInterval).ifPresent(exec::setAutoWatermarkInterval);
       Optional.ofNullable(checkpointInterval).ifPresent(exec::setCheckpointInterval);

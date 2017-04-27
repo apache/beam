@@ -55,8 +55,6 @@ public class FlinkExecutor implements Executor {
   @Nullable
   private Duration checkpointInterval;
 
-  private boolean objectReuse = false;
-
   // executor to submit flows, if closed all executions should be interrupted
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
@@ -99,13 +97,8 @@ public class FlinkExecutor implements Executor {
 
       LOG.info("Running flow in {} mode", mode);
 
-      ExecutionEnvironment environment = new ExecutionEnvironment(
-          mode, localEnv, registeredClasses);
-      if (objectReuse) {
-        environment.getExecutionConfig().enableObjectReuse();
-      } else{
-        environment.getExecutionConfig().disableObjectReuse();
-      }
+      ExecutionEnvironment environment =
+          new ExecutionEnvironment(mode, localEnv, registeredClasses);
       environment.getExecutionConfig().setLatencyTrackingInterval(latencyTracking.toMillis());
 
       Settings settings = flow.getSettings();
@@ -195,19 +188,6 @@ public class FlinkExecutor implements Executor {
                                                   Duration autoWatermarkInterval) {
     return new StreamingFlowTranslator(
             settings, environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
-  }
-
-  /**
-   * See {@link ExecutionConfig#disableObjectReuse()}
-   * and {@link ExecutionConfig#disableObjectReuse()}.
-   *
-   * @param reuse set TRUE for enabling object reuse
-   *
-   * @return this instance (for method chaining purposes)
-   */
-  public FlinkExecutor setObjectReuse(boolean reuse){
-    this.objectReuse = reuse;
-    return this;
   }
 
   /**
