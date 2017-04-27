@@ -58,8 +58,7 @@ public class MinimalWordCountJava8 {
 
     Pipeline p = Pipeline.create(options);
 
-//    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
-    p.apply(TextIO.Read.from("/Users/pbarna/Documents/gergo/SzerbAntal-Utas.txt"))
+    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
 
      .apply(FlatMapElements
          .into(TypeDescriptors.strings())
@@ -69,10 +68,8 @@ public class MinimalWordCountJava8 {
      .apply(MapElements
          .into(TypeDescriptors.strings())
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
-
      // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
-//     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
-      .apply(TextIO.Write.to("counts"));
+     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     p.run().waitUntilFinish();
   }
