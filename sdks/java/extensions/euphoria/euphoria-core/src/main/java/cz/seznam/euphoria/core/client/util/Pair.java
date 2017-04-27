@@ -24,7 +24,7 @@ import java.util.Objects;
  * @param <K> the type of the first element of the pair
  * @param <V> the type of the second element of the pair
  */
-public class Pair<K, V> {
+public final class Pair<K, V> {
 
   private static final Comparator<Pair> CMP_BY_FIRST =
           (o1, o2) -> doCompare(o1.getFirst(), o2.getFirst());
@@ -76,7 +76,7 @@ public class Pair<K, V> {
   final K first;
   final V second;
 
-  protected Pair(K first, V second) {
+  private Pair(K first, V second) {
     this.first = first;
     this.second = second;
   }
