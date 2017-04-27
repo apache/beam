@@ -180,7 +180,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    */
   public abstract static class FilenamePolicy implements Serializable {
     /**
-     * Context used for generating a name based on shard numer, and num shards.
+     * Context used for generating a name based on shard number, and num shards.
      * The policy must produce unique filenames for unique {@link Context} objects.
      *
      * <p>Be careful about adding fields to this as existing strategies will not notice the new
@@ -207,7 +207,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Context used for generating a name based on window, pane, shard numer, and num shards.
+     * Context used for generating a name based on window, pane, shard number, and num shards.
      * The policy must produce unique filenames for unique {@link WindowedContext} objects.
      *
      * <p>Be careful about adding fields to this as existing strategies will not notice the new
