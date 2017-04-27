@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.cassandra;
 
+import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.mapping.annotations.Column;
@@ -25,11 +26,11 @@ import com.datastax.driver.mapping.annotations.Table;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -110,12 +112,37 @@ public class CassandraIOTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  public void testWrite() throws  Exception {
+    FakeCassandraService service = new FakeCassandraService();
+
+    ArrayList<Scientist> data = new ArrayList<>();
+    for (int i = 0; i < 1000; i++) {
+      Scientist scientist = new Scientist();
+      scientist.id = i;
+      scientist.name = "Name " + i;
+      data.add(scientist);
+    }
+
+    pipeline
+        .apply(Create.of(data))
+        .apply(CassandraIO.<Scientist>write().withCassandraService(service)
+            .withKeyspace("beam")
+            .withEntity(Scientist.class));
+    pipeline.run();
+
+    assertEquals(service.getTable().size(), 1000);
+    for (Scientist scientist : service.getTable().values()) {
+      assertTrue(scientist.name.matches("Name (\\d*)"));
+    }
+  }
+
   /**
    * A {@link CassandraService} implementation that stores the entity in memory.
    */
   private static class FakeCassandraService implements CassandraService<Scientist> {
 
-    private static final Map<Integer, Scientist> table = new HashMap<>();
+    private static final Map<Integer, Scientist> table = new ConcurrentHashMap<>();
 
     public void load() {
       table.clear();
@@ -138,6 +165,10 @@ public class CassandraIOTest implements Serializable {
         scientist.name = scientists[index];
         table.put(scientist.id, scientist);
       }
+    }
+
+    public Map<Integer, Scientist> getTable() {
+      return table;
     }
 
     @Override
@@ -208,6 +239,25 @@ public class CassandraIOTest implements Serializable {
       List<BoundedSource<Scientist>> sources = new ArrayList<>();
       sources.add(new CassandraIO.CassandraSource<Scientist>(spec, null));
       return sources;
+    }
+
+    static class FakeCassandraWriter implements Writer<Scientist> {
+
+      @Override
+      public void write(Scientist scientist) {
+        table.put(scientist.id, scientist);
+      }
+
+      @Override
+      public void close() {
+        // nothing to do
+      }
+
+    }
+
+    @Override
+    public FakeCassandraWriter createWriter(CassandraIO.Write<Scientist> spec) {
+      return new FakeCassandraWriter();
     }
 
   }
