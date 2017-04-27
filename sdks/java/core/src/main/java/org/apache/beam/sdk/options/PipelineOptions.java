@@ -186,7 +186,9 @@ import org.joda.time.format.DateTimeFormatter;
  * <a href="https://github.com/FasterXML/jackson-annotations">annotations</a> to aid in
  * serialization of custom types. We point you to the public
  * <a href="https://github.com/FasterXML/jackson">Jackson documentation</a> when attempting
- * to add serialization support for your custom types.
+ * to add serialization support for your custom types. Note that {@link PipelineOptions} relies on
+ * Jackson's ability to automatically configure the {@link ObjectMapper} with additional modules via
+ * {@link ObjectMapper#findModules()}.
  *
  * <p>Note: It is an error to have the same property available in multiple interfaces with only
  * some of them being annotated with {@link JsonIgnore @JsonIgnore}. It is also an error to mark a
