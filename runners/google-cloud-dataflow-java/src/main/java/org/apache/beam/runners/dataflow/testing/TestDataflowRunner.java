@@ -125,16 +125,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             try {
               for (;;) {
                 JobMetrics metrics = getJobMetrics(job);
-                Optional<Boolean> success = checkForPAssertSuccess(job, metrics);
                 if (messageHandler.hasSeenError()) {
                   return Optional.of(false);
-                }
-
-                if (success.isPresent() && (!success.get() || atMaxWatermark(job, metrics))) {
-                  // It's possible that the streaming pipeline doesn't use PAssert.
-                  // So checkForSuccess() will return true before job is finished.
-                  // atMaxWatermark() will handle this case.
-                  return success;
                 }
                 Thread.sleep(10000L);
               }
@@ -162,8 +154,15 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         success = checkForPAssertSuccess(job, getJobMetrics(job));
       }
       if (!success.isPresent()) {
-        throw new IllegalStateException(
-            "The dataflow did not output a success or failure metric.");
+        if (options.isStreaming()) {
+          LOG.warn(
+              "The dataflow did not output a success or failure metric."
+                  + " In rare situations, some PAsserts may not have run."
+                  + " This is a known limitation of Dataflow in streaming.");
+        } else {
+          throw new IllegalStateException(
+              "The dataflow did not output a success or failure metric.");
+        }
       } else if (!success.get()) {
         throw new AssertionError(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
@@ -252,50 +251,6 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     LOG.info("Running Dataflow job {}. Found {} success, {} failures out of {} expected "
         + "assertions.", job.getJobId(), successes, failures, expectedNumberOfAssertions);
     return Optional.absent();
-  }
-
-  /**
-   * Checks wether a metric is a streaming watermark.
-   *
-   * @return true if the metric is a watermark.
-   */
-  boolean isWatermark(MetricUpdate metric) {
-    if (metric.getName() == null || metric.getName().getName() == null) {
-      return false; // no name -> shouldn't happen, not the watermark
-    }
-    if (metric.getScalar() == null) {
-      return false; // no scalar value -> not the watermark
-    }
-    String name = metric.getName().getName();
-    return name.endsWith(LEGACY_WATERMARK_METRIC_SUFFIX)
-        || name.endsWith(WATERMARK_METRIC_SUFFIX);
-  }
-
-  /**
-   * Check watermarks of the streaming job. At least one watermark metric must exist.
-   *
-   * @return true if all watermarks are at max, false otherwise.
-   */
-  @VisibleForTesting
-  boolean atMaxWatermark(DataflowPipelineJob job, JobMetrics metrics) {
-    boolean hasMaxWatermark = false;
-    for (MetricUpdate metric : metrics.getMetrics()) {
-      if (!isWatermark(metric)) {
-        continue;
-      }
-      BigDecimal watermark = (BigDecimal) metric.getScalar();
-      hasMaxWatermark = watermark.longValue() == MAX_WATERMARK_VALUE;
-      if (!hasMaxWatermark) {
-        LOG.info("Found a non-max watermark metric {} in job {}", metric.getName().getName(),
-            job.getJobId());
-        return false;
-      }
-    }
-
-    if (hasMaxWatermark) {
-      LOG.info("All watermarks are at max. JobID: {}", job.getJobId());
-    }
-    return hasMaxWatermark;
   }
 
   @Nullable
