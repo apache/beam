@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Collection;
 import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -119,19 +118,6 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   @Override
   public Object structuralValue(T value) {
     return delegateCoder.structuralValue(value);
-  }
-
-  /**
-   * The encoding id is the fully qualified name of the encoded/decoded class.
-   */
-  @Override
-  public String getEncodingId() {
-    return clazz.getName();
-  }
-
-  @Override
-  public Collection<String> getAllowedEncodings() {
-    return delegateCoder.getAllowedEncodings();
   }
 
   @Override

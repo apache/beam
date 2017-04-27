@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
 import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -121,13 +120,6 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     } catch (ClassNotFoundException e) {
       throw new CoderException("unable to deserialize record", e);
     }
-  }
-
-  @Override
-  public String getEncodingId() {
-    return String.format("%s:%s",
-        type.getName(),
-        ObjectStreamClass.lookup(type).getSerialVersionUID());
   }
 
   /**

@@ -28,7 +28,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -130,41 +129,6 @@ public class DelegateCoderTest implements Serializable {
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
-
-    @Override
-    public String getEncodingId() {
-      return TEST_ENCODING_ID;
-    }
-
-    @Override
-    public Collection<String> getAllowedEncodings() {
-      return Collections.singletonList(TEST_ALLOWED_ENCODING);
-    }
-  }
-
-  @Test
-  public void testEncodingId() throws Exception {
-    Coder<Integer> underlyingCoder = new TestAllowedEncodingsCoder();
-
-    Coder<Integer> trivialDelegateCoder = DelegateCoder.of(
-      underlyingCoder,
-      new DelegateCoder.CodingFunction<Integer, Integer>() {
-        @Override
-        public Integer apply(Integer input) {
-          return input;
-        }
-      },
-      new DelegateCoder.CodingFunction<Integer, Integer>() {
-        @Override
-        public Integer apply(Integer input) {
-          return input;
-        }
-      });
-    CoderProperties.coderHasEncodingId(
-        trivialDelegateCoder, TestAllowedEncodingsCoder.class.getName() + ":" + TEST_ENCODING_ID);
-    CoderProperties.coderAllowsEncoding(
-        trivialDelegateCoder,
-        TestAllowedEncodingsCoder.class.getName() + ":" + TEST_ALLOWED_ENCODING);
   }
 
   @Test

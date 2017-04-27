@@ -113,11 +113,6 @@ public class RandomAccessData {
       }
       return size + value.size;
     }
-
-    @Override
-    public String getEncodingId() {
-      return "";
-    }
   }
 
   public static final UnsignedLexicographicalComparator UNSIGNED_LEXICOGRAPHICAL_COMPARATOR =

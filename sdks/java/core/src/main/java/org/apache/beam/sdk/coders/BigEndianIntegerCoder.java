@@ -76,11 +76,6 @@ public class BigEndianIntegerCoder extends CustomCoder<Integer> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *

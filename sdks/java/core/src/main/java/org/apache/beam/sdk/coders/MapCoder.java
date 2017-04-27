@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -181,15 +180,5 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     return new TypeDescriptor<Map<K, V>>() {}.where(
             new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
         .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
-  }
-
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
-  @Override
-  public Collection<String> getAllowedEncodings() {
-    return Collections.emptyList();
   }
 }

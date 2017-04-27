@@ -17,18 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.util.Structs.addList;
-import static org.apache.beam.sdk.util.Structs.addString;
-import static org.apache.beam.sdk.util.Structs.addStringList;
 
-import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.CloudObject;
@@ -48,23 +43,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
  *       expensive.</li>
- *   <li>{@link #getEncodingId} and {@link #getAllowedEncodings}: by default, the encoding id
- *       is the empty string, so only the canonical name of the subclass will be used for
- *       compatibility checks, and no other encoding ids are allowed.</li>
  * </ul>
  */
 public abstract class StandardCoder<T> implements Coder<T> {
   protected StandardCoder() {}
-
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
-  @Override
-  public Collection<String> getAllowedEncodings() {
-    return Collections.emptyList();
-  }
 
   /**
    * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
@@ -126,11 +108,6 @@ public abstract class StandardCoder<T> implements Coder<T> {
    * <ul>
    *   <li>component_encodings: A list of coders represented as {@link CloudObject}s
    *       equivalent to the {@link #getCoderArguments}.</li>
-   *   <li>encoding_id: An identifier for the binary format written by {@link #encode}. See
-   *       {@link #getEncodingId} for further details.</li>
-   *   <li>allowed_encodings: A collection of encodings supported by {@link #decode} in
-   *       addition to the encoding from {@link #getEncodingId()} (which is assumed supported).
-   *       See {@link #getAllowedEncodings} for further details.</li>
    * </ul>
    *
    * <p>{@link StandardCoder} implementations should override {@link #initializeCloudObject}
@@ -147,17 +124,6 @@ public abstract class StandardCoder<T> implements Coder<T> {
         cloudComponents.add(coder.asCloudObject());
       }
       addList(result, PropertyNames.COMPONENT_ENCODINGS, cloudComponents);
-    }
-
-    String encodingId = getEncodingId();
-    checkNotNull(encodingId, "Coder.getEncodingId() must not return null.");
-    if (!encodingId.isEmpty()) {
-      addString(result, PropertyNames.ENCODING_ID, encodingId);
-    }
-
-    Collection<String> allowedEncodings = getAllowedEncodings();
-    if (!allowedEncodings.isEmpty()) {
-      addStringList(result, PropertyNames.ALLOWED_ENCODINGS, Lists.newArrayList(allowedEncodings));
     }
 
     return result;

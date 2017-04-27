@@ -85,11 +85,6 @@ public class ByteCoder extends CustomCoder<Byte> {
     return true;
   }
 
-  @Override
-  public String getEncodingId() {
-    return "";
-  }
-
   /**
    * {@inheritDoc}
    *
