@@ -184,14 +184,19 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     private void doReduce(Iterable<BatchElement<Window, Pair>> values,
                        org.apache.flink.util.Collector<BatchElement<Window, Pair>> out) {
 
-      // Tuple2[Window, Key] => Reduced Value
+      // Tuple2[Key, Window] => Reduced Value
       Map<Tuple2, TimestampedElement> reducedValues = new HashMap<>();
 
       for (BatchElement<Window, Pair> batchElement : values) {
         Object key = batchElement.getElement().getFirst();
         Window window = batchElement.getWindow();
 
-        Tuple2 kw = new Tuple2<>(window, key);
+        // Order of items in this Tuple2 is reversed compared to the
+        // order in KeySelector. This is made on purpose because
+        // all values in this reducer have the same hash code.
+        // Reversing the order will lead to better performance
+        // when kw is put into hash map.
+        Tuple2 kw = new Tuple2<>(key, window);
 
         // TimestampedElement holds only timestamp and reduced value.
         // Key and window is stored separately in key part of the HashMap.
@@ -215,14 +220,16 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       }
 
       for (Map.Entry<Tuple2, TimestampedElement> e : reducedValues.entrySet()) {
-        Window window = (Window) e.getKey().f0;
-        Object key = e.getKey().f1;
+        Object key = e.getKey().f0;
+        Window window = (Window) e.getKey().f1;
 
-        out.collect(new BatchElement<>(
+        @SuppressWarnings("unchecked")
+        BatchElement<Window, Pair> batchElement = new BatchElement<>(
                 window,
                 e.getValue().getTimestamp(),
-                Pair.of(key, e.getValue().getElement())
-        ));
+                Pair.of(key, e.getValue().getElement()));
+
+        out.collect(batchElement);
       }
     }
 
