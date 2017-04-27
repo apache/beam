@@ -69,13 +69,14 @@ from functools import wraps
 warnings.simplefilter("once")
 
 
-def annotate(label, since, current, extra_message=None):
+def annotate(label, since, current, extra_message):
   """Decorates a function with a deprecated or experimental annotation.
 
   Args:
     label: the kind of annotation ('deprecated' or 'experimental').
     since: the version that causes the annotation.
     current: the suggested replacement function.
+    extra_message: an optional additional message.
 
   Returns:
     The decorator for the function.
@@ -90,9 +91,9 @@ def annotate(label, since, current, extra_message=None):
       message = '%s is %s' % (fnc.__name__, label)
       if label == 'deprecated':
         message += ' since %s' % since
-        if extra_message is not None:
-          message += '. ' + extra_message
-      message += '. Use %s instead.'% current if current else '.'
+      if extra_message is not None:
+        message += '. ' + extra_message
+      message += '. Use %s instead.' % current if current else '.'
       warnings.warn(message, warning_type)
       return fnc(*args, **kwargs)
     return inner
@@ -102,5 +103,7 @@ def annotate(label, since, current, extra_message=None):
 # Use partial application to customize each annotation.
 # 'current' will be optional in both deprecated and experimental
 # while 'since' will be mandatory for deprecated.
-deprecated = partial(annotate, label='deprecated', current=None)
-experimental = partial(annotate, label='experimental', current=None, since=None)
+deprecated = partial(annotate, label='deprecated',
+                     current=None, extra_message=None)
+experimental = partial(annotate, label='experimental',
+                       current=None, since=None, extra_message=None)

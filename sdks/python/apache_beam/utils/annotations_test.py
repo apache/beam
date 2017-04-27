@@ -75,6 +75,20 @@ class AnnotationTests(unittest.TestCase):
         fnc_test_deprecated_without_since_should_fail()
       assert not w
 
+  def test_experimental_with_current_message(self):
+    with warnings.catch_warnings(record=True) as w:
+      @experimental(current='multiply', extra_message='Do this')
+      def fnc_test_experimental_with_current_message():
+        return 'lol'
+      fnc_test_experimental_with_current_message()
+      self.check_annotation(
+          warning=w, warning_size=1,
+          warning_type=FutureWarning,
+          fnc_name='fnc_test_experimental_with_current_message',
+          annotation_type='experimental',
+          label_check_list=[('instead', True),
+                            ('Do this', True)])
+
   def test_experimental_with_current(self):
     with warnings.catch_warnings(record=True) as w:
       @experimental(current='multiply')
