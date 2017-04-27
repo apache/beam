@@ -28,7 +28,6 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
@@ -42,17 +41,16 @@ import org.apache.beam.runners.apex.translation.utils.ValueAndCoderKryoSerializa
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -60,9 +58,9 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -90,12 +88,11 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
   private final List<PCollectionView<?>> sideInputs;
+  @Bind(JavaSerializer.class)
+  private final Coder<WindowedValue<InputT>> inputCoder;
 
   private StateInternalsProxy<?> currentKeyStateInternals;
-  // TODO: if the operator gets restored to checkpointed state due to a failure,
-  // the timer state is lost.
-  private final transient CurrentKeyTimerInternals<Object> currentKeyTimerInternals =
-      new CurrentKeyTimerInternals<>();
+  private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
   private final StateInternals<Void> sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
@@ -134,10 +131,14 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       throw new UnsupportedOperationException(msg);
     }
 
-    Coder<List<WindowedValue<InputT>>> coder = ListCoder.of(inputCoder);
+    Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(inputCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(),
-        coder);
+        listCoder);
+    this.inputCoder = inputCoder;
 
+    TimerInternals.TimerDataCoder timerCoder =
+        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
   }
 
   @SuppressWarnings("unused") // for Kryo
@@ -150,6 +151,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.sideInputs = null;
     this.pushedBack = null;
     this.sideInputStateInternals = null;
+    this.inputCoder = null;
+    this.currentKeyTimerInternals = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
@@ -253,14 +256,23 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       pushbackDoFnRunner.startBundle();
       if (currentKeyStateInternals != null) {
         InputT value = elem.getValue();
-        Object key;
+        final Object key;
+        final Coder<Object> keyCoder;
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+        WindowedValueCoder<InputT> wvCoder = (WindowedValueCoder) inputCoder;
         if (value instanceof KeyedWorkItem) {
           key = ((KeyedWorkItem) value).key();
+          @SuppressWarnings({ "rawtypes", "unchecked" })
+          KeyedWorkItemCoder<Object, ?> kwiCoder = (KeyedWorkItemCoder) wvCoder.getValueCoder();
+          keyCoder = kwiCoder.getKeyCoder();
         } else {
           key = ((KV) value).getKey();
+          @SuppressWarnings({ "rawtypes", "unchecked" })
+          KvCoder<Object, ?> kwiCoder = (KvCoder) wvCoder.getValueCoder();
+          keyCoder = kwiCoder.getKeyCoder();
         }
         ((StateInternalsProxy) currentKeyStateInternals).setKey(key);
-        currentKeyTimerInternals.currentKey = key;
+        currentKeyTimerInternals.setContext(key, keyCoder, new Instant(this.currentInputWatermark));
       }
       Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner
           .processElementInReadyWindows(elem);
@@ -396,72 +408,6 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
     public void clear() {
       state = Long.MAX_VALUE;
-    }
-
-  }
-
-  private class CurrentKeyTimerInternals<K> implements TimerInternals {
-
-    private TimerInternalsFactory<K> factory = new TimerInternalsFactory<K>() {
-      @Override
-      public TimerInternals timerInternalsForKey(K key) {
-        InMemoryTimerInternals timerInternals = perKeyTimerInternals.get(key);
-        if (timerInternals == null) {
-          perKeyTimerInternals.put(key, timerInternals = new InMemoryTimerInternals());
-        }
-        return timerInternals;
-      }
-    };
-
-    // TODO: durable state store
-    final Map<K, InMemoryTimerInternals> perKeyTimerInternals = new HashMap<>();
-    private K currentKey;
-
-    @Override
-    public void setTimer(StateNamespace namespace, String timerId, Instant target,
-        TimeDomain timeDomain) {
-      factory.timerInternalsForKey(currentKey).setTimer(
-          namespace, timerId, target, timeDomain);
-    }
-
-    @Override
-    public void setTimer(TimerData timerData) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void deleteTimer(TimerData timerKey) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Instant currentSynchronizedProcessingTime() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return new Instant(currentInputWatermark);
-    }
-
-    @Override
-    public Instant currentOutputWatermarkTime() {
-      throw new UnsupportedOperationException();
     }
 
   }

@@ -29,38 +29,28 @@ import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.base.Throwables;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
-import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
-import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -93,9 +83,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
   private final StateInternalsFactory<K> stateInternalsFactory;
-  private Map<Slice, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
-
-  private transient ApexTimerInternals timerInternals = new ApexTimerInternals();
+  private final ApexTimerInternals<K> timerInternals;
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input =
@@ -137,12 +125,16 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
     this.stateInternalsFactory = stateBackend.newStateInternalsFactory(keyCoder);
+    TimerInternals.TimerDataCoder timerCoder =
+        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    this.timerInternals = new ApexTimerInternals<>(timerCoder);
   }
 
   @SuppressWarnings("unused") // for Kryo
   private ApexGroupByKeyOperator() {
     this.serializedOptions = null;
     this.stateInternalsFactory = null;
+    this.timerInternals = null;
   }
 
   @Override
@@ -203,40 +195,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         serializedOptions.get());
   }
 
-  /**
-   * Returns the list of timers that are ready to fire. These are the timers
-   * that are registered to be triggered at a time before the current watermark.
-   * We keep these timers in a Set, so that they are deduplicated, as the same
-   * timer can be registered multiple times.
-   */
-  private Multimap<Slice, TimerInternals.TimerData> getTimersReadyToProcess(
-      long currentWatermark) {
-
-    // we keep the timers to return in a different list and launch them later
-    // because we cannot prevent a trigger from registering another trigger,
-    // which would lead to concurrent modification exception.
-    Multimap<Slice, TimerInternals.TimerData> toFire = HashMultimap.create();
-
-    Iterator<Map.Entry<Slice, Set<TimerInternals.TimerData>>> it =
-        activeTimers.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<Slice, Set<TimerInternals.TimerData>> keyWithTimers = it.next();
-
-      Iterator<TimerInternals.TimerData> timerIt = keyWithTimers.getValue().iterator();
-      while (timerIt.hasNext()) {
-        TimerInternals.TimerData timerData = timerIt.next();
-        if (timerData.getTimestamp().isBefore(currentWatermark)) {
-          toFire.put(keyWithTimers.getKey(), timerData);
-          timerIt.remove();
-        }
-      }
-
-      if (keyWithTimers.getValue().isEmpty()) {
-        it.remove();
-      }
-    }
-    return toFire;
-  }
 
   private void processElement(WindowedValue<KV<K, V>> windowedValue) throws Exception {
     final KV<K, V> kv = windowedValue.getValue();
@@ -244,58 +202,21 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         windowedValue.getTimestamp(),
         windowedValue.getWindows(),
         windowedValue.getPane());
-    timerInternals.setKey(kv.getKey());
+    timerInternals.setContext(kv.getKey(), this.keyCoder, this.inputWatermark);
     ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
         newReduceFnRunner(kv.getKey());
     reduceFnRunner.processElements(Collections.singletonList(updatedWindowedValue));
     reduceFnRunner.persist();
   }
 
-  private StateInternals<K> getStateInternalsForKey(K key) {
-    return stateInternalsFactory.stateInternalsForKey(key);
-  }
-
-  private void registerActiveTimer(K key, TimerInternals.TimerData timer) {
-    final Slice keyBytes;
-    try {
-      keyBytes = new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
-    } catch (CoderException e) {
-      throw new RuntimeException(e);
-    }
-    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
-    if (timersForKey == null) {
-      timersForKey = new HashSet<>();
-    }
-    timersForKey.add(timer);
-    activeTimers.put(keyBytes, timersForKey);
-  }
-
-  private void unregisterActiveTimer(K key, TimerInternals.TimerData timer) {
-    final Slice keyBytes;
-    try {
-      keyBytes = new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
-    } catch (CoderException e) {
-      throw new RuntimeException(e);
-    }
-    Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
-    if (timersForKey != null) {
-      timersForKey.remove(timer);
-      if (timersForKey.isEmpty()) {
-        activeTimers.remove(keyBytes);
-      } else {
-        activeTimers.put(keyBytes, timersForKey);
-      }
-    }
-  }
-
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) throws Exception {
     this.inputWatermark = new Instant(mark.getTimestamp());
-    Multimap<Slice, TimerInternals.TimerData> timers = getTimersReadyToProcess(
+    Multimap<Slice, TimerInternals.TimerData> timers = timerInternals.getTimersReadyToProcess(
         mark.getTimestamp());
     if (!timers.isEmpty()) {
       for (Slice keyBytes : timers.keySet()) {
         K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.buffer);
-        timerInternals.setKey(key);
+        timerInternals.setContext(key, keyCoder, inputWatermark);
         ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
         reduceFnRunner.onTimers(timers.get(keyBytes));
         reduceFnRunner.persist();
@@ -303,74 +224,4 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     }
   }
 
-  /**
-   * An implementation of Beam's {@link TimerInternals}.
-   *
-   */
-  private class ApexTimerInternals implements TimerInternals {
-    private K key;
-
-    public void setKey(K key) {
-      this.key = key;
-    }
-
-    @Deprecated
-    @Override
-    public void setTimer(TimerData timerData) {
-      registerActiveTimer(key, timerData);
-    }
-
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
-    }
-
-    @Deprecated
-    @Override
-    public void deleteTimer(TimerData timerKey) {
-      unregisterActiveTimer(key, timerKey);
-    }
-
-    @Override
-    public Instant currentProcessingTime() {
-      return Instant.now();
-    }
-
-    @Override
-    public Instant currentSynchronizedProcessingTime() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public Instant currentInputWatermarkTime() {
-      return inputWatermark;
-    }
-
-    @Override
-    public Instant currentOutputWatermarkTime() {
-      // TODO Auto-generated method stub
-      return null;
-    }
-
-    @Override
-    public void setTimer(StateNamespace namespace, String timerId, Instant target,
-        TimeDomain timeDomain) {
-      throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
-    }
-
-    @Deprecated
-    @Override
-    public void deleteTimer(StateNamespace namespace, String timerId) {
-      throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
-    }
-
-  }
-
-  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K> {
-    @Override
-    public StateInternals<K> stateInternalsForKey(K key) {
-      return getStateInternalsForKey(key);
-    }
-  }
 }
