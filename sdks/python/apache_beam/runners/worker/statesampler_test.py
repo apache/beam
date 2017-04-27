@@ -30,6 +30,7 @@ class StateSamplerTest(unittest.TestCase):
 
   def setUp(self):
     try:
+      # pylint: disable=global-variable-not-assigned
       global statesampler
       import statesampler
     except ImportError:
