@@ -26,12 +26,12 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
-import javax.annotation.Nullable;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
- * Operator outputting distinct (based on equals) elements.
+ * Operator outputting distinct (based on {@link Object#equals}) elements.
  */
 @Recommended(
     reason =
@@ -62,7 +62,7 @@ public class Distinct<IN, ELEM, W extends Window>
   public static class WindowingBuilder<IN, ELEM>
           extends PartitioningBuilder<ELEM, WindowingBuilder<IN, ELEM>>
           implements Builders.WindowBy<IN>,
-          Builders.Output<ELEM>,
+                     Builders.Output<ELEM>,
                      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>>
   {
     private final String name;
@@ -82,7 +82,22 @@ public class Distinct<IN, ELEM, W extends Window>
       this.input = Objects.requireNonNull(input);
       this.mapper = mapper;
     }
-    
+
+    /**
+     * Optionally specifies a function to transform the input elements into
+     * another type among which to find the distincts.<p>
+     *
+     * This is, while windowing will be applied on basis of original input
+     * elements, the distinct operator will be carried out on the
+     * transformed elements.
+     *
+     * @param <ELEM> the type of the transformed elements
+     *
+     * @param mapper a transform function applied to input element
+     *
+     * @return the next builder to complete the setup of the {@link Distinct}
+     *          operator
+     */
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
