@@ -903,6 +903,24 @@ class CombineTest(unittest.TestCase):
     p.run()
 
 
+class PTransformTest(unittest.TestCase):
+  """Tests for PTransform."""
+
+  def test_composite(self):
+
+    # [START model_composite_transform]
+    class ComputeWordLengths(beam.PTransform):
+      def expand(self, pcoll):
+        # transform logic goes here
+        return pcoll | beam.Map(lambda x: len(x))
+    # [END model_composite_transform]
+
+    p = TestPipeline()
+    lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
+    beam.assert_that(lengths, beam.equal_to([1, 2, 3]))
+    p.run()
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
