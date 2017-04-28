@@ -66,6 +66,14 @@ public class ExampleUtils {
 
   private static final int SC_NOT_FOUND = 404;
 
+  /**
+   * \p{L} denotes the category of Unicode letters,
+   * so this pattern will match on everything that is not a letter.
+   *
+   * <p>It is used for tokenizing strings in the wordcount examples.
+   */
+  public static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
+
   private final PipelineOptions options;
   private Bigquery bigQueryClient = null;
   private Pubsub pubsubClient = null;
