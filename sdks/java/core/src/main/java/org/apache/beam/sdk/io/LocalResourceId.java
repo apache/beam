@@ -120,7 +120,7 @@ class LocalResourceId implements ResourceId {
 
   @Override
   public String getScheme() {
-    return "file";
+    return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
   }
 
   Path getPath() {

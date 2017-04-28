@@ -89,7 +89,7 @@ public class GcsResourceId implements ResourceId {
 
   @Override
   public String getScheme() {
-    return "gs";
+    return GcsFileSystemRegistrar.GCS_SCHEME;
   }
 
   @Override

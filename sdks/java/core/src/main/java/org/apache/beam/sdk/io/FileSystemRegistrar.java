@@ -33,10 +33,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public interface FileSystemRegistrar {
   /**
-   * Create zero or more {@link FileSystem filesystems} from the given {@link PipelineOptions}.
-   *
-   * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all
-   * {@link FileSystem}s registered by all {@link FileSystemRegistrar}s.
+   * Create a {@link FileSystem} from the given {@link PipelineOptions}.
    */
-  Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options);
+  FileSystem fromOptions(@Nullable PipelineOptions options);
+
+  /**
+   * Get the URI scheme which defines the namespace of the {@link FileSystemRegistrar}.
+   *
+   * <p>The scheme is required to be unique among all
+   * {@link FileSystemRegistrar FileSystemRegistrars}.
+   *
+   * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
+   */
+  String getScheme();
 }

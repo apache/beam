@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 import java.util.ServiceLoader;
-import org.apache.beam.sdk.io.FileSystem;
+
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
@@ -42,8 +41,8 @@ public class GcsFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof GcsFileSystemRegistrar) {
-        Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
-        assertThat(fileSystems, contains(instanceOf(GcsFileSystem.class)));
+        assertEquals("gs", registrar.getScheme());
+        assertTrue(registrar.fromOptions(PipelineOptionsFactory.create()) instanceof GcsFileSystem);
         return;
       }
     }
