@@ -675,8 +675,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
 
-  private Map<String, Object> accumulators;
-
   /** The output tags used by the {@link DoFn} under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
@@ -732,6 +730,5 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     fnInvoker = DoFnInvokers.invokerFor(fn);
     fnInvoker.invokeSetup();
     outputs = new HashMap<>();
-    accumulators = new HashMap<>();
   }
 }
