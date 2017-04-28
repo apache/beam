@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for

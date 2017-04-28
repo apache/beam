@@ -23,7 +23,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 
 /**
  * Helper for working with pubsub.

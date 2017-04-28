@@ -19,16 +19,14 @@ package org.apache.beam.integration.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 
@@ -39,7 +37,7 @@ public class CategoryPrice implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
-  public static final Coder<CategoryPrice> CODER = new AtomicCoder<CategoryPrice>() {
+  public static final Coder<CategoryPrice> CODER = new CustomCoder<CategoryPrice>() {
     @Override
     public void encode(CategoryPrice value, OutputStream outStream,
         Coder.Context context)
@@ -58,6 +56,7 @@ public class CategoryPrice implements KnownSize, Serializable {
       boolean isLast = INT_CODER.decode(inStream, context) != 0;
       return new CategoryPrice(category, price, isLast);
     }
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   };
 
   @JsonProperty
