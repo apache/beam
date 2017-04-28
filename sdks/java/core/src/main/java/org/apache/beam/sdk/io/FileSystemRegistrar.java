@@ -36,8 +36,8 @@ public interface FileSystemRegistrar {
   /**
    * Create zero or more {@link FileSystem filesystems} from the given {@link PipelineOptions}.
    *
-   * <p>The {@link FileSystem#getScheme() scheme} is required to be unique among all
-   * {@link FileSystemRegistrar FileSystemRegistrars}.
+   * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all
+   * {@link FileSystem}s registered by all {@link FileSystemRegistrar}s.
    */
   List<FileSystem> fromOptions(@Nullable PipelineOptions options);
 }

@@ -404,7 +404,7 @@ public class FileSystems {
   }
 
   /**
-   * Internal method to get {@link FileSystem} for {@code spec}.
+   * Internal method to get {@link FileSystem} for {@code scheme}.
    */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(String scheme) {
@@ -425,7 +425,7 @@ public class FileSystems {
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    */
-  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+  public static synchronized void setDefaultConfigInWorkers(PipelineOptions options) {
     checkNotNull(options, "options");
     SCHEME_TO_FILESYSTEM.clear();
     Set<FileSystemRegistrar> registrars =
