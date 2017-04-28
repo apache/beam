@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -68,8 +68,8 @@ public class FileSystems {
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
-  private static final Map<String, FileSystem> SCHEME_TO_FILESYSTEM =
-      new ConcurrentHashMap<>();
+  private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
+      new AtomicReference<>();
 
   /********************************** METHODS FOR CLIENT **********************************/
 
@@ -409,13 +409,16 @@ public class FileSystems {
   @VisibleForTesting
   static FileSystem getFileSystemInternal(String scheme) {
     String lowerCaseScheme = scheme.toLowerCase();
-    if (SCHEME_TO_FILESYSTEM.containsKey(lowerCaseScheme)) {
-      return SCHEME_TO_FILESYSTEM.get(lowerCaseScheme);
-    } else if (SCHEME_TO_FILESYSTEM.containsKey(DEFAULT_SCHEME)) {
-      return SCHEME_TO_FILESYSTEM.get(DEFAULT_SCHEME);
-    } else {
-      throw new IllegalStateException("Unable to find registrar for " + scheme);
+    Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
+    FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
+    if (rval != null) {
+      return rval;
     }
+    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
+    if (rval != null) {
+      return rval;
+    }
+    throw new IllegalStateException("Unable to find registrar for " + scheme);
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
@@ -425,15 +428,14 @@ public class FileSystems {
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    */
-  public static synchronized void setDefaultConfigInWorkers(PipelineOptions options) {
+  public static void setDefaultConfigInWorkers(PipelineOptions options) {
     checkNotNull(options, "options");
-    SCHEME_TO_FILESYSTEM.clear();
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
         ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
 
-    SCHEME_TO_FILESYSTEM.putAll(verifySchemesAreUnique(options, registrars));
+    SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
   }
 
   @VisibleForTesting
