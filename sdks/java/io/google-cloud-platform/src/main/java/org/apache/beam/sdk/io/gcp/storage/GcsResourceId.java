@@ -102,6 +102,16 @@ public class GcsResourceId implements ResourceId {
     }
   }
 
+  @Override
+  @Nullable public String getFilename() {
+    if (gcsPath.getNameCount() <= 1) {
+      return null;
+    } else {
+      GcsPath gcsFilename = gcsPath.getFileName();
+      return gcsFilename == null ? null : gcsFilename.toString();
+    }
+  }
+
   GcsPath getGcsPath() {
     return gcsPath;
   }
