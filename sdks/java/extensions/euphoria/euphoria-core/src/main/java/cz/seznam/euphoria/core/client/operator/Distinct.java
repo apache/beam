@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
- * Operator outputting distinct (based on equals) elements.
+ * Operator outputting distinct (based on {@link Object#equals}) elements.
  */
 @Recommended(
     reason =
@@ -46,13 +46,14 @@ public class Distinct<IN, ELEM, W extends Window>
         IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>>
 {
 
-  public static class OfBuilder {
+  public static class OfBuilder implements Builders.Of {
     private final String name;
 
     OfBuilder(String name) {
       this.name = name;
     }
 
+    @Override
     public <IN> WindowingBuilder<IN, IN> of(Dataset<IN> input) {
       return new WindowingBuilder<>(name, input, e -> e);
     }
@@ -60,7 +61,8 @@ public class Distinct<IN, ELEM, W extends Window>
 
   public static class WindowingBuilder<IN, ELEM>
           extends PartitioningBuilder<ELEM, WindowingBuilder<IN, ELEM>>
-          implements cz.seznam.euphoria.core.client.operator.OutputBuilder<ELEM>,
+          implements Builders.WindowBy<IN>,
+                     Builders.Output<ELEM>,
                      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>>
   {
     private final String name;
@@ -80,17 +82,38 @@ public class Distinct<IN, ELEM, W extends Window>
       this.input = Objects.requireNonNull(input);
       this.mapper = mapper;
     }
+
+    /**
+     * Optionally specifies a function to transform the input elements into
+     * another type among which to find the distincts.<p>
+     *
+     * This is, while windowing will be applied on basis of original input
+     * elements, the distinct operator will be carried out on the
+     * transformed elements.
+     *
+     * @param <ELEM> the type of the transformed elements
+     *
+     * @param mapper a transform function applied to input element
+     *
+     * @return the next builder to complete the setup of the {@link Distinct}
+     *          operator
+     */
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
+    
+    @Override
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
       return windowBy(windowing, null);
     }
+    
+    @Override
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
       return new OutputBuilder<>(name, input, mapper, this, windowing, eventTimeAssigner);
     }
+    
     @Override
     public Dataset<ELEM> output() {
       return new OutputBuilder<>(name, input, mapper, this, null, null).output();
@@ -99,7 +122,7 @@ public class Distinct<IN, ELEM, W extends Window>
 
   public static class OutputBuilder<IN, ELEM, W extends Window>
       extends PartitioningBuilder<ELEM, OutputBuilder<IN, ELEM, W>>
-      implements cz.seznam.euphoria.core.client.operator.OutputBuilder<ELEM>
+      implements Builders.Output<ELEM>
   {
     private final String name;
     private final Dataset<IN> input;
@@ -135,11 +158,31 @@ public class Distinct<IN, ELEM, W extends Window>
       return distinct.output();
     }
   }
-
+  
+  /**
+   * Starts building a nameless {@link Distinct} operator to process
+   * the given input dataset.
+   *
+   * @param <IN> the type of elements of the input dataset
+   *
+   * @param input the input data set to be processed
+   *
+   * @return a builder to complete the setup of the new operator
+   *
+   * @see #named(String)
+   * @see OfBuilder#of(Dataset)
+   */
   public static <IN> WindowingBuilder<IN, IN> of(Dataset<IN> input) {
     return new WindowingBuilder<>("Distinct", input, e -> e);
   }
 
+  /**
+   * Starts building a named {@link Distinct} operator.
+   *
+   * @param name a user provided name of the new operator to build
+   *
+   * @return a builder to complete the setup of the new operator
+   */
   public static OfBuilder named(String name) {
     return new OfBuilder(name);
   }
