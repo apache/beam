@@ -298,16 +298,6 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
-  def test_context_param(self):
-    class TestDoFn(DoFn):
-      def process(self, element, context=DoFn.ContextParam):
-        yield context.element + 10
-
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Create' >> Create([1, 2])| 'Do' >> ParDo(TestDoFn())
-    assert_that(pcoll, equal_to([11, 12]))
-    pipeline.run()
-
   def test_side_input_no_tag(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
