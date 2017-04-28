@@ -24,6 +24,7 @@ public interface ExtractEventTime<I> extends Serializable {
    * Extracts event time (in millis since epoch) of the given element.
    * 
    * @param elem input element
+   *
    * @return the extracted event time
    */
   long extractTimestamp(I elem);
