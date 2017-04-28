@@ -69,7 +69,8 @@ public class FileSystems {
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
-      new AtomicReference<>();
+      new AtomicReference<Map<String, FileSystem>>(
+          ImmutableMap.<String, FileSystem>of("file", new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/
 
