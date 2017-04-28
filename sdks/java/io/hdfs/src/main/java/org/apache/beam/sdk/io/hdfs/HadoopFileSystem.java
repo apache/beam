@@ -73,9 +73,4 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   protected HadoopResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
     throw new UnsupportedOperationException();
   }
-
-  @Override
-  protected String getScheme() {
-    return "hdfs";
-  }
 }

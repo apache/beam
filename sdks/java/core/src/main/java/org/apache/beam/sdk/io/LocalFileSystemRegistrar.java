@@ -18,17 +18,24 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * {@link AutoService} registrar for the {@link LocalFileSystem}.
+ * {@link AutoService} registrar for the {@link FileSystem}.
  */
 @AutoService(FileSystemRegistrar.class)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
+
+  static final String LOCAL_FILE_SCHEME = "file";
+
   @Override
-  public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
-    return ImmutableList.<FileSystem>of(new LocalFileSystem());
+  public FileSystem fromOptions(@Nullable PipelineOptions options) {
+    return new LocalFileSystem();
+  }
+
+  @Override
+  public String getScheme() {
+    return LOCAL_FILE_SCHEME;
   }
 }

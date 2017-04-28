@@ -145,11 +145,6 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
   }
 
-  @Override
-  protected String getScheme() {
-    return "gs";
-  }
-
   private List<MatchResult> matchGlobs(List<GcsPath> globs) {
     // TODO: Executes in parallel, address https://issues.apache.org/jira/browse/BEAM-1503.
     return FluentIterable.from(globs)
