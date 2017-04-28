@@ -239,6 +239,17 @@ public class LocalResourceIdTest {
     assertThat(dirResource.toString(), startsWith(tmpFolder.getRoot().getAbsolutePath()));
   }
 
+  @Test
+  public void testGetFilename() throws Exception {
+    assertEquals(toResourceIdentifier("/").getFilename(), null);
+    assertEquals(toResourceIdentifier("/root/tmp").getFilename(),
+        "tmp");
+    assertEquals(toResourceIdentifier("/root/tmp/").getFilename(),
+        "tmp");
+    assertEquals(toResourceIdentifier("/root/tmp/xyz.txt").getFilename(),
+        "xyz.txt");
+  }
+
   private LocalResourceId toResourceIdentifier(String str) throws Exception {
     boolean isDirectory;
     if (SystemUtils.IS_OS_WINDOWS) {

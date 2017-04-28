@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.fs;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -99,6 +100,16 @@ public interface ResourceId extends Serializable {
    * <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   String getScheme();
+
+
+  /**
+   * Returns the name of the file or directory denoted by this {@code ResourceId}. The file name
+   * is the farthest element from the root in the directory hierarchy.
+   *
+   * @return a string representing the name of file or directory, or null if there are zero
+   * components.
+   */
+  @Nullable String getFilename();
 
   /**
    * Returns the string representation of this {@link ResourceId}.
