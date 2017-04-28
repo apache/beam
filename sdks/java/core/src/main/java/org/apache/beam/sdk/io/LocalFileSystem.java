@@ -171,6 +171,11 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     return LocalResourceId.fromPath(path, isDirectory);
   }
 
+  @Override
+  protected String getScheme() {
+    return "file";
+  }
+
   private MatchResult matchOne(String spec) throws IOException {
     File file = Paths.get(spec).toFile();
 

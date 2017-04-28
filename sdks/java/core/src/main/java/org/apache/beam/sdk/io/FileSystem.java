@@ -151,4 +151,11 @@ public abstract class FileSystem<ResourceIdT extends ResourceId> {
    * such as when the specified {@code singleResourceSpec} is not a valid resource name.
    */
   protected abstract ResourceIdT matchNewResource(String singleResourceSpec, boolean isDirectory);
+
+  /**
+   * Get the URI scheme which defines the namespace of the {@link FileSystem}.
+   *
+   * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
+   */
+  protected abstract String getScheme();
 }
