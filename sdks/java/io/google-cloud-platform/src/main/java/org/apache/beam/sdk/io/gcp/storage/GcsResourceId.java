@@ -97,7 +97,8 @@ public class GcsResourceId implements ResourceId {
     if (gcsPath.getNameCount() <= 1) {
       return null;
     } else {
-      return gcsPath.getFileName().toString();
+      GcsPath gcsFilename = gcsPath.getFileName();
+      return gcsFilename == null ? null : gcsFilename.toString();
     }
   }
 
