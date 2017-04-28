@@ -195,8 +195,7 @@ public class NumberedShardedFile implements ShardedFile {
   @VisibleForTesting
   boolean checkTotalNumOfFiles(Collection<Metadata> files) {
     for (Metadata fileMedadata : files) {
-      String fileName = fileMedadata.resourceId().toString().substring(
-          fileMedadata.resourceId().getCurrentDirectory().toString().length());
+      String fileName = fileMedadata.resourceId().getFilename();
 
       if (fileName == null) {
         // this path has zero elements
