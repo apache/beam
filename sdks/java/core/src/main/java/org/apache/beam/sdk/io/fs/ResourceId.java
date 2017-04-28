@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.fs;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -108,7 +109,7 @@ public interface ResourceId extends Serializable {
    * @return a string representing the name of file or directory, or null if there are zero
    * components.
    */
-  String getFilename();
+  @Nullable String getFilename();
 
   /**
    * Returns the string representation of this {@link ResourceId}.

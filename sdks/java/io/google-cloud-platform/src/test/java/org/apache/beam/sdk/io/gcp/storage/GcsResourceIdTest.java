@@ -150,7 +150,6 @@ public class GcsResourceIdTest {
         "abc");
     assertEquals(toResourceIdentifier("gs://my_bucket/abc/xyz.txt").getFilename(),
         "xyz.txt");
-
   }
 
   private GcsResourceId toResourceIdentifier(String str) throws Exception {
