@@ -140,7 +140,16 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
       return coderOrFailure;
     }
 
-    // Second option for a coder: Look in the coder registry.
+    // Second option for a coder: use the default Coder from the producing PTransform.
+    CannotProvideCoderException inputCoderException;
+    try {
+      return new CoderOrFailure<>(
+          ((PTransform) transform).getDefaultOutputCoder(input, this), null);
+    } catch (CannotProvideCoderException exc) {
+      inputCoderException = exc;
+    }
+
+    // Third option for a coder: Look in the coder registry.
     TypeDescriptor<T> token = getTypeDescriptor();
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
@@ -160,15 +169,6 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
               + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
         }
       }
-    }
-
-    // Third option for a coder: use the default Coder from the producing PTransform.
-    CannotProvideCoderException inputCoderException;
-    try {
-      return new CoderOrFailure<>(
-          ((PTransform) transform).getDefaultOutputCoder(input, this), null);
-    } catch (CannotProvideCoderException exc) {
-      inputCoderException = exc;
     }
 
     // Build up the error message and list of causes.
