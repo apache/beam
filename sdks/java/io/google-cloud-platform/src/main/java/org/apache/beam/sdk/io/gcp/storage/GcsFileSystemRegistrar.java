@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.storage;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.FileSystem;
@@ -32,18 +34,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @AutoService(FileSystemRegistrar.class)
 public class GcsFileSystemRegistrar implements FileSystemRegistrar {
 
-  static final String GCS_SCHEME = "gs";
-
   @Override
-  public FileSystem fromOptions(@Nonnull PipelineOptions options) {
+  public List<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(
         options,
         "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
-    return new GcsFileSystem(options.as(GcsOptions.class));
-  }
-
-  @Override
-  public String getScheme() {
-    return GCS_SCHEME;
+    return ImmutableList.<FileSystem>of(new GcsFileSystem(options.as(GcsOptions.class)));
   }
 }

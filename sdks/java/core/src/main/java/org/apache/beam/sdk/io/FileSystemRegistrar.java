@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
+import java.util.List;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -33,17 +34,10 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public interface FileSystemRegistrar {
   /**
-   * Create a {@link FileSystem} from the given {@link PipelineOptions}.
-   */
-  FileSystem fromOptions(@Nullable PipelineOptions options);
-
-  /**
-   * Get the URI scheme which defines the namespace of the {@link FileSystemRegistrar}.
+   * Create zero or more {@link FileSystem filesystems} from the given {@link PipelineOptions}.
    *
-   * <p>The scheme is required to be unique among all
+   * <p>The {@link FileSystem#getScheme() scheme} is required to be unique among all
    * {@link FileSystemRegistrar FileSystemRegistrars}.
-   *
-   * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
-  String getScheme();
+  List<FileSystem> fromOptions(@Nullable PipelineOptions options);
 }
