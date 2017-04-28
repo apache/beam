@@ -23,8 +23,7 @@
 
 ## Status
 
-[![Build Status](https://api.travis-ci.org/apache/beam.svg?branch=master)](https://travis-ci.org/apache/beam?branch=master)
-[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_MavenInstall)](https://builds.apache.org/job/beam_PostCommit_MavenVerify/)
+[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_MavenInstall)](https://builds.apache.org/job/beam_PostCommit_Java_MavenInstall/)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 
 ## Overview
