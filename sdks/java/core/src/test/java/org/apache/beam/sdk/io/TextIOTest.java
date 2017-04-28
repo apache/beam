@@ -114,7 +114,7 @@ public class TextIOTest {
   private static final String[] EMPTY = new String[] {};
   private static final String[] TINY =
       new String[] {"Irritable eagle", "Optimistic jay", "Fanciful hawk"};
-  private static final String[] LARGE = makeLines(5000);
+  private static final String[] LARGE = makeLines(1000);
 
   private static Path tempFolder;
   private static File emptyTxt;
