@@ -42,13 +42,10 @@ import org.junit.rules.ExternalResource;
 /**
  * A test for the metrics reporting in Spark.
  */
-public class SparkMetricsTest {
+public class SparkMetricsSinkTest {
 
   @Rule
   public ExternalResource inMemoryMetricsSink = new InMemoryMetricsSinkRule();
-
-  @Rule
-  public InMemoryMetricsSinkRule clearInMemoryMetricsSink = new InMemoryMetricsSinkRule();
 
   @Rule
   public final PipelineRule pipelineRule = PipelineRule.batch();
@@ -86,14 +83,5 @@ public class SparkMetricsTest {
     runPipeline();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
-  }
-
-  @Test
-  public void testNonExistingMetricName() throws Exception {
-    runPipeline();
-
-    final Long valueOf = InMemoryMetrics.<Long>valueOf("myMissingAggregator");
-
-    assertThat(valueOf, is(nullValue()));
   }
 }
