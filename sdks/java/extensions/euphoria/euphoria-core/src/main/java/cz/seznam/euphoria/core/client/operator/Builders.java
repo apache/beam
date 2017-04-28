@@ -21,13 +21,15 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 /**
- * Common methods used in operator builders to share related javadoc descriptions. 
+ * Common methods used in operator builders to share related javadoc
+ * descriptions.<p>
+ *
  * For internal usage only.
  */
 public class Builders {
-  
+
   interface Of {
-    
+
     /**
      * Specifies the input dataset of the operator.
      *
@@ -35,15 +37,16 @@ public class Builders {
      *
      * @param input the input dataset to recuce
      *
-     * @return the next builder to complete the setup of the {@link Sort} operator
+     * @return the next builder to complete the setup of the operator
      */
     <IN> Object of(Dataset<IN> input);
   }
-  
+
   interface KeyBy<IN> {
-    
+
     /**
-     * Specifies the function to derive the keys from the operator's input elements.
+     * Specifies the function to derive the keys from the operator's input
+     * elements.
      *
      * @param <KEY> the type of the extracted key
      *
@@ -54,14 +57,14 @@ public class Builders {
      */
     <KEY> Object keyBy(UnaryFunction<IN, KEY> keyExtractor);
   }
-  
+
   interface WindowBy<IN> {
-    
+
     /**
-     * Specifies the windowing strategy to be applied to the input dataset without specifying
-     * an {@link ExtractEventTime event time assigner.} Unless the operator
-     * is already preceded by an event time assignment, it will process in
-     * the input elements in ingestion time.
+     * Specifies the windowing strategy to be applied to the input dataset
+     * without specifying an {@link ExtractEventTime event time assigner.}
+     * Unless the operator is already preceded by an event time assignment,
+     * it will process the input elements in ingestion time.
      *
      * @param <W> the type of the windowing
      *
@@ -73,10 +76,10 @@ public class Builders {
      * @see #windowBy(Windowing, ExtractEventTime)
      */
     <W extends Window> Object windowBy(Windowing<IN, W> windowing);
-    
+
     /**
-     * Specifies the windowing strategy to be applied to the input dataset specifying
-     * an {@link ExtractEventTime event time assigner} to (re-)assign
+     * Specifies the windowing strategy to be applied to the input dataset
+     * specifying an {@link ExtractEventTime event time assigner} to (re-)assign
      * the element's logical timestamp.
      *
      * @param <W> the type of the windowing
@@ -85,8 +88,7 @@ public class Builders {
      * 
      * @param eventTimeAssigner function that (re)assigns event time to an element
      *
-     * @return the next builder to complete the setup of the
-     *          {@link ReduceByKey} operator
+     * @return the next builder to complete the setup of the operator
      */
     <W extends Window> Object windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner);
 
@@ -95,7 +97,7 @@ public class Builders {
   public interface Output<T> {
 
     /**
-     * Finalizes the built of the operator and retrieves its output dataset.
+     * Finalizes the operator and retrieves its output dataset.
      *
      * @return the dataset representing the new operator's output
      */
