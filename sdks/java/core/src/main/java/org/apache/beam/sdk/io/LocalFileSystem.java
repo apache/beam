@@ -56,8 +56,6 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LocalFileSystem.class);
 
-  private static final Metadata[] EMPTY_METADATA = new Metadata[0];
-
   LocalFileSystem() {
   }
 
