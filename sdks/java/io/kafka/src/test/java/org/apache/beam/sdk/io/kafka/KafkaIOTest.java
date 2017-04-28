@@ -183,7 +183,7 @@ public class KafkaIOTest {
     // our responsibility to make sure currently enqueued records sync with partition offsets.
     // The following task will be called inside each invocation to MockConsumer.poll().
     // We enqueue only the records with the offset >= partition's current position.
-    Runnable recordEnquerTask = new Runnable() {
+    Runnable recordEnqueueTask = new Runnable() {
       @Override
       public void run() {
         // add all the records with offset >= current partition position.
@@ -199,7 +199,7 @@ public class KafkaIOTest {
       }
     };
 
-    consumer.schedulePollTask(recordEnquerTask);
+    consumer.schedulePollTask(recordEnqueueTask);
     return consumer;
   }
 
@@ -739,16 +739,16 @@ public class KafkaIOTest {
   public void testInferKeyCoder() {
     CoderRegistry registry = CoderRegistry.createDefault();
 
-    assertTrue(KafkaIO.inferCoder(registry, LongDeserializer.class)
+    assertTrue(KafkaIO.inferCoder(registry, LongDeserializer.class).getValueCoder()
             instanceof VarLongCoder);
 
-    assertTrue(KafkaIO.inferCoder(registry, StringDeserializer.class)
+    assertTrue(KafkaIO.inferCoder(registry, StringDeserializer.class).getValueCoder()
             instanceof StringUtf8Coder);
 
-    assertTrue(KafkaIO.inferCoder(registry, InstantDeserializer.class)
+    assertTrue(KafkaIO.inferCoder(registry, InstantDeserializer.class).getValueCoder()
             instanceof InstantCoder);
 
-    assertTrue(KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class)
+    assertTrue(KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class).getValueCoder()
             instanceof VarLongCoder);
   }
 
