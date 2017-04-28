@@ -43,6 +43,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -78,7 +79,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.ConstantSchemaFunction;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
@@ -207,9 +207,11 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(dataset, write.getTable().get().getDatasetId());
     assertEquals(table, write.getTable().get().getTableId());
     if (schema == null) {
-      assertNull(write.getSchemaFunction());
+      assertNull(write.getJsonSchema());
+      assertNull(write.getSchemaFromView());
     } else {
-      assertEquals(schema, write.getSchemaFunction().apply(null));
+      assertEquals(schema, BigQueryHelpers.fromJsonString(
+          write.getJsonSchema().get(), TableSchema.class));
     }
     assertEquals(createDisposition, write.getCreateDisposition());
     assertEquals(writeDisposition, write.getWriteDisposition());
@@ -1746,22 +1748,26 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
-    PCollectionView<String> jobIdTokenView =
-        jobIdTokenCollection.apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView = p
+        .apply("CreateJobId", Create.of("jobId"))
+        .apply(View.<String>asSingleton());
 
+    PCollectionView<Map<String, String>> schemaMapView = p.apply("CreateEmptySchema", Create.empty(
+        new TypeDescriptor<KV<String, String>>() {}))
+        .apply(View.<String, String>asMap());
     WriteTables writeTables = new WriteTables(
         false,
         fakeBqServices,
         jobIdTokenView,
+        schemaMapView,
         tempFilePrefix,
         WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED,
-        ConstantSchemaFunction.fromJsonSchema(null));
+        CreateDisposition.CREATE_IF_NEEDED);
 
     DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
+    tester.setSideInput(schemaMapView, GlobalWindow.INSTANCE, ImmutableMap.<String, String>of());
     for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
@@ -1876,9 +1882,9 @@ public class BigQueryIOTest implements Serializable {
         KvCoder.of(TableDestinationCoder.of(),
             StringUtf8Coder.of()));
 
-    PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
-    PCollectionView<String> jobIdTokenView =
-        jobIdTokenCollection.apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView = p
+        .apply("CreateJobId", Create.of("jobId"))
+        .apply(View.<String>asSingleton());
 
     WriteRename writeRename = new WriteRename(
         fakeBqServices,

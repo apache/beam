@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
@@ -46,7 +47,6 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
@@ -70,39 +70,31 @@ class WriteTables
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
+  private final PCollectionView<Map<String, String>> schemaMapView;
   private final String tempFilePrefix;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  private final SchemaFunction baseSchemaFunction;
-  private SchemaFunction schemaFunctionCopy;
 
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
+      PCollectionView<Map<String, String>> schemaMapView,
       String tempFilePrefix,
       WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      SchemaFunction schemaFunction) {
+      CreateDisposition createDisposition) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
+    this.schemaMapView = schemaMapView;
     this.tempFilePrefix = tempFilePrefix;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
-    this.baseSchemaFunction = schemaFunction;
-  }
-
-  @StartBundle
-  public void startBundle(Context c) {
-    schemaFunctionCopy = SerializableUtils.clone(baseSchemaFunction);
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    if (schemaFunctionCopy.getSideInput() != null) {
-      schemaFunctionCopy.setSideInputValue(c.sideInput(schemaFunctionCopy.getSideInput()));
-    }
+    Map<String, String> schemaMap = c.sideInput(schemaMapView);
 
     TableDestination tableDestination = c.element().getKey().getKey();
     Integer partition = c.element().getKey().getShardNumber();
@@ -110,12 +102,15 @@ class WriteTables
     String jobIdPrefix =
         BigQueryHelpers.createJobId(c.sideInput(jobIdToken), tableDestination, partition);
 
+    TableSchema schema =
+        BigQueryHelpers.fromJsonString(
+            schemaMap.get(tableDestination.getTableSpec()), TableSchema.class);
+
     TableReference ref = tableDestination.getTableReference();
     if (!singlePartition) {
       ref.setTableId(jobIdPrefix);
     }
 
-    TableSchema schema = schemaFunctionCopy.apply(tableDestination);
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),

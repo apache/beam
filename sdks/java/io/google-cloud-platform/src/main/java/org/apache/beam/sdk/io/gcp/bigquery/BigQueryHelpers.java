@@ -41,9 +41,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
-/**
- * A set of helper functions and classes used by {@link BigQueryIO}.
- */
+/** A set of helper functions and classes used by {@link BigQueryIO}. */
 public class BigQueryHelpers {
   private static final String RESOURCE_NOT_FOUND_ERROR =
       "BigQuery %1$s not found for table \"%2$s\" . Please create the %1$s before pipeline"
@@ -55,9 +53,7 @@ public class BigQueryHelpers {
           + " an earlier stage of the pipeline, this validation can be disabled using"
           + " #withoutValidation.";
 
-  /**
-   * Status of a BigQuery job or request.
-   */
+  /** Status of a BigQuery job or request. */
   enum Status {
     SUCCEEDED,
     FAILED,
@@ -65,20 +61,15 @@ public class BigQueryHelpers {
   }
 
   @Nullable
-  /**
-   * Return a displayable string representation for a {@link TableReference}.
-   */
-  static ValueProvider<String> displayTable(
-      @Nullable ValueProvider<TableReference> table) {
+  /** Return a displayable string representation for a {@link TableReference}. */
+  static ValueProvider<String> displayTable(@Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
     }
     return NestedValueProvider.of(table, new TableRefToTableSpec());
   }
 
-  /**
-   * Returns a canonical string representation of the {@link TableReference}.
-   */
+  /** Returns a canonical string representation of the {@link TableReference}. */
   public static String toTableSpec(TableReference ref) {
     StringBuilder sb = new StringBuilder();
     if (ref.getProjectId() != null) {
@@ -100,8 +91,8 @@ public class BigQueryHelpers {
   }
 
   /**
-   * Parse a table specification in the form
-   * {@code "[project_id]:[dataset_id].[table_id]"} or {@code "[dataset_id].[table_id]"}.
+   * Parse a table specification in the form {@code "[project_id]:[dataset_id].[table_id]"} or
+   * {@code "[dataset_id].[table_id]"}.
    *
    * <p>If the project id is omitted, the default project id is used.
    */
@@ -110,7 +101,8 @@ public class BigQueryHelpers {
     if (!match.matches()) {
       throw new IllegalArgumentException(
           "Table reference is not in [project_id]:[dataset_id].[table_id] "
-          + "format: " + tableSpec);
+              + "format: "
+              + tableSpec);
     }
 
     TableReference ref = new TableReference();
@@ -164,8 +156,7 @@ public class BigQueryHelpers {
       return BigQueryIO.JSON_FACTORY.fromString(json, clazz);
     } catch (IOException e) {
       throw new RuntimeException(
-          String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json),
-          e);
+          String.format("Cannot deserialize %s from a JSON string: %s.", clazz, json), e);
     }
   }
 
@@ -178,9 +169,7 @@ public class BigQueryHelpers {
     return UUID.randomUUID().toString().replaceAll("-", "");
   }
 
-  static void verifyTableNotExistOrEmpty(
-      DatasetService datasetService,
-      TableReference tableRef) {
+  static void verifyTableNotExistOrEmpty(DatasetService datasetService, TableReference tableRef) {
     try {
       if (datasetService.getTable(tableRef) != null) {
         checkState(
@@ -193,8 +182,7 @@ public class BigQueryHelpers {
         Thread.currentThread().interrupt();
       }
       throw new RuntimeException(
-          "unable to confirm BigQuery table emptiness for table "
-              + toTableSpec(tableRef), e);
+          "unable to confirm BigQuery table emptiness for table " + toTableSpec(tableRef), e);
     }
   }
 
@@ -206,12 +194,12 @@ public class BigQueryHelpers {
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", toTableSpec(table)), e);
-      } else if (e instanceof  RuntimeException) {
+      } else if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
-            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
-                toTableSpec(table)),
+            String.format(
+                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset", toTableSpec(table)),
             e);
       }
     }
@@ -225,12 +213,13 @@ public class BigQueryHelpers {
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", toTableSpec(table)), e);
-      } else if (e instanceof  RuntimeException) {
+      } else if (e instanceof RuntimeException) {
         throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
-            String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",
-                toTableSpec(table)), e);
+            String.format(
+                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table", toTableSpec(table)),
+            e);
       }
     }
   }
@@ -248,8 +237,7 @@ public class BigQueryHelpers {
   }
 
   @VisibleForTesting
-  static class JsonSchemaToTableSchema
-      implements SerializableFunction<String, TableSchema> {
+  static class JsonSchemaToTableSchema implements SerializableFunction<String, TableSchema> {
     @Override
     public TableSchema apply(String from) {
       return fromJsonString(from, TableSchema.class);
@@ -257,48 +245,49 @@ public class BigQueryHelpers {
   }
 
   @VisibleForTesting
-  static class BeamJobUuidToBigQueryJobUuid
-      implements SerializableFunction<String, String> {
+  static class BeamJobUuidToBigQueryJobUuid implements SerializableFunction<String, String> {
     @Override
     public String apply(String from) {
       return "beam_job_" + from;
     }
   }
 
-  static class TableSchemaToJsonSchema
-      implements SerializableFunction<TableSchema, String> {
+  static class TableSchemaToJsonSchema implements SerializableFunction<TableSchema, String> {
     @Override
     public String apply(TableSchema from) {
       return toJsonString(from);
     }
   }
 
-  static class JsonTableRefToTableRef
-      implements SerializableFunction<String, TableReference> {
+  static class JsonTableRefToTableRef implements SerializableFunction<String, TableReference> {
     @Override
     public TableReference apply(String from) {
       return fromJsonString(from, TableReference.class);
     }
   }
 
-  static class TableRefToTableSpec
-      implements SerializableFunction<TableReference, String> {
+  static class JsonTableRefToTableSpec implements SerializableFunction<String, String> {
+    @Override
+    public String apply(String from) {
+      return toTableSpec(fromJsonString(from, TableReference.class));
+    }
+  }
+
+  static class TableRefToTableSpec implements SerializableFunction<TableReference, String> {
     @Override
     public String apply(TableReference from) {
       return toTableSpec(from);
     }
   }
 
-  static class TableRefToJson
-      implements SerializableFunction<TableReference, String> {
+  static class TableRefToJson implements SerializableFunction<TableReference, String> {
     @Override
     public String apply(TableReference from) {
       return toJsonString(from);
     }
   }
 
-  static class TableRefToProjectId
-      implements SerializableFunction<TableReference, String> {
+  static class TableRefToProjectId implements SerializableFunction<TableReference, String> {
     @Override
     public String apply(TableReference from) {
       return from.getProjectId();
@@ -306,8 +295,7 @@ public class BigQueryHelpers {
   }
 
   @VisibleForTesting
-  static class TableSpecToTableRef
-      implements SerializableFunction<String, TableReference> {
+  static class TableSpecToTableRef implements SerializableFunction<String, TableReference> {
     @Override
     public TableReference apply(String from) {
       return parseTableSpec(from);
@@ -315,8 +303,7 @@ public class BigQueryHelpers {
   }
 
   @VisibleForTesting
-  static class CreatePerBeamJobUuid
-      implements SerializableFunction<String, String> {
+  static class CreatePerBeamJobUuid implements SerializableFunction<String, String> {
     private final String stepUuid;
 
     CreatePerBeamJobUuid(String stepUuid) {
@@ -330,8 +317,7 @@ public class BigQueryHelpers {
   }
 
   @VisibleForTesting
-  static class CreateJsonTableRefFromUuid
-      implements SerializableFunction<String, TableReference> {
+  static class CreateJsonTableRefFromUuid implements SerializableFunction<String, TableReference> {
     private final String executingProject;
 
     CreateJsonTableRefFromUuid(String executingProject) {
@@ -342,10 +328,11 @@ public class BigQueryHelpers {
     public TableReference apply(String jobUuid) {
       String queryTempDatasetId = "temp_dataset_" + jobUuid;
       String queryTempTableId = "temp_table_" + jobUuid;
-      TableReference queryTempTableRef = new TableReference()
-          .setProjectId(executingProject)
-          .setDatasetId(queryTempDatasetId)
-          .setTableId(queryTempTableId);
+      TableReference queryTempTableRef =
+          new TableReference()
+              .setProjectId(executingProject)
+              .setDatasetId(queryTempDatasetId)
+              .setTableId(queryTempTableId);
       return queryTempTableRef;
     }
   }

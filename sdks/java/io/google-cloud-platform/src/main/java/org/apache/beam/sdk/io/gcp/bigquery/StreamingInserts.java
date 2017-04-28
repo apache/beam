@@ -30,20 +30,21 @@ import org.apache.beam.sdk.values.PCollection;
  * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
  * BigQuery's best effort de-dup mechanism.
  */
-public class StreamingInserts
-    extends PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
+public class StreamingInserts<DestinationT>
+    extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
   private BigQueryServices bigQueryServices;
   private final CreateDisposition createDisposition;
-  private final SchemaFunction schemaFunction;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /** Constructor. */
-  StreamingInserts(CreateDisposition createDisposition, SchemaFunction schemaFunction) {
+  StreamingInserts(CreateDisposition createDisposition,
+                   DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.createDisposition = createDisposition;
-    this.schemaFunction = schemaFunction;
+    this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = new BigQueryServicesImpl();
   }
 
-  StreamingInserts withTestServices(BigQueryServices bigQueryServices) {
+  StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
     return this;
   }
@@ -54,11 +55,11 @@ public class StreamingInserts
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
+  public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
     PCollection<KV<TableDestination, TableRow>> writes =
         input.apply(
             "CreateTables",
-            new CreateTables(createDisposition, schemaFunction)
+            new CreateTables<DestinationT>(createDisposition, dynamicDestinations)
                 .withTestServices(bigQueryServices));
 
     return writes.apply(new StreamingWriteTables().withTestServices(bigQueryServices));

@@ -30,7 +30,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
@@ -41,6 +40,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -50,6 +50,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.BeamJobUuidToBigQuery
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.CreateJsonTableRefFromUuid;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.CreatePerBeamJobUuid;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableSpec;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSpecToTableRef;
@@ -72,6 +73,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,20 +186,20 @@ import org.slf4j.LoggerFactory;
  * {@link BigQueryIO.Write#withFormatFunction} to convert each element into a {@link TableRow}
  * object.
  *
- * <p>Each table can be given it's own schema using  {@link BigQueryIO.Write#withSchemaFunction}.
- * {@link SchemaFunction} is a user-defined function that maps a destination table to a BigQuery
- * schema. Note that this function must return a valid schema for all tables (unless the create
- * disposition is CREATE_NEVER), otherwise the pipeline will fail to create tables.
- *
  * <p>Per-table schemas can also be provided using {@link BigQueryIO.Write#withSchemaFromView}.
  * This allows you the schemas to be calculated based on a previous pipeline stage or statically
  * via a {@link org.apache.beam.sdk.transforms.Create} transform. This method expects to receive a
  * map-valued {@link PCollectionView}, mapping table specifications (project:dataset.table-id),
  * to JSON formatted {@link TableSchema} objects. All destination tables must be present in this
  * map, or the pipeline will fail to create tables. Care should be taken if the map value is based
- * on a triggered aggregation over and unbounded {@link PCollection}. This method can also be useful
- * when writing to a single table, as it allows a previous stage to calculate the schema (possibly
- * based on the full collection of records being written to BigQuery).
+ * on a triggered aggregation over and unbounded {@link PCollection}; the side input will contain
+ * the entire history of all table schemas ever generated, which might blow up memory usage.
+ * This method can also be useful when writing to a single table, as it allows a previous stage
+ * to calculate the schema (possibly based on the full collection of records being written to
+ * BigQuery).
+ *
+ * <p>For the most general form of dynamic table destinations and schemas, look at
+ * {@link BigQueryIO.Write#to(DynamicDestinations)}.
  *
  * <h3>Permissions</h3>
  *
@@ -698,11 +700,17 @@ public class BigQueryIO {
     static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
     @Nullable abstract ValueProvider<String> getJsonTableRef();
+
+    /** */
     @Nullable abstract SerializableFunction<ValueInSingleWindow<T>, TableDestination>
       getTableFunction();
     @Nullable abstract SerializableFunction<T, TableRow> getFormatFunction();
-    /** Table schema. The schema is required only if the table does not exist. */
-    @Nullable abstract SchemaFunction getSchemaFunction();
+    /**  */
+    @Nullable abstract DynamicDestinations<T, ?> getDynamicDestinations();
+    /** */
+    @Nullable abstract PCollectionView<Map<String, String>> getSchemaFromView();
+    /** */
+    @Nullable abstract ValueProvider<String> getJsonSchema();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
@@ -720,7 +728,9 @@ public class BigQueryIO {
           SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
       abstract Builder<T> setFormatFunction(
           SerializableFunction<T, TableRow> formatFunction);
-      abstract Builder<T> setSchemaFunction(SchemaFunction schemaFunction);
+      abstract Builder<T> setDynamicDestinations(DynamicDestinations<T, ?> dynamicDestinations);
+      abstract Builder<T> setSchemaFromView(PCollectionView<Map<String, String>> view);
+      abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
       abstract Builder<T> setTableDescription(String tableDescription);
@@ -797,13 +807,6 @@ public class BigQueryIO {
       WRITE_EMPTY
     }
 
-    /** Ensures that methods of the to() family are called at most once. */
-    private void ensureToNotCalledYet() {
-      checkState(
-          getJsonTableRef() == null && getTable() == null
-              && getTableFunction() == null, "to() already called");
-    }
-
     /**
      * Writes to the given table, specified in the format described in
      * {@link BigQueryHelpers#parseTableSpec}.
@@ -819,14 +822,11 @@ public class BigQueryIO {
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> tableSpec) {
-      ensureToNotCalledYet();
-      String tableDescription = getTableDescription();
       return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
                   NestedValueProvider.of(tableSpec, new TableSpecToTableRef()),
                   new TableRefToJson()))
-          .setTableFunction(new ConstantTableFunction<T>(tableSpec, tableDescription))
           .build();
     }
 
@@ -836,8 +836,14 @@ public class BigQueryIO {
      */
     public Write<T> to(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
-      ensureToNotCalledYet();
       return toBuilder().setTableFunction(tableFunction).build();
+    }
+
+    /**
+     * Writes to the table and schema specified by the {@link DynamicDestinations} object.
+     */
+    public Write<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
+      return  toBuilder().setDynamicDestinations(dynamicDestinations).build();
     }
 
     /**
@@ -847,54 +853,149 @@ public class BigQueryIO {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
-    static class ConstantTableFunction<T> implements
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> {
+    /**
+     * Always returns a constant table destination.
+     */
+    static class ConstantTableDestinations<T> extends DynamicDestinations<T, TableDestination> {
       private final ValueProvider<String> tableSpec;
       private final String tableDescription;
 
-      ConstantTableFunction(ValueProvider<String> tableSpec, String tableDescription) {
+      private ConstantTableDestinations(ValueProvider<String> tableSpec, String tableDescription) {
         this.tableSpec = tableSpec;
         this.tableDescription = tableDescription;
       }
 
+      static <T> ConstantTableDestinations<T> fromTableSpec(
+          ValueProvider<String> tableSpec, String tableDescription) {
+        return new ConstantTableDestinations<T>(tableSpec, tableDescription);
+      }
+
+      static <T> ConstantTableDestinations<T> fromJsonTableRef(
+          ValueProvider<String> jsonTableRef, String tableDescription) {
+        return new ConstantTableDestinations<T>(
+            NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()), tableDescription);
+      }
+
       @Override
-      public TableDestination apply(ValueInSingleWindow<T> value) {
+      public TableDestination getDestination(ValueInSingleWindow<T> element) {
         return new TableDestination(tableSpec.get(), tableDescription);
+      }
+
+      @Override
+      public TableSchema getSchema(TableDestination destination) {
+        return null;
+      }
+
+      @Override
+      public TableDestination getTable(TableDestination destination) {
+        return destination;
+      }
+
+      @Override
+      public Coder<TableDestination> getDestinationCoder() {
+        return TableDestinationCoder.of();
       }
     }
 
     /**
-     * A function that returns the same schema for every table.
+     * Returns a tables based on a user-supplied function.
      */
-    static class ConstantSchemaFunction extends SchemaFunction {
-      private final @Nullable ValueProvider<String> jsonSchema;
+    static class TableFunctionDestinations<T> extends DynamicDestinations<T, TableDestination> {
+      private final SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
 
-      private  ConstantSchemaFunction(@Nullable ValueProvider<String> jsonSchema) {
-        this.jsonSchema = jsonSchema;
-      }
-
-      public static ConstantSchemaFunction fromTableSchema(ValueProvider<TableSchema> tableSchema) {
-        if (tableSchema.isAccessible()) {
-          // TableSchema isn't Serializable, so convert to JSON.
-          return new ConstantSchemaFunction(StaticValueProvider.of(
-              BigQueryHelpers.toJsonString(tableSchema.get())));
-        } else {
-          return new ConstantSchemaFunction(
-              NestedValueProvider.of(tableSchema, new TableSchemaToJsonSchema()));
-        }
-      }
-
-      public static ConstantSchemaFunction fromJsonSchema(ValueProvider<String> jsonSchema) {
-        return new ConstantSchemaFunction(jsonSchema);
+      private TableFunctionDestinations(
+          SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+        this.tableFunction = tableFunction;
       }
 
       @Override
-      public TableSchema apply(TableDestination table) {
-        if (jsonSchema == null) {
-          return  null;
-        } else {
-          return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
-        }
+      public TableDestination getDestination(ValueInSingleWindow<T> element) {
+        return tableFunction.apply(element);
+      }
+
+      @Override
+      public TableSchema getSchema(TableDestination destination) {
+        return null;
+      }
+
+      @Override
+      public TableDestination getTable(TableDestination destination) {
+        return destination;
+      }
+
+      @Override
+      public Coder<TableDestination> getDestinationCoder() {
+        return TableDestinationCoder.of();
+      }
+    }
+
+    /**
+     * Delegates all calls to an inner instance of {@link DynamicDestinations}. This allows
+     * subclasses to modify another instance of {@link DynamicDestinations} by subclassing and
+     * overriding just the methods they want to alter.
+     */
+    static class DelegatingDynamicDestinations<T, DestinationT>
+        extends DynamicDestinations<T, DestinationT> {
+      private final DynamicDestinations<T, DestinationT> inner;
+      DelegatingDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {
+        this.inner = inner;
+      }
+      @Override
+      public DestinationT getDestination(ValueInSingleWindow<T> element) {
+        return inner.getDestination(element);
+      }
+
+      @Override
+      public TableSchema getSchema(DestinationT destination) {
+        return inner.getSchema(destination);
+      }
+
+      @Override
+      public TableDestination getTable(DestinationT destination) {
+        return inner.getTable(destination);
+      }
+
+      @Override
+      public Coder<DestinationT> getDestinationCoder() {
+        return inner.getDestinationCoder();
+      }
+    }
+    /**
+     * Returns the same schema for every table.
+     */
+    static class ConstantSchemaDestinations<T>
+        extends DelegatingDynamicDestinations<T, TableDestination> {
+      private final @Nullable ValueProvider<String> jsonSchema;
+
+      ConstantSchemaDestinations(DynamicDestinations<T, TableDestination> inner,
+                                 ValueProvider<String> jsonSchema) {
+        super(inner);
+        this.jsonSchema = jsonSchema;
+      }
+
+      @Override
+      public TableSchema getSchema(TableDestination destination) {
+        return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
+      }
+    }
+
+    /**
+     * Takes in a side input mapping tablespec to json table schema, and always returns the
+     * matching schema from the side input.
+     */
+    static class SchemaFromViewDestinations<T>
+        extends DelegatingDynamicDestinations<T, TableDestination> {
+      SchemaFromViewDestinations(DynamicDestinations<T, TableDestination> inner,
+                                 PCollectionView<Map<String, String>> schemaView) {
+        super(inner);
+        withSideInput(schemaView);
+      }
+
+      @Override
+      public TableSchema getSchema(TableDestination destination) {
+        Map<String, String> mapValue = getSideInputValue();
+        return BigQueryHelpers.fromJsonString(mapValue.get(destination.getTableSpec()),
+            TableSchema.class);
       }
     }
 
@@ -906,15 +1007,14 @@ public class BigQueryIO {
      * {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
     public Write<T> withSchema(TableSchema schema) {
-      return withSchemaFunction(ConstantSchemaFunction.fromTableSchema(
-          StaticValueProvider.of(schema)));
+      return withJsonSchema(StaticValueProvider.of(BigQueryHelpers.toJsonString(schema)));
     }
 
     /**
      * Same as {@link #withSchema(TableSchema)} but using a deferred {@link ValueProvider}.
      */
     public Write<T> withSchema(ValueProvider<TableSchema> schema) {
-      return withSchemaFunction(ConstantSchemaFunction.fromTableSchema(schema));
+      return withJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()));
     }
 
     /**
@@ -922,27 +1022,14 @@ public class BigQueryIO {
      * {@link TableSchema}.
      */
     public Write<T> withJsonSchema(String jsonSchema) {
-      return withSchemaFunction(ConstantSchemaFunction.fromJsonSchema(
-          StaticValueProvider.of(jsonSchema)));
+      return withJsonSchema(StaticValueProvider.of(jsonSchema));
     }
 
     /**
-     * Same as {@link #withSchema(String)} but using a deferred {@link ValueProvider}.
+     * Same as {@link #withJsonSchema(String)} but using a deferred {@link ValueProvider}.
      */
     public Write<T> withJsonSchema(ValueProvider<String> jsonSchema) {
-      return withSchemaFunction(ConstantSchemaFunction.fromJsonSchema(jsonSchema));
-    }
-
-    /**
-     * Use the specified {@link SchemaFunction} to assign schemas for tables.
-     *
-     * <p>This function is ignored if the create disposition is set to
-     * {@link CreateDisposition#CREATE_NEVER}.
-     */
-    public Write<T> withSchemaFunction(SchemaFunction schemaFunction) {
-      return toBuilder()
-          .setSchemaFunction(schemaFunction)
-          .build();
+      return toBuilder().setJsonSchema(jsonSchema).build();
     }
 
     /**
@@ -952,13 +1039,7 @@ public class BigQueryIO {
      * JSON-formatted {@link TableSchema}s.
      */
     public Write<T> withSchemaFromView(PCollectionView<Map<String, String>> view) {
-      return withSchemaFunction(new SchemaFunction() {
-        @Override
-        public TableSchema apply(TableDestination input) {
-          return BigQueryHelpers.fromJsonString(getSideInputValue().get(input.getTableSpec()),
-              TableSchema.class);
-        }
-      }.withSideInput(view));
+      return toBuilder().setSchemaFromView(view).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
@@ -991,7 +1072,8 @@ public class BigQueryIO {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
 
       // We must have a destination to write to!
-      checkState(getTableFunction() != null,
+      checkState(getTableFunction() != null || getJsonTableRef() != null
+              || getDynamicDestinations() != null,
           "must set the table reference of a BigQueryIO.Write transform");
 
       checkArgument(getFormatFunction() != null,
@@ -1001,14 +1083,27 @@ public class BigQueryIO {
       // Require a schema if creating one or more tables.
       checkArgument(
           getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
-              || getSchemaFunction() != null,
+              || getJsonSchema() != null || getDynamicDestinations() != null
+          || getSchemaFromView() != null,
           "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
-      // The user specified a table.
-      if (getJsonTableRef() != null && getValidate()) {
-        TableReference table = getTableWithDefaultProject(options).get();
-        // TODO: This seems wrong - what if the ValueProvider is not accessible?
+      checkArgument(getJsonTableRef() == null || getTableFunction() == null,
+          "Cannot specify both jsonTableRef and tableFunction");
+      checkArgument(getJsonTableRef() == null || getDynamicDestinations() == null,
+          "Cannot specify both jsonTableRef and dynamicDestinations");
+      checkArgument(getTableFunction() == null || getDynamicDestinations() == null,
+          "Cannot specify both tableFunction and dynamicDestinations");
 
+      checkArgument(getJsonSchema() == null || getDynamicDestinations() == null,
+          "Cannot specify both jsonSchema and dynamicDestinations.");
+      checkArgument(getJsonSchema() == null || getSchemaFromView() == null,
+          "Cannot specify both jsonSchema and schemaFromView.");
+      checkArgument(getSchemaFromView() == null || getDynamicDestinations() == null,
+          "Cannot specify both schemaFromView and dynamicDestinations.");
+
+      // The user specified a table.
+      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
+        TableReference table = getTableWithDefaultProject(options).get();
         DatasetService datasetService = getBigQueryServices().getDatasetService(options);
         // Check for destination table presence and emptiness for early failure notification.
         // Note that a presence check can fail when the table or dataset is created by an earlier
@@ -1026,30 +1121,60 @@ public class BigQueryIO {
 
     @Override
     public WriteResult expand(PCollection<T> input) {
-
       validate(input.getPipeline().getOptions());
 
-      PCollection<KV<TableDestination, TableRow>> rowsWithDestination =
-          input.apply("PrepareWrite", new PrepareWrite<T>(
-              getTableFunction(), getFormatFunction()))
-              .setCoder(KvCoder.of(TableDestinationCoder.of(), TableRowJsonCoder.of()));
+      DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
+      if (dynamicDestinations == null) {
+        if (getJsonTableRef() != null) {
+          dynamicDestinations = ConstantTableDestinations.fromJsonTableRef(
+              getJsonTableRef(), getTableDescription());
+        } else if (getTableFunction() != null) {
+          dynamicDestinations = new TableFunctionDestinations(getTableFunction());
+        }
 
-      // The transforms always expect to get a non-null schema function.
-      SchemaFunction schemaFunction = MoreObjects.firstNonNull(
-          this.getSchemaFunction(), schemaFunction = ConstantSchemaFunction.fromJsonSchema(null));
+        // Wrap with a DynamicDestinations class that will provide a schema. There might be no
+        // schema provided if the create disposition is CREATE_NEVER.
+        if (getJsonSchema() != null) {
+          dynamicDestinations = new ConstantSchemaDestinations(
+              dynamicDestinations, getJsonSchema());
+        } else if (getSchemaFromView() != null) {
+          dynamicDestinations = new SchemaFromViewDestinations(
+              dynamicDestinations, getSchemaFromView());
+        }
+      }
+      return expandTyped(input, dynamicDestinations);
+    }
 
-      // When writing an Unbounded PCollection, or when a tablespec function is defined, we use
-      // StreamingInserts and BigQuery's streaming import API.
+    private <DestinationT> WriteResult expandTyped(
+        PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
+      Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
+      if (destinationCoder == null) {
+        try {
+          // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
+          destinationCoder = input.getPipeline().getCoderRegistry().getDefaultCoder(
+              new TypeDescriptor<DestinationT>() {
+              });
+        } catch (CannotProvideCoderException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
+          input.apply("PrepareWrite", new PrepareWrite<>(
+              dynamicDestinations, getFormatFunction()))
+              .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
+
+      // When writing an Unbounded PCollection, we use StreamingInserts and BigQuery's streaming
+      // import API.
       if (input.isBounded() == IsBounded.UNBOUNDED) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
-        return rowsWithDestination.apply(new StreamingInserts(
-            getCreateDisposition(), schemaFunction).withTestServices(getBigQueryServices()));
+        return rowsWithDestination.apply(new StreamingInserts<DestinationT>(
+            getCreateDisposition(), dynamicDestinations).withTestServices(getBigQueryServices()));
       } else {
-        return rowsWithDestination.apply(new BatchLoads(getWriteDisposition(),
-            getCreateDisposition(), getJsonTableRef(), getTableDescription(), schemaFunction)
+        return rowsWithDestination.apply(new BatchLoads<DestinationT>(getWriteDisposition(),
+            getCreateDisposition(), getJsonTableRef(), getTableDescription(), dynamicDestinations)
             .withTestServices(getBigQueryServices()));
       }
     }
@@ -1066,10 +1191,8 @@ public class BigQueryIO {
       builder
           .addIfNotNull(DisplayData.item("table", getJsonTableRef())
             .withLabel("Table Reference"));
-      if (getSchemaFunction() instanceof ConstantSchemaFunction) {
-        ValueProvider<String> jsonSchema = ((ConstantSchemaFunction) getSchemaFunction())
-            .jsonSchema;
-        builder.addIfNotNull(DisplayData.item("schema", jsonSchema).withLabel("Table Schema"));
+      if (getJsonSchema() != null) {
+        builder.addIfNotNull(DisplayData.item("schema", getJsonSchema()).withLabel("Table Schema"));
       } else {
         builder.add(DisplayData.item("schema", "Custom Schema Function").withLabel("Table Schema"));
       }
