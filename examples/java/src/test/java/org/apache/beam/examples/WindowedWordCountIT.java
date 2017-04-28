@@ -34,6 +34,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.common.WriteOneFilePerWindow.PerWindowFiles;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
@@ -44,7 +46,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.ExplicitShardedFile;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.sdk.util.ShardedFile;
 import org.hamcrest.Description;
@@ -107,13 +108,13 @@ public class WindowedWordCountIT {
     options.setWindowSize(10);
 
     options.setOutput(
-        IOChannelUtils.resolve(
-            options.getTempRoot(),
-            String.format(
+        FileSystems.matchNewResource(options.getTempRoot(), true)
+            .resolve(String.format(
                 "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
                 testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
-            "output",
-            "results"));
+                StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve("results", StandardResolveOptions.RESOLVE_FILE).toString());
     return options;
   }
 
