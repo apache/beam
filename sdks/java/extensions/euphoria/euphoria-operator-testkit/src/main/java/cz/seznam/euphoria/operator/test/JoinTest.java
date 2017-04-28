@@ -16,19 +16,24 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Session;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -236,6 +241,65 @@ public class JoinTest extends AbstractOperatorTest {
             Pair.of(3, "3+null"), Pair.of(3, "3+null"), Pair.of(3, "null+13"),
             Pair.of(5, "5+null"), Pair.of(5, "null+15"), Pair.of(7, "null+17")),
             second);
+      }
+    });
+  }
+
+  // ~ all of the inputs fall into the same session window (on the same key)
+  // ~ we expect the result to reflect this fact
+  // ~ note: no early triggering
+  @Test
+  public void innerJoinOnSessionWindowingNoEarlyTriggering() {
+    execute(new JoinTestCase<
+        Pair<String, Long>,
+        Pair<String, Long>,
+        Triple<TimeInterval, String, String>>() {
+
+      @Override
+      protected Partitions<Pair<String, Long>> getLeftInput() {
+        return Partitions.add(
+            Pair.of("fi", 1L),
+            Pair.of("fa", 2L))
+            .build();
+      }
+
+      @Override
+      protected Partitions<Pair<String, Long>> getRightInput() {
+        return Partitions.add(
+            Pair.of("ha", 1L),
+            Pair.of("ho", 4L))
+            .build(Duration.ofMillis(100), Duration.ofMillis(100));
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      protected Dataset<Triple<TimeInterval, String, String>>
+      getOutput(Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+        Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
+            Join.of(left, right)
+                .by(p -> "", p -> "")
+                .using((Pair<String, Long> l, Pair<String, Long> r, Context<Triple<TimeInterval, String, String>> c) ->
+                    c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
+                .windowBy(Session.of(Duration.ofMillis(10)), Pair::getSecond, Pair::getSecond)
+                .setNumPartitions(1)
+                .output();
+        return MapElements.of(joined).using(Pair::getSecond).output();
+      }
+
+      @Override
+      public void validate(Partitions<Triple<TimeInterval, String, String>> partitions) {
+        TimeInterval expectedWindow = new TimeInterval(1, 14);
+        assertUnorderedEquals(
+            Arrays.asList(
+                Triple.of(expectedWindow, "fi", "ha"),
+                Triple.of(expectedWindow, "fi", "ho"),
+                Triple.of(expectedWindow, "fa", "ha"),
+                Triple.of(expectedWindow, "fa", "ho")),
+            partitions.get(0));
       }
     });
   }
