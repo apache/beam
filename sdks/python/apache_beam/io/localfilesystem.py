@@ -45,6 +45,19 @@ class LocalFileSystem(FileSystem):
     """
     return os.path.join(basepath, *paths)
 
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    return os.path.split(os.path.abspath(path))
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 

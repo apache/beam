@@ -53,6 +53,18 @@ class GCSFileSystemTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       file_system.join('/bucket/path/', '/to/file')
 
+  def test_split(self):
+    file_system = gcsfilesystem.GCSFileSystem()
+    self.assertEqual(('gs://foo/bar', 'baz'),
+                     file_system.split('gs://foo/bar/baz'))
+    self.assertEqual(('gs://foo', ''),
+                     file_system.split('gs://foo/'))
+    self.assertEqual(('gs://foo', ''),
+                     file_system.split('gs://foo'))
+
+    with self.assertRaises(ValueError):
+      file_system.split('/no/gcs/prefix')
+
   @mock.patch('apache_beam.io.gcp.gcsfilesystem.gcsio')
   def test_match_multiples(self, mock_gcsio):
     # Prepare mocks.

@@ -50,6 +50,24 @@ class FileSystems(object):
     return filesystem.join(basepath, *paths)
 
   @staticmethod
+  def split(path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    For file-systems other than the local file-system, head should include the
+    prefix.
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.split(path)
+
+  @staticmethod
   def mkdirs(path):
     """Recursively create directories for the provided path.
 
