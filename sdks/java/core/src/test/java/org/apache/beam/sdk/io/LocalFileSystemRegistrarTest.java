@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
@@ -41,7 +40,7 @@ public class LocalFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof LocalFileSystemRegistrar) {
-        List<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
+        Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
         assertThat(fileSystems, contains(instanceOf(LocalFileSystem.class)));
         return;
       }

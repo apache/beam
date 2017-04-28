@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
-import java.util.List;
 import java.util.ServiceLoader;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -39,5 +38,5 @@ public interface FileSystemRegistrar {
    * <p>Each {@link FileSystem#getScheme() scheme} is required to be unique among all
    * {@link FileSystem}s registered by all {@link FileSystemRegistrar}s.
    */
-  List<FileSystem> fromOptions(@Nullable PipelineOptions options);
+  Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options);
 }

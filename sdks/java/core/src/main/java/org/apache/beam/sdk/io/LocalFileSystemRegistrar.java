@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -29,7 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 @AutoService(FileSystemRegistrar.class)
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
   @Override
-  public List<FileSystem> fromOptions(@Nullable PipelineOptions options) {
+  public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
     return ImmutableList.<FileSystem>of(new LocalFileSystem());
   }
 }
