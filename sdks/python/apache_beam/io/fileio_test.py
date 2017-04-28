@@ -26,6 +26,7 @@ import tempfile
 import unittest
 
 import hamcrest as hc
+import mock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -183,6 +184,52 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
         for shard_num in range(3))
     self.assertTrue('][a][' in concat, concat)
     self.assertTrue('][b][' in concat, concat)
+
+  # Not using 'test' in name so that 'nose' doesn't pick this as a test.
+  def run_temp_dir_check(self, no_dir_path, dir_path, no_dir_root_path,
+                         dir_root_path, prefix, separator):
+    def _get_temp_dir(file_path_prefix):
+      sink = MyFileSink(
+          file_path_prefix, file_name_suffix='.output',
+          coder=coders.ToStringCoder())
+      return sink.initialize_write()
+
+    temp_dir = _get_temp_dir(no_dir_path)
+    self.assertTrue(temp_dir.startswith(prefix))
+    last_sep = temp_dir.rfind(separator)
+    self.assertTrue(temp_dir[last_sep + 1:].startswith('beam-temp'))
+
+    temp_dir = _get_temp_dir(dir_path)
+    self.assertTrue(temp_dir.startswith(prefix))
+    last_sep = temp_dir.rfind(separator)
+    self.assertTrue(temp_dir[last_sep + 1:].startswith('beam-temp'))
+
+    with self.assertRaises(ValueError):
+      _get_temp_dir(no_dir_root_path)
+
+    with self.assertRaises(ValueError):
+      _get_temp_dir(dir_root_path)
+
+  def test_temp_dir_gcs(self):
+    self.run_temp_dir_check(
+        'gs://aaa/bbb', 'gs://aaa/bbb/', 'gs://aaa', 'gs://aaa/', 'gs://', '/')
+
+  @mock.patch('apache_beam.io.localfilesystem.os')
+  def test_temp_dir_local(self, filesystem_os_mock):
+    # Here we test a unix-like mock file-system
+    # (not really testing Unix or Windows since we mock the function of 'os'
+    # module).
+
+    def _fake_unix_split(path):
+      sep = path.rfind('/')
+      if sep < 0:
+        raise ValueError('Path must contain a separator')
+      return (path[:sep], path[sep + 1:])
+
+    filesystem_os_mock.path.abspath = lambda a: a
+    filesystem_os_mock.path.split.side_effect = _fake_unix_split
+    self.run_temp_dir_check(
+        '/aaa/bbb', '/aaa/bbb/', '/', '/', 'gs://', '/')
 
   def test_file_sink_multi_shards(self):
     temp_path = os.path.join(self._new_tempdir(), 'multishard')
