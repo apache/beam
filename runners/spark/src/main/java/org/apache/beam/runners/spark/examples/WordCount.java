@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.examples;
 
+import org.apache.beam.examples.common.ExampleUtils;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -47,8 +49,6 @@ public class WordCount {
   public static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
 
-    private static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
-
     @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
@@ -56,7 +56,7 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = c.element().split(TOKENIZER_PATTERN);
+      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {

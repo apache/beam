@@ -36,9 +36,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class MinimalWordCountJava8 {
 
-  private static final String TOKENIZER_PATTERN = "[^\\p{L}]+";
-
-
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();
     // In order to run your pipeline, you need to make following runner specific changes:
@@ -62,7 +59,7 @@ public class MinimalWordCountJava8 {
 
      .apply(FlatMapElements
          .into(TypeDescriptors.strings())
-         .via((String word) -> Arrays.asList(word.split(TOKENIZER_PATTERN))))
+         .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
      .apply(Count.<String>perElement())
      .apply(MapElements
