@@ -39,6 +39,7 @@ import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -180,12 +181,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     File file = Paths.get(spec).toFile();
 
     if (file.exists()) {
-      return MatchResult.create(Status.OK, new Metadata[]{toMetadata(file)});
+      return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      return MatchResult.create(Status.NOT_FOUND, EMPTY_METADATA);
+      return MatchResult.create(Status.NOT_FOUND, Collections.<Metadata>emptyList());
     }
 
     // Method getAbsolutePath() on Windows platform may return something like
@@ -223,7 +224,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
           Status.NOT_FOUND,
           new FileNotFoundException(String.format("No files found for spec: %s.", spec)));
     } else {
-      return MatchResult.create(Status.OK, result.toArray(new Metadata[result.size()]));
+      return MatchResult.create(Status.OK, result);
     }
   }
 

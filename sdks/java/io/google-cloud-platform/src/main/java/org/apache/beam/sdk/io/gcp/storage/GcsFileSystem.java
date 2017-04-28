@@ -197,7 +197,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
       }
       pageToken = objects.getNextPageToken();
     } while (pageToken != null);
-    return MatchResult.create(Status.OK, results.toArray(new Metadata[results.size()]));
+    return MatchResult.create(Status.OK, results);
   }
 
   /**
@@ -226,7 +226,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     } else {
       StorageObject object = objectOrException.storageObject();
       assert object != null; // fix a warning; guaranteed by StorageObjectOrIOException semantics.
-      return MatchResult.create(Status.OK, new Metadata[]{toMetadata(object)});
+      return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(object)));
     }
   }
 

@@ -40,7 +40,6 @@ import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -357,7 +356,7 @@ public class LocalFileSystemTest {
           @Override
           public Iterable<Metadata> apply(MatchResult matchResult) {
             try {
-              return Arrays.asList(matchResult.metadata());
+              return matchResult.metadata();
             } catch (IOException e) {
               throw new RuntimeException(e);
             }

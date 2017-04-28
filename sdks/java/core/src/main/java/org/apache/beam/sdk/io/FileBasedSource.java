@@ -210,14 +210,14 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
           "Error matching the pattern or glob %s: status %s",
           pattern,
           result.status());
-      Metadata[] allMatches = result.metadata();
+      List<Metadata> allMatches = result.metadata();
       for (Metadata metadata : allMatches) {
         totalSize += metadata.sizeBytes();
       }
       LOG.info(
           "Filepattern {} matched {} files with total size {}",
           fileOrPatternSpec.get(),
-          allMatches.length,
+          allMatches.size(),
           totalSize);
       return totalSize;
     } else {
@@ -383,7 +383,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   private static List<Metadata> expandFilePattern(String fileOrPatternSpec) throws IOException {
     MatchResult matches =
         Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(fileOrPatternSpec)));
-    LOG.info("Matched {} files for pattern {}", matches.metadata().length, fileOrPatternSpec);
+    LOG.info("Matched {} files for pattern {}", matches.metadata().size(), fileOrPatternSpec);
     return ImmutableList.copyOf(matches.metadata());
   }
 
