@@ -342,12 +342,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-runners-flink_2.10-examples</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
