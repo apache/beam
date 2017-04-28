@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
@@ -43,7 +44,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
@@ -67,14 +68,8 @@ public class FileSystems {
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
-  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
-      new ConcurrentHashMap<>();
-
-  private static PipelineOptions defaultConfig;
-
-  static {
-    loadFileSystemRegistrars();
-  }
+  private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
+      new AtomicReference<>();
 
   /********************************** METHODS FOR CLIENT **********************************/
 
@@ -402,53 +397,31 @@ public class FileSystems {
     Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+      return "file";
     } else {
       return matcher.group("scheme").toLowerCase();
     }
   }
 
   /**
-   * Internal method to get {@link FileSystem} for {@code spec}.
+   * Internal method to get {@link FileSystem} for {@code scheme}.
    */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(String scheme) {
-    return getRegistrarInternal(scheme.toLowerCase()).fromOptions(defaultConfig);
-  }
-
-  /**
-   * Internal method to get {@link FileSystemRegistrar} for {@code scheme}.
-   */
-  @VisibleForTesting
-  static FileSystemRegistrar getRegistrarInternal(String scheme) {
     String lowerCaseScheme = scheme.toLowerCase();
-    if (SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme)) {
-      return SCHEME_TO_REGISTRAR.get(lowerCaseScheme);
-    } else if (SCHEME_TO_REGISTRAR.containsKey(DEFAULT_SCHEME)) {
-      return SCHEME_TO_REGISTRAR.get(DEFAULT_SCHEME);
-    } else {
-      throw new IllegalStateException("Unable to find registrar for " + scheme);
+    Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
+    FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
+    if (rval != null) {
+      return rval;
     }
+    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
+    if (rval != null) {
+      return rval;
+    }
+    throw new IllegalStateException("Unable to find registrar for " + scheme);
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
-
-  /**
-   * Loads available {@link FileSystemRegistrar} services.
-   */
-  private static void loadFileSystemRegistrars() {
-    SCHEME_TO_REGISTRAR.clear();
-    Set<FileSystemRegistrar> registrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
-
-    verifySchemesAreUnique(registrars);
-
-    for (FileSystemRegistrar registrar : registrars) {
-      SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
-    }
-  }
 
   /**
    * Sets the default configuration in workers.
@@ -456,34 +429,49 @@ public class FileSystems {
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    */
   public static void setDefaultConfigInWorkers(PipelineOptions options) {
-    defaultConfig = checkNotNull(options, "options");
+    checkNotNull(options, "options");
+    Set<FileSystemRegistrar> registrars =
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+
+    SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
   }
 
   @VisibleForTesting
-  static void verifySchemesAreUnique(Set<FileSystemRegistrar> registrars) {
-    Multimap<String, FileSystemRegistrar> registrarsBySchemes =
+  static Map<String, FileSystem> verifySchemesAreUnique(
+      PipelineOptions options, Set<FileSystemRegistrar> registrars) {
+    Multimap<String, FileSystem> fileSystemsBySchemes =
         TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 
     for (FileSystemRegistrar registrar : registrars) {
-      registrarsBySchemes.put(registrar.getScheme().toLowerCase(), registrar);
+      for (FileSystem fileSystem : registrar.fromOptions(options)) {
+        fileSystemsBySchemes.put(fileSystem.getScheme(), fileSystem);
+      }
     }
-    for (Entry<String, Collection<FileSystemRegistrar>> entry
-        : registrarsBySchemes.asMap().entrySet()) {
+    for (Entry<String, Collection<FileSystem>> entry
+        : fileSystemsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
-        String conflictingRegistrars = Joiner.on(", ").join(
+        String conflictingFileSystems = Joiner.on(", ").join(
             FluentIterable.from(entry.getValue())
-                .transform(new Function<FileSystemRegistrar, String>() {
+                .transform(new Function<FileSystem, String>() {
                   @Override
-                  public String apply(@Nonnull FileSystemRegistrar input) {
+                  public String apply(@Nonnull FileSystem input) {
                     return input.getClass().getName();
                   }})
                 .toSortedList(Ordering.<String>natural()));
         throw new IllegalStateException(String.format(
-            "Scheme: [%s] has conflicting registrars: [%s]",
+            "Scheme: [%s] has conflicting filesystems: [%s]",
             entry.getKey(),
-            conflictingRegistrars));
+            conflictingFileSystems));
       }
     }
+
+    ImmutableMap.Builder<String, FileSystem> schemeToFileSystem = ImmutableMap.builder();
+    for (Entry<String, FileSystem> entry : fileSystemsBySchemes.entries()) {
+      schemeToFileSystem.put(entry.getKey(), entry.getValue());
+    }
+    return schemeToFileSystem.build();
   }
 
   /**
