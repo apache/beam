@@ -144,20 +144,6 @@
       <artifactId>google-http-client</artifactId>
     </dependency>
 
-    <!-- Required by com.google.apis:google-api-services-datastore-protobuf, but 
-      the version they depend on differs from our api-client versions -->
-    <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-jackson</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-protobuf</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
