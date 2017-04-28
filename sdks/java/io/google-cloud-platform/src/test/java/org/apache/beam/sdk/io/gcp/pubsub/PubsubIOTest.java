@@ -146,16 +146,19 @@ public class PubsubIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData;
-    PubsubIO.Read<String> read = PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
+    PubsubIO.Read<String> baseRead = PubsubIO.<String>read().withCoder(StringUtf8Coder.of());
 
     // Reading from a subscription.
-    read = read.fromSubscription("projects/project/subscriptions/subscription");
+    PubsubIO.Read<String> read =
+        baseRead.fromSubscription("projects/project/subscriptions/subscription");
     displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
-    assertThat("PubsubIO.Read should include the subscription in its primitive display data",
-        displayData, hasItem(hasDisplayItem("subscription")));
+    assertThat(
+        "PubsubIO.Read should include the subscription in its primitive display data",
+        displayData,
+        hasItem(hasDisplayItem("subscription")));
 
     // Reading from a topic.
-    read = read.fromTopic("projects/project/topics/topic");
+    read = baseRead.fromTopic("projects/project/topics/topic");
     displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the topic in its primitive display data",
         displayData, hasItem(hasDisplayItem("topic")));

@@ -534,8 +534,6 @@ public class PubsubIO {
       return toBuilder()
           .setSubscriptionProvider(
               NestedValueProvider.of(subscription, new SubscriptionTranslator()))
-          /* reset topic to null */
-          .setTopicProvider(null)
           .build();
     }
 
@@ -564,8 +562,6 @@ public class PubsubIO {
       }
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, new TopicTranslator()))
-          /* reset subscription to null */
-          .setSubscriptionProvider(null)
           .build();
     }
 
