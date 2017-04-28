@@ -645,4 +645,81 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
     });
   }
+
+  @Test
+  public void testReduceByKeyWithWrongHashCodeImpl() {
+    execute(new AbstractTestCase<Pair<Word, Long>, Pair<Word, Long>>() {
+
+      @Override
+      protected Dataset<Pair<Word, Long>> getOutput(Dataset<Pair<Word, Long>> input) {
+        return ReduceByKey.of(input)
+                .keyBy(Pair::getFirst)
+                .valueBy(e -> 1L)
+                .combineBy(Sums.ofLongs())
+                .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
+                .output();
+      }
+
+      @Override
+      protected Partitions<Pair<Word, Long>> getInput() {
+        return Partitions
+                .add(
+                        Pair.of(new Word("euphoria"), 300L),
+                        Pair.of(new Word("euphoria"), 600L),
+                        Pair.of(new Word("spark"), 900L),
+                        Pair.of(new Word("euphoria"), 1300L),
+                        Pair.of(new Word("flink"), 1600L),
+                        Pair.of(new Word("spark"), 1900L))
+                .build();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 2;
+      }
+
+      @Override
+      public void validate(Partitions<Pair<Word, Long>> partitions) {
+        assertEquals(2, partitions.size());
+        List<Pair<Word, Long>> data = partitions.get(0);
+        assertUnorderedEquals(Arrays.asList(
+                Pair.of(new Word("euphoria"), 2L), Pair.of(new Word("spark"), 1L),  // first window
+                Pair.of(new Word("euphoria"), 1L), Pair.of(new Word("spark"), 1L),  // second window
+                Pair.of(new Word("flink"), 1L)),
+                data);
+      }
+    });
+  }
+
+  /**
+   * String with invalid hash code implementation returning constant.
+   */
+  private static class Word {
+    private final String str;
+
+    public Word(String str) {
+      this.str = str;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (!(o instanceof Word)) return false;
+
+      Word word = (Word) o;
+
+      return !(str != null ? !str.equals(word.str) : word.str != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+      return 42;
+    }
+
+    @Override
+    public String toString() {
+      return str;
+    }
+  }
 }
