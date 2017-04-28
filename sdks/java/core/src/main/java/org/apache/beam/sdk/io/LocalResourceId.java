@@ -123,6 +123,11 @@ class LocalResourceId implements ResourceId {
     return "file";
   }
 
+  @Override
+  public boolean isDirectory() {
+    return isDirectory;
+  }
+
   Path getPath() {
     if (cachedPath == null) {
       cachedPath = Paths.get(pathString);
