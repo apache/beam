@@ -179,7 +179,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * @param fileMetadata file backing the new {@code FileBasedSource}.
    * @param start starting byte offset of the new {@code FileBasedSource}.
    * @param end ending byte offset of the new {@code FileBasedSource}. May be Long.MAX_VALUE,
-   *        in which case it will be inferred using {@link #getMaxEndOffset}.
+   *        in which case it will be inferred using {@link FileBasedSource#getMaxEndOffset}.
    */
   protected abstract FileBasedSource<T> createForSubrangeOfFile(
       Metadata fileMetadata, long start, long end);
