@@ -22,8 +22,10 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -221,6 +223,13 @@ public class LocalResourceIdTest {
     assertNotEquals(
         toResourceIdentifier("/root/tmp"),
         toResourceIdentifier("/root/tmp/"));
+  }
+
+  @Test
+  public void testIsDirectory() throws Exception {
+    assertTrue(toResourceIdentifier("/").isDirectory());
+    assertTrue(toResourceIdentifier("/root/tmp/").isDirectory());
+    assertFalse(toResourceIdentifier("/root").isDirectory());
   }
 
   @Test

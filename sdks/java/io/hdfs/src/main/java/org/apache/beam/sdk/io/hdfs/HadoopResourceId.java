@@ -44,4 +44,8 @@ public class HadoopResourceId implements ResourceId {
   public String getFilename() {
     throw new UnsupportedOperationException();
   }
+
+  public boolean isDirectory() {
+    throw new UnsupportedOperationException();
+  }
 }
