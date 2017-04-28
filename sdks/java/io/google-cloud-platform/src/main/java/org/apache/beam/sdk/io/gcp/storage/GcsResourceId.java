@@ -94,10 +94,8 @@ public class GcsResourceId implements ResourceId {
 
   @Override
   @Nullable public String getFilename() {
-    if (gcsPath.getNameCount() < 1) {
+    if (gcsPath.getNameCount() <= 1) {
       return null;
-    } else if (gcsPath.getNameCount() == 1) {
-      return gcsPath.getBucket();
     } else {
       return gcsPath.getFileName().toString();
     }

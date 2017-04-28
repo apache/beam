@@ -143,7 +143,7 @@ public class GcsResourceIdTest {
 
   @Test
   public void testGetFilename() throws Exception {
-    assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), "my_bucket");
+    assertEquals(toResourceIdentifier("gs://my_bucket/").getFilename(), null);
     assertEquals(toResourceIdentifier("gs://my_bucket/abc").getFilename(),
         "abc");
     assertEquals(toResourceIdentifier("gs://my_bucket/abc/").getFilename(),
