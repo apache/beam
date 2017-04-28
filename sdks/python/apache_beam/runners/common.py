@@ -99,13 +99,11 @@ class DoFnSignature(object):
     self._validate_bundle_method(self.finish_bundle_method)
 
   def _validate_bundle_method(self, method_wrapper):
-    # Bundle methods may only contain ContextParam.
-
     # Here we use the fact that every DoFn parameter defined in core.DoFn has
     # the value that is the same as the name of the parameter and ends with
     # string 'Param'.
-    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if (
-        i.endswith('Param') and i != 'ContextParam')]
+    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if
+                               i.endswith('Param')]
 
     for param in unsupported_dofn_params:
       assert param not in method_wrapper.defaults
@@ -158,20 +156,18 @@ class DoFnInvoker(object):
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
-    defaults = self.signature.start_bundle_method.defaults
-    args = [self.context if d == core.DoFn.ContextParam else d
-            for d in defaults]
+    args_for_start_bundle = self.signature.start_bundle_method.defaults
     self.output_processor.start_bundle_outputs(
-        self.signature.start_bundle_method.method_value(*args))
+        self.signature.start_bundle_method.method_value(
+            *args_for_start_bundle))
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
     """
-    defaults = self.signature.finish_bundle_method.defaults
-    args = [self.context if d == core.DoFn.ContextParam else d
-            for d in defaults]
+    args_for_finish_bundle = self.signature.finish_bundle_method.defaults
     self.output_processor.finish_bundle_outputs(
-        self.signature.finish_bundle_method.method_value(*args))
+        self.signature.finish_bundle_method.method_value(
+            *args_for_finish_bundle))
 
 
 class SimpleInvoker(DoFnInvoker):
@@ -237,8 +233,6 @@ class PerWindowInvoker(DoFnInvoker):
     for a, d in zip(arguments[-len(defaults):], defaults):
       if d == core.DoFn.ElementParam:
         args_with_placeholders.append(ArgPlaceholder(d))
-      elif d == core.DoFn.ContextParam:
-        args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.WindowParam:
         args_with_placeholders.append(ArgPlaceholder(d))
       elif d == core.DoFn.TimestampParam:
@@ -291,8 +285,6 @@ class PerWindowInvoker(DoFnInvoker):
     for i, p in self.placeholders:
       if p == core.DoFn.ElementParam:
         args_for_process[i] = windowed_value.value
-      elif p == core.DoFn.ContextParam:
-        args_for_process[i] = self.context
       elif p == core.DoFn.WindowParam:
         args_for_process[i] = window
       elif p == core.DoFn.TimestampParam:
