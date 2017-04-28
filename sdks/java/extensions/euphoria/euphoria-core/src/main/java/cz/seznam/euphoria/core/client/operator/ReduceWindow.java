@@ -32,11 +32,12 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import javax.annotation.Nullable;
 
 /**
- * Reduces all elements in window. The operator corresponds to {@link ReduceByKey} with
- * the same key for all elements, so the actual key is defined only by window.<p>
+ * Reduces all elements in a window. The operator corresponds to
+ * {@link ReduceByKey} with the same key for all elements, so the actual key
+ * is defined only by window.<p>
  * 
- * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise values from
- * input operator are used.
+ * Custom {@link Windowing} and {@link Partitioning} can be set, otherwise
+ * values from input operator are used.
  */
 @Derived(
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
