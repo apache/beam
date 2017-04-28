@@ -602,7 +602,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       pubsubClient =
           new AtomicReference<>(
               outer.outer.pubsubFactory.newClient(
-                  outer.outer.timestampLabel, outer.outer.idLabel, options));
+                  outer.outer.timestampAttribute, outer.outer.idAttribute, options));
       ackTimeoutMs = -1;
       safeToAckIds = new HashSet<>();
       notYetRead = new ArrayDeque<>();
@@ -1207,22 +1207,22 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Nullable
     private final ValueProvider<TopicPath> topic;
     @Nullable
-    private final String timestampLabel;
+    private final String timestampAttribute;
     @Nullable
-    private final String idLabel;
+    private final String idAttribute;
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
         @Nullable ValueProvider<SubscriptionPath> subscription,
         @Nullable ValueProvider<TopicPath> topic,
-        @Nullable String timestampLabel,
-        @Nullable String idLabel) {
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute) {
       checkArgument(pubsubFactory != null, "pubsubFactory should not be null");
       this.pubsubFactory = pubsubFactory;
       this.subscription = subscription;
       this.topic = topic;
-      this.timestampLabel = timestampLabel;
-      this.idLabel = idLabel;
+      this.timestampAttribute = timestampAttribute;
+      this.idAttribute = idAttribute;
     }
 
     @ProcessElement
@@ -1247,8 +1247,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         builder.add(DisplayData.item("topic", topicString));
       }
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
-      builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
+      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
+      builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
 
@@ -1303,14 +1303,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Pubsub message publish timestamp instead.
    */
   @Nullable
-  private final String timestampLabel;
+  private final String timestampAttribute;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
    * a unique id ourselves.
    */
   @Nullable
-  private final String idLabel;
+  private final String idAttribute;
 
   /**
    * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be
@@ -1327,8 +1327,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
     checkArgument((topic == null) != (subscription == null),
                   "Exactly one of topic and subscription must be given");
@@ -1340,8 +1340,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     this.topic = topic;
     this.subscription = subscription;
     this.elementCoder = checkNotNull(elementCoder);
-    this.timestampLabel = timestampLabel;
-    this.idLabel = idLabel;
+    this.timestampAttribute = timestampAttribute;
+    this.idAttribute = idAttribute;
     this.parseFn = parseFn;
   }
 
@@ -1354,10 +1354,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
-    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel,
+    this(
+        null,
+        pubsubFactory,
+        project,
+        topic,
+        subscription,
+        elementCoder,
+        timestampAttribute,
+        idAttribute,
         parseFn);
   }
 
@@ -1409,19 +1417,19 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   /**
-   * Get the timestamp label.
+   * Get the timestamp attribute.
    */
   @Nullable
-  public String getTimestampLabel() {
-    return timestampLabel;
+  public String getTimestampAttribute() {
+    return timestampAttribute;
   }
 
   /**
-   * Get the id label.
+   * Get the id attribute.
    */
   @Nullable
-  public String getIdLabel() {
-    return idLabel;
+  public String getIdAttribute() {
+    return idAttribute;
   }
 
   /**
@@ -1438,13 +1446,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",
                     ParDo.of(new StatsFn<T>(
-                        pubsubFactory, subscription, topic, timestampLabel, idLabel)));
+                        pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
     try {
       try (PubsubClient pubsubClient =
-          pubsubFactory.newClient(timestampLabel, idLabel, options.as(PubsubOptions.class))) {
+          pubsubFactory.newClient(
+              timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
         checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
         checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
         SubscriptionPath subscriptionPath =

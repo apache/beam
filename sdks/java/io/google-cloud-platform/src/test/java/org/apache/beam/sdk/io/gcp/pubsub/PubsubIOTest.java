@@ -93,14 +93,14 @@ public class PubsubIOTest {
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .fromTopic(StaticValueProvider.of(topic))
-        .withTimestampLabel("myTimestamp")
-        .withIdLabel("myId");
+        .withTimestampAttribute("myTimestamp")
+        .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
-    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
   @Test
@@ -110,14 +110,14 @@ public class PubsubIOTest {
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.<String>read()
         .fromSubscription(StaticValueProvider.of(subscription))
-        .withTimestampLabel("myTimestamp")
-        .withIdLabel("myId");
+        .withTimestampAttribute("myTimestamp")
+        .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("subscription", subscription));
-    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
-    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
   @Test
@@ -168,14 +168,14 @@ public class PubsubIOTest {
     String topic = "projects/project/topics/topic";
     PubsubIO.Write<?> write = PubsubIO.<String>write()
         .to(topic)
-        .withTimestampLabel("myTimestamp")
-        .withIdLabel("myId");
+        .withTimestampAttribute("myTimestamp")
+        .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampLabel", "myTimestamp"));
-    assertThat(displayData, hasDisplayItem("idLabel", "myId"));
+    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
   @Test

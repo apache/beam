@@ -58,8 +58,8 @@ public class PubsubUnboundedSinkTest implements Serializable {
   private static final Map<String, String> ATTRIBUTES =
           ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
   private static final long TIMESTAMP = 1234L;
-  private static final String TIMESTAMP_LABEL = "timestamp";
-  private static final String ID_LABEL = "id";
+  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final String ID_ATTRIBUTE = "id";
   private static final int NUM_SHARDS = 10;
 
   private static class Stamp extends DoFn<String, String> {
@@ -99,7 +99,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
-              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2),
               new SimpleFunction<String, PubsubIO.PubsubMessage>() {
                 @Override
@@ -135,7 +135,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
-              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2), null, RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
@@ -170,7 +170,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
           new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC),
-              StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+              StringUtf8Coder.of(), TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE,
               NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
               null, RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))

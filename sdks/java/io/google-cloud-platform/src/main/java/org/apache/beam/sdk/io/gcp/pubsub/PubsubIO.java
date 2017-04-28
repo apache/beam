@@ -136,12 +136,12 @@ public class PubsubIO {
    * Populate common {@link DisplayData} between Pubsub source and sink.
    */
   private static void populateCommonDisplayData(DisplayData.Builder builder,
-      String timestampLabel, String idLabel, ValueProvider<PubsubTopic> topic) {
+      String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
     builder
-        .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
-            .withLabel("Timestamp Label Attribute"))
-        .addIfNotNull(DisplayData.item("idLabel", idLabel)
-            .withLabel("ID Label Attribute"));
+        .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute)
+            .withLabel("Timestamp Attribute"))
+        .addIfNotNull(DisplayData.item("idAttribute", idAttribute)
+            .withLabel("ID Attribute"));
 
     if (topic != null) {
       String topicString = topic.isAccessible() ? topic.get().asPath()
@@ -529,11 +529,11 @@ public class PubsubIO {
 
     /** The name of the message attribute to read timestamps from. */
     @Nullable
-    abstract String getTimestampLabel();
+    abstract String getTimestampAttribute();
 
     /** The name of the message attribute to read unique message IDs from. */
     @Nullable
-    abstract String getIdLabel();
+    abstract String getIdAttribute();
 
     /** The coder used to decode each record. */
     @Nullable
@@ -551,9 +551,9 @@ public class PubsubIO {
 
       abstract Builder<T> setSubscriptionProvider(ValueProvider<PubsubSubscription> subscription);
 
-      abstract Builder<T> setTimestampLabel(String timestampLabel);
+      abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
-      abstract Builder<T> setIdLabel(String idLabel);
+      abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -633,7 +633,7 @@ public class PubsubIO {
      * (i.e., time units smaller than milliseconds) will be ignored.
      * </ul>
      *
-     * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
+     * <p>If {@code timestampAttribute} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these
      * timestamps.
      *
@@ -643,12 +643,12 @@ public class PubsubIO {
      * specified with the windowing strategy &ndash; by default it will be output immediately.
      *
      * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
-     * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
+     * timestamps by arrival time (i.e. {@code timestampAttribute} is not provided).
      *
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
-    public Read<T> withTimestampLabel(String timestampLabel) {
-      return toBuilder().setTimestampLabel(timestampLabel).build();
+    public Read<T> withTimestampAttribute(String timestampAttribute) {
+      return toBuilder().setTimestampAttribute(timestampAttribute).build();
     }
 
     /**
@@ -657,11 +657,11 @@ public class PubsubIO {
      * The value of the attribute can be any string that uniquely identifies this record.
      *
      * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
-     * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
+     * If {@code idAttribute} is not provided, Beam cannot guarantee that no duplicate data will
      * be delivered, and deduplication of the stream will be strictly best effort.
      */
-    public Read<T> withIdLabel(String idLabel) {
-      return toBuilder().setIdLabel(idLabel).build();
+    public Read<T> withIdAttribute(String idAttribute) {
+      return toBuilder().setIdAttribute(idAttribute).build();
     }
 
     /**
@@ -718,8 +718,8 @@ public class PubsubIO {
               topicPath,
               subscriptionPath,
               getCoder(),
-              getTimestampLabel(),
-              getIdLabel(),
+              getTimestampAttribute(),
+              getIdAttribute(),
               getParseFn());
       return input.getPipeline().apply(source);
     }
@@ -727,7 +727,8 @@ public class PubsubIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      populateCommonDisplayData(builder, getTimestampLabel(), getIdLabel(), getTopicProvider());
+      populateCommonDisplayData(
+          builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
 
       if (getSubscriptionProvider() != null) {
         String subscriptionString = getSubscriptionProvider().isAccessible()
@@ -757,11 +758,11 @@ public class PubsubIO {
 
     /** The name of the message attribute to publish message timestamps in. */
     @Nullable
-    abstract String getTimestampLabel();
+    abstract String getTimestampAttribute();
 
     /** The name of the message attribute to publish unique message IDs in. */
     @Nullable
-    abstract String getIdLabel();
+    abstract String getIdAttribute();
 
     /** The input type Coder. */
     @Nullable
@@ -777,9 +778,9 @@ public class PubsubIO {
     abstract static class Builder<T> {
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
 
-      abstract Builder<T> setTimestampLabel(String timestampLabel);
+      abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
-      abstract Builder<T> setIdLabel(String idLabel);
+      abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -814,23 +815,23 @@ public class PubsubIO {
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
      * <p>If the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#withTimestampLabel(String)} can be used to ensure the other source reads
-     * these timestamps from the appropriate attribute.
+     * {@link PubsubIO.Read#withTimestampAttribute(String)} can be used to ensure the other source
+     * reads these timestamps from the appropriate attribute.
      */
-    public Write<T> withTimestampLabel(String timestampLabel) {
-      return toBuilder().setTimestampLabel(timestampLabel).build();
+    public Write<T> withTimestampAttribute(String timestampAttribute) {
+      return toBuilder().setTimestampAttribute(timestampAttribute).build();
     }
 
     /**
      * Writes to Pub/Sub, adding each record's unique identifier to the published messages in an
      * attribute with the specified name. The value of the attribute is an opaque string.
      *
-     * <p>If the the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#withIdLabel(String)} can be used to ensure that* the other source reads
+     * <p>If the the output from this sink is being read by another Beam pipeline, then {@link
+     * PubsubIO.Read#withIdAttribute(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
-    public Write<T> withIdLabel(String idLabel) {
-      return toBuilder().setIdLabel(idLabel).build();
+    public Write<T> withIdAttribute(String idAttribute) {
+      return toBuilder().setIdAttribute(idAttribute).build();
     }
 
     /**
@@ -864,8 +865,8 @@ public class PubsubIO {
               FACTORY,
               NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
               getCoder(),
-              getTimestampLabel(),
-              getIdLabel(),
+              getTimestampAttribute(),
+              getIdAttribute(),
               getFormatFn(),
               100 /* numShards */));
       }
@@ -875,7 +876,8 @@ public class PubsubIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      populateCommonDisplayData(builder, getTimestampLabel(), getIdLabel(), getTopicProvider());
+      populateCommonDisplayData(
+          builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
     }
 
     @Override
@@ -897,9 +899,9 @@ public class PubsubIO {
       @StartBundle
       public void startBundle(Context c) throws IOException {
         this.output = new ArrayList<>();
-        // NOTE: idLabel is ignored.
+        // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            FACTORY.newClient(getTimestampLabel(), null,
+            FACTORY.newClient(getTimestampAttribute(), null,
                 c.getPipelineOptions().as(PubsubOptions.class));
       }
 

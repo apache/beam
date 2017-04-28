@@ -45,8 +45,8 @@ public class PubsubClientTest {
   //
 
   private long parse(String timestamp) {
-    Map<String, String> map = ImmutableMap.of("myLabel", timestamp);
-    return PubsubClient.extractTimestamp("myLabel", null, map);
+    Map<String, String> map = ImmutableMap.of("myAttribute", timestamp);
+    return PubsubClient.extractTimestamp("myAttribute", null, map);
   }
 
   private void roundTripRfc339(String timestamp) {
@@ -58,106 +58,106 @@ public class PubsubClientTest {
   }
 
   @Test
-  public void noTimestampLabelReturnsPubsubPublish() {
+  public void noTimestampAttributeReturnsPubsubPublish() {
     final long time = 987654321L;
     long timestamp = PubsubClient.extractTimestamp(null, String.valueOf(time), null);
     assertEquals(time, timestamp);
   }
 
   @Test
-  public void noTimestampLabelAndInvalidPubsubPublishThrowsError() {
+  public void noTimestampAttributeAndInvalidPubsubPublishThrowsError() {
     thrown.expect(NumberFormatException.class);
     PubsubClient.extractTimestamp(null, "not-a-date", null);
   }
 
   @Test
-  public void timestampLabelWithNullAttributesThrowsError() {
+  public void timestampAttributeWithNullAttributesThrowsError() {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("PubSub message is missing a value for timestamp label myLabel");
-    PubsubClient.extractTimestamp("myLabel", null, null);
+    thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
+    PubsubClient.extractTimestamp("myAttribute", null, null);
   }
 
   @Test
-  public void timestampLabelSetWithMissingAttributeThrowsError() {
+  public void timestampAttributeSetWithMissingAttributeThrowsError() {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("PubSub message is missing a value for timestamp label myLabel");
+    thrown.expectMessage("PubSub message is missing a value for timestamp attribute myAttribute");
     Map<String, String> map = ImmutableMap.of("otherLabel", "whatever");
-    PubsubClient.extractTimestamp("myLabel", null, map);
+    PubsubClient.extractTimestamp("myAttribute", null, map);
   }
 
   @Test
-  public void timestampLabelParsesMillisecondsSinceEpoch() {
+  public void timestampAttributeParsesMillisecondsSinceEpoch() {
     long time = 1446162101123L;
-    Map<String, String> map = ImmutableMap.of("myLabel", String.valueOf(time));
-    long timestamp = PubsubClient.extractTimestamp("myLabel", null, map);
+    Map<String, String> map = ImmutableMap.of("myAttribute", String.valueOf(time));
+    long timestamp = PubsubClient.extractTimestamp("myAttribute", null, map);
     assertEquals(time, timestamp);
   }
 
   @Test
-  public void timestampLabelParsesRfc3339Seconds() {
+  public void timestampAttributeParsesRfc3339Seconds() {
     roundTripRfc339("2015-10-29T23:41:41Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339Tenths() {
+  public void timestampAttributeParsesRfc3339Tenths() {
     roundTripRfc339("2015-10-29T23:41:41.1Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339Hundredths() {
+  public void timestampAttributeParsesRfc3339Hundredths() {
     roundTripRfc339("2015-10-29T23:41:41.12Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339Millis() {
+  public void timestampAttributeParsesRfc3339Millis() {
     roundTripRfc339("2015-10-29T23:41:41.123Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339Micros() {
+  public void timestampAttributeParsesRfc3339Micros() {
     // Note: micros part 456/1000 is dropped.
     truncatedRfc339("2015-10-29T23:41:41.123456Z", "2015-10-29T23:41:41.123Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339MicrosRounding() {
+  public void timestampAttributeParsesRfc3339MicrosRounding() {
     // Note: micros part 999/1000 is dropped, not rounded up.
     truncatedRfc339("2015-10-29T23:41:41.123999Z", "2015-10-29T23:41:41.123Z");
   }
 
   @Test
-  public void timestampLabelWithInvalidFormatThrowsError() {
+  public void timestampAttributeWithInvalidFormatThrowsError() {
     thrown.expect(NumberFormatException.class);
     parse("not-a-timestamp");
   }
 
   @Test
-  public void timestampLabelWithInvalidFormat2ThrowsError() {
+  public void timestampAttributeWithInvalidFormat2ThrowsError() {
     thrown.expect(NumberFormatException.class);
     parse("null");
   }
 
   @Test
-  public void timestampLabelWithInvalidFormat3ThrowsError() {
+  public void timestampAttributeWithInvalidFormat3ThrowsError() {
     thrown.expect(NumberFormatException.class);
     parse("2015-10");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339WithSmallYear() {
+  public void timestampAttributeParsesRfc3339WithSmallYear() {
     // Google and JodaTime agree on dates after 1582-10-15, when the Gregorian Calendar was adopted
     // This is therefore a "small year" until this difference is reconciled.
     roundTripRfc339("1582-10-15T01:23:45.123Z");
   }
 
   @Test
-  public void timestampLabelParsesRfc3339WithLargeYear() {
+  public void timestampAttributeParsesRfc3339WithLargeYear() {
     // Year 9999 in range.
     roundTripRfc339("9999-10-29T23:41:41.123999Z");
   }
 
   @Test
-  public void timestampLabelRfc3339WithTooLargeYearThrowsError() {
+  public void timestampAttributeRfc3339WithTooLargeYearThrowsError() {
     thrown.expect(NumberFormatException.class);
     // Year 10000 out of range.
     parse("10000-10-29T23:41:41.123999Z");

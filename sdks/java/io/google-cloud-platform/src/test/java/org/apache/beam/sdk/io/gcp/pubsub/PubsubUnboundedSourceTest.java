@@ -70,8 +70,8 @@ public class PubsubUnboundedSourceTest {
   private static final String DATA = "testData";
   private static final long TIMESTAMP = 1234L;
   private static final long REQ_TIME = 6373L;
-  private static final String TIMESTAMP_LABEL = "timestamp";
-  private static final String ID_LABEL = "id";
+  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final String ID_ATTRIBUTE = "id";
   private static final String ACK_ID = "testAckId";
   private static final String RECORD_ID = "testRecordId";
   private static final int ACK_TIMEOUT_S = 60;
@@ -96,7 +96,7 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
-            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL, null);
+            StringUtf8Coder.of(), TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, null);
     primSource = new PubsubSource<>(source);
   }
 

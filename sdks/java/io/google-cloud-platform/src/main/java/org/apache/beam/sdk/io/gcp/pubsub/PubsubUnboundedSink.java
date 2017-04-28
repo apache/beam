@@ -224,8 +224,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final ValueProvider<TopicPath> topic;
-    private final String timestampLabel;
-    private final String idLabel;
+    private final String timestampAttribute;
+    private final String idAttribute;
     private final int publishBatchSize;
     private final int publishBatchBytes;
 
@@ -240,12 +240,16 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     private final Counter byteCounter = SinkMetrics.bytesWritten();
 
     WriterFn(
-        PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,
-        String timestampLabel, String idLabel, int publishBatchSize, int publishBatchBytes) {
+        PubsubClientFactory pubsubFactory,
+        ValueProvider<TopicPath> topic,
+        String timestampAttribute,
+        String idAttribute,
+        int publishBatchSize,
+        int publishBatchBytes) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
-      this.timestampLabel = timestampLabel;
-      this.idLabel = idLabel;
+      this.timestampAttribute = timestampAttribute;
+      this.idAttribute = idAttribute;
       this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
     }
@@ -267,7 +271,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     @StartBundle
     public void startBundle(Context c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
-      pubsubClient = pubsubFactory.newClient(timestampLabel, idLabel,
+      pubsubClient = pubsubFactory.newClient(timestampAttribute, idAttribute,
                                              c.getPipelineOptions().as(PubsubOptions.class));
     }
 
@@ -311,8 +315,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
             : topic.toString();
       builder.add(DisplayData.item("topic", topicString));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
-      builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
+      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
+      builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
 
@@ -341,14 +345,14 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    * Pubsub message publish timestamp instead.
    */
   @Nullable
-  private final String timestampLabel;
+  private final String timestampAttribute;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
    * a unique id ourselves.
    */
   @Nullable
-  private final String idLabel;
+  private final String idAttribute;
 
   /**
    * Number of 'shards' to use so that latency in Pubsub publish can be hidden. Generally this
@@ -374,7 +378,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private final Duration maxLatency;
 
   /**
-   * How record ids should be generated for each record (if {@link #idLabel} is non-{@literal
+   * How record ids should be generated for each record (if {@link #idAttribute} is non-{@literal
    * null}).
    */
   private final RecordIdMethod recordIdMethod;
@@ -390,8 +394,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
       Coder<T> elementCoder,
-      String timestampLabel,
-      String idLabel,
+      String timestampAttribute,
+      String idAttribute,
       int numShards,
       int publishBatchSize,
       int publishBatchBytes,
@@ -401,25 +405,25 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
     this.elementCoder = elementCoder;
-    this.timestampLabel = timestampLabel;
-    this.idLabel = idLabel;
+    this.timestampAttribute = timestampAttribute;
+    this.idAttribute = idAttribute;
     this.numShards = numShards;
     this.publishBatchSize = publishBatchSize;
     this.publishBatchBytes = publishBatchBytes;
     this.maxLatency = maxLatency;
     this.formatFn = formatFn;
-    this.recordIdMethod = idLabel == null ? RecordIdMethod.NONE : recordIdMethod;
+    this.recordIdMethod = idAttribute == null ? RecordIdMethod.NONE : recordIdMethod;
   }
 
   public PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
       Coder<T> elementCoder,
-      String timestampLabel,
-      String idLabel,
+      String timestampAttribute,
+      String idAttribute,
       SimpleFunction<T, PubsubIO.PubsubMessage> formatFn,
       int numShards) {
-    this(pubsubFactory, topic, elementCoder, timestampLabel, idLabel, numShards,
+    this(pubsubFactory, topic, elementCoder, timestampAttribute, idAttribute, numShards,
          DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
          formatFn, RecordIdMethod.RANDOM);
   }
@@ -439,19 +443,19 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   /**
-   * Get the timestamp label.
+   * Get the timestamp attribute.
    */
   @Nullable
-  public String getTimestampLabel() {
-    return timestampLabel;
+  public String getTimestampAttribute() {
+    return timestampAttribute;
   }
 
   /**
-   * Get the id label.
+   * Get the id attribute.
    */
   @Nullable
-  public String getIdLabel() {
-    return idLabel;
+  public String getIdAttribute() {
+    return idAttribute;
   }
 
   /**
@@ -483,7 +487,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
          .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
          .apply(GroupByKey.<Integer, OutgoingMessage>create())
          .apply("PubsubUnboundedSink.Writer",
-             ParDo.of(new WriterFn(pubsubFactory, topic, timestampLabel, idLabel,
+             ParDo.of(new WriterFn(pubsubFactory, topic, timestampAttribute, idAttribute,
                  publishBatchSize, publishBatchBytes)));
     return PDone.in(input.getPipeline());
   }
