@@ -19,16 +19,14 @@ package org.apache.beam.integration.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
@@ -37,7 +35,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 public class Done implements KnownSize, Serializable {
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<Done> CODER = new AtomicCoder<Done>() {
+  public static final Coder<Done> CODER = new CustomCoder<Done>() {
     @Override
     public void encode(Done value, OutputStream outStream,
         Coder.Context context)
@@ -52,6 +50,7 @@ public class Done implements KnownSize, Serializable {
       String message = STRING_CODER.decode(inStream, Context.NESTED);
       return new Done(message);
     }
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   };
 
   @JsonProperty

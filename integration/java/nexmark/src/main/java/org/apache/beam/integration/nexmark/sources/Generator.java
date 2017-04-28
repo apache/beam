@@ -27,14 +27,13 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.model.Person;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -102,7 +101,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
 
     /** Coder for this class. */
     public static final Coder<Checkpoint> CODER_INSTANCE =
-        new AtomicCoder<Checkpoint>() {
+        new CustomCoder<Checkpoint>() {
           @Override
           public void encode(
               Checkpoint value,
@@ -121,6 +120,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
             long wallclockBaseTime = LONG_CODER.decode(inStream, Context.NESTED);
             return new Checkpoint(numEvents, wallclockBaseTime);
           }
+          @Override public void verifyDeterministic() throws NonDeterministicException {}
         };
 
     private long numEvents;

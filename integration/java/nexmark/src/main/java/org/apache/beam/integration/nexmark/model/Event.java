@@ -22,10 +22,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import javax.annotation.Nullable;
-
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 
 /**
@@ -35,7 +34,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 public class Event implements KnownSize, Serializable {
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
-  public static final Coder<Event> CODER = new AtomicCoder<Event>() {
+  public static final Coder<Event> CODER = new CustomCoder<Event>() {
     @Override
     public void encode(Event value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
@@ -71,6 +70,7 @@ public class Event implements KnownSize, Serializable {
         throw new RuntimeException("invalid event encoding");
       }
     }
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   };
 
   @Nullable

@@ -35,9 +35,9 @@ import org.apache.beam.integration.nexmark.model.AuctionBid;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.sources.GeneratorConfig;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.metrics.Counter;
@@ -145,7 +145,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
   /**
    * Encodes an {@link AuctionOrBidWindow} as an {@link IntervalWindow} and an auction id long.
    */
-  private static class AuctionOrBidWindowCoder extends AtomicCoder<AuctionOrBidWindow> {
+  private static class AuctionOrBidWindowCoder extends CustomCoder<AuctionOrBidWindow> {
     private static final AuctionOrBidWindowCoder INSTANCE = new AuctionOrBidWindowCoder();
     private static final Coder<IntervalWindow> SUPER_CODER = IntervalWindow.getCoder();
     private static final Coder<Long> ID_CODER = VarLongCoder.of();
@@ -157,22 +157,25 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override
-    public void encode(AuctionOrBidWindow window, OutputStream outStream, Context context)
+    public void encode(AuctionOrBidWindow window, OutputStream outStream, Coder.Context context)
         throws IOException, CoderException {
-      SUPER_CODER.encode(window, outStream, Context.NESTED);
-      ID_CODER.encode(window.auction, outStream, Context.NESTED);
-      INT_CODER.encode(window.isAuctionWindow ? 1 : 0, outStream, Context.NESTED);
+      SUPER_CODER.encode(window, outStream, Coder.Context.NESTED);
+      ID_CODER.encode(window.auction, outStream, Coder.Context.NESTED);
+      INT_CODER.encode(window.isAuctionWindow ? 1 : 0, outStream, Coder.Context.NESTED);
     }
 
     @Override
-    public AuctionOrBidWindow decode(InputStream inStream, Context context)
+    public AuctionOrBidWindow decode(InputStream inStream, Coder.Context context)
         throws IOException, CoderException {
-      IntervalWindow superWindow = SUPER_CODER.decode(inStream, Context.NESTED);
-      long auction = ID_CODER.decode(inStream, Context.NESTED);
-      boolean isAuctionWindow = INT_CODER.decode(inStream, Context.NESTED) == 0 ? false : true;
+      IntervalWindow superWindow = SUPER_CODER.decode(inStream, Coder.Context.NESTED);
+      long auction = ID_CODER.decode(inStream, Coder.Context.NESTED);
+      boolean isAuctionWindow =
+          INT_CODER.decode(inStream, Coder.Context.NESTED) == 0 ? false : true;
       return new AuctionOrBidWindow(
           superWindow.start(), superWindow.end(), auction, isAuctionWindow);
     }
+
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   }
 
   /** Assign events to auction windows and merges them intelligently. */

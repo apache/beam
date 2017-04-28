@@ -19,16 +19,14 @@ package org.apache.beam.integration.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 
@@ -39,7 +37,7 @@ public class IdNameReserve implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
 
-  public static final Coder<IdNameReserve> CODER = new AtomicCoder<IdNameReserve>() {
+  public static final Coder<IdNameReserve> CODER = new CustomCoder<IdNameReserve>() {
     @Override
     public void encode(IdNameReserve value, OutputStream outStream,
         Coder.Context context)
@@ -58,6 +56,7 @@ public class IdNameReserve implements KnownSize, Serializable {
       long reserve = LONG_CODER.decode(inStream, Context.NESTED);
       return new IdNameReserve(id, name, reserve);
     }
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   };
 
   @JsonProperty

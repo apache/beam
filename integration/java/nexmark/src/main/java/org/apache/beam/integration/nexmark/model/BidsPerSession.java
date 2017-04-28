@@ -19,16 +19,14 @@ package org.apache.beam.integration.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 
 /**
@@ -37,7 +35,7 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 public class BidsPerSession implements KnownSize, Serializable {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
 
-  public static final Coder<BidsPerSession> CODER = new AtomicCoder<BidsPerSession>() {
+  public static final Coder<BidsPerSession> CODER = new CustomCoder<BidsPerSession>() {
     @Override
     public void encode(BidsPerSession value, OutputStream outStream,
         Coder.Context context)
@@ -54,6 +52,7 @@ public class BidsPerSession implements KnownSize, Serializable {
       long bidsPerSession = LONG_CODER.decode(inStream, Context.NESTED);
       return new BidsPerSession(personId, bidsPerSession);
     }
+    @Override public void verifyDeterministic() throws NonDeterministicException {}
   };
 
   @JsonProperty
