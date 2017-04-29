@@ -436,8 +436,16 @@ public class GcsUtil {
    * @param type the type of object, eg "text/plain".
    * @return a Callable object that encloses the operation.
    */
-  public WritableByteChannel create(GcsPath path,
-      String type) throws IOException {
+  public WritableByteChannel create(GcsPath path, String type) throws IOException {
+    return create(path, type, uploadBufferSizeBytes);
+  }
+
+  /**
+   * Same as {@link GcsUtil#create(GcsPath, String)} but allows overriding
+   * {code uploadBufferSizeBytes}.
+   */
+  public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
+      throws IOException {
     GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         executorService,
         storageClient,
