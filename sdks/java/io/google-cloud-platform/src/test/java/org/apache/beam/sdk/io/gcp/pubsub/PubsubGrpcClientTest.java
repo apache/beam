@@ -72,8 +72,8 @@ public class PubsubGrpcClientTest {
   private static final long REQ_TIME = 1234L;
   private static final long PUB_TIME = 3456L;
   private static final long MESSAGE_TIME = 6789L;
-  private static final String TIMESTAMP_LABEL = "timestamp";
-  private static final String ID_LABEL = "id";
+  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final String ID_ATTRIBUTE = "id";
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
   private static final String RECORD_ID = "testRecordId";
@@ -87,7 +87,9 @@ public class PubsubGrpcClientTest {
         PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
     testCredentials = new TestCredential();
-    client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 10, inProcessChannel, testCredentials);
+    client =
+        new PubsubGrpcClient(
+            TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 10, inProcessChannel, testCredentials);
   }
 
   @After
@@ -117,9 +119,9 @@ public class PubsubGrpcClientTest {
                      .setPublishTime(timestamp)
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_LABEL,
+                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE,
                                          String.valueOf(MESSAGE_TIME),
-                                         ID_LABEL, RECORD_ID))
+                             ID_ATTRIBUTE, RECORD_ID))
                      .build();
     ReceivedMessage expectedReceivedMessage =
         ReceivedMessage.newBuilder()
@@ -167,8 +169,8 @@ public class PubsubGrpcClientTest {
                      .setData(ByteString.copyFrom(DATA.getBytes()))
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
-                                         ID_LABEL, RECORD_ID))
+                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
+                                         ID_ATTRIBUTE, RECORD_ID))
                      .build();
     final PublishRequest expectedRequest =
         PublishRequest.newBuilder()

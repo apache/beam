@@ -922,12 +922,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
         }
       }
-      if (overriddenTransform.getTimestampLabel() != null) {
+      if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
-            PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
+            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
       }
-      if (overriddenTransform.getIdLabel() != null) {
-        stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+      if (overriddenTransform.getIdAttribute() != null) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
       }
       if (overriddenTransform.getWithAttributesParseFn() != null) {
         stepContext.addInput(
@@ -997,12 +998,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PropertyNames.PUBSUB_TOPIC_OVERRIDE,
             ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
       }
-      if (overriddenTransform.getTimestampLabel() != null) {
+      if (overriddenTransform.getTimestampAttribute() != null) {
         stepContext.addInput(
-            PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
+            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
       }
-      if (overriddenTransform.getIdLabel() != null) {
-        stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+      if (overriddenTransform.getIdAttribute() != null) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_ID_ATTRIBUTE, overriddenTransform.getIdAttribute());
       }
       if (overriddenTransform.getFormatFn() != null) {
         stepContext.addInput(
