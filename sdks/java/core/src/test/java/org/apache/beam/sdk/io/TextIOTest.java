@@ -315,7 +315,7 @@ public class TextIOTest {
     p.run();
 
     assertOutputFiles(elems, header, footer, numShards, baseDir, outputName,
-        write.getShardNameTemplate());
+        write.getShardTemplate());
   }
 
   public static void assertOutputFiles(
@@ -478,7 +478,7 @@ public class TextIOTest {
       drunkElems.add(elem);
     }
     assertOutputFiles(drunkElems.toArray(new String[0]), null, null, 1, baseDir,
-        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardNameTemplate());
+        outputName + writableByteChannelFactory.getFilenameSuffix(), write.getShardTemplate());
   }
 
   @Test
