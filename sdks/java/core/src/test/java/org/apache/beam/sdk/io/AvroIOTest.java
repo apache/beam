@@ -282,10 +282,6 @@ public class AvroIOTest {
     p.run();
   }
 
-  private TimestampedValue<GenericClass> newValue(GenericClass element, Duration duration) {
-    return TimestampedValue.of(element, new Instant(0).plus(duration));
-  }
-
   private static class WindowedFilenamePolicy extends FilenamePolicy {
     String outputFilePrefix;
 
@@ -550,8 +546,8 @@ public class AvroIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    AvroIO.Read<?> read = AvroIO.read().from("foo.*")
-        .withSchema(Schema.create(Schema.Type.STRING));
+    AvroIO.Read<?> read =
+        AvroIO.readGenericRecords(Schema.create(Schema.Type.STRING)).from("foo.*");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("AvroIO.Read should include the file pattern in its primitive transform",
