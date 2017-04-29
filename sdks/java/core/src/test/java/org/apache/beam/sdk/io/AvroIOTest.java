@@ -103,7 +103,7 @@ public class AvroIOTest {
 
   @Test
   public void testAvroIOGetName() {
-    assertEquals("AvroIO.Read", AvroIO.Read.from("gs://bucket/foo*/baz").getName());
+    assertEquals("AvroIO.Read", AvroIO.read().from("gs://bucket/foo*/baz").getName());
     assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
   }
 
@@ -150,8 +150,11 @@ public class AvroIOTest {
           .withSchema(GenericClass.class));
     p.run();
 
-    PCollection<GenericClass> input = p
-        .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClass.class));
+    PCollection<GenericClass> input =
+        p.apply(
+            AvroIO.<GenericClass>read()
+                .from(outputFile.getAbsolutePath())
+                .withSchema(GenericClass.class));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
@@ -173,7 +176,7 @@ public class AvroIOTest {
     p.run();
 
     PCollection<GenericClass> input = p
-        .apply(AvroIO.Read
+        .apply(AvroIO.<GenericClass>read()
             .from(outputFile.getAbsolutePath())
             .withSchema(GenericClass.class));
 
@@ -200,7 +203,7 @@ public class AvroIOTest {
     p.run();
 
     PCollection<GenericClass> input = p
-        .apply(AvroIO.Read
+        .apply(AvroIO.<GenericClass>read()
             .from(outputFile.getAbsolutePath())
             .withSchema(GenericClass.class));
 
@@ -269,8 +272,11 @@ public class AvroIOTest {
     List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
         new GenericClassV2(5, "bar", null));
 
-    PCollection<GenericClassV2> input = p
-        .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClassV2.class));
+    PCollection<GenericClassV2> input =
+        p.apply(
+            AvroIO.<GenericClassV2>read()
+                .from(outputFile.getAbsolutePath())
+                .withSchema(GenericClassV2.class));
 
     PAssert.that(input).containsInAnyOrder(expected);
     p.run();
@@ -533,7 +539,7 @@ public class AvroIOTest {
 
   @Test
   public void testReadDisplayData() {
-    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*");
+    AvroIO.Read<?> read = AvroIO.read().from("foo.*");
 
     DisplayData displayData = DisplayData.from(read);
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
@@ -544,7 +550,7 @@ public class AvroIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    AvroIO.Read.Bound<?> read = AvroIO.Read.from("foo.*")
+    AvroIO.Read<?> read = AvroIO.read().from("foo.*")
         .withSchema(Schema.create(Schema.Type.STRING));
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);

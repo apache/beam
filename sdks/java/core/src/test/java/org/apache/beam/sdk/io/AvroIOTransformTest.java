@@ -138,13 +138,13 @@ public class AvroIOTransformTest {
     }
 
     private <T> void runTestRead(@Nullable final String applyName,
-                                 final AvroIO.Read.Bound<T> readBuilder,
+                                 final AvroIO.Read<T> readBuilder,
                                  final String expectedName,
                                  final T[] expectedOutput) throws Exception {
 
       final File avroFile = tmpFolder.newFile("file.avro");
       generateAvroFile(generateAvroObjects(), avroFile);
-      final AvroIO.Read.Bound<T> read = readBuilder.from(avroFile.getPath());
+      final AvroIO.Read<T> read = readBuilder.from(avroFile.getPath());
       final PCollection<T> output =
           applyName == null ? pipeline.apply(read) : pipeline.apply(applyName, read);
 
@@ -169,14 +169,14 @@ public class AvroIOTransformTest {
                   // test read using generated class
                   new Object[] {
                       null,
-                      AvroIO.Read.withSchema(AvroGeneratedUser.class),
+                      AvroIO.<AvroGeneratedUser>read().withSchema(AvroGeneratedUser.class),
                       "AvroIO.Read/Read.out",
                       generateAvroObjects(),
                       generatedClass
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.Read.withSchema(AvroGeneratedUser.class),
+                      AvroIO.<AvroGeneratedUser>read().withSchema(AvroGeneratedUser.class),
                       "MyRead/Read.out",
                       generateAvroObjects(),
                       generatedClass
@@ -185,14 +185,14 @@ public class AvroIOTransformTest {
                   // test read using schema object
                   new Object[] {
                       null,
-                      AvroIO.Read.withSchema(SCHEMA),
+                      AvroIO.read().withSchema(SCHEMA),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.Read.withSchema(SCHEMA),
+                      AvroIO.read().withSchema(SCHEMA),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
@@ -201,14 +201,14 @@ public class AvroIOTransformTest {
                   // test read using schema string
                   new Object[] {
                       null,
-                      AvroIO.Read.withSchema(SCHEMA_STRING),
+                      AvroIO.read().withSchema(SCHEMA_STRING),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.Read.withSchema(SCHEMA_STRING),
+                      AvroIO.read().withSchema(SCHEMA_STRING),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
@@ -221,7 +221,7 @@ public class AvroIOTransformTest {
     public String transformName;
 
     @Parameterized.Parameter(1)
-    public AvroIO.Read.Bound readTransform;
+    public AvroIO.Read readTransform;
 
     @Parameterized.Parameter(2)
     public String expectedReadTransformName;

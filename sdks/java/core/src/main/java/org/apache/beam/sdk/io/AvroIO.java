@@ -63,7 +63,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.Read.from("/path/to/file.avro")
+ *     p.apply(AvroIO.read().from("/path/to/file.avro")
  *                 .withSchema(AvroAutoGenClass.class));
  *
  * // A Read from a GCS file (runs locally and using remote execution):
@@ -125,15 +125,39 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class AvroIO {
   /**
-   * A root {@link PTransform} that reads from an Avro file (or multiple Avro
-   * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each record.
+   * Reads records of the given type from an Avro file (or multiple Avro files matching a pattern).
+   *
+   * <p>The schema must be specified using one of the {@code withSchema} functions.
    */
-  public static class Read {
+  public static <T> Read<T> read() {
+    return new Read<>();
+  }
+
+  /** Implementation of {@link #read}. */
+  public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+    /** The filepattern to read from. */
+    @Nullable
+    final String filepattern;
+    /** The class type of the records. */
+    @Nullable
+    final Class<T> type;
+    /** The schema of the input file. */
+    @Nullable
+    final Schema schema;
+
+    Read() {
+      this(null, null, null, null);
+    }
+
+    Read(String name, String filepattern, Class<T> type, Schema schema) {
+      super(name);
+      this.filepattern = filepattern;
+      this.type = type;
+      this.schema = schema;
+    }
 
     /**
-     * Returns a {@link PTransform} that reads from the file(s)
-     * with the given name or pattern. This can be a local filename
+     * Reads from the file(s) with the given name or pattern. This can be a local filename
      * or filename pattern (if running locally), or a Google Cloud
      * Storage filename or filename pattern of the form
      * {@code "gs://<bucket>/<filepath>"} (if running locally or
@@ -141,162 +165,82 @@ public class AvroIO {
      * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
      * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
-    public static Bound<GenericRecord> from(String filepattern) {
-      return new Bound<>(GenericRecord.class).from(filepattern);
+    public Read<T> from(String filepattern) {
+      return new Read<>(name, filepattern, type, schema);
     }
 
     /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records whose type is the specified Avro-generated class.
+     * Returns a new {@link PTransform} that's like this one but
+     * that reads Avro file(s) containing records whose type is the
+     * specified Avro-generated class.
+     */
+    public Read<T> withSchema(Class<T> type) {
+      return new Read<>(name, filepattern, type, ReflectData.get().getSchema(type));
+    }
+
+    /**
+     * Returns a new {@link PTransform} that's like this one but
+     * that reads Avro file(s) containing records of the specified schema.
+     */
+    public Read<GenericRecord> withSchema(Schema schema) {
+      return new Read<>(name, filepattern, GenericRecord.class, schema);
+    }
+
+    /**
+     * Returns a new {@link PTransform} that's like this one but
+     * that reads Avro file(s) containing records of the specified schema
+     * in a JSON-encoded string form.
      *
-     * @param <T> the type of the decoded elements, and the elements
-     * of the resulting {@link PCollection}
+     * <p>Does not modify this object.
      */
-    public static <T> Bound<T> withSchema(Class<T> type) {
-      return new Bound<>(type).withSchema(type);
-    }
-
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records of the specified schema.
-     */
-    public static Bound<GenericRecord> withSchema(Schema schema) {
-      return new Bound<>(GenericRecord.class).withSchema(schema);
-    }
-
-    /**
-     * Returns a {@link PTransform} that reads Avro file(s)
-     * containing records of the specified schema in a JSON-encoded
-     * string form.
-     */
-    public static Bound<GenericRecord> withSchema(String schema) {
+    public Read<GenericRecord> withSchema(String schema) {
       return withSchema((new Schema.Parser()).parse(schema));
     }
 
-    /**
-     * A {@link PTransform} that reads from an Avro file (or multiple Avro
-     * files matching a pattern) and returns a bounded {@link PCollection} containing
-     * the decoding of each record.
-     *
-     * @param <T> the type of each of the elements of the resulting
-     * PCollection
-     */
-    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
-      /** The filepattern to read from. */
-      @Nullable
-      final String filepattern;
-      /** The class type of the records. */
-      final Class<T> type;
-      /** The schema of the input file. */
-      @Nullable
-      final Schema schema;
-
-      Bound(Class<T> type) {
-        this(null, null, type, null);
+    @Override
+    public PCollection<T> expand(PBegin input) {
+      if (filepattern == null) {
+        throw new IllegalStateException(
+            "need to set the filepattern of an AvroIO.Read transform");
+      }
+      if (schema == null) {
+        throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
       }
 
-      Bound(String name, String filepattern, Class<T> type, Schema schema) {
-        super(name);
-        this.filepattern = filepattern;
-        this.type = type;
-        this.schema = schema;
-      }
+      @SuppressWarnings("unchecked")
+      Bounded<T> read =
+          type == GenericRecord.class
+              ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
+                  AvroSource.from(filepattern).withSchema(schema))
+              : org.apache.beam.sdk.io.Read.from(
+                  AvroSource.from(filepattern).withSchema(type));
 
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads from the file(s) with the given name or pattern.
-       * (See {@link AvroIO.Read#from} for a description of
-       * filepatterns.)
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> from(String filepattern) {
-        return new Bound<>(name, filepattern, type, schema);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records whose type is the
-       * specified Avro-generated class.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param <X> the type of the decoded elements and the elements of
-       * the resulting PCollection
-       */
-      public <X> Bound<X> withSchema(Class<X> type) {
-        return new Bound<>(name, filepattern, type, ReflectData.get().getSchema(type));
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records of the specified schema.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(Schema schema) {
-        return new Bound<>(name, filepattern, GenericRecord.class, schema);
-      }
-
-      /**
-       * Returns a new {@link PTransform} that's like this one but
-       * that reads Avro file(s) containing records of the specified schema
-       * in a JSON-encoded string form.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<GenericRecord> withSchema(String schema) {
-        return withSchema((new Schema.Parser()).parse(schema));
-      }
-
-      @Override
-      public PCollection<T> expand(PBegin input) {
-        if (filepattern == null) {
-          throw new IllegalStateException(
-              "need to set the filepattern of an AvroIO.Read transform");
-        }
-        if (schema == null) {
-          throw new IllegalStateException("need to set the schema of an AvroIO.Read transform");
-        }
-
-        @SuppressWarnings("unchecked")
-        Bounded<T> read =
-            type == GenericRecord.class
-                ? (Bounded<T>) org.apache.beam.sdk.io.Read.from(
-                    AvroSource.from(filepattern).withSchema(schema))
-                : org.apache.beam.sdk.io.Read.from(
-                    AvroSource.from(filepattern).withSchema(type));
-
-        PCollection<T> pcol = input.getPipeline().apply("Read", read);
-        // Honor the default output coder that would have been used by this PTransform.
-        pcol.setCoder(getDefaultOutputCoder());
-        return pcol;
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-        builder
-          .addIfNotNull(DisplayData.item("filePattern", filepattern)
-            .withLabel("Input File Pattern"));
-      }
-
-      @Override
-      protected Coder<T> getDefaultOutputCoder() {
-        return AvroCoder.of(type, schema);
-      }
-
-      public String getFilepattern() {
-        return filepattern;
-      }
-
-      public Schema getSchema() {
-        return schema;
-      }
+      PCollection<T> pcol = input.getPipeline().apply("Read", read);
+      // Honor the default output coder that would have been used by this PTransform.
+      pcol.setCoder(getDefaultOutputCoder());
+      return pcol;
     }
 
-    /** Disallow construction of utility class. */
-    private Read() {}
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+        .addIfNotNull(DisplayData.item("filePattern", filepattern)
+          .withLabel("Input File Pattern"));
+    }
+
+    @Override
+    protected Coder<T> getDefaultOutputCoder() {
+      return AvroCoder.of(type, schema);
+    }
+
+    public String getFilepattern() {
+      return filepattern;
+    }
+
+    public Schema getSchema() {
+      return schema;
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////
