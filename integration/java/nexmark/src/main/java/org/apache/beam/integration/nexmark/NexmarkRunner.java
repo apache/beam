@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
-import org.apache.beam.integration.nexmark.io.PubsubHelper;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
@@ -86,7 +85,7 @@ import org.joda.time.Duration;
 /**
  * Run a single Nexmark query using a given configuration.
  */
-public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
+public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -125,12 +124,6 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   protected NexmarkConfiguration configuration;
 
   /**
-   * Accumulate the pub/sub subscriptions etc which should be cleaned up on end of run.
-   */
-  @Nullable
-  protected PubsubHelper pubsub;
-
-  /**
    * If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null.
    */
   @Nullable
@@ -158,16 +151,6 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
     this.options = options;
   }
 
-  /**
-   * Return a Pubsub helper.
-   */
-  private PubsubHelper getPubsub() {
-    if (pubsub == null) {
-      pubsub = PubsubHelper.create(options);
-    }
-    return pubsub;
-  }
-
   // ================================================================================
   // Overridden by each runner.
   // ================================================================================
@@ -175,17 +158,23 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Is this query running in streaming mode?
    */
-  protected abstract boolean isStreaming();
+  protected boolean isStreaming() {
+    return options.isStreaming();
+  }
 
   /**
    * Return number of cores per worker.
    */
-  protected abstract int coresPerWorker();
+  protected int coresPerWorker() {
+    return 4;
+  }
 
   /**
    * Return maximum number of workers.
    */
-  protected abstract int maxNumWorkers();
+  protected int maxNumWorkers() {
+    return 5;
+  }
 
   /**
    * Return the current value for a long counter, or a default value if can't be retrieved.
@@ -544,13 +533,20 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Invoke the builder with options suitable for running a publish-only child pipeline.
    */
-  protected abstract void invokeBuilderForPublishOnlyPipeline(PipelineBuilder builder);
+  protected void invokeBuilderForPublishOnlyPipeline(
+      PipelineBuilder builder) {
+    builder.build(options);
+//    throw new UnsupportedOperationException(
+//        "Cannot use --pubSubMode=COMBINED with DirectRunner");
+  }
 
   /**
    * If monitoring, wait until the publisher pipeline has run long enough to establish
    * a backlog on the Pubsub topic. Otherwise, return immediately.
    */
-  protected abstract void waitForPublisherPreload();
+  protected void waitForPublisherPreload() {
+    throw new UnsupportedOperationException();
+  }
 
   /**
    * Monitor the performance and progress of a running job. Return final performance if
@@ -841,24 +837,14 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return source of events from Pubsub.
    */
   private PCollection<Event> sourceEventsFromPubsub(Pipeline p, long now) {
-    String shortTopic = shortTopic(now);
     String shortSubscription = shortSubscription(now);
-
-    // Create/confirm the subscription.
-    String subscription = null;
-    if (!options.getManageResources()) {
-      // The subscription should already have been created by the user.
-      subscription = getPubsub().reuseSubscription(shortTopic, shortSubscription).getPath();
-    } else {
-      subscription = getPubsub().createSubscription(shortTopic, shortSubscription).getPath();
-    }
-    NexmarkUtils.console("Reading events from Pubsub %s", subscription);
+    NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
     PubsubIO.Read<Event> io =
-        PubsubIO.<Event>read().subscription(subscription)
-            .idLabel(NexmarkUtils.PUBSUB_ID)
+        PubsubIO.<Event>read().fromSubscription(shortSubscription)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID)
             .withCoder(Event.CODER);
     if (!configuration.usePubsubPublishTime) {
-      io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
     return p.apply(queryName + ".ReadPubsubEvents", io);
   }
@@ -884,26 +870,13 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
    */
   private void sinkEventsToPubsub(PCollection<Event> events, long now) {
     String shortTopic = shortTopic(now);
-
-    // Create/confirm the topic.
-    String topic;
-    if (!options.getManageResources()
-        || configuration.pubSubMode == NexmarkUtils.PubSubMode.SUBSCRIBE_ONLY) {
-      // The topic should already have been created by the user or
-      // a companion 'PUBLISH_ONLY' process.
-      topic = getPubsub().reuseTopic(shortTopic).getPath();
-    } else {
-      // Create a fresh topic to loopback via. It will be destroyed when the
-      // (necessarily blocking) job is done.
-      topic = getPubsub().createTopic(shortTopic).getPath();
-    }
-    NexmarkUtils.console("Writing events to Pubsub %s", topic);
+    NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
     PubsubIO.Write<Event> io =
-        PubsubIO.<Event>write().topic(topic)
-                      .idLabel(NexmarkUtils.PUBSUB_ID)
+        PubsubIO.<Event>write().to(shortTopic)
+                      .withIdAttribute(NexmarkUtils.PUBSUB_ID)
                       .withCoder(Event.CODER);
     if (!configuration.usePubsubPublishTime) {
-      io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
     events.apply(queryName + ".WritePubsubEvents", io);
   }
@@ -913,18 +886,12 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
    */
   private void sinkResultsToPubsub(PCollection<String> formattedResults, long now) {
     String shortTopic = shortTopic(now);
-    String topic;
-    if (!options.getManageResources()) {
-      topic = getPubsub().reuseTopic(shortTopic).getPath();
-    } else {
-      topic = getPubsub().createTopic(shortTopic).getPath();
-    }
-    NexmarkUtils.console("Writing results to Pubsub %s", topic);
+    NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
     PubsubIO.Write<String> io =
-        PubsubIO.<String>write().topic(topic)
-            .idLabel(NexmarkUtils.PUBSUB_ID);
+        PubsubIO.<String>write().to(shortTopic)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
-      io = io.timestampLabel(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
     formattedResults.apply(queryName + ".WritePubsubResults", io);
   }
@@ -1168,7 +1135,6 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
     // Setup per-run state.
     //
     checkState(configuration == null);
-    checkState(pubsub == null);
     checkState(queryName == null);
     configuration = runConfiguration;
 
@@ -1282,19 +1248,9 @@ public abstract class NexmarkRunner<OptionT extends NexmarkOptions> {
       mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
       return monitor(query);
     } finally {
-      //
-      // Cleanup per-run state.
-      //
-      if (pubsub != null) {
-        // Delete any subscriptions and topics we created.
-        pubsub.close();
-        pubsub = null;
-      }
       configuration = null;
       queryName = null;
       // TODO: Cleanup pathsToDelete
     }
-
   }
-
 }

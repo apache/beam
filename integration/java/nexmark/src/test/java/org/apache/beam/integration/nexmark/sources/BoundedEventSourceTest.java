@@ -18,7 +18,7 @@
 package org.apache.beam.integration.nexmark.sources;
 
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.integration.nexmark.NexmarkOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 
@@ -38,7 +38,7 @@ public class BoundedEventSourceTest {
 
   @Test
   public void sourceAndReadersWork() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    NexmarkOptions options = PipelineOptionsFactory.as(NexmarkOptions.class);
     long n = 200L;
     BoundedEventSource source = new BoundedEventSource(makeConfig(n), 1);
 
@@ -48,7 +48,7 @@ public class BoundedEventSourceTest {
 
   @Test
   public void splitAtFractionRespectsContract() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    NexmarkOptions options = PipelineOptionsFactory.as(NexmarkOptions.class);
     long n = 20L;
     BoundedEventSource source = new BoundedEventSource(makeConfig(n), 1);
 
@@ -62,7 +62,7 @@ public class BoundedEventSourceTest {
 
   @Test
   public void splitIntoBundlesRespectsContract() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    NexmarkOptions options = PipelineOptionsFactory.as(NexmarkOptions.class);
     long n = 200L;
     BoundedEventSource source = new BoundedEventSource(makeConfig(n), 1);
     SourceTestUtils.assertSourcesEqualReferenceSource(

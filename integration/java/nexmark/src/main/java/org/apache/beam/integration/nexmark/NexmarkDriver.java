@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Person;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -293,5 +294,13 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
       throw new RuntimeException("Unable to save javascript file: ", e);
     }
     NexmarkUtils.console("saved javascript to file %s.", javascriptFilename);
+  }
+
+  public static void main(String[] args) {
+    NexmarkOptions options = PipelineOptionsFactory.fromArgs(args)
+      .withValidation()
+      .as(NexmarkOptions.class);
+    NexmarkRunner runner = new NexmarkRunner(options);
+    new NexmarkDriver().runAll(options, runner);
   }
 }
