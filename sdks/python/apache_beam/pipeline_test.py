@@ -442,7 +442,7 @@ class RunnerApiTest(unittest.TestCase):
     p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
     proto = p.to_runner_api()
 
-    p2 = Pipeline.from_runner_api(proto, p.runner, p.options)
+    p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
     p2.run()
 
 
