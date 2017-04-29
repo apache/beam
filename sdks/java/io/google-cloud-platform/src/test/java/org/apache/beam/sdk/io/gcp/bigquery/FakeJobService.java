@@ -76,9 +76,9 @@ import org.joda.time.Duration;
  */
 class FakeJobService implements JobService, Serializable {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
-  // Whenever a job is started, the first 5 calls to GetJob will report the job as pending,
-  // the next 5 will return the job as running, and only then will the job report as done.
-  private static final int GET_JOBS_TRANSITION_INTERVAL = 5;
+  // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,
+  // the next 2 will return the job as running, and only then will the job report as done.
+  private static final int GET_JOBS_TRANSITION_INTERVAL = 2;
 
   private FakeDatasetService datasetService;
 
