@@ -19,33 +19,24 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -952,126 +943,4 @@ public class AvroIO {
 
   /** Disallow construction of utility class. */
   private AvroIO() {}
-
-  /**
-   * A {@link FileBasedSink} for Avro files.
-   */
-  @VisibleForTesting
-  static class AvroSink<T> extends FileBasedSink<T> {
-    private final AvroCoder<T> coder;
-    private final SerializableAvroCodecFactory codec;
-    private final ImmutableMap<String, Object> metadata;
-
-    @VisibleForTesting
-    AvroSink(
-        FilenamePolicy filenamePolicy,
-        AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec,
-        ImmutableMap<String, Object> metadata) {
-      super(filenamePolicy);
-      this.coder = coder;
-      this.codec = codec;
-      this.metadata = metadata;
-    }
-
-    @VisibleForTesting
-    AvroSink(
-        String baseOutputFilename,
-        String extension,
-        String fileNameTemplate,
-        AvroCoder<T> coder,
-        SerializableAvroCodecFactory codec,
-        ImmutableMap<String, Object> metadata) {
-      super(baseOutputFilename, extension, fileNameTemplate);
-      this.coder = coder;
-      this.codec = codec;
-      this.metadata = metadata;
-    }
-
-    @Override
-    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation() {
-      return new AvroWriteOperation<>(this, coder, codec, metadata);
-    }
-
-    /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
-     * FileBasedWriteOperation} for Avro files.
-     */
-    private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
-      private final AvroCoder<T> coder;
-      private final SerializableAvroCodecFactory codec;
-      private final ImmutableMap<String, Object> metadata;
-
-      private AvroWriteOperation(AvroSink<T> sink,
-                                 AvroCoder<T> coder,
-                                 SerializableAvroCodecFactory codec,
-                                 ImmutableMap<String, Object> metadata) {
-        super(sink);
-        this.coder = coder;
-        this.codec = codec;
-        this.metadata = metadata;
-      }
-
-      @Override
-      public FileBasedWriter<T> createWriter(PipelineOptions options) throws Exception {
-        return new AvroWriter<>(this, coder, codec, metadata);
-      }
-    }
-
-    /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
-     * for Avro files.
-     */
-    private static class AvroWriter<T> extends FileBasedWriter<T> {
-      private final AvroCoder<T> coder;
-      private DataFileWriter<T> dataFileWriter;
-      private SerializableAvroCodecFactory codec;
-      private final ImmutableMap<String, Object> metadata;
-
-      public AvroWriter(FileBasedWriteOperation<T> writeOperation,
-                        AvroCoder<T> coder,
-                        SerializableAvroCodecFactory codec,
-                        ImmutableMap<String, Object> metadata) {
-        super(writeOperation, MimeTypes.BINARY);
-        this.coder = coder;
-        this.codec = codec;
-        this.metadata = metadata;
-      }
-
-      @SuppressWarnings("deprecation") // uses internal test functionality.
-      @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
-            ? new GenericDatumWriter<T>(coder.getSchema())
-            : new ReflectDatumWriter<T>(coder.getSchema());
-
-        dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec.getCodec());
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-          Object v = entry.getValue();
-          if (v instanceof String) {
-            dataFileWriter.setMeta(entry.getKey(), (String) v);
-          } else if (v instanceof Long) {
-            dataFileWriter.setMeta(entry.getKey(), (Long) v);
-          } else if (v instanceof byte[]) {
-            dataFileWriter.setMeta(entry.getKey(), (byte[]) v);
-          } else {
-            throw new IllegalStateException(
-                "Metadata value type must be one of String, Long, or byte[]. Found "
-                    + v.getClass().getSimpleName());
-          }
-        }
-        dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
-      }
-
-      @Override
-      public void write(T value) throws Exception {
-        dataFileWriter.append(value);
-      }
-
-      @Override
-      protected void finishWrite() throws Exception {
-        dataFileWriter.flush();
-      }
-    }
-  }
 }
