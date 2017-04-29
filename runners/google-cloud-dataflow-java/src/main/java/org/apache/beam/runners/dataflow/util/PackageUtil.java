@@ -51,14 +51,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +107,8 @@ class PackageUtil {
 
       // Create the DataflowPackage with staging name and location.
       String uniqueName = getUniqueContentName(source, hash);
-      String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
+      String resourcePath = FileSystems.matchSingleFileSpec(stagingPath).resourceId()
+          .resolve(uniqueName, StandardResolveOptions.RESOLVE_FILE).toString();
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
       target.setLocation(resourcePath);
@@ -181,14 +179,10 @@ class PackageUtil {
     }
   }
 
-  private static WritableByteChannel makeWriter(String target, GcsUtil gcsUtil)
+  private static WritableByteChannel makeWriter(String target)
       throws IOException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(target);
-    if (factory instanceof GcsIOChannelFactory) {
-      return gcsUtil.create(GcsPath.fromUri(target), MimeTypes.BINARY);
-    } else {
-      return factory.create(target, MimeTypes.BINARY);
-    }
+    return FileSystems.create(FileSystems.matchNewResource(target, false),
+        MimeTypes.BINARY);
   }
 
   /**
@@ -197,7 +191,7 @@ class PackageUtil {
    */
   private static void stageOnePackage(
       PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
-      Sleeper retrySleeper, GcsUtil gcsUtil) {
+      Sleeper retrySleeper) {
     String source = attributes.getSourcePath();
     String target = attributes.getDataflowPackage().getLocation();
 
@@ -205,7 +199,7 @@ class PackageUtil {
     // always using MimeTypes.BINARY?
     try {
       try {
-        long remoteLength = IOChannelUtils.getSizeBytes(target);
+        long remoteLength = FileSystems.matchSingleFileSpec(target).sizeBytes();
         if (remoteLength == attributes.getSize()) {
           LOG.debug("Skipping classpath element already staged: {} at {}",
               attributes.getSourcePath(), target);
@@ -221,7 +215,7 @@ class PackageUtil {
       while (true) {
         try {
           LOG.debug("Uploading classpath element {} to {}", source, target);
-          try (WritableByteChannel writer = makeWriter(target, gcsUtil)) {
+          try (WritableByteChannel writer = makeWriter(target)) {
             copyContent(source, writer);
           }
           numUploaded.incrementAndGet();
@@ -262,12 +256,12 @@ class PackageUtil {
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
   static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath, GcsUtil gcsUtil) {
+      Collection<String> classpathElements, String stagingPath) {
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32));
     try {
-      return stageClasspathElements(
-          classpathElements, stagingPath, Sleeper.DEFAULT, executorService, gcsUtil);
+      return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT,
+          executorService);
     } finally {
       executorService.shutdown();
     }
@@ -276,7 +270,7 @@ class PackageUtil {
   // Visible for testing.
   static List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, final String stagingPath,
-      final Sleeper retrySleeper, ListeningExecutorService executorService, final GcsUtil gcsUtil) {
+      final Sleeper retrySleeper, ListeningExecutorService executorService) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
 
@@ -314,7 +308,7 @@ class PackageUtil {
       futures.add(executorService.submit(new Runnable() {
         @Override
         public void run() {
-          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, gcsUtil);
+          stageOnePackage(attributes, numUploaded, numCached, retrySleeper);
         }
       }));
     }
