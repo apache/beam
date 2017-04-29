@@ -62,6 +62,7 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.runners.core.construction.Coders;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -106,18 +107,23 @@ public class ProcessBundleHandlerTest {
   static {
     try {
       STRING_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
-          .setId(STRING_CODER_SPEC_ID)
-          .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(STRING_CODER.asCloudObject()))).build())))
-          .build();
+          BeamFnApi.Coder.newBuilder()
+              .setFunctionSpec(
+                  BeamFnApi.FunctionSpec.newBuilder()
+                      .setId(STRING_CODER_SPEC_ID)
+                      .setData(Any.pack(Coders.toProto(STRING_CODER))))
+              .build();
       LONG_CODER_SPEC =
-          BeamFnApi.Coder.newBuilder().setFunctionSpec(BeamFnApi.FunctionSpec.newBuilder()
-          .setId(STRING_CODER_SPEC_ID)
-          .setData(Any.pack(BytesValue.newBuilder().setValue(ByteString.copyFrom(
-              OBJECT_MAPPER.writeValueAsBytes(WindowedValue.getFullCoder(
-                  VarLongCoder.of(), GlobalWindow.Coder.INSTANCE).asCloudObject()))).build())))
-          .build();
+          BeamFnApi.Coder.newBuilder()
+              .setFunctionSpec(
+                  BeamFnApi.FunctionSpec.newBuilder()
+                      .setId(STRING_CODER_SPEC_ID)
+                      .setData(
+                          Any.pack(
+                              Coders.toProto(
+                                  WindowedValue.getFullCoder(
+                                      VarLongCoder.of(), GlobalWindow.Coder.INSTANCE)))))
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
