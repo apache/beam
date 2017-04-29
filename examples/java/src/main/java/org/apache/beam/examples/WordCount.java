@@ -45,8 +45,8 @@ import org.apache.beam.sdk.values.PCollection;
  * pipeline, for introduction of additional concepts.
  *
  * <p>For a detailed walkthrough of this example, see
- *   <a href="http://beam.apache.org/use/walkthroughs/">
- *   http://beam.apache.org/use/walkthroughs/
+ *   <a href="https://beam.apache.org/get-started/wordcount-example/">
+ *   https://beam.apache.org/get-started/wordcount-example/
  *   </a>
  *
  * <p>Basic concepts, also in the MinimalWordCount example:
