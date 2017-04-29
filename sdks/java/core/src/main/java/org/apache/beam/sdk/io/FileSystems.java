@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -122,16 +121,16 @@ public class FileSystems {
       throw new IOException(
           String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
     }
-    Metadata[] metadata = matchResult.metadata();
-    if (metadata.length != 1) {
+    List<Metadata> metadata = matchResult.metadata();
+    if (metadata.size() != 1) {
       throw new IOException(
         String.format(
             "Expecting spec %s to match exactly one file, but matched %s: %s",
             spec,
-            metadata.length,
-            Arrays.toString(metadata)));
+            metadata.size(),
+            metadata));
     }
-    return metadata[0];
+    return metadata.get(0);
   }
 
   /**

@@ -37,7 +37,6 @@ import java.io.Reader;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -120,8 +119,8 @@ public class NumberedShardedFile implements ShardedFile {
     do {
       try {
         // Match inputPath which may contains glob
-        Collection<Metadata> files = Arrays.asList(Iterables.getOnlyElement(
-            FileSystems.match(ImmutableList.of(filePattern))).metadata());
+        Collection<Metadata> files = Iterables.getOnlyElement(
+            FileSystems.match(ImmutableList.of(filePattern))).metadata();
 
         LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePattern);
 
