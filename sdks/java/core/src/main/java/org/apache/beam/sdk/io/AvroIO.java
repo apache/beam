@@ -89,26 +89,23 @@ import org.apache.beam.sdk.values.PDone;
  * {@link FileBasedSink.FilenamePolicy} must be set, and unique windows and triggers must produce
  * unique filenames.
  *
- * <p>It is required to specify {@link AvroIO.Write#withSchema}. To
- * write specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To write {@link GenericRecord GenericRecords}, provide either
- * a {@link Schema} object or a schema in a JSON-encoded string form.
- * An exception will be thrown if a record doesn't match the specified
- * schema.
+ * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}.
+ * To write {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)}
+ * which takes a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema
+ * in a JSON-encoded string form. An exception will be thrown if a record doesn't match the
+ * specified schema.
  *
  * <p>For example:
  * <pre> {@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
- * records.apply(AvroIO.write().to("/path/to/file.avro")
- *                           .withSchema(AvroAutoGenClass.class));
+ * records.apply(AvroIO.write(AvroAutoGenClass.class).to("/path/to/file.avro"));
  *
  * // A Write to a sharded GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply("WriteToAvro", AvroIO.write()
+ * records.apply("WriteToAvro", AvroIO.writeGenericRecords(schema)
  *     .to("gs://my_bucket/path/to/numbers")
- *     .withSchema(schema)
  *     .withSuffix(".avro"));
  * } </pre>
  *
@@ -153,24 +150,29 @@ public class AvroIO {
    * Writes a {@link PCollection} to an Avro file (or multiple Avro files matching a sharding
    * pattern).
    */
-  public static <T> Write<T> write() {
+  public static <T> Write<T> write(Class<T> recordClass) {
+    return AvroIO.<T>defaultWriteBuilder()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .build();
+  }
+
+  /** Writes Avro records of the specified schema. */
+  public static Write<GenericRecord> writeGenericRecords(Schema schema) {
+    return AvroIO.<GenericRecord>defaultWriteBuilder()
+        .setRecordClass(GenericRecord.class)
+        .setSchema(schema)
+        .build();
+  }
+
+  private static <T> Write.Builder<T> defaultWriteBuilder() {
     return new AutoValue_AvroIO_Write.Builder<T>()
         .setFilenameSuffix("")
         .setNumShards(0)
         .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
         .setCodec(Write.DEFAULT_CODEC)
         .setMetadata(ImmutableMap.<String, Object>of())
-        .setWindowedWrites(false)
-        .build();
-  }
-
-  /** Writes Avro records of the specified schema. */
-  public static Write<GenericRecord> writeGenericRecords(Schema schema) {
-    return AvroIO.<GenericRecord>write()
-        .toBuilder()
-        .setRecordClass(GenericRecord.class)
-        .setSchema(schema)
-        .build();
+        .setWindowedWrites(false);
   }
 
   /**
@@ -367,13 +369,6 @@ public class AvroIO {
 
     public Write<T> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
-    }
-
-    /**
-     * Writes to Avro file(s) containing records whose type is the specified Avro-generated class.
-     */
-    public Write<T> withSchema(Class<T> type) {
-      return toBuilder().setRecordClass(type).setSchema(ReflectData.get().getSchema(type)).build();
     }
 
     /** Writes to Avro file(s) compressed using specified codec. */

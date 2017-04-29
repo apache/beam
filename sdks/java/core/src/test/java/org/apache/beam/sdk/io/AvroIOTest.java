@@ -45,7 +45,6 @@ import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
 import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
@@ -103,7 +102,7 @@ public class AvroIOTest {
   @Test
   public void testAvroIOGetName() {
     assertEquals("AvroIO.Read", AvroIO.read(String.class).from("gs://bucket/foo*/baz").getName());
-    assertEquals("AvroIO.Write", AvroIO.write().to("gs://bucket/foo/baz").getName());
+    assertEquals("AvroIO.Write", AvroIO.write(String.class).to("gs://bucket/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -144,9 +143,8 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
-          .withoutSharding()
-          .withSchema(GenericClass.class));
+      .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath())
+          .withoutSharding());
     p.run();
 
     PCollection<GenericClass> input =
@@ -167,10 +165,9 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
+        .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath())
             .withoutSharding()
-            .withCodec(CodecFactory.deflateCodec(9))
-            .withSchema(GenericClass.class));
+            .withCodec(CodecFactory.deflateCodec(9)));
     p.run();
 
     PCollection<GenericClass> input = p
@@ -193,9 +190,8 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
+        .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath())
             .withoutSharding()
-            .withSchema(GenericClass.class)
             .withCodec(CodecFactory.nullCodec()));
     p.run();
 
@@ -260,9 +256,8 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
-          .withoutSharding()
-          .withSchema(GenericClass.class));
+      .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath())
+          .withoutSharding());
     p.run();
 
     List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
@@ -367,10 +362,9 @@ public class AvroIOTest {
     windowedAvroWritePipeline
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
-        .apply(AvroIO.<GenericClass>write().to(new WindowedFilenamePolicy(outputFilePrefix))
+        .apply(AvroIO.write(GenericClass.class).to(new WindowedFilenamePolicy(outputFilePrefix))
             .withWindowedWrites()
-            .withNumShards(2)
-            .withSchema(GenericClass.class));
+            .withNumShards(2));
     windowedAvroWritePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order
@@ -402,14 +396,14 @@ public class AvroIOTest {
 
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
-    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
+    AvroIO.Write<String> write = AvroIO.write(String.class)
         .to("gs://bucket/foo/baz");
     assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
-    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
+    AvroIO.Write<?> write = AvroIO.write(String.class)
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.snappyCodec());
     assertEquals(SNAPPY_CODEC, write.getCodec().toString());
@@ -418,7 +412,7 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
-    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
+    AvroIO.Write<String> write = AvroIO.write(String.class)
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.deflateCodec(9));
 
@@ -430,7 +424,7 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomXZCodec() throws Exception {
-    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
+    AvroIO.Write<String> write = AvroIO.write(String.class)
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.xzCodec(9));
 
@@ -448,9 +442,8 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
+        .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath())
             .withoutSharding()
-            .withSchema(GenericClass.class)
             .withMetadata(ImmutableMap.<String, Object>of(
                 "stringKey", "stringValue",
                 "longKey", 100L,
@@ -471,7 +464,7 @@ public class AvroIOTest {
     String outputFilePrefix = baseOutputFile.getAbsolutePath();
 
     AvroIO.Write<String> write =
-        AvroIO.<String>write().to(outputFilePrefix).withSchema(String.class);
+        AvroIO.write(String.class).to(outputFilePrefix);
     if (numShards > 1) {
       System.out.println("NumShards " + numShards);
       write = write.withNumShards(numShards);
@@ -552,11 +545,10 @@ public class AvroIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    AvroIO.Write<?> write = AvroIO.<GenericClass>write()
+    AvroIO.Write<?> write = AvroIO.write(GenericClass.class)
         .to("foo")
         .withShardNameTemplate("-SS-of-NN-")
         .withSuffix("bar")
-        .withSchema(GenericClass.class)
         .withNumShards(100)
         .withCodec(CodecFactory.snappyCodec());
 
