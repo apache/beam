@@ -95,8 +95,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
   @Test
   public void testSourceTransform() {
     PTransform<? super PBegin, ? extends POutput> myTransform = TextIO.Read
-        .from("foo.*")
-        .withoutValidation();
+        .from("foo.*");
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(myTransform);
