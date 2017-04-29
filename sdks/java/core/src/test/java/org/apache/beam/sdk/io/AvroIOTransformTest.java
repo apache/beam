@@ -185,14 +185,14 @@ public class AvroIOTransformTest {
                   // test read using schema object
                   new Object[] {
                       null,
-                      AvroIO.read().withSchema(SCHEMA),
+                      AvroIO.readGenericRecords(SCHEMA),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.read().withSchema(SCHEMA),
+                      AvroIO.readGenericRecords(SCHEMA),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
@@ -201,14 +201,14 @@ public class AvroIOTransformTest {
                   // test read using schema string
                   new Object[] {
                       null,
-                      AvroIO.read().withSchema(SCHEMA_STRING),
+                      AvroIO.readGenericRecords(SCHEMA_STRING),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.read().withSchema(SCHEMA_STRING),
+                      AvroIO.readGenericRecords(SCHEMA_STRING),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString

@@ -133,6 +133,18 @@ public class AvroIO {
     return new Read<>();
   }
 
+  /** Reads Avro file(s) containing records of the specified schema. */
+  public static Read<GenericRecord> readGenericRecords(Schema schema) {
+    return new Read<>(null, null, GenericRecord.class, schema);
+  }
+
+  /**
+   * Like {@link #readGenericRecords(Schema)} but the schema is specified as a JSON-encoded string.
+   */
+  public static Read<GenericRecord> readGenericRecords(String schema) {
+    return readGenericRecords(new Schema.Parser().parse(schema));
+  }
+
   /** Implementation of {@link #read}. */
   public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     /** The filepattern to read from. */
@@ -176,25 +188,6 @@ public class AvroIO {
      */
     public Read<T> withSchema(Class<T> type) {
       return new Read<>(name, filepattern, type, ReflectData.get().getSchema(type));
-    }
-
-    /**
-     * Returns a new {@link PTransform} that's like this one but
-     * that reads Avro file(s) containing records of the specified schema.
-     */
-    public Read<GenericRecord> withSchema(Schema schema) {
-      return new Read<>(name, filepattern, GenericRecord.class, schema);
-    }
-
-    /**
-     * Returns a new {@link PTransform} that's like this one but
-     * that reads Avro file(s) containing records of the specified schema
-     * in a JSON-encoded string form.
-     *
-     * <p>Does not modify this object.
-     */
-    public Read<GenericRecord> withSchema(String schema) {
-      return withSchema((new Schema.Parser()).parse(schema));
     }
 
     @Override
