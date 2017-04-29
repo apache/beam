@@ -766,7 +766,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from(new TestValueProvider()).withoutValidation());
+    pipeline.apply(TextIO.Read.from(new TestValueProvider()));
 
     // Check that translation does not fail.
     t.translate(

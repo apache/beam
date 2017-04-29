@@ -335,8 +335,8 @@ public class DataflowRunnerTest {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p
-        .apply(TextIO.Read.from(options.getInput()).withoutValidation())
-        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+        .apply(TextIO.Read.from(options.getInput()))
+        .apply(TextIO.Write.to(options.getOutput()));
   }
 
   /**
@@ -347,7 +347,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    PCollection<String> unconsumed = p.apply(Read.from(options.getInput()).withoutValidation());
+    PCollection<String> unconsumed = p.apply(Read.from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(new PipelineVisitor.Defaults() {

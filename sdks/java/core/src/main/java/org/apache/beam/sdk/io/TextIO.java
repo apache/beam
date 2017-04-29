@@ -196,20 +196,6 @@ public class TextIO {
 
       /**
        * Returns a new transform for reading from text files that's like this one but
-       * that has GCS path validation on pipeline creation disabled.
-       *
-       * <p>This can be useful in the case where the GCS input does not
-       * exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withoutValidation() {
-        return new Bound(name, filepattern, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
        * reads from input sources using the specified compression type.
        *
        * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
@@ -367,18 +353,6 @@ public class TextIO {
      */
     public static Bound withoutSharding() {
       return new Bound().withoutSharding();
-    }
-
-    /**
-     * Returns a transform for writing to text files that has GCS path validation on
-     * pipeline creation disabled.
-     *
-     * <p>This can be useful in the case where the GCS output location does
-     * not exist at the pipeline creation time, but is expected to be available
-     * at execution time.
-     */
-    public static Bound withoutValidation() {
-      return new Bound().withoutValidation();
     }
 
     /**
@@ -576,21 +550,6 @@ public class TextIO {
       public Bound withoutSharding() {
         return new Bound(name, filenamePrefix, filenameSuffix, header, footer, 1, "",
             writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that has GCS output path validation on pipeline creation disabled.
-       *
-       * <p>This can be useful in the case where the GCS output location does
-       * not exist at the pipeline creation time, but is expected to be
-       * available at execution time.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withoutValidation() {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
       }
 
       /**
