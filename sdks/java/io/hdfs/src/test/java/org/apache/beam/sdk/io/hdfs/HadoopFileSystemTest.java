@@ -215,7 +215,8 @@ public class HadoopFileSystemTest {
     create("testFileB", "testDataB".getBytes());
     create("testFileC", "testDataC".getBytes());
 
-    HadoopFileSystemOptions options = p.testingPipelineOptions().as(HadoopFileSystemOptions.class);
+    HadoopFileSystemOptions options = TestPipeline.testingPipelineOptions()
+        .as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
     FileSystems.setDefaultConfigInWorkers(options);
     PCollection<String> pc = p.apply(TextIO.Read.from(testPath("testFile*").toString()));
