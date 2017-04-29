@@ -64,6 +64,7 @@ from apache_beam.utils.pipeline_options import SetupOptions
 from apache_beam.utils.pipeline_options import StandardOptions
 from apache_beam.utils.pipeline_options import TypeOptions
 from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.utils.annotations import deprecated
 
 
 class Pipeline(object):
@@ -94,25 +95,24 @@ class Pipeline(object):
       ValueError: if either the runner or options argument is not of the
       expected type.
     """
-
     if options is not None:
       if isinstance(options, PipelineOptions):
-        self.options = options
+        self._options = options
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
             'Received : %r', options)
     elif argv is not None:
       if isinstance(argv, list):
-        self.options = PipelineOptions(argv)
+        self._options = PipelineOptions(argv)
       else:
         raise ValueError(
             'Parameter argv, if specified, must be a list. Received : %r', argv)
     else:
-      self.options = PipelineOptions([])
+      self._options = PipelineOptions([])
 
     if runner is None:
-      runner = self.options.view_as(StandardOptions).runner
+      runner = self._options.view_as(StandardOptions).runner
       if runner is None:
         runner = StandardOptions.DEFAULT_RUNNER
         logging.info(('Missing pipeline option (runner). Executing pipeline '
@@ -125,7 +125,7 @@ class Pipeline(object):
                       'name of a registered runner.')
 
     # Validate pipeline options
-    errors = PipelineOptionsValidator(self.options, runner).validate()
+    errors = PipelineOptionsValidator(self._options, runner).validate()
     if errors:
       raise ValueError(
           'Pipeline has validations errors: \n' + '\n'.join(errors))
@@ -139,6 +139,17 @@ class Pipeline(object):
     # If a transform is applied and the full label is already in the set
     # then the transform will have to be cloned with a new label.
     self.applied_labels = set()
+
+  @property
+  @deprecated(since='First stable release',
+              extra_message='Avoid references to <pipeline>.options')
+  def options(self):
+    return self._options
+
+  # @options.setter
+  # @deprecated(since='First stable release')
+  # def options(self, val=None):
+  #   self._options = val
 
   def _current_transform(self):
     """Returns the transform currently on the top of the stack."""
@@ -154,9 +165,9 @@ class Pipeline(object):
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
-          self.to_runner_api(), self.runner, self.options).run(False)
+          self.to_runner_api(), self.runner, self._options).run(False)
 
-    if self.options.view_as(SetupOptions).save_main_session:
+    if self._options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()
       try:
@@ -246,7 +257,7 @@ class Pipeline(object):
     self._current_transform().add_part(current)
     self.transforms_stack.append(current)
 
-    type_options = self.options.view_as(TypeOptions)
+    type_options = self._options.view_as(TypeOptions)
     if type_options.pipeline_type_check:
       transform.type_check_inputs(pvalueish)
 
