@@ -271,16 +271,16 @@ public class AvroIOTransformTest {
           ImmutableList.<Object[]>builder()
               .add(
                   new Object[] {
-                      AvroIO.Write.withSchema(AvroGeneratedUser.class),
+                      AvroIO.<AvroGeneratedUser>write().withSchema(AvroGeneratedUser.class),
                       generatedClass
                   },
                   new Object[] {
-                      AvroIO.Write.withSchema(SCHEMA),
+                      AvroIO.write().withSchema(SCHEMA),
                       fromSchema
                   },
 
                   new Object[] {
-                      AvroIO.Write.withSchema(SCHEMA_STRING),
+                      AvroIO.write().withSchema(SCHEMA_STRING),
                       fromSchemaString
                   })
               .build();
@@ -288,17 +288,17 @@ public class AvroIOTransformTest {
 
     @SuppressWarnings("DefaultAnnotationParam")
     @Parameterized.Parameter(0)
-    public AvroIO.Write.Bound writeTransform;
+    public AvroIO.Write writeTransform;
 
     @Parameterized.Parameter(1)
     public String testAlias;
 
-    private <T> void runTestWrite(final AvroIO.Write.Bound<T> writeBuilder)
+    private <T> void runTestWrite(final AvroIO.Write<T> writeBuilder)
         throws Exception {
 
       final File avroFile = tmpFolder.newFile("file.avro");
       final AvroGeneratedUser[] users = generateAvroObjects();
-      final AvroIO.Write.Bound<T> write = writeBuilder.to(avroFile.getPath());
+      final AvroIO.Write<T> write = writeBuilder.to(avroFile.getPath());
 
       @SuppressWarnings("unchecked") final
       PCollection<T> input =

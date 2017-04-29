@@ -51,7 +51,6 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.io.AvroIO.Write.Bound;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -104,7 +103,7 @@ public class AvroIOTest {
   @Test
   public void testAvroIOGetName() {
     assertEquals("AvroIO.Read", AvroIO.read().from("gs://bucket/foo*/baz").getName());
-    assertEquals("AvroIO.Write", AvroIO.Write.to("gs://bucket/foo/baz").getName());
+    assertEquals("AvroIO.Write", AvroIO.write().to("gs://bucket/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -145,7 +144,7 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+      .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
           .withoutSharding()
           .withSchema(GenericClass.class));
     p.run();
@@ -169,7 +168,7 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
             .withoutSharding()
             .withCodec(CodecFactory.deflateCodec(9))
             .withSchema(GenericClass.class));
@@ -196,7 +195,7 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
             .withoutSharding()
             .withSchema(GenericClass.class)
             .withCodec(CodecFactory.nullCodec()));
@@ -264,7 +263,7 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-      .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+      .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
           .withoutSharding()
           .withSchema(GenericClass.class));
     p.run();
@@ -372,7 +371,7 @@ public class AvroIOTest {
     windowedAvroWritePipeline
         .apply(values)
         .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
-        .apply(AvroIO.Write.to(new WindowedFilenamePolicy(outputFilePrefix))
+        .apply(AvroIO.<GenericClass>write().to(new WindowedFilenamePolicy(outputFilePrefix))
             .withWindowedWrites()
             .withNumShards(2)
             .withSchema(GenericClass.class));
@@ -407,14 +406,14 @@ public class AvroIOTest {
 
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
-    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
+    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
         .to("gs://bucket/foo/baz");
     assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
-    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
+    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.snappyCodec());
     assertEquals(SNAPPY_CODEC, write.getCodec().toString());
@@ -423,11 +422,11 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
-    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
+    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.deflateCodec(9));
 
-    AvroIO.Write.Bound<GenericRecord> serdeWrite = SerializableUtils.clone(write);
+    AvroIO.Write<GenericRecord> serdeWrite = SerializableUtils.clone(write);
 
     assertEquals(CodecFactory.deflateCodec(9).toString(), serdeWrite.getCodec().toString());
   }
@@ -435,11 +434,11 @@ public class AvroIOTest {
   @Test
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomXZCodec() throws Exception {
-    AvroIO.Write.Bound<GenericRecord> write = AvroIO.Write
+    AvroIO.Write<GenericRecord> write = AvroIO.<GenericRecord>write()
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.xzCodec(9));
 
-    AvroIO.Write.Bound<GenericRecord> serdeWrite = SerializableUtils.clone(write);
+    AvroIO.Write<GenericRecord> serdeWrite = SerializableUtils.clone(write);
 
     assertEquals(CodecFactory.xzCodec(9).toString(), serdeWrite.getCodec().toString());
   }
@@ -453,7 +452,7 @@ public class AvroIOTest {
     File outputFile = tmpFolder.newFile("output.avro");
 
     p.apply(Create.of(values))
-        .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+        .apply(AvroIO.<GenericClass>write().to(outputFile.getAbsolutePath())
             .withoutSharding()
             .withSchema(GenericClass.class)
             .withMetadata(ImmutableMap.<String, Object>of(
@@ -475,7 +474,8 @@ public class AvroIOTest {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     String outputFilePrefix = baseOutputFile.getAbsolutePath();
 
-    Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
+    AvroIO.Write<String> write =
+        AvroIO.<String>write().to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
       System.out.println("NumShards " + numShards);
       write = write.withNumShards(numShards);
@@ -556,7 +556,7 @@ public class AvroIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    AvroIO.Write.Bound<?> write = AvroIO.Write
+    AvroIO.Write<?> write = AvroIO.<GenericClass>write()
         .to("foo")
         .withShardNameTemplate("-SS-of-NN-")
         .withSuffix("bar")
@@ -584,10 +584,9 @@ public class AvroIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
-    AvroIO.Write.Bound<?> write = AvroIO.Write
+    AvroIO.Write<?> write = AvroIO.<GenericRecord>write()
         .to(outputPath)
-        .withSchema(Schema.create(Schema.Type.STRING))
-        .withoutValidation();
+        .withSchema(Schema.create(Schema.Type.STRING));
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("AvroIO.Write should include the file pattern in its primitive transform",
