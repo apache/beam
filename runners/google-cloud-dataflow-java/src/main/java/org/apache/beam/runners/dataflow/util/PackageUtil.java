@@ -107,7 +107,7 @@ class PackageUtil {
 
       // Create the DataflowPackage with staging name and location.
       String uniqueName = getUniqueContentName(source, hash);
-      String resourcePath = FileSystems.matchSingleFileSpec(stagingPath).resourceId()
+      String resourcePath = FileSystems.matchNewResource(stagingPath, true)
           .resolve(uniqueName, StandardResolveOptions.RESOLVE_FILE).toString();
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
