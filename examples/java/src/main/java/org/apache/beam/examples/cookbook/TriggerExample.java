@@ -446,7 +446,7 @@ public class TriggerExample {
         options.getBigQueryDataset(), options.getBigQueryTable());
 
     PCollectionList<TableRow> resultList = pipeline
-        .apply("ReadMyFile", TextIO.Read.from(options.getInput()))
+        .apply("ReadMyFile", TextIO.read().from(options.getInput()))
         .apply("InsertRandomDelays", ParDo.of(new InsertDelays()))
         .apply(ParDo.of(new ExtractFlowInfo()))
         .apply(new CalculateTotalFlow(options.getWindowDuration()));

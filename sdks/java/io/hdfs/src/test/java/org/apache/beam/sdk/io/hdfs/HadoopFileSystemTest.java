@@ -221,7 +221,8 @@ public class HadoopFileSystemTest {
         .as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
     FileSystems.setDefaultConfigInWorkers(options);
-    PCollection<String> pc = p.apply(TextIO.Read.from(testPath("testFile*").toString()));
+    PCollection<String> pc = p.apply(
+        TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");
     p.run();
   }

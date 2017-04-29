@@ -179,7 +179,7 @@ public class TfIdf {
         }
 
         PCollection<KV<URI, String>> oneUriToLines = pipeline
-            .apply("TextIO.Read(" + uriString + ")", TextIO.Read.from(uriString))
+            .apply("TextIO.Read(" + uriString + ")", TextIO.read().from(uriString))
             .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri));
 
         urisToLines = urisToLines.and(oneUriToLines);

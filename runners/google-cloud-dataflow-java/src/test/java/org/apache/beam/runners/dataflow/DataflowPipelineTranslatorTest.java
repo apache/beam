@@ -137,7 +137,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     // Enable the FileSystems API to know about gs:// URIs in this test.
     FileSystems.setDefaultConfigInWorkers(options);
 
-    p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
      .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(p);
@@ -465,7 +465,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     // Create a pipeline that the predefined step will be embedded into
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
         .apply(ParDo.of(new NoOpFn()))
         .apply(new EmbeddedTransform(predefinedStep.clone()))
         .apply(ParDo.of(new NoOpFn()));
@@ -523,7 +523,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
     String stepName = "DoFn1";
-    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
         .apply(stepName, ParDo.of(new NoOpFn()))
         .apply("WriteMyFile", TextIO.Write.to("gs://bucket/out"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
@@ -723,7 +723,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private void applyRead(Pipeline pipeline, String path) {
-    pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
+    pipeline.apply("Read(" + path + ")", TextIO.read().from(path));
   }
 
   /**
@@ -736,7 +736,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+    pipeline.apply(TextIO.read().from("gs://bucket/foo**/baz"));
 
     // Check that translation does fail.
     thrown.expectCause(allOf(
@@ -766,7 +766,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from(new TestValueProvider()));
+    pipeline.apply(TextIO.read().from(new TestValueProvider()));
 
     // Check that translation does not fail.
     t.translate(

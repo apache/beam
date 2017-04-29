@@ -132,7 +132,7 @@ public class StreamingWordExtract {
         .append(options.getBigQueryTable())
         .toString();
     pipeline
-        .apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+        .apply("ReadLines", TextIO.read().from(options.getInputFile()))
         .apply(ParDo.of(new ExtractWords()))
         .apply(ParDo.of(new Uppercase()))
         .apply(ParDo.of(new StringToRowConverter()))

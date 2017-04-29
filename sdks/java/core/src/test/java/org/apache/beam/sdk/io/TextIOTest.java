@@ -220,7 +220,7 @@ public class TextIOTest {
       }
     }
 
-    TextIO.Read.Bound read = TextIO.Read.from(filename);
+    TextIO.Read read = TextIO.read().from(filename);
 
     PCollection<String> output = p.apply(read);
 
@@ -246,15 +246,15 @@ public class TextIOTest {
 
     assertEquals(
         "TextIO.Read/Read.out",
-        p.apply(TextIO.Read.from("somefile")).getName());
+        p.apply(TextIO.read().from("somefile")).getName());
     assertEquals(
         "MyRead/Read.out",
-        p.apply("MyRead", TextIO.Read.from(emptyTxt.getPath())).getName());
+        p.apply("MyRead", TextIO.read().from(emptyTxt.getPath())).getName());
   }
 
   @Test
   public void testReadDisplayData() {
-    TextIO.Read.Bound read = TextIO.Read
+    TextIO.Read read = TextIO.read()
         .from("foo.*")
         .withCompressionType(BZIP2);
 
@@ -269,7 +269,7 @@ public class TextIOTest {
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Read.Bound read = TextIO.Read
+    TextIO.Read read = TextIO.read()
         .from("foobar");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
@@ -572,15 +572,15 @@ public class TextIOTest {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
     p
-        .apply(TextIO.Read.from(options.getInput()))
+        .apply(TextIO.read().from(options.getInput()))
         .apply(TextIO.Write.to(options.getOutput()));
   }
 
   @Test
   public void testCompressionTypeIsSet() throws Exception {
-    TextIO.Read.Bound read = TextIO.Read.from("/tmp/test");
+    TextIO.Read read = TextIO.read().from("/tmp/test");
     assertEquals(AUTO, read.getCompressionType());
-    read = TextIO.Read.from("/tmp/test").withCompressionType(GZIP);
+    read = TextIO.read().from("/tmp/test").withCompressionType(GZIP);
     assertEquals(GZIP, read.getCompressionType());
   }
 
@@ -597,14 +597,14 @@ public class TextIOTest {
   }
 
   /**
-   * Helper method that runs TextIO.Read.from(filename).withCompressionType(compressionType)
+   * Helper method that runs TextIO.read().from(filename).withCompressionType(compressionType)
    * and asserts that the results match the given expected output.
    */
   private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, String[] expected) {
 
-    TextIO.Read.Bound read =
-        TextIO.Read.from(file.getPath()).withCompressionType(compressionType);
+    TextIO.Read read =
+        TextIO.read().from(file.getPath()).withCompressionType(compressionType);
     PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
 
     PAssert.that(output).containsInAnyOrder(expected);
@@ -825,9 +825,9 @@ public class TextIOTest {
 
   @Test
   public void testTextIOGetName() {
-    assertEquals("TextIO.Read", TextIO.Read.from("somefile").getName());
+    assertEquals("TextIO.Read", TextIO.read().from("somefile").getName());
     assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
-    assertEquals("TextIO.Read", TextIO.Read.from("somefile").toString());
+    assertEquals("TextIO.Read", TextIO.read().from("somefile").toString());
   }
 
   @Test
@@ -1075,7 +1075,7 @@ public class TextIOTest {
     // Sanity check: file is at least 2 bundles long.
     assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
-    FileBasedSource<String> source = TextIO.Read.from(largeTxt.getPath()).getSource();
+    FileBasedSource<String> source = TextIO.read().from(largeTxt.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.split(desiredBundleSize, options);
 
@@ -1092,7 +1092,7 @@ public class TextIOTest {
     // Sanity check: file is at least 2 bundles long.
     assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
-    FileBasedSource<String> source = TextIO.Read.from(largeGz.getPath()).getSource();
+    FileBasedSource<String> source = TextIO.read().from(largeGz.getPath()).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.split(desiredBundleSize, options);
 
@@ -1110,7 +1110,7 @@ public class TextIOTest {
     assertThat(largeTxt.length(), greaterThan(2 * desiredBundleSize));
 
     FileBasedSource<String> source =
-        TextIO.Read.from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
+        TextIO.read().from(largeTxt.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.split(desiredBundleSize, options);
 
@@ -1128,7 +1128,7 @@ public class TextIOTest {
     assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
     FileBasedSource<String> source =
-        TextIO.Read.from(largeGz.getPath()).withCompressionType(GZIP).getSource();
+        TextIO.read().from(largeGz.getPath()).withCompressionType(GZIP).getSource();
     List<? extends FileBasedSource<String>> splits =
         source.split(desiredBundleSize, options);
 

@@ -226,7 +226,7 @@ public class UserScore {
     Pipeline pipeline = Pipeline.create(options);
 
     // Read events from a text file and parse them.
-    pipeline.apply(TextIO.Read.from(options.getInput()))
+    pipeline.apply(TextIO.read().from(options.getInput()))
       .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
