@@ -275,12 +275,12 @@ public class AvroIOTransformTest {
                       generatedClass
                   },
                   new Object[] {
-                      AvroIO.write().withSchema(SCHEMA),
+                      AvroIO.writeGenericRecords(SCHEMA),
                       fromSchema
                   },
 
                   new Object[] {
-                      AvroIO.write().withSchema(SCHEMA_STRING),
+                      AvroIO.writeGenericRecords(SCHEMA_STRING),
                       fromSchemaString
                   })
               .build();
