@@ -124,7 +124,7 @@ public class TransformTreeTest {
     p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
         .apply(sample)
         .apply(Flatten.<String>iterables())
-        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
+        .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);

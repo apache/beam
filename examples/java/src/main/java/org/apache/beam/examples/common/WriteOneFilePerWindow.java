@@ -48,7 +48,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
   @Override
   public PDone expand(PCollection<String> input) {
     return input.apply(
-        TextIO.Write
+        TextIO.write()
             .to(new PerWindowFiles(filenamePrefix))
             .withWindowedWrites()
             .withNumShards(3));

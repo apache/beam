@@ -111,7 +111,7 @@ public class MinimalWordCount {
      // formatted strings) to a series of text files.
      //
      // By default, it will write to a set of files with names like wordcount-00001-of-00005
-     .apply(TextIO.Write.to("wordcounts"));
+     .apply(TextIO.write().to("wordcounts"));
 
     // Run the pipeline.
     p.run().waitUntilFinish();

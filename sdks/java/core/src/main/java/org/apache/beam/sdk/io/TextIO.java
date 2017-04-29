@@ -86,9 +86,9 @@ import org.apache.beam.sdk.values.PDone;
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
- * {@link TextIO.Write.Bound#withWindowedWrites()} will cause windowing and triggering to be
+ * {@link TextIO.Write#withWindowedWrites()} will cause windowing and triggering to be
  * preserved. When producing windowed writes, the number of output shards must be set explicitly
- * using {@link TextIO.Write.Bound#withNumShards(int)}; some runners may set this for you to a
+ * using {@link TextIO.Write#withNumShards(int)}; some runners may set this for you to a
  * runner-chosen value, so you may need not set it yourself. A {@link FilenamePolicy} must be
  * set, and unique windows and triggers must produce unique filenames.
  *
@@ -99,11 +99,11 @@ import org.apache.beam.sdk.values.PDone;
  * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<String> lines = ...;
- * lines.apply(TextIO.Write.to("/path/to/file.txt"));
+ * lines.apply(TextIO.write().to("/path/to/file.txt"));
  *
  * // Same as above, only with Gzip compression:
  * PCollection<String> lines = ...;
- * lines.apply(TextIO.Write.to("/path/to/file.txt"));
+ * lines.apply(TextIO.write().to("/path/to/file.txt"));
  *      .withSuffix(".txt")
  *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
  * }</pre>
@@ -115,6 +115,15 @@ public class TextIO {
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
+  }
+
+  /**
+   * A {@link PTransform} that writes a {@link PCollection} to text file (or
+   * multiple text files matching a sharding pattern), with each
+   * element of the input collection encoded into its own line.
+   */
+  public static Write write() {
+    return new Write();
   }
 
   /** Implementation of {@link #read}. */
@@ -227,49 +236,105 @@ public class TextIO {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@link PTransform} that writes a {@link PCollection} to text file (or
-   * multiple text files matching a sharding pattern), with each
-   * element of the input collection encoded into its own line.
-   */
-  public static class Write {
+  /** Implementation of {@link #write}. */
+  public static class Write extends PTransform<PCollection<String>, PDone> {
+    private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+
+    /** The prefix of each file written, combined with suffix and shardTemplate. */
+    private final ValueProvider<String> filenamePrefix;
+    /** The suffix of each file written, combined with prefix and shardTemplate. */
+    private final String filenameSuffix;
+
+    /** An optional header to add to each file. */
+    @Nullable private final String header;
+
+    /** An optional footer to add to each file. */
+    @Nullable private final String footer;
+
+    /** Requested number of shards. 0 for automatic. */
+    private final int numShards;
+
+    /** The shard template of each file written, combined with prefix and suffix. */
+    private final String shardTemplate;
+
+    /** A policy for naming output files. */
+    private final FilenamePolicy filenamePolicy;
+
+    /** Whether to write windowed output files. */
+    private boolean windowedWrites;
 
     /**
-     * Returns a transform for writing to text files that writes to the file(s)
-     * with the given prefix. This can be a local filename
+     * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
+     * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     */
+    private final WritableByteChannelFactory writableByteChannelFactory;
+
+    private Write() {
+      this(null, null, "", null, null, 0, DEFAULT_SHARD_TEMPLATE,
+          FileBasedSink.CompressionType.UNCOMPRESSED, null, false);
+    }
+
+    private Write(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
+        @Nullable String header, @Nullable String footer, int numShards,
+        String shardTemplate,
+        WritableByteChannelFactory writableByteChannelFactory,
+        FilenamePolicy filenamePolicy,
+        boolean windowedWrites) {
+      super(name);
+      this.header = header;
+      this.footer = footer;
+      this.filenamePrefix = filenamePrefix;
+      this.filenameSuffix = filenameSuffix;
+      this.numShards = numShards;
+      this.shardTemplate = shardTemplate;
+      this.writableByteChannelFactory =
+          firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
+      this.filenamePolicy = filenamePolicy;
+      this.windowedWrites = windowedWrites;
+    }
+
+    /**
+     * Writes to text files with the given prefix. This can be a local filename
      * (if running locally), or a Google Cloud Storage filename of
      * the form {@code "gs://<bucket>/<filepath>"}
      * (if running locally or using remote execution).
      *
      * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link Bound#withNumShards(int)}, and end
-     * in a common extension, if given by {@link Bound#withSuffix(String)}.
+     * a shard identifier (see {@link #withNumShards(int)}, and end
+     * in a common extension, if given by {@link #withSuffix(String)}.
      */
-    public static Bound to(String prefix) {
-      return new Bound().to(prefix);
+    public Write to(String filenamePrefix) {
+      validateOutputComponent(filenamePrefix);
+      return new Write(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
+          header, footer, numShards, shardTemplate,
+          writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
-    public static Bound to(FilenamePolicy filenamePolicy) {
-      return new Bound().to(filenamePolicy);
-
-    }
-    /**
-     * Like {@link #to(String)}, but with a {@link ValueProvider}.
-     */
-    public static Bound to(ValueProvider<String> prefix) {
-      return new Bound().to(prefix);
+    /** Like {@link #to(String)}, but with a {@link ValueProvider}. */
+    public Write to(ValueProvider<String> filenamePrefix) {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
-    /**
-     * Returns a transform for writing to text files that appends the specified suffix
-     * to the created files.
-     */
-    public static Bound withSuffix(String nameExtension) {
-      return new Bound().withSuffix(nameExtension);
+    /** Like {@link #to(String)}, but with a {@link FilenamePolicy}. */
+    public Write to(FilenamePolicy filenamePolicy) {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
-     * Returns a transform for writing to text files that uses the provided shard count.
+     * Writes to the file(s) with the given filename suffix.
+     *
+     * @see ShardNameTemplate
+     */
+    public Write withSuffix(String nameExtension) {
+      validateOutputComponent(nameExtension);
+      return new Write(name, filenamePrefix, nameExtension, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
+    }
+
+    /**
+     * Uses the provided shard count.
      *
      * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline. Setting this value is not recommended
@@ -277,371 +342,169 @@ public class TextIO {
      *
      * @param numShards the number of shards to use, or 0 to let the system
      *                  decide.
+     * @see ShardNameTemplate
      */
-    public static Bound withNumShards(int numShards) {
-      return new Bound().withNumShards(numShards);
+    public Write withNumShards(int numShards) {
+      checkArgument(numShards >= 0);
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
-     * Returns a transform for writing to text files that uses the given shard name
-     * template.
+     * Uses the given shard name template.
      *
-     * <p>See {@link ShardNameTemplate} for a description of shard templates.
+     * @see ShardNameTemplate
      */
-    public static Bound withShardNameTemplate(String shardTemplate) {
-      return new Bound().withShardNameTemplate(shardTemplate);
+    public Write withShardNameTemplate(String shardTemplate) {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
-     * Returns a transform for writing to text files that forces a single file as
-     * output.
+     * Forces a single file as output.
+     *
+     * <p>Constraining the number of shards is likely to reduce
+     * the performance of a pipeline. Using this setting is not recommended
+     * unless you truly require a single output file.
+     *
+     * <p>This is a shortcut for
+     * {@code .withNumShards(1).withShardNameTemplate("")}
      */
-    public static Bound withoutSharding() {
-      return new Bound().withoutSharding();
+    public Write withoutSharding() {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, 1, "",
+          writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
-     * Returns a transform for writing to text files that adds a header string to the files
-     * it writes. Note that a newline character will be added after the header.
+     * Adds a header string to each file. A newline after the header is added automatically.
      *
      * <p>A {@code null} value will clear any previously configured header.
-     *
-     * @param header the string to be added as file header
      */
-    public static Bound withHeader(@Nullable String header) {
-      return new Bound().withHeader(header);
+    public Write withHeader(@Nullable String header) {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
-     * Returns a transform for writing to text files that adds a footer string to the files
-     * it writes. Note that a newline character will be added after the header.
+     * Adds a footer string to each file. A newline after the footer is added automatically.
      *
      * <p>A {@code null} value will clear any previously configured footer.
-     *
-     * @param footer the string to be added as file footer
      */
-    public static Bound withFooter(@Nullable String footer) {
-      return new Bound().withFooter(footer);
+    public Write withFooter(@Nullable String footer) {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
     /**
      * Returns a transform for writing to text files like this one but that has the given
-     * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output. The
-     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output.
+     * The default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
      *
      * <p>A {@code null} value will reset the value to the default value mentioned above.
-     *
-     * @param writableByteChannelFactory the factory to be used during output
      */
-    public static Bound withWritableByteChannelFactory(
+    public Write withWritableByteChannelFactory(
         WritableByteChannelFactory writableByteChannelFactory) {
-      return new Bound().withWritableByteChannelFactory(writableByteChannelFactory);
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
     }
 
-    // TODO: appendingNewlines, etc.
+    public Write withWindowedWrites() {
+      return new Write(name, filenamePrefix, filenameSuffix, header, footer, numShards,
+          shardTemplate, writableByteChannelFactory, filenamePolicy, true);
+    }
+
+    @Override
+    public PDone expand(PCollection<String> input) {
+      if (filenamePolicy == null && filenamePrefix == null) {
+        throw new IllegalStateException(
+            "need to set the filename prefix of an TextIO.Write transform");
+      }
+      if (filenamePolicy != null && filenamePrefix != null) {
+        throw new IllegalStateException(
+            "cannot set both a filename policy and a filename prefix");
+      }
+      WriteFiles<String> write = null;
+      if (filenamePolicy != null) {
+       write = WriteFiles.to(
+           new TextSink(filenamePolicy, header, footer, writableByteChannelFactory));
+      } else {
+        write = WriteFiles.to(
+            new TextSink(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
+                writableByteChannelFactory));
+      }
+      if (getNumShards() > 0) {
+        write = write.withNumShards(getNumShards());
+      }
+      if (windowedWrites) {
+        write = write.withWindowedWrites();
+      }
+      return input.apply("WriteFiles", write);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      String prefixString = "";
+      if (filenamePrefix != null) {
+        prefixString = filenamePrefix.isAccessible()
+            ? filenamePrefix.get() : filenamePrefix.toString();
+      }
+      builder
+          .addIfNotNull(DisplayData.item("filePrefix", prefixString)
+            .withLabel("Output File Prefix"))
+          .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
+            .withLabel("Output File Suffix"), "")
+          .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
+            .withLabel("Output Shard Name Template"),
+              DEFAULT_SHARD_TEMPLATE)
+          .addIfNotDefault(DisplayData.item("numShards", numShards)
+            .withLabel("Maximum Output Shards"), 0)
+          .addIfNotNull(DisplayData.item("fileHeader", header)
+            .withLabel("File Header"))
+          .addIfNotNull(DisplayData.item("fileFooter", footer)
+              .withLabel("File Footer"))
+          .add(DisplayData
+              .item("writableByteChannelFactory", writableByteChannelFactory.toString())
+              .withLabel("Compression/Transformation Type"));
+    }
 
     /**
-     * A PTransform that writes a bounded PCollection to a text file (or
-     * multiple text files matching a sharding pattern), with each
-     * PCollection element being encoded into its own line.
+     * Returns the current shard name template string.
      */
-    public static class Bound extends PTransform<PCollection<String>, PDone> {
-      private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
+    public String getShardNameTemplate() {
+      return shardTemplate;
+    }
 
-      /** The prefix of each file written, combined with suffix and shardTemplate. */
-      private final ValueProvider<String> filenamePrefix;
-      /** The suffix of each file written, combined with prefix and shardTemplate. */
-      private final String filenameSuffix;
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
 
-      /** An optional header to add to each file. */
-      @Nullable private final String header;
+    public String getFilenamePrefix() {
+      return filenamePrefix.get();
+    }
 
-      /** An optional footer to add to each file. */
-      @Nullable private final String footer;
+    public String getShardTemplate() {
+      return shardTemplate;
+    }
 
-      /** Requested number of shards. 0 for automatic. */
-      private final int numShards;
+    public int getNumShards() {
+      return numShards;
+    }
 
-      /** The shard template of each file written, combined with prefix and suffix. */
-      private final String shardTemplate;
+    public String getFilenameSuffix() {
+      return filenameSuffix;
+    }
 
-      /** A policy for naming output files. */
-      private final FilenamePolicy filenamePolicy;
+    @Nullable
+    public String getHeader() {
+      return header;
+    }
 
-      /** Whether to write windowed output files. */
-      private boolean windowedWrites;
-
-      /**
-       * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
-       * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
-       */
-      private final WritableByteChannelFactory writableByteChannelFactory;
-
-      private Bound() {
-        this(null, null, "", null, null, 0, DEFAULT_SHARD_TEMPLATE,
-            FileBasedSink.CompressionType.UNCOMPRESSED, null, false);
-      }
-
-      private Bound(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
-          @Nullable String header, @Nullable String footer, int numShards,
-          String shardTemplate,
-          WritableByteChannelFactory writableByteChannelFactory,
-          FilenamePolicy filenamePolicy,
-          boolean windowedWrites) {
-        super(name);
-        this.header = header;
-        this.footer = footer;
-        this.filenamePrefix = filenamePrefix;
-        this.filenameSuffix = filenameSuffix;
-        this.numShards = numShards;
-        this.shardTemplate = shardTemplate;
-        this.writableByteChannelFactory =
-            firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
-        this.filenamePolicy = filenamePolicy;
-        this.windowedWrites = windowedWrites;
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that writes to the file(s) with the given filename prefix.
-       *
-       * <p>See {@link TextIO.Write#to(String) Write.to(String)} for more information.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound to(String filenamePrefix) {
-        validateOutputComponent(filenamePrefix);
-        return new Bound(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
-            header, footer, numShards, shardTemplate,
-            writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Like {@link #to(String)}, but with a {@link ValueProvider}.
-       */
-      public Bound to(ValueProvider<String> filenamePrefix) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-       /**
-        * Like {@link #to(String)}, but with a {@link FilenamePolicy}.
-        */
-      public Bound to(FilenamePolicy filenamePolicy) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that that's like this one but
-       * that writes to the file(s) with the given filename suffix.
-       *
-       * <p>Does not modify this object.
-       *
-       * @see ShardNameTemplate
-       */
-      public Bound withSuffix(String nameExtension) {
-        validateOutputComponent(nameExtension);
-        return new Bound(name, filenamePrefix, nameExtension, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that uses the provided shard count.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Setting this value is not recommended
-       * unless you require a specific number of output files.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param numShards the number of shards to use, or 0 to let the system
-       *                  decide.
-       * @see ShardNameTemplate
-       */
-      public Bound withNumShards(int numShards) {
-        checkArgument(numShards >= 0);
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that uses the given shard name template.
-       *
-       * <p>Does not modify this object.
-       *
-       * @see ShardNameTemplate
-       */
-      public Bound withShardNameTemplate(String shardTemplate) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that's like this one but
-       * that forces a single file as output.
-       *
-       * <p>Constraining the number of shards is likely to reduce
-       * the performance of a pipeline. Using this setting is not recommended
-       * unless you truly require a single output file.
-       *
-       * <p>This is a shortcut for
-       * {@code .withNumShards(1).withShardNameTemplate("")}
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withoutSharding() {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, 1, "",
-            writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that adds a header string to the files
-       * it writes. Note that a newline character will be added after the header.
-       *
-       * <p>A {@code null} value will clear any previously configured header.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param header the string to be added as file header
-       */
-      public Bound withHeader(@Nullable String header) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files that adds a footer string to the files
-       * it writes. Note that a newline character will be added after the header.
-       *
-       * <p>A {@code null} value will clear any previously configured footer.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param footer the string to be added as file footer
-       */
-      public Bound withFooter(@Nullable String footer) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      /**
-       * Returns a transform for writing to text files like this one but that has the given
-       * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output.
-       * The default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
-       *
-       * <p>A {@code null} value will reset the value to the default value mentioned above.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param writableByteChannelFactory the factory to be used during output
-       */
-      public Bound withWritableByteChannelFactory(
-          WritableByteChannelFactory writableByteChannelFactory) {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, windowedWrites);
-      }
-
-      public Bound withWindowedWrites() {
-        return new Bound(name, filenamePrefix, filenameSuffix, header, footer, numShards,
-            shardTemplate, writableByteChannelFactory, filenamePolicy, true);
-      }
-
-      @Override
-      public PDone expand(PCollection<String> input) {
-        if (filenamePolicy == null && filenamePrefix == null) {
-          throw new IllegalStateException(
-              "need to set the filename prefix of an TextIO.Write transform");
-        }
-        if (filenamePolicy != null && filenamePrefix != null) {
-          throw new IllegalStateException(
-              "cannot set both a filename policy and a filename prefix");
-        }
-        WriteFiles<String> write = null;
-        if (filenamePolicy != null) {
-         write = WriteFiles.to(
-             new TextSink(filenamePolicy, header, footer, writableByteChannelFactory));
-        } else {
-          write = WriteFiles.to(
-              new TextSink(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
-                  writableByteChannelFactory));
-        }
-        if (getNumShards() > 0) {
-          write = write.withNumShards(getNumShards());
-        }
-        if (windowedWrites) {
-          write = write.withWindowedWrites();
-        }
-        return input.apply("WriteFiles", write);
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-
-        String prefixString = "";
-        if (filenamePrefix != null) {
-          prefixString = filenamePrefix.isAccessible()
-              ? filenamePrefix.get() : filenamePrefix.toString();
-        }
-        builder
-            .addIfNotNull(DisplayData.item("filePrefix", prefixString)
-              .withLabel("Output File Prefix"))
-            .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
-              .withLabel("Output File Suffix"), "")
-            .addIfNotDefault(DisplayData.item("shardNameTemplate", shardTemplate)
-              .withLabel("Output Shard Name Template"),
-                DEFAULT_SHARD_TEMPLATE)
-            .addIfNotDefault(DisplayData.item("numShards", numShards)
-              .withLabel("Maximum Output Shards"), 0)
-            .addIfNotNull(DisplayData.item("fileHeader", header)
-              .withLabel("File Header"))
-            .addIfNotNull(DisplayData.item("fileFooter", footer)
-                .withLabel("File Footer"))
-            .add(DisplayData
-                .item("writableByteChannelFactory", writableByteChannelFactory.toString())
-                .withLabel("Compression/Transformation Type"));
-      }
-
-      /**
-       * Returns the current shard name template string.
-       */
-      public String getShardNameTemplate() {
-        return shardTemplate;
-      }
-
-      @Override
-      protected Coder<Void> getDefaultOutputCoder() {
-        return VoidCoder.of();
-      }
-
-      public String getFilenamePrefix() {
-        return filenamePrefix.get();
-      }
-
-      public String getShardTemplate() {
-        return shardTemplate;
-      }
-
-      public int getNumShards() {
-        return numShards;
-      }
-
-      public String getFilenameSuffix() {
-        return filenameSuffix;
-      }
-
-      @Nullable
-      public String getHeader() {
-        return header;
-      }
-
-      @Nullable
-      public String getFooter() {
-        return footer;
-      }
+    @Nullable
+    public String getFooter() {
+      return footer;
     }
   }
 
