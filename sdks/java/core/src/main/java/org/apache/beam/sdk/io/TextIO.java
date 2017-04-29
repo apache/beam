@@ -73,7 +73,7 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines =
- *     p.apply(TextIO.Read.from("/local/path/to/file.txt"));
+ *     p.apply(TextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
  *
  * <p>To write a {@link PCollection} to one or more text files, use
@@ -109,174 +109,131 @@ import org.apache.beam.sdk.values.PDone;
  */
 public class TextIO {
   /**
-   * A {@link PTransform} that reads from a text file (or multiple text
-   * files matching a pattern) and returns a {@link PCollection} containing
-   * the decoding of each of the lines of the text file(s) as a {@link String}.
+   * Reads from one or more text files and returns a bounded {@link PCollection} containing one
+   * element for each line of the input files.
    */
-  public static class Read {
+  public static Read read() {
+    return new Read();
+  }
 
-    /**
-     * Returns a transform for reading text files that reads from the file(s)
-     * with the given filename or filename pattern. This can be a local path (if running locally),
-     * or a Google Cloud Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or using remote execution)
-     * service). Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html"
-     * >Java Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
-     */
-    public static Bound from(String filepattern) {
-      return new Bound().from(filepattern);
+  /** Implementation of {@link #read}. */
+  public static class Read extends PTransform<PBegin, PCollection<String>> {
+    /** The filepattern to read from. */
+    @Nullable private final ValueProvider<String> filepattern;
+
+    /** Option to indicate the input source's compression type. Default is AUTO. */
+    private final TextIO.CompressionType compressionType;
+
+    private Read() {
+      this(null, null, TextIO.CompressionType.AUTO);
+    }
+
+    private Read(
+        @Nullable String name,
+        @Nullable ValueProvider<String> filepattern,
+        TextIO.CompressionType compressionType) {
+      super(name);
+      this.filepattern = filepattern;
+      this.compressionType = compressionType;
     }
 
     /**
-     * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
+     * Reads text files that reads from the file(s) with the given filename or filename pattern.
+     *
+     * <p>This can be a local path (if running locally), or a Google Cloud Storage filename or
+     * filename pattern of the form {@code "gs://<bucket>/<filepath>"} (if running locally or using
+     * remote execution service).
+     *
+     * <p>Standard <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html" >Java
+     * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
      */
-    public static Bound from(ValueProvider<String> filepattern) {
-      return new Bound().from(filepattern);
+    public Read from(String filepattern) {
+      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      return new Read(name, StaticValueProvider.of(filepattern), compressionType);
+    }
+
+    /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
+    public Read from(ValueProvider<String> filepattern) {
+      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      return new Read(name, filepattern, compressionType);
     }
 
     /**
-     * Returns a transform for reading text files that decompresses all input files
-     * using the specified compression type.
+     * Returns a new transform for reading from text files that's like this one but
+     * reads from input sources using the specified compression type.
      *
      * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
-     * In this mode, the compression type of the file is determined by its extension
-     * (e.g., {@code *.gz} is gzipped, {@code *.bz2} is bzipped, and all other extensions are
-     * uncompressed).
      */
-    public static Bound withCompressionType(TextIO.CompressionType compressionType) {
-      return new Bound().withCompressionType(compressionType);
+    public Read withCompressionType(TextIO.CompressionType compressionType) {
+      return new Read(name, filepattern, compressionType);
     }
 
-    // TODO: strippingNewlines, etc.
-
-    /**
-     * A {@link PTransform} that reads from one or more text files and returns a bounded
-     * {@link PCollection} containing one element for each line of the input files.
-     */
-    public static class Bound extends PTransform<PBegin, PCollection<String>> {
-      /** The filepattern to read from. */
-      @Nullable private final ValueProvider<String> filepattern;
-
-      /** Option to indicate the input source's compression type. Default is AUTO. */
-      private final TextIO.CompressionType compressionType;
-
-      private Bound() {
-        this(null, null, TextIO.CompressionType.AUTO);
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      if (filepattern == null) {
+        throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
       }
 
-      private Bound(
-          @Nullable String name,
-          @Nullable ValueProvider<String> filepattern,
-          TextIO.CompressionType compressionType) {
-        super(name);
-        this.filepattern = filepattern;
-        this.compressionType = compressionType;
-      }
+      final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
+      PCollection<String> pcol = input.getPipeline().apply("Read", read);
+      // Honor the default output coder that would have been used by this PTransform.
+      pcol.setCoder(getDefaultOutputCoder());
+      return pcol;
+    }
 
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * that reads from the file(s) with the given name or pattern. See {@link TextIO.Read#from}
-       * for a description of filepatterns.
-       *
-       * <p>Does not modify this object.
-
-       */
-      public Bound from(String filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, StaticValueProvider.of(filepattern), compressionType);
-      }
-
-      /**
-       * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
-       */
-      public Bound from(ValueProvider<String> filepattern) {
-        checkNotNull(filepattern, "Filepattern cannot be empty.");
-        return new Bound(name, filepattern, compressionType);
-      }
-
-      /**
-       * Returns a new transform for reading from text files that's like this one but
-       * reads from input sources using the specified compression type.
-       *
-       * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
-       * See {@link TextIO.Read#withCompressionType} for more details.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound withCompressionType(TextIO.CompressionType compressionType) {
-        return new Bound(name, filepattern, compressionType);
-      }
-
-      @Override
-      public PCollection<String> expand(PBegin input) {
-        if (filepattern == null) {
-          throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
-        }
-
-        final Bounded<String> read = org.apache.beam.sdk.io.Read.from(getSource());
-        PCollection<String> pcol = input.getPipeline().apply("Read", read);
-        // Honor the default output coder that would have been used by this PTransform.
-        pcol.setCoder(getDefaultOutputCoder());
-        return pcol;
-      }
-
-      // Helper to create a source specific to the requested compression type.
-      protected FileBasedSource<String> getSource() {
-        switch (compressionType) {
-          case UNCOMPRESSED:
-            return new TextSource(filepattern);
-          case AUTO:
-            return CompressedSource.from(new TextSource(filepattern));
-          case BZIP2:
-            return
-                CompressedSource.from(new TextSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.BZIP2);
-          case GZIP:
-            return
-                CompressedSource.from(new TextSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.GZIP);
-          case ZIP:
-            return
-                CompressedSource.from(new TextSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.ZIP);
-          case DEFLATE:
-            return
-                CompressedSource.from(new TextSource(filepattern))
-                    .withDecompression(CompressedSource.CompressionMode.DEFLATE);
-          default:
-            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
-        }
-      }
-
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        super.populateDisplayData(builder);
-
-        String filepatternDisplay = filepattern.isAccessible()
-          ? filepattern.get() : filepattern.toString();
-        builder
-            .add(DisplayData.item("compressionType", compressionType.toString())
-              .withLabel("Compression Type"))
-            .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
-              .withLabel("File Pattern"));
-      }
-
-      @Override
-      protected Coder<String> getDefaultOutputCoder() {
-        return StringUtf8Coder.of();
-      }
-
-      public String getFilepattern() {
-        return filepattern.get();
-      }
-
-      public TextIO.CompressionType getCompressionType() {
-        return compressionType;
+    // Helper to create a source specific to the requested compression type.
+    protected FileBasedSource<String> getSource() {
+      switch (compressionType) {
+        case UNCOMPRESSED:
+          return new TextSource(filepattern);
+        case AUTO:
+          return CompressedSource.from(new TextSource(filepattern));
+        case BZIP2:
+          return
+              CompressedSource.from(new TextSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.BZIP2);
+        case GZIP:
+          return
+              CompressedSource.from(new TextSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.GZIP);
+        case ZIP:
+          return
+              CompressedSource.from(new TextSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.ZIP);
+        case DEFLATE:
+          return
+              CompressedSource.from(new TextSource(filepattern))
+                  .withDecompression(CompressedSource.CompressionMode.DEFLATE);
+        default:
+          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
       }
     }
 
-    /** Disallow construction of utility classes. */
-    private Read() {}
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      String filepatternDisplay = filepattern.isAccessible()
+        ? filepattern.get() : filepattern.toString();
+      builder
+          .add(DisplayData.item("compressionType", compressionType.toString())
+            .withLabel("Compression Type"))
+          .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
+            .withLabel("File Pattern"));
+    }
+
+    @Override
+    protected Coder<String> getDefaultOutputCoder() {
+      return StringUtf8Coder.of();
+    }
+
+    public String getFilepattern() {
+      return filepattern.get();
+    }
+
+    public TextIO.CompressionType getCompressionType() {
+      return compressionType;
+    }
   }
 
 
