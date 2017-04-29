@@ -41,7 +41,7 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * @param <T> the type of the values being transcoded
  */
-public class LengthPrefixCoder<T> extends StandardCoder<T> {
+public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   public static <T> LengthPrefixCoder<T> of(
       Coder<T> valueCoder) {
@@ -112,7 +112,7 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known to be the size of the value plus the number of bytes
    * required to prefix the length.
    *
@@ -120,15 +120,15 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
    */
   @Override
   protected long getEncodedElementByteSize(T value, Context context) throws Exception {
-    if (valueCoder instanceof StandardCoder) {
-      // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
+    if (valueCoder instanceof StructuredCoder) {
+      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StandardCoder<T>) valueCoder).getEncodedElementByteSize(
+      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(
           value, Context.OUTER);
       return VarInt.getLength(valueSize) + valueSize;
     }
 
-    // If value is not a StandardCoder then fall back to the default StandardCoder behavior
+    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the length prefix.
     return super.getEncodedElementByteSize(value, context);
   }

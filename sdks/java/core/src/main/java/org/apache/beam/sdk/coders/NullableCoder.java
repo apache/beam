@@ -119,7 +119,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
@@ -135,7 +135,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
@@ -147,14 +147,14 @@ public class NullableCoder<T> extends CustomCoder<T> {
       return 1;
     }
 
-    if (valueCoder instanceof StandardCoder) {
-      // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
+    if (valueCoder instanceof StructuredCoder) {
+      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
-      return 1  + ((StandardCoder<T>) valueCoder)
+      return 1  + ((StructuredCoder<T>) valueCoder)
           .getEncodedElementByteSize(value, context);
     }
 
-    // If value is not a StandardCoder then fall back to the default StandardCoder behavior
+    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the null indicator byte.
     return super.getEncodedElementByteSize(value, context);
   }

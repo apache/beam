@@ -21,7 +21,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -64,7 +64,7 @@ public class GlobalWindow extends BoundedWindow {
   /**
    * {@link Coder} for encoding and decoding {@code GlobalWindow}s.
    */
-  public static class Coder extends StandardCoder<GlobalWindow> {
+  public static class Coder extends StructuredCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();
 
     @Override

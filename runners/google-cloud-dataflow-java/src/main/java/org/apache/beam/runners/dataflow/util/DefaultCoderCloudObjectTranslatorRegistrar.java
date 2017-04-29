@@ -30,7 +30,6 @@ import org.apache.beam.sdk.coders.Coder;
 @AutoService(CoderCloudObjectTranslatorRegistrar.class)
 public class DefaultCoderCloudObjectTranslatorRegistrar
     implements CoderCloudObjectTranslatorRegistrar {
-  @Override
   public Map<String, CloudObjectTranslator<? extends Coder>> classNamesToTranslators() {
     // TODO: Add translators
     return Collections.emptyMap();

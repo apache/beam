@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * numbers always take 10 bytes, so {@link BigEndianLongCoder} may be preferable for
  * longs that are known to often be large or negative.
  */
-public class VarLongCoder extends StandardCoder<Long> {
+public class VarLongCoder extends StructuredCoder<Long> {
   public static VarLongCoder of() {
     return INSTANCE;
   }

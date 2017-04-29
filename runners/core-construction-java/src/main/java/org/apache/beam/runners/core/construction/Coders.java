@@ -36,7 +36,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
@@ -59,8 +59,8 @@ public class Coders {
 
   // The URNs for coders which are shared across languages
   @VisibleForTesting
-  static final BiMap<Class<? extends StandardCoder>, String> KNOWN_CODER_URNS =
-      ImmutableBiMap.<Class<? extends StandardCoder>, String>builder()
+  static final BiMap<Class<? extends StructuredCoder>, String> KNOWN_CODER_URNS =
+      ImmutableBiMap.<Class<? extends StructuredCoder>, String>builder()
           .put(ByteArrayCoder.class, "urn:beam:coders:bytes:0.1")
           .put(KvCoder.class, "urn:beam:coders:kv:0.1")
           .put(VarLongCoder.class, "urn:beam:coders:varint:0.1")
@@ -82,13 +82,13 @@ public class Coders {
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
       throws IOException {
     checkArgument(
-        coder instanceof StandardCoder,
+        coder instanceof StructuredCoder,
         "A Known %s must implement %s, but %s of class %s does not",
         Coder.class.getSimpleName(),
-        StandardCoder.class.getSimpleName(),
+        StructuredCoder.class.getSimpleName(),
         coder,
         coder.getClass().getName());
-    StandardCoder<?> stdCoder = (StandardCoder<?>) coder;
+    StructuredCoder<?> stdCoder = (StructuredCoder<?>) coder;
     List<String> componentIds = new ArrayList<>();
     for (Coder<?> componentCoder : stdCoder.getComponents()) {
       componentIds.add(components.registerCoder(componentCoder));

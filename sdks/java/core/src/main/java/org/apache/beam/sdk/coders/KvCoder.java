@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
+public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
