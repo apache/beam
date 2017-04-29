@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.hadoop.conf.Configuration;
 
 /**
  * {@link AutoService} registrar for the {@link HadoopFileSystem}.
@@ -32,6 +38,25 @@ public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
-    return ImmutableList.<FileSystem>of(new HadoopFileSystem());
+    List<Configuration> configurations =
+        options.as(HadoopFileSystemOptions.class).getHdfsConfiguration();
+    if (configurations == null) {
+      configurations = Collections.emptyList();
+    }
+    checkArgument(configurations.size() <= 1,
+        String.format(
+            "The %s currently only supports at most a single Hadoop configuration.",
+            HadoopFileSystemRegistrar.class.getSimpleName()));
+
+    ImmutableList.Builder<FileSystem> builder = ImmutableList.builder();
+    for (Configuration configuration : configurations) {
+      try {
+        builder.add(new HadoopFileSystem(configuration));
+      } catch (IOException e) {
+        throw new IllegalArgumentException(String.format(
+            "Failed to construct Hadoop filesystem with configuration %s", configuration), e);
+      }
+    }
+    return builder.build();
   }
 }

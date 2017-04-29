@@ -17,35 +17,65 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import java.net.URI;
+import java.util.Objects;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.hadoop.fs.Path;
 
 /**
  * {@link ResourceId} implementation for the {@link HadoopFileSystem}.
  */
-public class HadoopResourceId implements ResourceId {
+class HadoopResourceId implements ResourceId {
+  private final URI uri;
+
+  HadoopResourceId(URI uri) {
+    this.uri = uri;
+  }
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
-    throw new UnsupportedOperationException();
+    return new HadoopResourceId(uri.resolve(other));
   }
 
   @Override
   public ResourceId getCurrentDirectory() {
-    throw new UnsupportedOperationException();
+    return new HadoopResourceId(uri.getPath().endsWith("/") ? uri : uri.resolve("."));
   }
 
-  @Override
-  public String getScheme() {
-    throw new UnsupportedOperationException();
+  public boolean isDirectory() {
+    return uri.getPath().endsWith("/");
   }
 
   @Override
   public String getFilename() {
-    throw new UnsupportedOperationException();
+    return new Path(uri).getName();
   }
 
-  public boolean isDirectory() {
-    throw new UnsupportedOperationException();
+  @Override
+  public String getScheme() {
+    return uri.getScheme();
+  }
+
+  @Override
+  public String toString() {
+    return uri.toString();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof HadoopResourceId)) {
+      return false;
+    }
+    return Objects.equals(uri, ((HadoopResourceId) obj).uri);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(uri);
+  }
+
+  Path toPath() {
+    return new Path(uri);
   }
 }
