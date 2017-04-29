@@ -422,9 +422,9 @@ public class AvroIOTest {
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.deflateCodec(9));
 
-    AvroIO.Write<GenericRecord> serdeWrite = SerializableUtils.clone(write);
-
-    assertEquals(CodecFactory.deflateCodec(9).toString(), serdeWrite.getCodec().toString());
+    assertEquals(
+        CodecFactory.deflateCodec(9).toString(),
+        SerializableUtils.clone(write.getCodec()).getCodec().toString());
   }
 
   @Test
@@ -434,9 +434,9 @@ public class AvroIOTest {
         .to("gs://bucket/foo/baz")
         .withCodec(CodecFactory.xzCodec(9));
 
-    AvroIO.Write<GenericRecord> serdeWrite = SerializableUtils.clone(write);
-
-    assertEquals(CodecFactory.xzCodec(9).toString(), serdeWrite.getCodec().toString());
+    assertEquals(
+        CodecFactory.xzCodec(9).toString(),
+        SerializableUtils.clone(write.getCodec()).getCodec().toString());
   }
 
   @Test
@@ -482,7 +482,7 @@ public class AvroIOTest {
     p.apply(Create.of(ImmutableList.copyOf(expectedElements))).apply(write);
     p.run();
 
-    String shardNameTemplate = write.getShardNameTemplate();
+    String shardNameTemplate = write.getShardTemplate();
 
     assertTestOutputs(expectedElements, numShards, outputFilePrefix, shardNameTemplate);
   }
@@ -580,9 +580,8 @@ public class AvroIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
 
-    AvroIO.Write<?> write = AvroIO.<GenericRecord>write()
-        .to(outputPath)
-        .withSchema(Schema.create(Schema.Type.STRING));
+    AvroIO.Write<?> write = AvroIO.writeGenericRecords(Schema.create(Schema.Type.STRING))
+        .to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("AvroIO.Write should include the file pattern in its primitive transform",
