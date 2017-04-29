@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -113,28 +114,23 @@ public class TextIO {
    * element for each line of the input files.
    */
   public static Read read() {
-    return new Read();
+    return new AutoValue_TextIO_Read.Builder().setCompressionType(CompressionType.AUTO).build();
   }
 
   /** Implementation of {@link #read}. */
-  public static class Read extends PTransform<PBegin, PCollection<String>> {
-    /** The filepattern to read from. */
-    @Nullable private final ValueProvider<String> filepattern;
+  @AutoValue
+  public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
+    @Nullable abstract ValueProvider<String> getFilepattern();
+    abstract CompressionType getCompressionType();
 
-    /** Option to indicate the input source's compression type. Default is AUTO. */
-    private final TextIO.CompressionType compressionType;
+    abstract Builder toBuilder();
 
-    private Read() {
-      this(null, null, TextIO.CompressionType.AUTO);
-    }
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder setCompressionType(CompressionType compressionType);
 
-    private Read(
-        @Nullable String name,
-        @Nullable ValueProvider<String> filepattern,
-        TextIO.CompressionType compressionType) {
-      super(name);
-      this.filepattern = filepattern;
-      this.compressionType = compressionType;
+      abstract Read build();
     }
 
     /**
@@ -149,13 +145,13 @@ public class TextIO {
      */
     public Read from(String filepattern) {
       checkNotNull(filepattern, "Filepattern cannot be empty.");
-      return new Read(name, StaticValueProvider.of(filepattern), compressionType);
+      return from(StaticValueProvider.of(filepattern));
     }
 
     /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
     public Read from(ValueProvider<String> filepattern) {
       checkNotNull(filepattern, "Filepattern cannot be empty.");
-      return new Read(name, filepattern, compressionType);
+      return toBuilder().setFilepattern(filepattern).build();
     }
 
     /**
@@ -165,12 +161,12 @@ public class TextIO {
      * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
      */
     public Read withCompressionType(TextIO.CompressionType compressionType) {
-      return new Read(name, filepattern, compressionType);
+      return toBuilder().setCompressionType(compressionType).build();
     }
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      if (filepattern == null) {
+      if (getFilepattern() == null) {
         throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
       }
 
@@ -183,29 +179,29 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      switch (compressionType) {
+      switch (getCompressionType()) {
         case UNCOMPRESSED:
-          return new TextSource(filepattern);
+          return new TextSource(getFilepattern());
         case AUTO:
-          return CompressedSource.from(new TextSource(filepattern));
+          return CompressedSource.from(new TextSource(getFilepattern()));
         case BZIP2:
           return
-              CompressedSource.from(new TextSource(filepattern))
+              CompressedSource.from(new TextSource(getFilepattern()))
                   .withDecompression(CompressedSource.CompressionMode.BZIP2);
         case GZIP:
           return
-              CompressedSource.from(new TextSource(filepattern))
+              CompressedSource.from(new TextSource(getFilepattern()))
                   .withDecompression(CompressedSource.CompressionMode.GZIP);
         case ZIP:
           return
-              CompressedSource.from(new TextSource(filepattern))
+              CompressedSource.from(new TextSource(getFilepattern()))
                   .withDecompression(CompressedSource.CompressionMode.ZIP);
         case DEFLATE:
           return
-              CompressedSource.from(new TextSource(filepattern))
+              CompressedSource.from(new TextSource(getFilepattern()))
                   .withDecompression(CompressedSource.CompressionMode.DEFLATE);
         default:
-          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+          throw new IllegalArgumentException("Unknown compression type: " + getFilepattern());
       }
     }
 
@@ -213,10 +209,10 @@ public class TextIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      String filepatternDisplay = filepattern.isAccessible()
-        ? filepattern.get() : filepattern.toString();
+      String filepatternDisplay = getFilepattern().isAccessible()
+        ? getFilepattern().get() : getFilepattern().toString();
       builder
-          .add(DisplayData.item("compressionType", compressionType.toString())
+          .add(DisplayData.item("compressionType", getCompressionType().toString())
             .withLabel("Compression Type"))
           .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
             .withLabel("File Pattern"));
@@ -225,14 +221,6 @@ public class TextIO {
     @Override
     protected Coder<String> getDefaultOutputCoder() {
       return StringUtf8Coder.of();
-    }
-
-    public String getFilepattern() {
-      return filepattern.get();
-    }
-
-    public TextIO.CompressionType getCompressionType() {
-      return compressionType;
     }
   }
 
