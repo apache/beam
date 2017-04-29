@@ -44,7 +44,7 @@ public class StreamingInserts<DestinationT>
     this.bigQueryServices = new BigQueryServicesImpl();
   }
 
-  StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
+  StreamingInserts<DestinationT> setTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
     return this;
   }
