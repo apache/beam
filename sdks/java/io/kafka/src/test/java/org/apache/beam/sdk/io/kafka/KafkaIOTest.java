@@ -63,7 +63,6 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -605,7 +604,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testUnboundedSourceMetrics() {
     int numElements = 1000;
 
@@ -917,7 +915,24 @@ public class KafkaIOTest {
 
     @Override
     public void close() {
+    }
+  }
 
+  // class for testing coder inference
+  private static class ObjectDeserializer
+          implements Deserializer<Object> {
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+    }
+
+    @Override
+    public Object deserialize(String topic, byte[] bytes) {
+      return new Object();
+    }
+
+    @Override
+    public void close() {
     }
   }
 
@@ -938,8 +953,13 @@ public class KafkaIOTest {
             instanceof VarLongCoder);
   }
 
+  @Test(expected = RuntimeException.class)
+  public void testInferKeyCoderFailure() {
+    CoderRegistry registry = CoderRegistry.createDefault();
+    KafkaIO.inferCoder(registry, ObjectDeserializer.class);
+  }
+
   @Test
-  @Category(NeedsRunner.class)
   public void testSinkMetrics() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
 
