@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.NameUtils;
@@ -187,13 +188,12 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   public abstract OutputT expand(InputT input);
 
   /**
-   * Called before invoking apply (which may be intercepted by the runner) to
-   * verify this transform is fully specified and applicable to the specified
-   * input.
+   * Called before running the Pipeline to verify this transform is fully and correctly
+   * specified.
    *
    * <p>By default, does nothing.
    */
-  public void validate(InputT input) {}
+  public void validate(PipelineOptions options) {}
 
   /**
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that

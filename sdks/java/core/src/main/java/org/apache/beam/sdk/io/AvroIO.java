@@ -989,7 +989,7 @@ public class AvroIO {
     }
 
     @Override
-    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options) {
+    public FileBasedSink.FileBasedWriteOperation<T> createWriteOperation() {
       return new AvroWriteOperation<>(this, coder, codec, metadata);
     }
 

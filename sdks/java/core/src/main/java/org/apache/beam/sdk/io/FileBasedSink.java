@@ -449,7 +449,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * Return a subclass of {@link FileBasedSink.FileBasedWriteOperation} that will manage the write
    * to the sink.
    */
-  public abstract FileBasedWriteOperation<T> createWriteOperation(PipelineOptions options);
+  public abstract FileBasedWriteOperation<T> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
     getFileNamePolicy().populateDisplayData(builder);

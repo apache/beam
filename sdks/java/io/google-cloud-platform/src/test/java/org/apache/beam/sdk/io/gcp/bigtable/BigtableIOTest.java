@@ -270,8 +270,6 @@ public class BigtableIOTest {
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
   public void testReadingFailsTableDoesNotExist() throws Exception {
-    p.enableAbandonedNodeEnforcement(false);
-
     final String table = "TEST-TABLE";
 
     BigtableIO.Read read =
@@ -285,6 +283,7 @@ public class BigtableIOTest {
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
     p.apply(read);
+    p.run();
   }
 
   /** Tests that when reading from an empty table, the read succeeds. */
@@ -615,8 +614,6 @@ public class BigtableIOTest {
   /** Tests that when writing to a non-existent table, the write fails. */
   @Test
   public void testWritingFailsTableDoesNotExist() throws Exception {
-    p.enableAbandonedNodeEnforcement(false);
-
     final String table = "TEST-TABLE";
 
     PCollection<KV<ByteString, Iterable<Mutation>>> emptyInput =
@@ -629,6 +626,7 @@ public class BigtableIOTest {
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
     emptyInput.apply("write", defaultWrite.withTableId(table));
+    p.run();
   }
 
   /** Tests that when writing an element fails, the write fails. */

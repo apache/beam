@@ -255,6 +255,9 @@ public class CoderRegistry implements CoderProvider {
       TypeDescriptor<InputT> inputTypeDescriptor,
       Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
+    checkArgument(typeDescriptor != null);
+    checkArgument(inputTypeDescriptor != null);
+    checkArgument(inputCoder != null);
     return getDefaultCoder(
         typeDescriptor, getTypeToCoderBindings(inputTypeDescriptor.getType(), inputCoder));
   }
@@ -859,6 +862,8 @@ public class CoderRegistry implements CoderProvider {
    * in the given {@link Coder}.
    */
   private Map<Type, Coder<?>> getTypeToCoderBindings(Type type, Coder<?> coder) {
+    checkArgument(type != null);
+    checkArgument(coder != null);
     if (type instanceof TypeVariable || type instanceof Class) {
       return ImmutableMap.<Type, Coder<?>>of(type, coder);
     } else if (type instanceof ParameterizedType) {
@@ -889,7 +894,9 @@ public class CoderRegistry implements CoderProvider {
       for (int i = 0; i < typeArguments.size(); i++) {
         Type typeArgument = typeArguments.get(i);
         Coder<?> coderArgument = coderArguments.get(i);
-        typeToCoder.putAll(getTypeToCoderBindings(typeArgument, coderArgument));
+        if (coderArgument != null) {
+          typeToCoder.putAll(getTypeToCoderBindings(typeArgument, coderArgument));
+        }
       }
 
       return ImmutableMap.<Type, Coder<?>>builder().putAll(typeToCoder).build();

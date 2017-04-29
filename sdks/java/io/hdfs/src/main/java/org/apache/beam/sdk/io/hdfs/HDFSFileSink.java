@@ -250,7 +250,7 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
   }
 
   @Override
-  public Sink.WriteOperation<T, String> createWriteOperation(PipelineOptions options) {
+  public Sink.WriteOperation<T, String> createWriteOperation() {
     return new HDFSWriteOperation<>(this, path(), formatClass());
   }
 

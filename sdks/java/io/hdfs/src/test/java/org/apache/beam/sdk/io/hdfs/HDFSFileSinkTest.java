@@ -63,7 +63,7 @@ public class HDFSFileSinkTest {
                            PipelineOptions options,
                            Iterable<T> toWrite) throws Exception {
     Sink.WriteOperation<T, String> writeOperation =
-        (Sink.WriteOperation<T, String>) sink.createWriteOperation(options);
+        (Sink.WriteOperation<T, String>) sink.createWriteOperation();
     Sink.Writer<T, String> writer = writeOperation.createWriter(options);
     writer.openUnwindowed(UUID.randomUUID().toString(),  -1, -1);
     for (T t: toWrite) {

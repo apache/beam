@@ -560,7 +560,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public FileBasedWriteOperation<byte[]> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<byte[]> createWriteOperation() {
       return new TFRecordWriteOperation(this);
     }
 

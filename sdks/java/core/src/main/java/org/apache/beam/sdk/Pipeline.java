@@ -19,17 +19,20 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
@@ -110,7 +113,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
-
   /**
    * Thrown during execution of a {@link Pipeline}, whenever user code within that
    * {@link Pipeline} throws an exception.
@@ -130,12 +132,23 @@ public class Pipeline {
   // Public operations.
 
   /**
+   * Constructs a pipeline from default options.
+   *
+   * @return The newly created pipeline.
+   */
+  public static Pipeline create() {
+    Pipeline pipeline = new Pipeline(PipelineOptionsFactory.create());
+    LOG.debug("Creating {}", pipeline);
+    return pipeline;
+  }
+
+  /**
    * Constructs a pipeline from the provided options.
    *
    * @return The newly created pipeline.
    */
   public static Pipeline create(PipelineOptions options) {
-    Pipeline pipeline = new Pipeline(PipelineRunner.fromOptions(options), options);
+    Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
   }
@@ -267,13 +280,27 @@ public class Pipeline {
   }
 
   /**
-   * Runs the {@link Pipeline} using its {@link PipelineRunner}.
+   * Runs this {@link Pipeline} using the default {@link PipelineOptions} provided
+   * to {@link #create(PipelineOptions)}.
+   *
+   * <p>It is an error to call this method if the pipeline was created without
+   * a default set of options.
    */
   public PipelineResult run() {
+    return run(defaultOptions);
+  }
+
+  /**
+   * Runs this {@link Pipeline} using the given {@link PipelineOptions}, using the runner
+   * specified by the options.
+   */
+  public PipelineResult run(PipelineOptions options) {
+    PipelineRunner runner = PipelineRunner.fromOptions(options);
     // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
     // pipeline.
     LOG.debug("Running {} via {}", this, runner);
     try {
+      validate(options);
       return runner.run(this);
     } catch (UserCodeException e) {
       // This serves to replace the stack with one that ends here and
@@ -413,21 +440,32 @@ public class Pipeline {
   /////////////////////////////////////////////////////////////////////////////
   // Below here are internal operations, never called by users.
 
-  private final PipelineRunner<?> runner;
-  private final PipelineOptions options;
   private final TransformHierarchy transforms = new TransformHierarchy(this);
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
+  private final List<String> unstableNames = new ArrayList<>();
+  private final PipelineOptions defaultOptions;
 
-  protected Pipeline(PipelineRunner<?> runner, PipelineOptions options) {
-    this.runner = runner;
-    this.options = options;
+  protected Pipeline(PipelineOptions options) {
+    this.defaultOptions = options;
   }
 
   @Override
   public String toString() {
     return "Pipeline#" + hashCode();
   }
+
+  /**
+   * Returns the default {@link PipelineOptions} provided to {@link #create(PipelineOptions)}.
+   *
+   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
+   *     provided to a transform if it is required.
+   */
+  @Deprecated
+  public PipelineOptions getOptions() {
+    return defaultOptions;
+  }
+
 
   /**
    * Applies a {@link PTransform} to the given {@link PInput}.
@@ -442,32 +480,13 @@ public class Pipeline {
     boolean nameIsUnique = uniqueName.equals(buildName(namePrefix, name));
 
     if (!nameIsUnique) {
-      switch (getOptions().getStableUniqueNames()) {
-        case OFF:
-          break;
-        case WARNING:
-          LOG.warn(
-              "Transform {} does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.",
-              uniqueName);
-          break;
-        case ERROR:
-          throw new IllegalStateException(
-              "Transform "
-                  + uniqueName
-                  + " does not have a stable unique name. "
-                  + "This will prevent updating of pipelines.");
-        default:
-          throw new IllegalArgumentException(
-              "Unrecognized value for stable unique names: " + getOptions().getStableUniqueNames());
-      }
+      unstableNames.add(uniqueName);
     }
 
     LOG.debug("Adding {} to {}", transform, this);
     transforms.pushNode(uniqueName, input, transform);
     try {
       transforms.finishSpecifyingInput();
-      transform.validate(input);
       OutputT output = transform.expand(input);
       transforms.setOutput(output);
 
@@ -504,17 +523,29 @@ public class Pipeline {
     }
   }
 
-  /**
-   * Returns the {@link PipelineOptions} provided at the time this {@link Pipeline} was created.
-   *
-   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
-   *     provided to a transform if it is required. This method will be removed within a Major
-   *     Version and should not be used.
-   */
-  @Deprecated
-  @Experimental
-  public PipelineOptions getOptions() {
-    return options;
+  @VisibleForTesting
+  void validate(PipelineOptions options) {
+    this.traverseTopologically(new ValidateVisitor(options));
+    if (!unstableNames.isEmpty()) {
+      switch (options.getStableUniqueNames()) {
+        case OFF:
+          break;
+        case WARNING:
+          LOG.warn(
+              "The following transforms do not have stable unique names: {}",
+              Joiner.on(", ").join(unstableNames));
+          break;
+        case ERROR:
+          throw new IllegalStateException(
+              String.format(
+                  "Pipeline update will not be possible"
+                      + " because the following transforms do not have stable unique names: %s.",
+                  Joiner.on(", ").join(unstableNames)));
+        default:
+          throw new IllegalArgumentException(
+              "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
+      }
+    }
   }
 
   /**
@@ -549,5 +580,27 @@ public class Pipeline {
    */
   private String buildName(String namePrefix, String name) {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
+  }
+
+  private static class ValidateVisitor extends PipelineVisitor.Defaults {
+
+    private final PipelineOptions options;
+
+    public ValidateVisitor(PipelineOptions options) {
+      this.options = options;
+    }
+
+    @Override
+    public CompositeBehavior enterCompositeTransform(Node node) {
+      if (node.getTransform() != null) {
+        node.getTransform().validate(options);
+      }
+      return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(Node node) {
+      node.getTransform().validate(options);
+    }
   }
 }

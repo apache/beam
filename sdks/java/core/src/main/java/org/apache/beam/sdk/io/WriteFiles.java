@@ -122,11 +122,14 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites,
         "%s can only be applied to an unbounded PCollection if doing windowed writes",
         WriteFiles.class.getSimpleName());
-    PipelineOptions options = input.getPipeline().getOptions();
-    sink.validate(options);
-    this.writeOperation = sink.createWriteOperation(options);
+    this.writeOperation = sink.createWriteOperation();
     this.writeOperation.setWindowedWrites(windowedWrites);
     return createWrite(input);
+  }
+
+  @Override
+  public void validate(PipelineOptions options) {
+    sink.validate(options);
   }
 
   @Override

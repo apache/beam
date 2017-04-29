@@ -591,7 +591,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getProjectId(), "projectId");
 
       if (getProjectId().isAccessible() && getProjectId().get() == null) {
@@ -1068,7 +1068,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(projectId, "projectId ValueProvider");
       if (projectId.isAccessible()) {
         checkNotNull(projectId.get(), "projectId");

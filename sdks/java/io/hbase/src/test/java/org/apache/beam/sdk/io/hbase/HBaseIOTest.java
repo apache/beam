@@ -292,6 +292,7 @@ public class HBaseIOTest {
         thrown.expectMessage(String.format("Table %s does not exist", table));
 
         emptyInput.apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
+        p.run();
     }
 
     /** Tests that when writing an element fails, the write fails. */

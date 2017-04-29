@@ -39,7 +39,7 @@ class SimpleSink extends FileBasedSink<String> {
   }
 
   @Override
-  public SimpleWriteOperation createWriteOperation(PipelineOptions options) {
+  public SimpleWriteOperation createWriteOperation() {
     return new SimpleWriteOperation(this);
   }
 

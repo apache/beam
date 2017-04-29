@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PInput;
@@ -40,8 +41,8 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
   }
 
   @Override
-  public void validate(InputT input) {
-    delegate().validate(input);
+  public void validate(PipelineOptions options) {
+    delegate().validate(options);
   }
 
   @Override

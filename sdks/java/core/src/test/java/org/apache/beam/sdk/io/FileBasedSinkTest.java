@@ -531,7 +531,7 @@ public class FileBasedSinkTest {
     final String testUid = "testId";
     SimpleSink.SimpleWriteOperation writeOp =
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
-            .createWriteOperation(null);
+            .createWriteOperation();
     final FileBasedWriter<String> writer =
         writeOp.createWriter(null);
     final String expectedFilename = IOChannelUtils.resolve(writeOp.tempDirectory.get(), testUid);

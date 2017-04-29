@@ -617,30 +617,13 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PBegin input)  {
+    public void validate(PipelineOptions options) {
       checkNotNull(getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
           "Kafka topics or topic_partitions are required");
       checkNotNull(getKeyDeserializer(), "Key deserializer must be set");
       checkNotNull(getValueDeserializer(), "Value deserializer must be set");
-
-      if (input != null) {
-        CoderRegistry registry = input.getPipeline().getCoderRegistry();
-
-        checkNotNull(getKeyCoder() != null
-                        ? getKeyCoder()
-                        : inferCoder(registry, getKeyDeserializer()),
-                "Key coder must be set");
-
-        checkNotNull(getValueCoder() != null
-                        ? getValueCoder()
-                        : inferCoder(registry, getValueDeserializer()),
-                "Value coder must be set");
-      } else {
-        checkNotNull(getKeyCoder(), "Key coder must be set");
-        checkNotNull(getValueCoder(), "Value coder must be set");
-      }
     }
 
     @Override
@@ -648,13 +631,17 @@ public class KafkaIO {
       // Infer key/value coders if not specified explicitly
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
 
-      Coder<K> keyCoder = getKeyCoder() != null
-              ? getKeyCoder()
-              : inferCoder(registry, getKeyDeserializer());
+      Coder<K> keyCoder =
+          checkNotNull(
+              getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer()),
+              "Key coder must be set");
 
-      Coder<V> valueCoder = getValueCoder() != null
-              ? getValueCoder()
-              : inferCoder(registry, getValueDeserializer());
+      Coder<V> valueCoder =
+          checkNotNull(
+              getValueCoder() != null
+                  ? getValueCoder()
+                  : inferCoder(registry, getValueDeserializer()),
+              "Value coder must be set");
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -1523,7 +1510,7 @@ public class KafkaIO {
     }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG),
           "Kafka bootstrap servers should be set");
       checkNotNull(getTopic(), "Kafka topic should be set");

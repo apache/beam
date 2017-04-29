@@ -252,7 +252,7 @@ public class DataflowRunnerTest {
     };
 
     try {
-      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
       fail();
     } catch (RuntimeException e) {
       assertThat(
@@ -271,7 +271,7 @@ public class DataflowRunnerTest {
     };
 
     try {
-      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
       fail();
     } catch (RuntimeException e) {
       assertThat(
@@ -917,7 +917,13 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions streamingOptions = buildPipelineOptions();
     streamingOptions.setStreaming(true);
     streamingOptions.setRunner(DataflowRunner.class);
-    Pipeline.create(streamingOptions);
+    Pipeline p = Pipeline.create(streamingOptions);
+
+    // Instantiation of a runner prior to run() currently has a side effect of mutating the options.
+    // This could be tested by DataflowRunner.fromOptions(streamingOptions) but would not ensure
+    // that the pipeline itself had the expected options set.
+    p.run();
+
     assertEquals(
         DataflowRunner.GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT,
         streamingOptions.getGcsUploadBufferSizeBytes().intValue());
