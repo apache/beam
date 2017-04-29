@@ -102,7 +102,7 @@ public class AvroIOTest {
 
   @Test
   public void testAvroIOGetName() {
-    assertEquals("AvroIO.Read", AvroIO.read().from("gs://bucket/foo*/baz").getName());
+    assertEquals("AvroIO.Read", AvroIO.read(String.class).from("gs://bucket/foo*/baz").getName());
     assertEquals("AvroIO.Write", AvroIO.write().to("gs://bucket/foo/baz").getName());
   }
 
@@ -151,9 +151,8 @@ public class AvroIOTest {
 
     PCollection<GenericClass> input =
         p.apply(
-            AvroIO.<GenericClass>read()
-                .from(outputFile.getAbsolutePath())
-                .withSchema(GenericClass.class));
+            AvroIO.read(GenericClass.class)
+                .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
@@ -175,9 +174,8 @@ public class AvroIOTest {
     p.run();
 
     PCollection<GenericClass> input = p
-        .apply(AvroIO.<GenericClass>read()
-            .from(outputFile.getAbsolutePath())
-            .withSchema(GenericClass.class));
+        .apply(AvroIO.read(GenericClass.class)
+            .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
@@ -202,9 +200,8 @@ public class AvroIOTest {
     p.run();
 
     PCollection<GenericClass> input = p
-        .apply(AvroIO.<GenericClass>read()
-            .from(outputFile.getAbsolutePath())
-            .withSchema(GenericClass.class));
+        .apply(AvroIO.read(GenericClass.class)
+            .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(values);
     p.run();
@@ -273,9 +270,8 @@ public class AvroIOTest {
 
     PCollection<GenericClassV2> input =
         p.apply(
-            AvroIO.<GenericClassV2>read()
-                .from(outputFile.getAbsolutePath())
-                .withSchema(GenericClassV2.class));
+            AvroIO.read(GenericClassV2.class)
+                .from(outputFile.getAbsolutePath()));
 
     PAssert.that(input).containsInAnyOrder(expected);
     p.run();
@@ -535,7 +531,7 @@ public class AvroIOTest {
 
   @Test
   public void testReadDisplayData() {
-    AvroIO.Read<?> read = AvroIO.read().from("foo.*");
+    AvroIO.Read<?> read = AvroIO.read(String.class).from("foo.*");
 
     DisplayData displayData = DisplayData.from(read);
     assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));

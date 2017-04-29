@@ -46,16 +46,15 @@ import org.apache.beam.sdk.values.PDone;
  * {@link PTransform}s for reading and writing Avro files.
  *
  * <p>To read a {@link PCollection} from one or more Avro files, use
- * {@link AvroIO.Read}, specifying {@link AvroIO.Read#from} to specify
+ * {@code AvroIO.read()}, specifying {@link AvroIO.Read#from} to specify
  * the path of the file(s) to read from (e.g., a local filename or
  * filename pattern if running locally, or a Google Cloud Storage
  * filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"}).
  *
- * <p>It is required to specify {@link AvroIO.Read#withSchema}. To
- * read specific records, such as Avro-generated classes, provide an
- * Avro-generated class type. To read {@link GenericRecord GenericRecords}, provide either
- * a {@link Schema} object or an Avro schema in a JSON-encoded string form.
- * An exception will be thrown if a record doesn't match the specified
+ * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
+ * To read {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes
+ * a {@link Schema} object, or {@link #readGenericRecords(String)} which takes an Avro schema in a
+ * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema.
  *
  * <p>For example:
@@ -64,15 +63,13 @@ import org.apache.beam.sdk.values.PDone;
  *
  * // A simple Read of a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.read().from("/path/to/file.avro")
- *                 .withSchema(AvroAutoGenClass.class));
+ *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("/path/to/file.avro"));
  *
  * // A Read from a GCS file (runs locally and using remote execution):
  * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.read()
- *                .from("gs://my_bucket/path/to/records-*.avro")
- *                .withSchema(schema));
+ *     p.apply(AvroIO.readGenericRecords(schema)
+ *                .from("gs://my_bucket/path/to/records-*.avro"));
  * } </pre>
  *
  * <p>To write a {@link PCollection} to one or more Avro files, use
@@ -130,8 +127,11 @@ public class AvroIO {
    *
    * <p>The schema must be specified using one of the {@code withSchema} functions.
    */
-  public static <T> Read<T> read() {
-    return new AutoValue_AvroIO_Read.Builder<T>().build();
+  public static <T> Read<T> read(Class<T> recordClass) {
+    return new AutoValue_AvroIO_Read.Builder<T>()
+        .setRecordClass(recordClass)
+        .setSchema(ReflectData.get().getSchema(recordClass))
+        .build();
   }
 
   /** Reads Avro file(s) containing records of the specified schema. */
@@ -186,15 +186,6 @@ public class AvroIO {
      */
     public Read<T> from(String filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
-    }
-
-    /**
-     * Returns a new {@link PTransform} that's like this one but
-     * that reads Avro file(s) containing records whose type is the
-     * specified Avro-generated class.
-     */
-    public Read<T> withSchema(Class<T> type) {
-      return toBuilder().setRecordClass(type).setSchema(ReflectData.get().getSchema(type)).build();
     }
 
     @Override
