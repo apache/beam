@@ -833,7 +833,24 @@ public class KafkaIOTest {
 
     @Override
     public void close() {
+    }
+  }
 
+  // class for testing coder inference
+  private static class ObjectDeserializer
+          implements Deserializer<Object> {
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+    }
+
+    @Override
+    public Object deserialize(String topic, byte[] bytes) {
+      return new Object();
+    }
+
+    @Override
+    public void close() {
     }
   }
 
@@ -852,6 +869,12 @@ public class KafkaIOTest {
 
     assertTrue(KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class).getValueCoder()
             instanceof VarLongCoder);
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testInferKeyCoderFailure() {
+    CoderRegistry registry = CoderRegistry.createDefault();
+    KafkaIO.inferCoder(registry, ObjectDeserializer.class);
   }
 
   private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
