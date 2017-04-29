@@ -133,7 +133,8 @@ public class CodersTest {
       if (KNOWN_CODERS.contains(coder)) {
         for (RunnerApi.Coder encodedCoder : encodedComponents.getCodersMap().values()) {
           assertThat(
-              encodedCoder.getSpec().getSpec().getUrn(), not(equalTo(Coders.CUSTOM_CODER_URN)));
+              encodedCoder.getSpec().getSpec().getUrn(),
+              not(equalTo(Coders.JAVA_SERIALIZED_CODER_URN)));
         }
       }
     }

@@ -20,7 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -44,18 +43,15 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.Serializer;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class Coders {
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
-  public static final String CUSTOM_CODER_URN = "urn:beam:coders:javasdk:0.1";
+  public static final String JAVA_SERIALIZED_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
   // The URNs for coders which are shared across languages
   @VisibleForTesting
@@ -70,6 +66,15 @@ public class Coders {
           .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
           .put(FullWindowedValueCoder.class, "urn:beam:coders:windowed_value:0.1")
           .build();
+
+  public static RunnerApi.MessageWithComponents toProto(Coder<?> coder) throws IOException {
+    SdkComponents components = SdkComponents.create();
+    RunnerApi.Coder coderProto = toProto(coder, components);
+    return RunnerApi.MessageWithComponents.newBuilder()
+        .setCoder(coderProto)
+        .setComponents(components.toComponents())
+        .build();
+  }
 
   public static RunnerApi.Coder toProto(
       Coder<?> coder, @SuppressWarnings("unused") SdkComponents components) throws IOException {
@@ -108,13 +113,13 @@ public class Coders {
             SdkFunctionSpec.newBuilder()
                 .setSpec(
                     FunctionSpec.newBuilder()
-                        .setUrn(CUSTOM_CODER_URN)
+                        .setUrn(JAVA_SERIALIZED_CODER_URN)
                         .setParameter(
                             Any.pack(
                                 BytesValue.newBuilder()
                                     .setValue(
                                         ByteString.copyFrom(
-                                            OBJECT_MAPPER.writeValueAsBytes(coder.asCloudObject())))
+                                            SerializableUtils.serializeToByteArray(coder)))
                                     .build()))))
         .build();
   }
@@ -122,7 +127,7 @@ public class Coders {
   public static Coder<?> fromProto(RunnerApi.Coder protoCoder, Components components)
       throws IOException {
     String coderSpecUrn = protoCoder.getSpec().getSpec().getUrn();
-    if (coderSpecUrn.equals(CUSTOM_CODER_URN)) {
+    if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
       return fromCustomCoder(protoCoder, components);
     }
     return fromKnownCoder(protoCoder, components);
@@ -165,8 +170,8 @@ public class Coders {
   private static Coder<?> fromCustomCoder(
       RunnerApi.Coder protoCoder, @SuppressWarnings("unused") Components components)
       throws IOException {
-    CloudObject coderCloudObject =
-        OBJECT_MAPPER.readValue(
+    return (Coder<?>)
+        SerializableUtils.deserializeFromByteArray(
             protoCoder
                 .getSpec()
                 .getSpec()
@@ -174,7 +179,6 @@ public class Coders {
                 .unpack(BytesValue.class)
                 .getValue()
                 .toByteArray(),
-            CloudObject.class);
-    return Serializer.deserialize(coderCloudObject, Coder.class);
+            protoCoder.getSpec().getSpec().getUrn());
   }
 }
