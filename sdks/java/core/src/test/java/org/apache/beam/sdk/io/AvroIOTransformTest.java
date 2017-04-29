@@ -169,14 +169,14 @@ public class AvroIOTransformTest {
                   // test read using generated class
                   new Object[] {
                       null,
-                      AvroIO.<AvroGeneratedUser>read().withSchema(AvroGeneratedUser.class),
+                      AvroIO.read(AvroGeneratedUser.class),
                       "AvroIO.Read/Read.out",
                       generateAvroObjects(),
                       generatedClass
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.<AvroGeneratedUser>read().withSchema(AvroGeneratedUser.class),
+                      AvroIO.read(AvroGeneratedUser.class),
                       "MyRead/Read.out",
                       generateAvroObjects(),
                       generatedClass
