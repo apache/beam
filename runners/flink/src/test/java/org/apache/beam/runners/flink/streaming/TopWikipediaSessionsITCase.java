@@ -126,7 +126,7 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
       }
     }));
 
-    format.apply(TextIO.Write.to(resultPath));
+    format.apply(TextIO.write().to(resultPath));
 
     p.run();
   }

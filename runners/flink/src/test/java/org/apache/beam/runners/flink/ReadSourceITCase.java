@@ -76,7 +76,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
           }
         }));
 
-    result.apply(TextIO.Write.to(new URI(resultPath).getPath() + "/part"));
+    result.apply(TextIO.write().to(new URI(resultPath).getPath() + "/part"));
 
     p.run();
   }

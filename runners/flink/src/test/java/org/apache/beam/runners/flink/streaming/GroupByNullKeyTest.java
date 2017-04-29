@@ -123,7 +123,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
               c.output(str.toString());
             }
           }));
-    output.apply(TextIO.Write.to(resultPath));
+    output.apply(TextIO.write().to(resultPath));
     p.run();
   }
 }

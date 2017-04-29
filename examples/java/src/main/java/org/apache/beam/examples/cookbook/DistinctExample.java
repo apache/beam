@@ -89,7 +89,7 @@ public class DistinctExample {
 
     p.apply("ReadLines", TextIO.read().from(options.getInput()))
      .apply(Distinct.<String>create())
-     .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
+     .apply("DedupedShakespeare", TextIO.write().to(options.getOutput()));
 
     p.run().waitUntilFinish();
   }

@@ -88,7 +88,7 @@ public class SparkRunnerDebuggerTest {
 
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(TextIO.Write.to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
+        .apply(TextIO.write().to("!!PLACEHOLDER-OUTPUT-DIR!!").withNumShards(3).withSuffix(".txt"));
 
     final String expectedPipeline = "sparkContext.parallelize(Arrays.asList(...))\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"

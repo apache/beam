@@ -400,7 +400,7 @@ public class TfIdf {
                   c.element().getValue().getValue()));
             }
           }))
-          .apply(TextIO.Write
+          .apply(TextIO.write()
               .to(output)
               .withSuffix(".csv"));
     }

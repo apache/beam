@@ -299,8 +299,8 @@ public class TextIOTest {
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
 
-    TextIO.Write.Bound write =
-        TextIO.Write.to(baseFilename)
+    TextIO.Write write =
+        TextIO.write().to(baseFilename)
             .withHeader(header)
             .withFooter(footer);
 
@@ -463,7 +463,7 @@ public class TextIOTest {
 
     final WritableByteChannelFactory writableByteChannelFactory =
         new DrunkWritableByteChannelFactory();
-    TextIO.Write.Bound write = TextIO.Write.to(baseDir.resolve(outputName).toString())
+    TextIO.Write write = TextIO.write().to(baseDir.resolve(outputName).toString())
         .withoutSharding().withWritableByteChannelFactory(writableByteChannelFactory);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "DRUNK"));
@@ -483,7 +483,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayData() {
-    TextIO.Write.Bound write = TextIO.Write
+    TextIO.Write write = TextIO.write()
         .to("foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
@@ -504,7 +504,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenHeader() {
-    TextIO.Write.Bound write = TextIO.Write
+    TextIO.Write write = TextIO.write()
         .to("foo")
         .withHeader("myHeader");
 
@@ -515,7 +515,7 @@ public class TextIOTest {
 
   @Test
   public void testWriteDisplayDataValidateThenFooter() {
-    TextIO.Write.Bound write = TextIO.Write
+    TextIO.Write write = TextIO.write()
         .to("foo")
         .withFooter("myFooter");
 
@@ -534,7 +534,7 @@ public class TextIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    TextIO.Write.Bound write = TextIO.Write.to(outputPath);
+    TextIO.Write write = TextIO.write().to(outputPath);
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("TextIO.Write should include the file prefix in its primitive display data",
@@ -553,7 +553,7 @@ public class TextIOTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Output name components are not allowed to contain");
-    input.apply(TextIO.Write.to(filename));
+    input.apply(TextIO.write().to(filename));
   }
 
   /** Options for testing. */
@@ -573,7 +573,7 @@ public class TextIOTest {
 
     p
         .apply(TextIO.read().from(options.getInput()))
-        .apply(TextIO.Write.to(options.getOutput()));
+        .apply(TextIO.write().to(options.getOutput()));
   }
 
   @Test
@@ -826,7 +826,7 @@ public class TextIOTest {
   @Test
   public void testTextIOGetName() {
     assertEquals("TextIO.Read", TextIO.read().from("somefile").getName());
-    assertEquals("TextIO.Write", TextIO.Write.to("somefile").getName());
+    assertEquals("TextIO.Write", TextIO.write().to("somefile").getName());
     assertEquals("TextIO.Read", TextIO.read().from("somefile").toString());
   }
 
