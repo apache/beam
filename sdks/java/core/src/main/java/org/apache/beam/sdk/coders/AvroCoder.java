@@ -114,7 +114,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, ReflectData.get().getSchema(clazz));
+    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
   }
 
   /**
@@ -205,6 +205,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
   private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
+  private final EmptyOnDeserializationThreadLocal<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
@@ -217,26 +218,39 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    // Reader and writer are allocated once per thread and are "final" for thread-local Coder
-    // instance.
-    this.reader = new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
+    // ReflectData, Reader and writer are allocated once per thread per Coder
+    this.reflectData = new EmptyOnDeserializationThreadLocal<ReflectData>() {
       private final AvroCoder<T> myCoder = AvroCoder.this;
       @Override
-      public DatumReader<T> initialValue() {
-        return myCoder.getType().equals(GenericRecord.class)
-            ? new GenericDatumReader<T>(myCoder.getSchema())
-            : new ReflectDatumReader<T>(myCoder.getSchema());
+      public ReflectData initialValue() {
+        return new ReflectData(myCoder.getType().getClassLoader());
       }
     };
-    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-      private final AvroCoder<T> myCoder = AvroCoder.this;
-      @Override
-      public DatumWriter<T> initialValue() {
-        return myCoder.getType().equals(GenericRecord.class)
-            ? new GenericDatumWriter<T>(myCoder.getSchema())
-            : new ReflectDatumWriter<T>(myCoder.getSchema());
-      }
-    };
+
+    this.reader =
+        new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumReader<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumReader<T>(myCoder.getSchema())
+                : new ReflectDatumReader<T>(
+                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
+
+    this.writer =
+        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumWriter<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumWriter<T>(myCoder.getSchema())
+                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
   }
 
   /**
