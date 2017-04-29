@@ -252,6 +252,34 @@ public class KafkaIOTest {
     }
   }
 
+  /**
+   * Creates a consumer with two topics, with 5 partitions each.
+   * numElements are (round-robin) assigned all the 10 partitions.
+   */
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithCoders(
+          int numElements,
+          @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+
+    List<String> topics = ImmutableList.of("topic_a", "topic_b");
+
+    KafkaIO.Read<Integer, Long> reader = KafkaIO
+            .<Integer, Long>readWithCoders(VarIntCoder.of(), VarLongCoder.of())
+            .withBootstrapServers("myServer1:9092,myServer2:9092")
+            .withTopics(topics)
+            .withConsumerFactoryFn(new ConsumerFactoryFn(
+                    topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .withMaxNumRecords(numElements);
+
+    if (timestampFn != null) {
+      return reader.withTimestampFn(timestampFn);
+    } else {
+      return reader;
+    }
+  }
+
+
   private static class AssertMultipleOf implements SerializableFunction<Iterable<Long>, Void> {
     private final int num;
 
@@ -296,6 +324,19 @@ public class KafkaIOTest {
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnboundedSourceWithCoders() {
+    int numElements = 1000;
+
+    PCollection<Long> input = p
+            .apply(mkKafkaReadTransformWithCoders(numElements, new ValueAsTimestampFn())
+                    .withoutMetadata())
+            .apply(Values.<Long>create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -583,6 +624,39 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testSinkWithCoders() throws Exception {
+    // Simply read from kafka source and write to kafka sink. Then verify the records
+    // are correctly published to mock kafka producer.
+
+    int numElements = 1000;
+
+    synchronized (MOCK_PRODUCER_LOCK) {
+
+      MOCK_PRODUCER.clear();
+
+      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+
+      String topic = "test";
+
+      p
+              .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+                      .withoutMetadata())
+              .apply(KafkaIO.<Integer, Long>writeWithCoders(VarIntCoder.of(), VarLongCoder.of())
+                      .withBootstrapServers("none")
+                      .withTopic(topic)
+                      .withKeySerializer(IntegerSerializer.class)
+                      .withValueSerializer(LongSerializer.class)
+                      .withProducerFactoryFn(new ProducerFactoryFn()));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(topic, numElements, false);
+    }
+  }
+
+  @Test
   public void testValuesSink() throws Exception {
     // similar to testSink(), but use values()' interface.
 
@@ -673,6 +747,19 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testSourceDisplayDataWithCoders() {
+    KafkaIO.Read<Integer, Long> read = mkKafkaReadTransformWithCoders(10, null);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("topics", "topic_a,topic_b"));
+    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
+    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
+    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+  }
+
+  @Test
   public void testSourceWithExplicitPartitionsDisplayData() {
     KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
         .withBootstrapServers("myServer1:9092,myServer2:9092")
@@ -699,6 +786,21 @@ public class KafkaIOTest {
         .withTopic("myTopic")
         .withValueSerializer(LongSerializer.class)
         .withProducerFactoryFn(new ProducerFactoryFn());
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("topic", "myTopic"));
+    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
+    assertThat(displayData, hasDisplayItem("retries", 3));
+  }
+  @Test
+  public void testSinkDisplayDataWithCoders() {
+    KafkaIO.Write<Integer, Long> write = KafkaIO
+            .<Integer, Long>writeWithCoders(VarIntCoder.of(), VarLongCoder.of())
+            .withBootstrapServers("myServerA:9092,myServerB:9092")
+            .withTopic("myTopic")
+            .withValueSerializer(LongSerializer.class)
+            .withProducerFactoryFn(new ProducerFactoryFn());
 
     DisplayData displayData = DisplayData.from(write);
 
