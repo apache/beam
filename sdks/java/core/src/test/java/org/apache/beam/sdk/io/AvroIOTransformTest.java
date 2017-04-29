@@ -271,7 +271,7 @@ public class AvroIOTransformTest {
           ImmutableList.<Object[]>builder()
               .add(
                   new Object[] {
-                      AvroIO.<AvroGeneratedUser>write().withSchema(AvroGeneratedUser.class),
+                      AvroIO.write(AvroGeneratedUser.class),
                       generatedClass
                   },
                   new Object[] {
