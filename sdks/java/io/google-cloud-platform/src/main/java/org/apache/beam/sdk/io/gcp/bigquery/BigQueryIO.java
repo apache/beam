@@ -670,6 +670,9 @@ public class BigQueryIO {
     // The maximum number of retry jobs.
     static final int MAX_RETRY_JOBS = 3;
 
+    // The maximum size of a single file - 14TiB, just under the 15 TiB limit.
+    static final long MAX_FILE_SIZE = 14 * (1L << 40);
+
     // The maximum number of retries to poll the status of a job.
     // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
     static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;

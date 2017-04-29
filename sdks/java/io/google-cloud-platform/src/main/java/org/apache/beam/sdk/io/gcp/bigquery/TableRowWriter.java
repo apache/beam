@@ -45,7 +45,7 @@ class TableRowWriter {
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
 
-  public static final class Result {
+  static final class Result {
     final ResourceId resourceId;
     final long byteSize;
 
@@ -59,7 +59,7 @@ class TableRowWriter {
     this.tempFilePrefix = basename;
   }
 
-  public final void open(String uId) throws Exception {
+  final void open(String uId) throws Exception {
     id = uId;
     resourceId = FileSystems.matchNewResource(tempFilePrefix + id, false);
     LOG.debug("Opening {}.", resourceId);
@@ -79,12 +79,16 @@ class TableRowWriter {
     LOG.debug("Starting write of bundle {} to {}.", this.id, resourceId);
   }
 
-  public void write(TableRow value) throws Exception {
+  void write(TableRow value) throws Exception {
     CODER.encode(value, out, Context.OUTER);
     out.write(NEWLINE);
   }
 
-  public final Result close() throws IOException {
+  long getByteSize() {
+    return out.getCount();
+  }
+
+  final Result close() throws IOException {
     channel.close();
     return new Result(resourceId, out.getCount());
   }

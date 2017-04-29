@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,14 +31,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,12 +53,17 @@ class WriteBundlesToFiles<DestinationT>
     extends DoFn<KV<DestinationT, TableRow>, WriteBundlesToFiles.Result<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
+  // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
+  // 10TB of data have shown a sharding of 10 to be a good choice.
+  @VisibleForTesting
+  static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
+
   // Map from tablespec to a writer for that table.
   private transient Map<DestinationT, TableRowWriter> writers;
   private transient Map<DestinationT, BoundedWindow> writerWindows;
   private final String stepUuid;
-
-
+  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag;
+  private int maxNumWriters;
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
@@ -115,13 +124,18 @@ class WriteBundlesToFiles<DestinationT>
     public void verifyDeterministic() {}
   }
 
-  WriteBundlesToFiles(String stepUuid) {
+  WriteBundlesToFiles(
+      String stepUuid,
+      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag,
+      int maxNumWriters) {
     this.stepUuid = stepUuid;
+    this.unwrittedRecordsTag = unwrittedRecordsTag;
+    this.maxNumWriters = maxNumWriters;
   }
 
   @StartBundle
   public void startBundle() {
-    // This must be done each bundle, as by default the {@link DoFn} might be reused between
+    // This must be done for each bundle, as by default the {@link DoFn} might be reused between
     // bundles.
     this.writers = Maps.newHashMap();
     this.writerWindows = Maps.newHashMap();
@@ -132,25 +146,42 @@ class WriteBundlesToFiles<DestinationT>
     String tempFilePrefix = resolveTempLocation(
         c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
     TableRowWriter writer = writers.get(c.element().getKey());
-    if (writer == null) {
-      writer = new TableRowWriter(tempFilePrefix);
-      writer.open(UUID.randomUUID().toString());
-      writers.put(c.element().getKey(), writer);
-      writerWindows.put(c.element().getKey(), window);
-      LOG.debug("Done opening writer {}", writer);
+    if (writer != null && writer.getByteSize() > Write.MAX_FILE_SIZE) {
+      // File is too big. Close it and open a new file.
+      TableRowWriter.Result result = writer.close();
+      c.output(new Result<>(result.resourceId.toString(), result.byteSize, c.element().getKey()));
+      writer = null;
     }
-    try {
-      writer.write(c.element().getValue());
-    } catch (Exception e) {
-      // Discard write result and close the write.
-      try {
-        writer.close();
-        // The writer does not need to be reset, as this DoFn cannot be reused.
-      } catch (Exception closeException) {
-        // Do not mask the exception that caused the write to fail.
-        e.addSuppressed(closeException);
+    if (writer == null) {
+      // Only create a new writer if we have fewer than maxNumWriters already in this bundle.
+      if (writers.size() <= maxNumWriters) {
+        writer = new TableRowWriter(tempFilePrefix);
+        writer.open(UUID.randomUUID().toString());
+        writers.put(c.element().getKey(), writer);
+        LOG.debug("Done opening writer {}", writer);
       }
-      throw e;
+    }
+    if (writer != null) {
+      try {
+        writer.write(c.element().getValue());
+      } catch (Exception e) {
+        // Discard write result and close the write.
+        try {
+          writer.close();
+          // The writer does not need to be reset, as this DoFn cannot be reused.
+        } catch (Exception closeException) {
+          // Do not mask the exception that caused the write to fail.
+          e.addSuppressed(closeException);
+        }
+        throw e;
+      }
+    } else {
+      // This means that we already had too many writers open in this bundle. "spill" this record
+      // into the output. It will be grouped and written to a file in a subsequent stage.
+      c.output(unwrittedRecordsTag,
+          KV.of(ShardedKey.of(c.element().getKey(),
+              ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR)),
+              c.element().getValue()));
     }
   }
 

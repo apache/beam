@@ -70,6 +70,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
@@ -490,9 +491,15 @@ public class BigQueryIOTest implements Serializable {
     p.apply("Create SideInput2", Create.of(KV.of("a", "a"), KV.of("b", "b"), KV.of("c", "c")))
         .apply("AsMap", View.<String, String>asMap());
 
+    final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
+    List<String> userList = Lists.newArrayList();
+    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill.
+    for (int i = 0; i < WriteBundlesToFiles.SPILLED_RECORD_SHARDING_FACTOR * 2; ++i) {
+      String user = allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
+      userList.add(user + i);
+    }
     PCollection<String> users = p.apply("CreateUsers",
-        Create.of("bill1", "sam2", "laurence3")
-            .withCoder(StringUtf8Coder.of()))
+        Create.of(userList).withCoder(StringUtf8Coder.of()))
         .apply(Window.into(new PartitionedGlobalWindows<>(
             new SerializableFunction<String, String>() {
               @Override
@@ -567,12 +574,14 @@ public class BigQueryIOTest implements Serializable {
     File tempDir = new File(bqOptions.getTempLocation());
     testNumFiles(tempDir, 0);
 
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-1"),
-        containsInAnyOrder(new TableRow().set("name", "bill").set("id", 1)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-2"),
-        containsInAnyOrder(new TableRow().set("name", "sam").set("id", 2)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-3"),
-        containsInAnyOrder(new TableRow().set("name", "laurence").set("id", 3)));
+    for (int i = 0; i < userList.size(); ++i) {
+      Matcher matcher = userPattern.matcher(userList.get(i));
+      checkState(matcher.matches());
+      String username = matcher.group(1);
+      int userid = Integer.valueOf(matcher.group(2));
+      assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-" + userid),
+          containsInAnyOrder(new TableRow().set("name", username).set("id", i)));
+    }
   }
 
   @Test
