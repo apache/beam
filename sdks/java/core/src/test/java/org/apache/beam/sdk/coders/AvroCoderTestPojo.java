@@ -21,7 +21,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
 /** A Pojo at the top level for use in tests. */
-public class AvroCoderTestPojo {
+class AvroCoderTestPojo {
 
   public String text;
 

@@ -205,7 +205,16 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
   private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
-  private final EmptyOnDeserializationThreadLocal<ReflectData> reflectData;
+
+  // Lazily re-instantiated after deserialization
+  @Nullable private transient ReflectData reflectData;
+
+  private ReflectData getReflectData() {
+    if (reflectData == null) {
+      reflectData = new ReflectData(getType().getClassLoader());
+    }
+    return reflectData;
+  }
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
@@ -218,15 +227,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    // ReflectData, Reader and writer are allocated once per thread per Coder
-    this.reflectData = new EmptyOnDeserializationThreadLocal<ReflectData>() {
-      private final AvroCoder<T> myCoder = AvroCoder.this;
-      @Override
-      public ReflectData initialValue() {
-        return new ReflectData(myCoder.getType().getClassLoader());
-      }
-    };
-
+    // Reader and writer are allocated once per thread per Coder
     this.reader =
         new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
           private final AvroCoder<T> myCoder = AvroCoder.this;
@@ -236,7 +237,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
             return myCoder.getType().equals(GenericRecord.class)
                 ? new GenericDatumReader<T>(myCoder.getSchema())
                 : new ReflectDatumReader<T>(
-                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+                    myCoder.getSchema(), myCoder.getSchema(), myCoder.getReflectData());
           }
         };
 
@@ -248,7 +249,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
           public DatumWriter<T> initialValue() {
             return myCoder.getType().equals(GenericRecord.class)
                 ? new GenericDatumWriter<T>(myCoder.getSchema())
-                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.reflectData.get());
+                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.getReflectData());
           }
         };
   }
