@@ -837,13 +837,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      if (transform.getSink() instanceof FileBasedSink) {
-        FileBasedSink<?> sink = (FileBasedSink<?>) transform.getSink();
-        if (sink.getBaseOutputFilenameProvider().isAccessible()) {
-          PathValidator validator = runner.options.getPathValidator();
-          validator.validateOutputFilePrefixSupported(
-              sink.getBaseOutputFilenameProvider().get());
-        }
+      FileBasedSink<T> sink = transform.getSink();
+      if (sink.getBaseOutputFilenameProvider().isAccessible()) {
+        PathValidator validator = runner.options.getPathValidator();
+        validator.validateOutputFilePrefixSupported(
+            sink.getBaseOutputFilenameProvider().get());
       }
       return transform.expand(input);
     }
