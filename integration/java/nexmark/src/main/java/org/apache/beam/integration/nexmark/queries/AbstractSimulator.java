@@ -37,7 +37,7 @@ import org.joda.time.Instant;
  */
 public abstract class AbstractSimulator<InputT, OutputT> {
   /** Window size for action bucket sampling. */
-  public static final Duration WINDOW_SIZE = Duration.standardMinutes(1);
+  private static final Duration WINDOW_SIZE = Duration.standardMinutes(1);
 
   /** Input event stream we should draw from. */
   private final Iterator<TimestampedValue<InputT>> input;
@@ -77,7 +77,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
 
   /** Called by implementors of {@link #run}: Fetch the next input element. */
   @Nullable
-  protected TimestampedValue<InputT> nextInput() {
+  TimestampedValue<InputT> nextInput() {
     if (!input.hasNext()) {
       return null;
     }
@@ -90,7 +90,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
    * Called by implementors of {@link #run}:  Capture an intermediate result, for the purpose of
    * recording the expected activity of the query over time.
    */
-  protected void addIntermediateResult(TimestampedValue<OutputT> result) {
+  void addIntermediateResult(TimestampedValue<OutputT> result) {
     NexmarkUtils.info("intermediate result: %s", result);
     updateCounts(result.getTimestamp());
   }
@@ -99,7 +99,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
    * Called by implementors of {@link #run}: Capture a final result, for the purpose of checking
    * semantic correctness.
    */
-  protected void addResult(TimestampedValue<OutputT> result) {
+  void addResult(TimestampedValue<OutputT> result) {
     NexmarkUtils.info("result: %s", result);
     pendingResults.add(result);
     updateCounts(result.getTimestamp());
@@ -121,7 +121,7 @@ public abstract class AbstractSimulator<InputT, OutputT> {
   }
 
   /** Called by implementors of {@link #run}: Record that no more results will be emitted. */
-  protected void allDone() {
+  void allDone() {
     isDone = true;
   }
 

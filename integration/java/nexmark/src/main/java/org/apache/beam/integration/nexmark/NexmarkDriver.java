@@ -57,7 +57,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
   /**
    * Entry point.
    */
-  public void runAll(OptionT options, NexmarkRunner runner) {
+  void runAll(OptionT options, NexmarkRunner runner) {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
@@ -87,7 +87,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
     }
 
     if (!successful) {
-      System.exit(1);
+      throw new RuntimeException("Execution was not successful");
     }
   }
 
@@ -149,8 +149,6 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
 
   /**
    * Print summary  of {@code actual} vs (if non-null) {@code baseline}.
-   *
-   * @throws IOException
    */
   private static void saveSummary(
       @Nullable String summaryFilename,
@@ -227,7 +225,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
       if (actualPerf != null) {
         List<String> errors = actualPerf.errors;
         if (errors == null) {
-          errors = new ArrayList<String>();
+          errors = new ArrayList<>();
           errors.add("NexmarkGoogleRunner returned null errors list");
         }
         for (String error : errors) {
@@ -300,7 +298,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
     NexmarkOptions options = PipelineOptionsFactory.fromArgs(args)
       .withValidation()
       .as(NexmarkOptions.class);
-    NexmarkRunner runner = new NexmarkRunner(options);
-    new NexmarkDriver().runAll(options, runner);
+    NexmarkRunner<NexmarkOptions> runner = new NexmarkRunner<>(options);
+    new NexmarkDriver<>().runAll(options, runner);
   }
 }

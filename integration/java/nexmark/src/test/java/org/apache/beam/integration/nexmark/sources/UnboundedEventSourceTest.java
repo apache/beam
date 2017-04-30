@@ -53,8 +53,8 @@ public class UnboundedEventSourceTest {
    * confirming reading events match the model events.
    */
   private static class EventIdChecker {
-    private Set<Long> seenPersonIds = new HashSet<>();
-    private Set<Long> seenAuctionIds = new HashSet<>();
+    private final Set<Long> seenPersonIds = new HashSet<>();
+    private final Set<Long> seenAuctionIds = new HashSet<>();
 
     public void add(Event event) {
       if (event.newAuction != null) {
@@ -90,7 +90,6 @@ public class UnboundedEventSourceTest {
 
     EventIdChecker checker = new EventIdChecker();
     PipelineOptions options = TestPipeline.testingPipelineOptions();
-    Pipeline p = TestPipeline.create(options);
     UnboundedEventSource source = new UnboundedEventSource(config, 1, 0, false);
     UnboundedReader<Event> reader = source.createReader(options, null);
 

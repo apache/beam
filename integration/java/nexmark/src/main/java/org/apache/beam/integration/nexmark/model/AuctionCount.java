@@ -54,11 +54,9 @@ public class AuctionCount implements KnownSize, Serializable {
     }
   };
 
-  @JsonProperty
-  public final long auction;
+  @JsonProperty private final long auction;
 
-  @JsonProperty
-  public final long count;
+  @JsonProperty private final long count;
 
   // For Avro only.
   @SuppressWarnings("unused")

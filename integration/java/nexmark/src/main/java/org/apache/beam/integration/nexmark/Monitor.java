@@ -63,8 +63,8 @@ public class Monitor<T extends KnownSize> implements Serializable {
 
   public final String name;
   public final String prefix;
-  final MonitorDoFn doFn;
-  final PTransform<PCollection<? extends T>, PCollection<T>> transform;
+  private final MonitorDoFn doFn;
+  private final PTransform<PCollection<? extends T>, PCollection<T>> transform;
 
   public Monitor(String name, String prefix) {
     this.name = name;

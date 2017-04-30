@@ -43,7 +43,7 @@ import org.junit.Assert;
 public abstract class NexmarkQueryModel implements Serializable {
   public final NexmarkConfiguration configuration;
 
-  public NexmarkQueryModel(NexmarkConfiguration configuration) {
+  NexmarkQueryModel(NexmarkConfiguration configuration) {
     this.configuration = configuration;
   }
 
@@ -51,7 +51,7 @@ public abstract class NexmarkQueryModel implements Serializable {
    * Return the start of the most recent window of {@code size} and {@code period} which ends
    * strictly before {@code timestamp}.
    */
-  public static Instant windowStart(Duration size, Duration period, Instant timestamp) {
+  static Instant windowStart(Duration size, Duration period, Instant timestamp) {
     long ts = timestamp.getMillis();
     long p = period.getMillis();
     long lim = ts - ts % p;
@@ -60,7 +60,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /** Convert {@code itr} to strings capturing values, timestamps and order. */
-  protected static <T> List<String> toValueTimestampOrder(Iterator<TimestampedValue<T>> itr) {
+  static <T> List<String> toValueTimestampOrder(Iterator<TimestampedValue<T>> itr) {
     List<String> strings = new ArrayList<>();
     while (itr.hasNext()) {
       strings.add(itr.next().toString());
@@ -69,7 +69,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /** Convert {@code itr} to strings capturing values and order. */
-  protected static <T> List<String> toValueOrder(Iterator<TimestampedValue<T>> itr) {
+  static <T> List<String> toValueOrder(Iterator<TimestampedValue<T>> itr) {
     List<String> strings = new ArrayList<>();
     while (itr.hasNext()) {
       strings.add(itr.next().getValue().toString());
@@ -78,7 +78,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /** Convert {@code itr} to strings capturing values only. */
-  protected static <T> Set<String> toValue(Iterator<TimestampedValue<T>> itr) {
+  static <T> Set<String> toValue(Iterator<TimestampedValue<T>> itr) {
     Set<String> strings = new HashSet<>();
     while (itr.hasNext()) {
       strings.add(itr.next().getValue().toString());
@@ -90,7 +90,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   public abstract AbstractSimulator<?, ?> simulator();
 
   /** Return sub-sequence of results which are significant for model. */
-  protected Iterable<TimestampedValue<KnownSize>> relevantResults(
+  Iterable<TimestampedValue<KnownSize>> relevantResults(
       Iterable<TimestampedValue<KnownSize>> results) {
     return results;
   }
@@ -104,8 +104,6 @@ public abstract class NexmarkQueryModel implements Serializable {
   /** Return assertion to use on results of pipeline for this query. */
   public SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void> assertionFor() {
     final Collection<String> expectedStrings = toCollection(simulator().results());
-    final String[] expectedStringsArray =
-      expectedStrings.toArray(new String[expectedStrings.size()]);
 
     return new SerializableFunction<Iterable<TimestampedValue<KnownSize>>, Void>() {
       @Override
@@ -113,9 +111,6 @@ public abstract class NexmarkQueryModel implements Serializable {
       Collection<String> actualStrings = toCollection(relevantResults(actual).iterator());
         Assert.assertThat("wrong pipeline output", actualStrings,
           IsEqual.equalTo(expectedStrings));
-//compare without order
-//      Assert.assertThat("wrong pipeline output", actualStrings,
-//        IsIterableContainingInAnyOrder.containsInAnyOrder(expectedStringsArray));
         return null;
       }
     };

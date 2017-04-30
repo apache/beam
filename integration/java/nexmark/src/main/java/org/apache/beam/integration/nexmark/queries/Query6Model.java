@@ -86,8 +86,9 @@ public class Query6Model extends NexmarkQueryModel implements Serializable {
     protected void run() {
       TimestampedValue<AuctionBid> timestampedWinningBid = nextInput();
       if (timestampedWinningBid == null) {
-        for (long seller : numWinningBidsPerSeller.keySet()) {
-          long count = numWinningBidsPerSeller.get(seller);
+        for (Map.Entry<Long, Long> entry : numWinningBidsPerSeller.entrySet()) {
+          long seller = entry.getKey();
+          long count = entry.getValue();
           long total = totalWinningBidPricesPerSeller.get(seller);
           addResult(TimestampedValue.of(
               new SellerPrice(seller, Math.round((double) total / count)), lastTimestamp));

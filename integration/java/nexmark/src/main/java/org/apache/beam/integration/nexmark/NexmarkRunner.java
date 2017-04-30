@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -65,10 +66,12 @@ import org.apache.beam.integration.nexmark.queries.Query9;
 import org.apache.beam.integration.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -77,6 +80,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -91,15 +95,15 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
-  protected static final int MIN_SAMPLES = 9;
+  private static final int MIN_SAMPLES = 9;
   /**
    * Minimum length of time over which to consider samples for 'steady-state' rate calculation.
    */
-  protected static final Duration MIN_WINDOW = Duration.standardMinutes(2);
+  private static final Duration MIN_WINDOW = Duration.standardMinutes(2);
   /**
    * Delay between perf samples.
    */
-  protected static final Duration PERF_DELAY = Duration.standardSeconds(15);
+  private static final Duration PERF_DELAY = Duration.standardSeconds(15);
   /**
    * How long to let streaming pipeline run after all events have been generated and we've
    * seen no activity.
@@ -117,37 +121,37 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * NexmarkOptions shared by all runs.
    */
-  protected final OptionT options;
+  private final OptionT options;
 
   /**
    * Which configuration we are running.
    */
   @Nullable
-  protected NexmarkConfiguration configuration;
+  private NexmarkConfiguration configuration;
 
   /**
    * If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null.
    */
   @Nullable
-  protected Monitor<Event> publisherMonitor;
+  private Monitor<Event> publisherMonitor;
 
   /**
    * If in --pubsubMode=COMBINED, the pipeline result for the publisher pipeline. Otherwise null.
    */
   @Nullable
-  protected PipelineResult publisherResult;
+  private PipelineResult publisherResult;
 
   /**
    * Result for the main pipeline.
    */
   @Nullable
-  protected PipelineResult mainResult;
+  private PipelineResult mainResult;
 
   /**
    * Query name we are running.
    */
   @Nullable
-  protected String queryName;
+  private String queryName;
 
   public NexmarkRunner(OptionT options) {
     this.options = options;
@@ -160,7 +164,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Is this query running in streaming mode?
    */
-  protected boolean isStreaming() {
+  private boolean isStreaming() {
     return options.isStreaming();
   }
 
@@ -174,7 +178,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Return maximum number of workers.
    */
-  protected int maxNumWorkers() {
+  private int maxNumWorkers() {
     return 5;
   }
 
@@ -182,7 +186,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return the current value for a long counter, or a default value if can't be retrieved.
    * Note this uses only attempted metrics because some runners don't support committed metrics.
    */
-  protected long getCounterMetric(PipelineResult result, String namespace, String name,
+  private long getCounterMetric(PipelineResult result, String namespace, String name,
     long defaultValue) {
     //TODO Ismael calc this only once
     MetricQueryResults metrics = result.metrics().queryMetrics(
@@ -201,7 +205,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Return the current value for a long counter, or a default value if can't be retrieved.
    * Note this uses only attempted metrics because some runners don't support committed metrics.
    */
-  protected long getDistributionMetric(PipelineResult result, String namespace, String name,
+  private long getDistributionMetric(PipelineResult result, String namespace, String name,
       DistributionType distType, long defaultValue) {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
@@ -226,7 +230,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Return the current value for a time counter, or -1 if can't be retrieved.
    */
-  protected long getTimestampMetric(long now, long value) {
+  private long getTimestampMetric(long now, long value) {
     //TODO Ismael improve doc
     if (Math.abs(value - now) > Duration.standardDays(10000).getMillis()) {
       return -1;
@@ -238,8 +242,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * Find a 'steady state' events/sec from {@code snapshots} and
    * store it in {@code perf} if found.
    */
-  protected void captureSteadyState(NexmarkPerf perf,
-                                    List<NexmarkPerf.ProgressSnapshot> snapshots) {
+  private void captureSteadyState(NexmarkPerf perf, List<NexmarkPerf.ProgressSnapshot> snapshots) {
     if (!options.isStreaming()) {
       return;
     }
@@ -426,7 +429,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     return perf;
   }
 
-  protected String getJobId(PipelineResult job) {
+  private String getJobId(PipelineResult job) {
     return "";
   }
 
@@ -528,15 +531,14 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   /**
    * Build and run a pipeline using specified options.
    */
-  protected interface PipelineBuilder<OptionT extends NexmarkOptions> {
+  interface PipelineBuilder<OptionT extends NexmarkOptions> {
     void build(OptionT publishOnlyOptions);
   }
 
   /**
    * Invoke the builder with options suitable for running a publish-only child pipeline.
    */
-  protected void invokeBuilderForPublishOnlyPipeline(
-      PipelineBuilder builder) {
+  private void invokeBuilderForPublishOnlyPipeline(PipelineBuilder<NexmarkOptions> builder) {
     builder.build(options);
 //    throw new UnsupportedOperationException(
 //        "Cannot use --pubSubMode=COMBINED with DirectRunner");
@@ -546,7 +548,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * If monitoring, wait until the publisher pipeline has run long enough to establish
    * a backlog on the Pubsub topic. Otherwise, return immediately.
    */
-  protected void waitForPublisherPreload() {
+  private void waitForPublisherPreload() {
     throw new UnsupportedOperationException();
   }
 
@@ -555,7 +557,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
    * it was measured.
    */
   @Nullable
-  protected NexmarkPerf monitor(NexmarkQuery query) {
+  private NexmarkPerf monitor(NexmarkQuery query) {
     if (!options.getMonitorJobs()) {
       return null;
     }
@@ -841,14 +843,28 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   private PCollection<Event> sourceEventsFromPubsub(Pipeline p, long now) {
     String shortSubscription = shortSubscription(now);
     NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
-    PubsubIO.Read<Event> io =
-        PubsubIO.<Event>read().fromSubscription(shortSubscription)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID)
-            .withCoder(Event.CODER);
+
+    PubsubIO.Read<PubsubMessage> io =
+        PubsubIO.readPubsubMessagesWithAttributes().fromSubscription(shortSubscription)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
-    return p.apply(queryName + ".ReadPubsubEvents", io);
+
+    return p
+      .apply(queryName + ".ReadPubsubEvents", io)
+      .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new DoFn<PubsubMessage, Event>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          byte[] payload = c.element().getPayload();
+          try {
+            Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+            c.output(event);
+          } catch (CoderException e) {
+            // TODO Log decoding Event error
+          }
+        }
+      }));
   }
 
   /**
@@ -861,9 +877,8 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     }
     NexmarkUtils.console("Reading events from Avro files at %s", filename);
     return p
-        .apply(queryName + ".ReadAvroEvents", AvroIO.Read
-                          .from(filename + "*.avro")
-                          .withSchema(Event.class))
+        .apply(queryName + ".ReadAvroEvents", AvroIO.read(Event.class)
+                          .from(filename + "*.avro"))
         .apply("OutputWithTimestamp", NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
   }
 
@@ -873,14 +888,28 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   private void sinkEventsToPubsub(PCollection<Event> events, long now) {
     String shortTopic = shortTopic(now);
     NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
-    PubsubIO.Write<Event> io =
-        PubsubIO.<Event>write().to(shortTopic)
-                      .withIdAttribute(NexmarkUtils.PUBSUB_ID)
-                      .withCoder(Event.CODER);
+
+    PubsubIO.Write<PubsubMessage> io =
+        PubsubIO.writePubsubMessages().to(shortTopic)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
-    events.apply(queryName + ".WritePubsubEvents", io);
+
+    events.apply(queryName + ".EventToPubsubMessage",
+            ParDo.of(new DoFn<Event, PubsubMessage>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                try {
+                  byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                  c.output(new PubsubMessage(payload, new HashMap<String, String>()));
+                } catch (CoderException e1) {
+                  // TODO Log encoding Event error
+                }
+              }
+            })
+        )
+        .apply(queryName + ".WritePubsubEvents", io);
   }
 
   /**
@@ -890,7 +919,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     String shortTopic = shortTopic(now);
     NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
     PubsubIO.Write<String> io =
-        PubsubIO.<String>write().to(shortTopic)
+        PubsubIO.writeStrings().to(shortTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
@@ -917,18 +946,16 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     }
     NexmarkUtils.console("Writing events to Avro files at %s", filename);
     source.apply(queryName + ".WriteAvroEvents",
-            AvroIO.Write.to(filename + "/event").withSuffix(".avro").withSchema(Event.class));
+            AvroIO.write(Event.class).to(filename + "/event").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_BIDS)
           .apply(queryName + ".WriteAvroBids",
-            AvroIO.Write.to(filename + "/bid").withSuffix(".avro").withSchema(Bid.class));
+            AvroIO.write(Bid.class).to(filename + "/bid").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
           .apply(queryName + ".WriteAvroAuctions",
-                  AvroIO.Write.to(filename + "/auction").withSuffix(".avro")
-                          .withSchema(Auction.class));
+            AvroIO.write(Auction.class).to(filename + "/auction").withSuffix(".avro"));
     source.apply(NexmarkQuery.JUST_NEW_PERSONS)
           .apply(queryName + ".WriteAvroPeople",
-                  AvroIO.Write.to(filename + "/person").withSuffix(".avro")
-                             .withSchema(Person.class));
+            AvroIO.write(Person.class).to(filename + "/person").withSuffix(".avro"));
   }
 
   /**
@@ -938,7 +965,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     String filename = textFilename(now);
     NexmarkUtils.console("Writing results to text files at %s", filename);
     formattedResults.apply(queryName + ".WriteTextResults",
-        TextIO.Write.to(filename));
+        TextIO.write().to(filename));
   }
 
   private static class StringToTableRow extends DoFn<String, TableRow> {
@@ -1010,12 +1037,12 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
             // Send synthesized events to Pubsub in separate publisher job.
             // We won't start the main pipeline until the publisher has sent the pre-load events.
             // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder() {
+            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder<NexmarkOptions>() {
               @Override
               public void build(NexmarkOptions publishOnlyOptions) {
                 Pipeline sp = Pipeline.create(options);
                 NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-                publisherMonitor = new Monitor<Event>(queryName, "publisher");
+                publisherMonitor = new Monitor<>(queryName, "publisher");
                 sinkEventsToPubsub(
                     sourceEventsFromSynthetic(sp)
                             .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
@@ -1140,9 +1167,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     checkState(queryName == null);
     configuration = runConfiguration;
 
-    // GCS URI patterns to delete on exit.
-    List<String> pathsToDelete = new ArrayList<>();
-
     try {
       NexmarkUtils.console("Running %s", configuration.toShortString());
 
@@ -1220,9 +1244,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
           }
           ((Query10) query).setOutputPath(path);
           ((Query10) query).setMaxNumWorkers(maxNumWorkers());
-          if (path != null && options.getManageResources()) {
-            pathsToDelete.add(path + "/**");
-          }
         }
 
         // Apply query.
@@ -1252,7 +1273,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     } finally {
       configuration = null;
       queryName = null;
-      // TODO: Cleanup pathsToDelete
     }
   }
 }

@@ -93,8 +93,9 @@ public class Query4Model extends NexmarkQueryModel implements Serializable {
         }
         totals.put(category, total);
       }
-      for (long category : counts.keySet()) {
-        long count = counts.get(category);
+      for (Map.Entry<Long, Long> entry : counts.entrySet()) {
+        long category = entry.getKey();
+        long count = entry.getValue();
         long total = totals.get(category);
         TimestampedValue<CategoryPrice> result = TimestampedValue.of(
             new CategoryPrice(category, Math.round((double) total / count), true), lastTimestamp);

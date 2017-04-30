@@ -18,7 +18,7 @@
 package org.apache.beam.integration.nexmark.queries;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
@@ -80,7 +80,7 @@ public class Query5 extends NexmarkQuery {
             ParDo.of(new DoFn<KV<Long, Long>, KV<List<Long>, Long>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    c.output(KV.of(Arrays.asList(c.element().getKey()), c.element().getValue()));
+                    c.output(KV.of(Collections.singletonList(c.element().getKey()), c.element().getValue()));
                   }
                 }))
 
