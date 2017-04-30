@@ -146,11 +146,6 @@ class Pipeline(object):
   def options(self):
     return self._options
 
-  # @options.setter
-  # @deprecated(since='First stable release')
-  # def options(self, val=None):
-  #   self._options = val
-
   def _current_transform(self):
     """Returns the transform currently on the top of the stack."""
     return self.transforms_stack[-1]

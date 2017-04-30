@@ -245,12 +245,12 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
+    # [START type_hints_missing_define_numbers]
     p = TestPipeline(
-      options=TypeOptions.from_dictionary({'pipeline_type_check': True})
+        options=TypeOptions.from_dictionary({'pipeline_type_check': True})
     )
     evens = None  # pylint: disable=unused-variable
 
-    # [START type_hints_missing_define_numbers]
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
 
@@ -271,7 +271,6 @@ class TypeHintsTest(unittest.TestCase):
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_takes]
-      # p._options.view_as(TypeOptions).pipeline_type_check = True
       evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
