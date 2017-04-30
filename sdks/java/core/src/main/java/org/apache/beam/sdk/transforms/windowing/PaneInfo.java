@@ -317,7 +317,7 @@ public final class PaneInfo {
 
       public final byte tag;
 
-      private Encoding() {
+      Encoding() {
         assert ordinal() < 16;
         tag = (byte) (ordinal() << 4);
       }

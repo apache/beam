@@ -84,7 +84,7 @@ enum CloudKnownType {
   private final String uri;
   private final Class<?>[] classes;
 
-  private CloudKnownType(String uri, Class<?>... classes) {
+  CloudKnownType(String uri, Class<?>... classes) {
     this.uri = uri;
     this.classes = classes;
   }
