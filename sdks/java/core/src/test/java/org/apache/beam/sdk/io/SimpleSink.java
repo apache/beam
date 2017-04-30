@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.MimeTypes;
 
 /**
  * A simple FileBasedSink that writes String values as lines with header and footer lines.
@@ -65,7 +66,7 @@ class SimpleSink extends FileBasedSink<String> {
     private WritableByteChannel channel;
 
     public SimpleWriter(SimpleWriteOperation writeOperation) {
-      super(writeOperation);
+      super(writeOperation, MimeTypes.TEXT);
     }
 
     private static ByteBuffer wrap(String value) throws Exception {
