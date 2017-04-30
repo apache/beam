@@ -1192,7 +1192,6 @@ public class PipelineOptionsFactory {
         method.property = propertyDescriptor;
         method.methodType = "setter";
         missingBeanMethods.add(method);
-        continue;
       }
     }
     throwForMissingBeanMethod(iface, missingBeanMethods);
