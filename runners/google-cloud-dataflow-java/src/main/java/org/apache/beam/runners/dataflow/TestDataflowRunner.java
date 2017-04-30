@@ -29,6 +29,7 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.Callable;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -45,8 +46,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link TestDataflowRunner} is a pipeline runner that wraps a
- * {@link DataflowRunner} when running tests against the {@link TestPipeline}.
+ * {@link TestDataflowRunner} is a pipeline runner that wraps a {@link DataflowRunner} when running
+ * tests against the {@link TestPipeline}.
  *
  * @see TestPipeline
  */
@@ -65,16 +66,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     this.runner = DataflowRunner.fromOptions(options);
   }
 
-  /**
-   * Constructs a runner from the provided options.
-   */
+  /** Constructs a runner from the provided options. */
   public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
-    String tempLocation = Joiner.on("/").join(
-        dataflowOptions.getTempRoot(),
-        dataflowOptions.getJobName(),
-        "output",
-        "results");
+    String tempLocation =
+        Joiner.on("/")
+            .join(dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results");
     dataflowOptions.setTempLocation(tempLocation);
 
     return new TestDataflowRunner(
@@ -99,88 +96,115 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     final DataflowPipelineJob job;
     job = runner.run(pipeline);
 
-    LOG.info("Running Dataflow job {} with {} expected assertions.",
-        job.getJobId(), expectedNumberOfAssertions);
+    LOG.info(
+        "Running Dataflow job {} with {} expected assertions.",
+        job.getJobId(),
+        expectedNumberOfAssertions);
 
     assertThat(job, testPipelineOptions.getOnCreateMatcher());
 
-    final ErrorMonitorMessagesHandler messageHandler =
+    Boolean jobSuccess;
+    Optional<Boolean> allAssertionsPassed;
+
+    ErrorMonitorMessagesHandler messageHandler =
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
+    if (options.isStreaming()) {
+      jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+      // No metrics in streaming
+      allAssertionsPassed = Optional.absent();
+    } else {
+      jobSuccess = waitForBatchJobTermination(job, messageHandler);
+      allAssertionsPassed = checkForPAssertSuccess(job);
+    }
+
+    // If there is a certain assertion failure, throw the most precise exception we can.
+    // There are situations where the metric will not be available, but as long as we recover
+    // the actionable message from the logs it is acceptable.
+    if (!allAssertionsPassed.isPresent()) {
+      LOG.warn("Dataflow job {} did not output a success or failure metric.", job.getJobId());
+    } else if (!allAssertionsPassed.get()) {
+      throw new AssertionError(errorMessage(job, messageHandler));
+    }
+
+    // Other failures, or jobs where metrics fell through for some reason, will manifest
+    // as simply job failures.
+    if (!jobSuccess) {
+      throw new RuntimeException(errorMessage(job, messageHandler));
+    }
+
+    // If there is no reason to immediately fail, run the success matcher.
+    assertThat(job, testPipelineOptions.getOnSuccessMatcher());
+    return job;
+  }
+
+  /**
+   * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
+   */
+  private boolean waitForStreamingJobTermination(
+      final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    // In streaming, there are infinite retries, so rather than timeout
+    // we try to terminate early by polling and canceling if we see
+    // an error message
+    options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+
+    // Whether we canceled or not, this gets the final state of the job or times out
+    State finalState;
     try {
-      Optional<Boolean> result = Optional.absent();
-
-      if (options.isStreaming()) {
-        // In streaming, there are infinite retries, so rather than timeout
-        // we try to terminate early by polling and canceling if we see
-        // an error message
-        while (true) {
-          State state = job.waitUntilFinish(Duration.standardSeconds(3), messageHandler);
-          if (state != null && state.isTerminal()) {
-            break;
-          }
-
-          if (messageHandler.hasSeenError()) {
-            if (!job.getState().isTerminal()) {
-              LOG.info("Cancelling Dataflow job {}", job.getJobId());
-              job.cancel();
-            }
-            break;
-          }
-        }
-
-        // Whether we canceled or not, this gets the final state of the job or times out
-        State finalState =
-            job.waitUntilFinish(
-                Duration.standardSeconds(options.getTestTimeoutSeconds()), messageHandler);
-
-        // Getting the final state timed out; it may not indicate a failure.
-        // This cancellation may be the second
-        if (finalState == null || finalState == State.RUNNING) {
-          LOG.info(
-              "Dataflow job {} took longer than {} seconds to complete, cancelling.",
-              job.getJobId(),
-              options.getTestTimeoutSeconds());
-          job.cancel();
-        }
-
-        if (messageHandler.hasSeenError()) {
-          result = Optional.of(false);
-        }
-      } else {
-        job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
-        result = checkForPAssertSuccess(job);
-      }
-
-      if (!result.isPresent()) {
-        if (options.isStreaming()) {
-          LOG.warn(
-              "Dataflow job {} did not output a success or failure metric."
-                  + " In rare situations, some PAsserts may not have run."
-                  + " This is a known limitation of Dataflow in streaming.",
-              job.getJobId());
-        } else {
-          throw new IllegalStateException(
-              String.format(
-                  "Dataflow job %s did not output a success or failure metric.", job.getJobId()));
-        }
-      } else if (!result.get()) {
-        throw new AssertionError(
-            Strings.isNullOrEmpty(messageHandler.getErrorMessage())
-                ? String.format(
-                    "Dataflow job %s terminated in state %s but did not return a failure reason.",
-                    job.getJobId(), job.getState())
-                : messageHandler.getErrorMessage());
-      } else {
-        assertThat(job, testPipelineOptions.getOnSuccessMatcher());
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException(e);
+      finalState =
+          job.waitUntilFinish(
+              Duration.standardSeconds(options.getTestTimeoutSeconds()), messageHandler);
     } catch (IOException e) {
       throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.interrupted();
+      return false;
     }
-    return job;
+
+    // Getting the final state may have timed out; it may not indicate a failure.
+    // This cancellation may be the second
+    if (finalState == null || !finalState.isTerminal()) {
+      LOG.info(
+          "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+          job.getJobId(),
+          options.getTestTimeoutSeconds());
+      try {
+        job.cancel();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      return false;
+    } else {
+      return finalState == State.DONE && !messageHandler.hasSeenError();
+    }
+  }
+
+  /**
+   * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
+   */
+  private boolean waitForBatchJobTermination(
+      DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    {
+      try {
+        job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      } catch (InterruptedException e) {
+        Thread.interrupted();
+        return false;
+      }
+
+      return job.getState() == State.DONE && !messageHandler.hasSeenError();
+    }
+  }
+
+  private static String errorMessage(
+      DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    return Strings.isNullOrEmpty(messageHandler.getErrorMessage())
+        ? String.format(
+            "Dataflow job %s terminated in state %s but did not return a failure reason.",
+            job.getJobId(), job.getState())
+        : messageHandler.getErrorMessage();
   }
 
   @VisibleForTesting
@@ -199,19 +223,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * <p>If the pipeline is not in a failed/cancelled state and no PAsserts were used within the
    * pipeline, then this method will state that all PAsserts succeeded.
    *
-   * @return Optional.of(false) if we are certain a PAssert or some other critical thing has failed,
-   *     Optional.of(true) if we are certain all PAsserts passed, and Optional.absent() if the
-   *     evidence is inconclusive.
+   * @return Optional.of(false) if we are certain a PAssert failed. Optional.of(true) if we are
+   *     certain all PAsserts passed. Optional.absent() if the evidence is inconclusive, including
+   *     when the pipeline may have failed for other reasons.
    */
   @VisibleForTesting
-  Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job) throws IOException {
-
-    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
-    State state = job.getState();
-    if (state == State.FAILED || state == State.CANCELLED) {
-      LOG.info("Dataflow job {} terminated in failure state {}", job.getJobId(), state);
-      return Optional.of(false);
-    }
+  Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job) {
 
     JobMetrics metrics = getJobMetrics(job);
     if (metrics == null || metrics.getMetrics() == null) {
@@ -236,8 +253,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (failures > 0) {
-      LOG.info("Failure result for Dataflow job {}. Found {} success, {} failures out of "
-          + "{} expected assertions.", job.getJobId(), successes, failures,
+      LOG.info(
+          "Failure result for Dataflow job {}. Found {} success, {} failures out of "
+              + "{} expected assertions.",
+          job.getJobId(),
+          successes,
+          failures,
           expectedNumberOfAssertions);
       return Optional.of(false);
     } else if (successes >= expectedNumberOfAssertions) {
@@ -249,6 +270,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           failures,
           expectedNumberOfAssertions);
       return Optional.of(true);
+    }
+
+    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
+    State state = job.getState();
+    if (state == State.FAILED || state == State.CANCELLED) {
+      LOG.info(
+          "Dataflow job {} terminated in failure state {} without reporting a failed assertion",
+          job.getJobId(),
+          state);
+      return Optional.absent();
     }
 
     LOG.info(
@@ -303,8 +334,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       for (JobMessage message : messages) {
         if (message.getMessageImportance() != null
             && message.getMessageImportance().equals("JOB_MESSAGE_ERROR")) {
-          LOG.info("Dataflow job {} threw exception. Failure message was: {}",
-              job.getJobId(), message.getMessageText());
+          LOG.info(
+              "Dataflow job {} threw exception. Failure message was: {}",
+              job.getJobId(),
+              message.getMessageText());
           errorMessage.append(message.getMessageText());
           hasSeenError = true;
         }
@@ -317,6 +350,39 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     String getErrorMessage() {
       return errorMessage.toString();
+    }
+  }
+
+  private static class CancelOnError implements Callable<Void> {
+
+    private final DataflowPipelineJob job;
+    private final ErrorMonitorMessagesHandler messageHandler;
+
+    public CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+      this.job = job;
+      this.messageHandler = messageHandler;
+    }
+
+    @Override
+    public Void call() throws Exception {
+      while (true) {
+        State jobState = job.getState();
+
+        // If we see an error, cancel and note failure
+        if (messageHandler.hasSeenError()) {
+          if (!job.getState().isTerminal()) {
+            job.cancel();
+            LOG.info("Cancelling Dataflow job {}", job.getJobId());
+            return null;
+          }
+        }
+
+        if (jobState.isTerminal()) {
+          return null;
+        }
+
+        Thread.sleep(3000L);
+      }
     }
   }
 }
