@@ -60,14 +60,14 @@ public class IdNameReserve implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  public final long id;
+  private final long id;
 
   @JsonProperty
-  public final String name;
+  private final String name;
 
   /** Reserve price in cents. */
   @JsonProperty
-  public final long reserve;
+  private final long reserve;
 
   // For Avro only.
   @SuppressWarnings("unused")

@@ -116,7 +116,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
     private TimestampedValue<Event> currentEvent;
 
     /** Events which have been held back so as to force them to be late. */
-    private Queue<Generator.NextEvent> heldBackEvents = new PriorityQueue<>();
+    private final Queue<Generator.NextEvent> heldBackEvents = new PriorityQueue<>();
 
     public EventReader(Generator generator) {
       this.generator = generator;

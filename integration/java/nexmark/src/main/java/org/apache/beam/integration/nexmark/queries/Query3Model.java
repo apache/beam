@@ -42,7 +42,7 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
   /**
    * Simulator for query 3.
    */
-  private class Simulator extends AbstractSimulator<Event, NameCityStateId> {
+  private static class Simulator extends AbstractSimulator<Event, NameCityStateId> {
     /** Auctions, indexed by seller id. */
     private final Multimap<Long, Auction> newAuctions;
 

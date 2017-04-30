@@ -35,7 +35,7 @@ import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -101,7 +101,7 @@ public class Query10 extends NexmarkQuery {
 
     @Override
     public String toString() {
-      return String.format("%s %s %d %s %s\n", maxTimestamp, shard, index, timing, filename);
+      return String.format("%s %s %d %s %s%n", maxTimestamp, shard, index, timing, filename);
     }
   }
 
@@ -130,8 +130,6 @@ public class Query10 extends NexmarkQuery {
 
   /**
    * Return channel for writing bytes to GCS.
-   *
-   * @throws IOException
    */
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {

@@ -54,7 +54,7 @@ public class Done implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  public final String message;
+  private final String message;
 
   // For Avro only.
   @SuppressWarnings("unused")

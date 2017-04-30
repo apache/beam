@@ -42,7 +42,7 @@ public class GeneratorConfig implements Serializable {
    */
   public static final int PERSON_PROPORTION = 1;
   public static final int AUCTION_PROPORTION = 3;
-  public static final int BID_PROPORTION = 46;
+  private static final int BID_PROPORTION = 46;
   public static final int PROPORTION_DENOMINATOR =
       PERSON_PROPORTION + AUCTION_PROPORTION + BID_PROPORTION;
 
@@ -55,12 +55,12 @@ public class GeneratorConfig implements Serializable {
    * Delay between events, in microseconds. If the array has more than one entry then
    * the rate is changed every {@link #stepLengthSec}, and wraps around.
    */
-  public final long[] interEventDelayUs;
+  private final long[] interEventDelayUs;
 
   /**
    * Delay before changing the current inter-event delay.
    */
-  public final long stepLengthSec;
+  private final long stepLengthSec;
 
   /**
    * Time for first event (ms since epoch).
@@ -88,13 +88,13 @@ public class GeneratorConfig implements Serializable {
    * True period of epoch in milliseconds. Derived from above.
    * (Ie time to run through cycle for all interEventDelayUs entries).
    */
-  public final long epochPeriodMs;
+  private final long epochPeriodMs;
 
   /**
    * Number of events per epoch. Derived from above.
    * (Ie number of events to run through cycle for all interEventDelayUs entries).
    */
-  public final long eventsPerEpoch;
+  private final long eventsPerEpoch;
 
   public GeneratorConfig(
       NexmarkConfiguration configuration, long baseTime, long firstEventId,
@@ -121,10 +121,10 @@ public class GeneratorConfig implements Serializable {
     long eventsPerEpoch = 0;
     long epochPeriodMs = 0;
     if (interEventDelayUs.length > 1) {
-      for (int i = 0; i < interEventDelayUs.length; i++) {
-        long numEventsForThisCycle = (stepLengthSec * 1_000_000L) / interEventDelayUs[i];
+      for (long interEventDelayU : interEventDelayUs) {
+        long numEventsForThisCycle = (stepLengthSec * 1_000_000L) / interEventDelayU;
         eventsPerEpoch += numEventsForThisCycle;
-        epochPeriodMs += (numEventsForThisCycle * interEventDelayUs[i]) / 1000L;
+        epochPeriodMs += (numEventsForThisCycle * interEventDelayU) / 1000L;
       }
     }
     this.eventsPerEpoch = eventsPerEpoch;
@@ -248,16 +248,16 @@ public class GeneratorConfig implements Serializable {
     long epoch = eventNumber / eventsPerEpoch;
     long n = eventNumber % eventsPerEpoch;
     long offsetInEpochMs = 0;
-    for (int i = 0; i < interEventDelayUs.length; i++) {
-      long numEventsForThisCycle = (stepLengthSec * 1_000_000L) / interEventDelayUs[i];
+    for (long interEventDelayU : interEventDelayUs) {
+      long numEventsForThisCycle = (stepLengthSec * 1_000_000L) / interEventDelayU;
       if (n < numEventsForThisCycle) {
-        long offsetInCycleUs = n * interEventDelayUs[i];
+        long offsetInCycleUs = n * interEventDelayU;
         long timestamp =
             baseTime + epoch * epochPeriodMs + offsetInEpochMs + (offsetInCycleUs / 1000L);
-        return KV.of(timestamp, interEventDelayUs[i]);
+        return KV.of(timestamp, interEventDelayU);
       }
       n -= numEventsForThisCycle;
-      offsetInEpochMs += (numEventsForThisCycle * interEventDelayUs[i]) / 1000L;
+      offsetInEpochMs += (numEventsForThisCycle * interEventDelayU) / 1000L;
     }
     throw new RuntimeException("internal eventsPerEpoch incorrect"); // can't reach
   }

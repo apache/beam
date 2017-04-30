@@ -46,10 +46,10 @@ public abstract class NexmarkQuery
     extends PTransform<PCollection<Event>, PCollection<TimestampedValue<KnownSize>>> {
   public static final TupleTag<Auction> AUCTION_TAG = new TupleTag<>("auctions");
   public static final TupleTag<Bid> BID_TAG = new TupleTag<>("bids");
-  protected static final TupleTag<Person> PERSON_TAG = new TupleTag<>("person");
+  static final TupleTag<Person> PERSON_TAG = new TupleTag<>("person");
 
   /** Predicate to detect a new person event. */
-  protected static final SerializableFunction<Event, Boolean> IS_NEW_PERSON =
+  private static final SerializableFunction<Event, Boolean> IS_NEW_PERSON =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
@@ -58,7 +58,7 @@ public abstract class NexmarkQuery
       };
 
   /** DoFn to convert a new person event to a person. */
-  protected static final DoFn<Event, Person> AS_PERSON = new DoFn<Event, Person>() {
+  private static final DoFn<Event, Person> AS_PERSON = new DoFn<Event, Person>() {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().newPerson);
@@ -66,7 +66,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new auction event. */
-  protected static final SerializableFunction<Event, Boolean> IS_NEW_AUCTION =
+  private static final SerializableFunction<Event, Boolean> IS_NEW_AUCTION =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
@@ -75,7 +75,7 @@ public abstract class NexmarkQuery
       };
 
   /** DoFn to convert a new auction event to an auction. */
-  protected static final DoFn<Event, Auction> AS_AUCTION = new DoFn<Event, Auction>() {
+  private static final DoFn<Event, Auction> AS_AUCTION = new DoFn<Event, Auction>() {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().newAuction);
@@ -83,7 +83,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new bid event. */
-  protected static final SerializableFunction<Event, Boolean> IS_BID =
+  private static final SerializableFunction<Event, Boolean> IS_BID =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
@@ -92,7 +92,7 @@ public abstract class NexmarkQuery
       };
 
   /** DoFn to convert a bid event to a bid. */
-  protected static final DoFn<Event, Bid> AS_BID = new DoFn<Event, Bid>() {
+  private static final DoFn<Event, Bid> AS_BID = new DoFn<Event, Bid>() {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().bid);
@@ -100,7 +100,7 @@ public abstract class NexmarkQuery
   };
 
   /** Transform to key each person by their id. */
-  protected static final ParDo.SingleOutput<Person, KV<Long, Person>> PERSON_BY_ID =
+  static final ParDo.SingleOutput<Person, KV<Long, Person>> PERSON_BY_ID =
       ParDo.of(new DoFn<Person, KV<Long, Person>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -109,7 +109,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each auction by its id. */
-  protected static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_ID =
+  static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_ID =
       ParDo.of(new DoFn<Auction, KV<Long, Auction>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -118,7 +118,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each auction by its seller id. */
-  protected static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_SELLER =
+  static final ParDo.SingleOutput<Auction, KV<Long, Auction>> AUCTION_BY_SELLER =
       ParDo.of(new DoFn<Auction, KV<Long, Auction>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -127,7 +127,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to key each bid by it's auction id. */
-  protected static final ParDo.SingleOutput<Bid, KV<Long, Bid>> BID_BY_AUCTION =
+  static final ParDo.SingleOutput<Bid, KV<Long, Bid>> BID_BY_AUCTION =
       ParDo.of(new DoFn<Bid, KV<Long, Bid>>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -136,7 +136,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to project the auction id from each bid. */
-  protected static final ParDo.SingleOutput<Bid, Long> BID_TO_AUCTION =
+  static final ParDo.SingleOutput<Bid, Long> BID_TO_AUCTION =
       ParDo.of(new DoFn<Bid, Long>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -145,7 +145,7 @@ public abstract class NexmarkQuery
            });
 
   /** Transform to project the price from each bid. */
-  protected static final ParDo.SingleOutput<Bid, Long> BID_TO_PRICE =
+  static final ParDo.SingleOutput<Bid, Long> BID_TO_PRICE =
       ParDo.of(new DoFn<Bid, Long>() {
              @ProcessElement
              public void processElement(ProcessContext c) {
@@ -205,13 +205,13 @@ public abstract class NexmarkQuery
         }
       };
 
-  protected final NexmarkConfiguration configuration;
+  final NexmarkConfiguration configuration;
   public final Monitor<Event> eventMonitor;
   public final Monitor<KnownSize> resultMonitor;
-  public final Monitor<Event> endOfStreamMonitor;
-  protected final Counter fatalCounter;
+  private final Monitor<Event> endOfStreamMonitor;
+  private final Counter fatalCounter;
 
-  protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
+  NexmarkQuery(NexmarkConfiguration configuration, String name) {
     super(name);
     this.configuration = configuration;
     if (configuration.debug) {

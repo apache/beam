@@ -86,9 +86,7 @@ public class Query6 extends NexmarkQuery {
     public List<Bid> mergeAccumulators(Iterable<List<Bid>> accumulators) {
       List<Bid> result = new ArrayList<>();
       for (List<Bid> accumulator : accumulators) {
-        for (Bid bid : accumulator) {
-          result.add(bid);
-        }
+        result.addAll(accumulator);
       }
       Collections.sort(result, Bid.ASCENDING_TIME_THEN_PRICE);
       if (result.size() > maxNumBids) {

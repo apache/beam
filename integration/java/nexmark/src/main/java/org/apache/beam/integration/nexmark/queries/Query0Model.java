@@ -32,7 +32,7 @@ public class Query0Model extends NexmarkQueryModel {
   /**
    * Simulator for query 0.
    */
-  private class Simulator extends AbstractSimulator<Event, Event> {
+  private static class Simulator extends AbstractSimulator<Event, Event> {
     public Simulator(NexmarkConfiguration configuration) {
       super(NexmarkUtils.standardEventIterator(configuration));
     }

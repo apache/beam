@@ -138,19 +138,6 @@ public class Event implements KnownSize, Serializable {
     }
   }
 
-  /**
-   * Remove {@code annotation} from event. (Used for debugging.)
-   */
-  public Event withoutAnnotation(String annotation) {
-    if (newPerson != null) {
-      return new Event(newPerson.withoutAnnotation(annotation));
-    } else if (newAuction != null) {
-      return new Event(newAuction.withoutAnnotation(annotation));
-    } else {
-      return new Event(bid.withoutAnnotation(annotation));
-    }
-  }
-
   @Override
   public long sizeInBytes() {
     if (newPerson != null) {

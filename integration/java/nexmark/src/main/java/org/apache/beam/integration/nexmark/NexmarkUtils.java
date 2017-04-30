@@ -55,6 +55,9 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -63,9 +66,6 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.state.StateSpec;
-import org.apache.beam.sdk.util.state.StateSpecs;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -178,7 +178,7 @@ public class NexmarkUtils {
     /** Names are suffixed with the query being run. */
     QUERY,
     /** Names are suffixed with the query being run and a random number. */
-    QUERY_AND_SALT;
+    QUERY_AND_SALT
   }
 
   /**
@@ -310,7 +310,7 @@ public class NexmarkUtils {
    * Log message to console. For client side only.
    */
   public static void console(String format, Object... args) {
-    System.out.printf("%s %s\n", Instant.now(), String.format(format, args));
+    System.out.printf("%s %s%n", Instant.now(), String.format(format, args));
   }
 
   /**
@@ -326,7 +326,7 @@ public class NexmarkUtils {
   /**
    * All events will be given a timestamp relative to this time (ms since epoch).
    */
-  public static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
+  private static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
 
   /**
    * Instants guaranteed to be strictly before and after all event timestamps, and which won't
@@ -377,7 +377,7 @@ public class NexmarkUtils {
   /**
    * Return a generator config to match the given {@code options}.
    */
-  public static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
+  private static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
     return new GeneratorConfig(configuration,
                                configuration.useWallclockEventTime ? System.currentTimeMillis()
                                                                    : BASE_TIME, 0,
@@ -558,15 +558,14 @@ public class NexmarkUtils {
                         }
                         p++;
                       }
-                      long next = System.currentTimeMillis();
-                      now = next;
+                      now = System.currentTimeMillis();
                     }
                     c.output(c.element());
                   }
                 });
   }
 
-  private static final StateSpec<Object, ValueState<byte[]>> DUMMY_TAG =
+  private static final StateSpec<ValueState<byte[]>> DUMMY_TAG =
           StateSpecs.value(ByteArrayCoder.of());
   private static final int MAX_BUFFER_SIZE = 1 << 24;
 
@@ -578,20 +577,19 @@ public class NexmarkUtils {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     long remain = bytes;
-                    long start = System.currentTimeMillis();
-                    long now = start;
+//                    long now = System.currentTimeMillis();
                     while (remain > 0) {
+                      //TODO Ismael google on state
                       long thisBytes = Math.min(remain, MAX_BUFFER_SIZE);
                       remain -= thisBytes;
-                      byte[] arr = new byte[(int) thisBytes];
-                      for (int i = 0; i < thisBytes; i++) {
-                        arr[i] = (byte) now;
-                      }
-                      //TODO Ismael google on state
+//                      byte[] arr = new byte[(int) thisBytes];
+//                      for (int i = 0; i < thisBytes; i++) {
+//                        arr[i] = (byte) now;
+//                      }
 //                      ValueState<byte[]> state = c.windowingInternals().stateInternals().state(
 //                          StateNamespaces.global(), DUMMY_TAG);
 //                      state.write(arr);
-                      now = System.currentTimeMillis();
+//                      now = System.currentTimeMillis();
                     }
                     c.output(c.element());
                   }

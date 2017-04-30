@@ -60,7 +60,7 @@ public class SellerPrice implements KnownSize, Serializable {
 
   /** Price in cents. */
   @JsonProperty
-  public final long price;
+  private final long price;
 
   // For Avro only.
   @SuppressWarnings("unused")

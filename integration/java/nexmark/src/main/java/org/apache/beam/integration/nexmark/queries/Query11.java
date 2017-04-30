@@ -63,14 +63,13 @@ public class Query11 extends NexmarkQuery {
                 Repeatedly.forever(AfterPane.elementCountAtLeast(configuration.maxLogEvents)))
             .discardingFiredPanes()
             .withAllowedLateness(Duration.standardSeconds(configuration.occasionalDelaySec / 2)));
-    PCollection<BidsPerSession> bidsPerSession = biddersWindowed.apply(Count.<Long>perElement())
+    return biddersWindowed.apply(Count.<Long>perElement())
         .apply(name + ".ToResult", ParDo.of(new DoFn<KV<Long, Long>, BidsPerSession>() {
 
           @ProcessElement public void processElement(ProcessContext c) {
             c.output(new BidsPerSession(c.element().getKey(), c.element().getValue()));
           }
         }));
-    return bidsPerSession;
   }
 
   @Override

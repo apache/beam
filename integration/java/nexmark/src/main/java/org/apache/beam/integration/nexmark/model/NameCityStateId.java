@@ -62,16 +62,16 @@ public class NameCityStateId implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  public final String name;
+  private final String name;
 
   @JsonProperty
-  public final String city;
+  private final String city;
 
   @JsonProperty
-  public final String state;
+  private final String state;
 
   @JsonProperty
-  public final long id;
+  private final long id;
 
   // For Avro only.
   @SuppressWarnings("unused")

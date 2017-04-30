@@ -56,10 +56,10 @@ public class BidsPerSession implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  public final long personId;
+  private final long personId;
 
   @JsonProperty
-  public final long bidsPerSession;
+  private final long bidsPerSession;
 
   public BidsPerSession() {
     personId = 0;

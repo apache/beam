@@ -123,8 +123,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
           @Override public void verifyDeterministic() throws NonDeterministicException {}
         };
 
-    private long numEvents;
-    private long wallclockBaseTime;
+    private final long numEvents;
+    private final long wallclockBaseTime;
 
     private Checkpoint(long numEvents, long wallclockBaseTime) {
       this.numEvents = numEvents;
@@ -403,8 +403,8 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     if (n < Integer.MAX_VALUE) {
       return random.nextInt((int) n);
     } else {
-      // TODO: Very skewed distribution! Bad!
-      return Math.abs(random.nextLong()) % n;
+      // WARNING: Very skewed distribution! Bad!
+      return Math.abs(random.nextLong() % n);
     }
   }
 
@@ -470,14 +470,13 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
 
     long category = GeneratorConfig.FIRST_CATEGORY_ID + random.nextInt(NUM_CATEGORIES);
     long initialBid = nextPrice(random);
-    long dateTime = timestamp;
     long expires = timestamp + nextAuctionLengthMs(random, timestamp);
     String name = nextString(random, 20);
     String desc = nextString(random, 100);
     long reserve = initialBid + nextPrice(random);
     int currentSize = 8 + name.length() + desc.length() + 8 + 8 + 8 + 8 + 8;
     String extra = nextExtra(random, currentSize, config.configuration.avgAuctionByteSize);
-    return new Auction(id, name, desc, initialBid, reserve, dateTime, expires, seller, category,
+    return new Auction(id, name, desc, initialBid, reserve, timestamp, expires, seller, category,
         extra);
   }
 
