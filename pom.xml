@@ -133,6 +133,7 @@
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
+    <snappy.version>1.1.4-M3</snappy.version>
     <spark.version>1.6.2</spark.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
@@ -977,6 +978,12 @@
         <artifactId>hamcrest-all</artifactId>
         <version>${hamcrest.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy.version}</version>
       </dependency>
 
       <dependency>
