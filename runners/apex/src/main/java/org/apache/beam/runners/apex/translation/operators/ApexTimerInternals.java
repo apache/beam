@@ -20,9 +20,12 @@ package org.apache.beam.runners.apex.translation.operators;
 import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.DefaultSerializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -47,14 +50,16 @@ import org.joda.time.Instant;
 @DefaultSerializer(JavaSerializer.class)
 class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
-  private Map<Slice, Set<Slice>> activeTimers = new HashMap<>();
-  private TimerDataCoder timerDataCoder;
+  private final TimerSet eventTimeTimeTimers;
+  private final TimerSet processingTimeTimers;
+
   private transient K currentKey;
   private transient Instant currentInputWatermark;
   private transient Coder<K> keyCoder;
 
   public ApexTimerInternals(TimerDataCoder timerDataCoder) {
-    this.timerDataCoder = timerDataCoder;
+    this.eventTimeTimeTimers = new TimerSet(timerDataCoder);
+    this.processingTimeTimers = new TimerSet(timerDataCoder);
   }
 
   public void setContext(K key, Coder<K> keyCoder, Instant inputWatermark) {
@@ -63,31 +68,37 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     this.currentInputWatermark = inputWatermark;
   }
 
+  @VisibleForTesting
+  protected TimerSet getTimerSet(TimeDomain domain) {
+    return (domain == TimeDomain.EVENT_TIME) ? eventTimeTimeTimers : processingTimeTimers;
+  }
+
   @Override
   public void setTimer(StateNamespace namespace, String timerId, Instant target,
       TimeDomain timeDomain) {
     TimerData timerData = TimerData.of(timerId, namespace, target, timeDomain);
-    registerActiveTimer(currentKey, timerData);
+    setTimer(timerData);
   }
 
   @Override
   public void setTimer(TimerData timerData) {
-    registerActiveTimer(currentKey, timerData);
+    getTimerSet(timerData.getDomain()).addTimer(getKeyBytes(this.currentKey), timerData);
   }
 
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-    throw new UnsupportedOperationException();
+    getTimerSet(timeDomain).deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
   }
 
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId) {
-    throw new UnsupportedOperationException();
+    this.eventTimeTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
+    this.processingTimeTimers.deleteTimer(getKeyBytes(this.currentKey), namespace, timerId);
   }
 
   @Override
   public void deleteTimer(TimerData timerKey) {
-    unregisterActiveTimer(currentKey, timerKey);
+    getTimerSet(timerKey.getDomain()).deleteTimer(getKeyBytes(this.currentKey), timerKey);
   }
 
   @Override
@@ -102,7 +113,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   @Override
   public Instant currentInputWatermarkTime() {
-    return new Instant(currentInputWatermark);
+    return currentInputWatermark;
   }
 
   @Override
@@ -110,14 +121,17 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     return null;
   }
 
+  public interface TimerProcessor<K> {
+    void fireTimer(K key, Collection<TimerData> timerData);
+  }
+
   /**
-   * Returns the list of timers that are ready to fire. These are the timers
-   * that are registered to be triggered at a time before the current watermark.
-   * We keep these timers in a Set, so that they are deduplicated, as the same
-   * timer can be registered multiple times.
+   * Fire the timers that are ready. These are the timers
+   * that are registered to be triggered at a time before the current time.
    */
-  public Multimap<Slice, TimerInternals.TimerData> getTimersReadyToProcess(
-      long currentWatermark) {
+  public void fireReadyTimers(long currentTime,
+      TimerProcessor<K> timerProcessor, TimeDomain timeDomain) {
+    TimerSet timers = getTimerSet(timeDomain);
 
     // we keep the timers to return in a different list and launch them later
     // because we cannot prevent a trigger from registering another timer,
@@ -125,16 +139,16 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     Multimap<Slice, TimerInternals.TimerData> toFire = HashMultimap.create();
 
     Iterator<Map.Entry<Slice, Set<Slice>>> it =
-        activeTimers.entrySet().iterator();
+        timers.activeTimers.entrySet().iterator();
     while (it.hasNext()) {
       Map.Entry<Slice, Set<Slice>> keyWithTimers = it.next();
 
       Iterator<Slice> timerIt = keyWithTimers.getValue().iterator();
       while (timerIt.hasNext()) {
         try {
-          TimerData timerData = CoderUtils.decodeFromByteArray(timerDataCoder,
+          TimerData timerData = CoderUtils.decodeFromByteArray(timers.timerDataCoder,
               timerIt.next().buffer);
-          if (timerData.getTimestamp().isBefore(currentWatermark)) {
+          if (timerData.getTimestamp().isBefore(currentTime)) {
             toFire.put(keyWithTimers.getKey(), timerData);
             timerIt.remove();
           }
@@ -147,55 +161,106 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
         it.remove();
       }
     }
-    return toFire;
+
+    // fire ready timers
+    if (!toFire.isEmpty()) {
+      for (Slice keyBytes : toFire.keySet()) {
+        try {
+          K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.buffer);
+          timerProcessor.fireTimer(key, toFire.get(keyBytes));
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
   }
 
-  private void registerActiveTimer(K key, TimerData timer) {
-    final Slice keyBytes;
+  private Slice getKeyBytes(K key) {
     try {
-      keyBytes = new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
+      return new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
-    Set<Slice> timersForKey = activeTimers.get(keyBytes);
-    if (timersForKey == null) {
-      timersForKey = new HashSet<>();
-    }
-
-    try {
-      Slice timerBytes = new Slice(CoderUtils.encodeToByteArray(timerDataCoder, timer));
-      timersForKey.add(timerBytes);
-    } catch (CoderException e) {
-      throw new RuntimeException(e);
-    }
-
-    activeTimers.put(keyBytes, timersForKey);
   }
 
-  private void unregisterActiveTimer(K key, TimerData timer) {
-    final Slice keyBytes;
-    try {
-      keyBytes = new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
-    } catch (CoderException e) {
-      throw new RuntimeException(e);
+  protected static class TimerSet implements Serializable {
+    private final Map<Slice, Set<Slice>> activeTimers = new HashMap<>();
+    private final TimerDataCoder timerDataCoder;
+
+    protected TimerSet(TimerDataCoder timerDataCoder) {
+      this.timerDataCoder = timerDataCoder;
     }
 
-    Set<Slice> timersForKey = activeTimers.get(keyBytes);
-    if (timersForKey != null) {
+    public void addTimer(Slice keyBytes, TimerData timer) {
+      Set<Slice> timersForKey = activeTimers.get(keyBytes);
+      if (timersForKey == null) {
+        timersForKey = new HashSet<>();
+      }
+
       try {
         Slice timerBytes = new Slice(CoderUtils.encodeToByteArray(timerDataCoder, timer));
         timersForKey.add(timerBytes);
-        timersForKey.remove(timerBytes);
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
 
+      activeTimers.put(keyBytes, timersForKey);
+    }
+
+    public void deleteTimer(Slice keyBytes, StateNamespace namespace, String timerId) {
+      Set<Slice> timersForKey = activeTimers.get(keyBytes);
+      if (timersForKey == null) {
+        return;
+      }
+
+      Iterator<Slice> timerIt = timersForKey.iterator();
+      while (timerIt.hasNext()) {
+        try {
+          TimerData timerData = CoderUtils.decodeFromByteArray(timerDataCoder,
+              timerIt.next().buffer);
+          ComparisonChain chain =
+              ComparisonChain.start().compare(timerData.getTimerId(), timerId);
+          if (chain.result() == 0 && !timerData.getNamespace().equals(namespace)) {
+            // Obtaining the stringKey may be expensive; only do so if required
+            chain = chain.compare(timerData.getNamespace().stringKey(), namespace.stringKey());
+          }
+          if (chain.result() == 0) {
+            timerIt.remove();
+          }
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
       if (timersForKey.isEmpty()) {
         activeTimers.remove(keyBytes);
-      } else {
-        activeTimers.put(keyBytes, timersForKey);
       }
     }
+
+    public void deleteTimer(Slice keyBytes, TimerData timerKey) {
+      Set<Slice> timersForKey = activeTimers.get(keyBytes);
+      if (timersForKey != null) {
+        try {
+          Slice timerBytes = new Slice(CoderUtils.encodeToByteArray(timerDataCoder, timerKey));
+          timersForKey.add(timerBytes);
+          timersForKey.remove(timerBytes);
+        } catch (CoderException e) {
+          throw new RuntimeException(e);
+        }
+
+        if (timersForKey.isEmpty()) {
+          activeTimers.remove(keyBytes);
+        } else {
+          activeTimers.put(keyBytes, timersForKey);
+        }
+      }
+    }
+
+    @VisibleForTesting
+    protected Map<Slice, Set<Slice>> getMap() {
+      return activeTimers;
+    }
+
   }
 
 }

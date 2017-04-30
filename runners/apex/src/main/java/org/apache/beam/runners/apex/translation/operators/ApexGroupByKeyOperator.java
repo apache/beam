@@ -25,11 +25,9 @@ import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
-import com.datatorrent.netlet.util.Slice;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Multimap;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
@@ -41,6 +39,7 @@ import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
@@ -49,8 +48,8 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NullSideInputReader;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -68,7 +67,8 @@ import org.slf4j.LoggerFactory;
  * @param <K> key type
  * @param <V> value type
  */
-public class ApexGroupByKeyOperator<K, V> implements Operator {
+public class ApexGroupByKeyOperator<K, V> implements Operator,
+    ApexTimerInternals.TimerProcessor<K> {
   private static final Logger LOG = LoggerFactory.getLogger(ApexGroupByKeyOperator.class);
   private boolean traceTuples = true;
 
@@ -106,7 +106,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         }
         processElement(t.getValue());
       } catch (Exception e) {
-        Throwables.propagateIfPossible(e);
+        Throwables.throwIfUnchecked(e);
         throw new RuntimeException(e);
       }
     }
@@ -143,6 +143,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
 
   @Override
   public void endWindow() {
+    timerInternals.fireReadyTimers(timerInternals.currentProcessingTime().getMillis(),
+        this, TimeDomain.PROCESSING_TIME);
   }
 
   @Override
@@ -195,7 +197,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         serializedOptions.get());
   }
 
-
   private void processElement(WindowedValue<KV<K, V>> windowedValue) throws Exception {
     final KV<K, V> kv = windowedValue.getValue();
     final WindowedValue<V> updatedWindowedValue = WindowedValue.of(kv.getValue(),
@@ -209,19 +210,23 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     reduceFnRunner.persist();
   }
 
-  private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) throws Exception {
-    this.inputWatermark = new Instant(mark.getTimestamp());
-    Multimap<Slice, TimerInternals.TimerData> timers = timerInternals.getTimersReadyToProcess(
-        mark.getTimestamp());
-    if (!timers.isEmpty()) {
-      for (Slice keyBytes : timers.keySet()) {
-        K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.buffer);
-        timerInternals.setContext(key, keyCoder, inputWatermark);
-        ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
-        reduceFnRunner.onTimers(timers.get(keyBytes));
-        reduceFnRunner.persist();
-      }
+  @Override
+  public void fireTimer(K key, Collection<TimerData> timerData) {
+    timerInternals.setContext(key, keyCoder, inputWatermark);
+    ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner = newReduceFnRunner(key);
+    try {
+      reduceFnRunner.onTimers(timerData);
+    } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
     }
+    reduceFnRunner.persist();
+  }
+
+  private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
+    this.inputWatermark = new Instant(mark.getTimestamp());
+    timerInternals.fireReadyTimers(this.inputWatermark.getMillis(),
+        this, TimeDomain.EVENT_TIME);
   }
 
 }
