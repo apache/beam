@@ -38,8 +38,8 @@ import org.joda.time.format.ISODateTimeFormat;
  */
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
 
-  private static DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
-  private String filenamePrefix;
+  private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
+  private final String filenamePrefix;
 
   public WriteOneFilePerWindow(String filenamePrefix) {
     this.filenamePrefix = filenamePrefix;
@@ -48,7 +48,10 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
   @Override
   public PDone expand(PCollection<String> input) {
     return input.apply(
-        TextIO.Write.to(new PerWindowFiles(filenamePrefix)).withWindowedWrites().withNumShards(3));
+        TextIO.Write
+            .to(new PerWindowFiles(filenamePrefix))
+            .withWindowedWrites()
+            .withNumShards(3));
   }
 
   /**
@@ -72,7 +75,7 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
     public String   filenamePrefixForWindow(IntervalWindow window) {
       return String.format(
-          "%s-%s-%s", output, formatter.print(window.start()), formatter.print(window.end()));
+          "%s-%s-%s", output, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override
