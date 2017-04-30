@@ -195,7 +195,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private String filenameSuffix;
     private String mimeType;
 
-    private CompressionType(String suffix, String mimeType) {
+    CompressionType(String suffix, String mimeType) {
       this.filenameSuffix = suffix;
       this.mimeType = mimeType;
     }
