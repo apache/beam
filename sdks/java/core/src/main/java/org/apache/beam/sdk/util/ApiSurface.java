@@ -33,8 +33,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.reflect.ClassPath;
-import com.google.common.reflect.ClassPath.ClassInfo;
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
 import com.google.common.reflect.TypeToken;
@@ -353,7 +351,7 @@ public class ApiSurface {
     ClassPath classPath = ClassPath.from(classLoader);
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    for (ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
+    for (ClassPath.ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
       Class clazz = classInfo.load();
       if (exposed(clazz.getModifiers())) {
         newRootClasses.add(clazz);
