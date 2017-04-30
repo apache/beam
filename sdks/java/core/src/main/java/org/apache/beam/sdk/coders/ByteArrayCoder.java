@@ -63,7 +63,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
 
   @Override
   public void encode(byte[] value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
@@ -82,7 +82,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
    * <p>Once passed to this method, {@code value} should never be observed or mutated again.
    */
   public void encodeAndOwn(byte[] value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (!context.isWholeStream) {
       VarInt.encode(value.length, outStream);
       outStream.write(value);
@@ -97,7 +97,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
 
   @Override
   public byte[] decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (context.isWholeStream) {
       return StreamUtils.getBytes(inStream);
     } else {

@@ -436,7 +436,7 @@ public class ApproximateUnique {
     /**
      * Encodes the given element using the given coder and hashes the encoding.
      */
-    static <T> long hash(T element, Coder<T> coder) throws CoderException, IOException {
+    static <T> long hash(T element, Coder<T> coder) throws IOException {
       try (HashingOutputStream stream =
               new HashingOutputStream(Hashing.murmur3_128(), ByteStreams.nullOutputStream())) {
         coder.encode(element, stream, Context.OUTER);

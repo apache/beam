@@ -102,12 +102,12 @@ public class CoderRegistryTest {
   private class MyListCoder extends CustomCoder<List> {
     @Override
     public void encode(List value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
     }
 
     @Override
     public List decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return Collections.emptyList();
     }
 
@@ -458,12 +458,12 @@ public class CoderRegistryTest {
 
     @Override
     public void encode(MyValue value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
     }
 
     @Override
     public MyValue decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return new MyValue();
     }
 

@@ -50,13 +50,13 @@ public class CoderPropertiesTest {
   public static class NonDeterministicCoder extends CustomCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       StringUtf8Coder.of().encode(value, outStream, context);
     }
 
     @Override
     public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return StringUtf8Coder.of().decode(inStream, context);
     }
   }
@@ -90,13 +90,13 @@ public class CoderPropertiesTest {
 
     @Override
     public void encode(String value, OutputStream outStream, Context context)
-        throws IOException, CoderException {
+        throws IOException {
       StringUtf8Coder.of().encode(value + System.nanoTime(), outStream, context);
     }
 
     @Override
     public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return StringUtf8Coder.of().decode(inStream, context);
     }
 
@@ -130,14 +130,14 @@ public class CoderPropertiesTest {
 
     @Override
     public void encode(String value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       changedState += 1;
       StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream, context);
     }
 
     @Override
     public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       String decodedValue = StringUtf8Coder.of().decode(inStream, context);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
@@ -163,7 +163,7 @@ public class CoderPropertiesTest {
 
     @Override
     public void encode(String value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (lostState == 0) {
         throw new RuntimeException("I forgot something...");
       }
@@ -172,7 +172,7 @@ public class CoderPropertiesTest {
 
     @Override
     public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return StringUtf8Coder.of().decode(inStream, context);
     }
   }

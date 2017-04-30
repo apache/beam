@@ -618,7 +618,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   static class Serializer extends JsonSerializer<PipelineOptions> {
     @Override
     public void serialize(PipelineOptions value, JsonGenerator jgen, SerializerProvider provider)
-        throws IOException, JsonProcessingException {
+        throws IOException {
       ProxyInvocationHandler handler = (ProxyInvocationHandler) Proxy.getInvocationHandler(value);
       synchronized (handler) {
         // We first filter out any properties that have been modified since
@@ -718,7 +718,7 @@ class ProxyInvocationHandler implements InvocationHandler {
   static class Deserializer extends JsonDeserializer<PipelineOptions> {
     @Override
     public PipelineOptions deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException {
+        throws IOException {
       ObjectNode objectNode = (ObjectNode) jp.readValueAsTree();
       ObjectNode optionsNode = (ObjectNode) objectNode.get("options");
 

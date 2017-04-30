@@ -656,7 +656,7 @@ public class Combine {
 
     @Override
     public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (accumulator.present) {
         outStream.write(1);
         valueCoder.encode(accumulator.value, outStream, context);
@@ -667,7 +667,7 @@ public class Combine {
 
     @Override
     public Holder<V> decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (inStream.read() == 1) {
         return new Holder<>(valueCoder.decode(inStream, context));
       } else {
@@ -2287,7 +2287,7 @@ public class Combine {
         @Override
         public void encode(
             InputOrAccum<InputT, AccumT> value, OutputStream outStream, Coder.Context context)
-            throws CoderException, IOException {
+            throws IOException {
           if (value.input != null) {
             outStream.write(0);
             inputCoder.encode(value.input, outStream, context);
@@ -2299,7 +2299,7 @@ public class Combine {
 
         @Override
         public InputOrAccum<InputT, AccumT> decode(InputStream inStream, Coder.Context context)
-            throws CoderException, IOException {
+            throws IOException {
           if (inStream.read() == 0) {
             return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream, context));
           } else {

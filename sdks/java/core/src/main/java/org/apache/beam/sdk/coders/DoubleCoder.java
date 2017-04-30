@@ -44,7 +44,7 @@ public class DoubleCoder extends CustomCoder<Double> {
 
   @Override
   public void encode(Double value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Double");
     }
@@ -53,7 +53,7 @@ public class DoubleCoder extends CustomCoder<Double> {
 
   @Override
   public Double decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     try {
       return new DataInputStream(inStream).readDouble();
     } catch (EOFException | UTFDataFormatException exn) {

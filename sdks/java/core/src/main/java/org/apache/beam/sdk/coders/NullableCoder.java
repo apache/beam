@@ -62,7 +62,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
 
   @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
-      throws IOException, CoderException  {
+      throws IOException {
     if (value == null) {
       outStream.write(ENCODE_NULL);
     } else {
@@ -73,7 +73,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
 
   @Override
   @Nullable
-  public T decode(InputStream inStream, Context context) throws IOException, CoderException {
+  public T decode(InputStream inStream, Context context) throws IOException {
     int b = inStream.read();
     if (b == ENCODE_NULL) {
       return null;

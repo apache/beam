@@ -508,13 +508,13 @@ public class ViewTest implements Serializable {
   private static class NonDeterministicStringCoder extends CustomCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       StringUtf8Coder.of().encode(value, outStream, context);
     }
 
     @Override
     public String decode(InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return StringUtf8Coder.of().decode(inStream, context);
     }
 

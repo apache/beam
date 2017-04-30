@@ -60,7 +60,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
       RawUnionValue union,
       OutputStream outStream,
       Context context)
-      throws IOException, CoderException  {
+      throws IOException {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
     VarInt.encode(index, outStream);
@@ -75,7 +75,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
 
   @Override
   public RawUnionValue decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     int index = VarInt.decodeInt(inStream);
     Object value = elementCoders.get(index).decode(inStream, context);
     return new RawUnionValue(index, value);

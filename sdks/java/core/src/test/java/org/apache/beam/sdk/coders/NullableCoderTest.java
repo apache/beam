@@ -179,7 +179,7 @@ public class NullableCoderTest {
 
     @Override
     public String decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       checkArgument(context.isWholeStream, "Expected to get entire stream");
       return StringUtf8Coder.of().decode(inStream, context);
     }

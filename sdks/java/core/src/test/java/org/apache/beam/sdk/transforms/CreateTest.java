@@ -135,10 +135,10 @@ public class CreateTest {
   private static class RecordCoder extends CustomCoder<Record> {
     @Override
     public void encode(Record value, OutputStream outStream, Context context)
-        throws CoderException, IOException {}
+        throws IOException {}
 
     @Override
-    public Record decode(InputStream inStream, Context context) throws CoderException, IOException {
+    public Record decode(InputStream inStream, Context context) throws IOException {
       return null;
     }
   }
@@ -209,14 +209,14 @@ public class CreateTest {
           UnserializableRecord value,
           OutputStream outStream,
           org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
+          throws IOException {
         stringCoder.encode(value.myString, outStream, context.nested());
       }
 
       @Override
       public UnserializableRecord decode(
           InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-          throws CoderException, IOException {
+          throws IOException {
         return new UnserializableRecord(stringCoder.decode(inStream, context.nested()));
       }
     }

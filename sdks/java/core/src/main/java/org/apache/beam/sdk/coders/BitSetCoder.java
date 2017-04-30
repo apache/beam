@@ -37,7 +37,7 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   @Override
   public void encode(BitSet value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null BitSet");
     }
@@ -46,7 +46,7 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   @Override
   public BitSet decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 

@@ -539,13 +539,13 @@ public class Top {
     @Override
     public void encode(
         BoundedHeap<T, ComparatorT> value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       listCoder.encode(value.asList(), outStream, context);
     }
 
     @Override
     public BoundedHeap<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream, context));
     }
 

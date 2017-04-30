@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
   @Override
   public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
-      SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+      SerializerProvider serializerProvider) throws IOException {
     byte[] out = SerializableUtils.serializeToByteArray(matcher);
     String encodedString = Base64.encodeBase64String(out);
     jsonGenerator.writeStartObject();

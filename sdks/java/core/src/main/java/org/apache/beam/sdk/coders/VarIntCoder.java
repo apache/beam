@@ -45,7 +45,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
 
   @Override
   public void encode(Integer value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
@@ -54,7 +54,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
 
   @Override
   public Integer decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     try {
       return VarInt.decodeInt(inStream);
     } catch (EOFException | UTFDataFormatException exn) {

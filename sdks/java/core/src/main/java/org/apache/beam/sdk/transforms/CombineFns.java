@@ -981,7 +981,7 @@ public class CombineFns {
 
     @Override
     public void encode(Object[] value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       checkArgument(value.length == codersCount);
       if (value.length == 0) {
         return;
@@ -996,7 +996,7 @@ public class CombineFns {
 
     @Override
     public Object[] decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       Object[] ret = new Object[codersCount];
       if (codersCount == 0) {
         return ret;

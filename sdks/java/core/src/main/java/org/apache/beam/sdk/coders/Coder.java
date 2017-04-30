@@ -120,7 +120,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException;
+      throws IOException;
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
@@ -131,7 +131,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   T decode(InputStream inStream, Context context)
-      throws CoderException, IOException;
+      throws IOException;
 
   /**
    * If this is a {@code Coder} for a parameterized type, returns the

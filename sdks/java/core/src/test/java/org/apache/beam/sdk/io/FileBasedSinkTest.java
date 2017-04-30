@@ -455,7 +455,7 @@ public class FileBasedSinkTest {
    * {@link CompressionType#BZIP2} correctly writes BZip2 data.
    */
   @Test
-  public void testCompressionTypeBZIP2() throws FileNotFoundException, IOException {
+  public void testCompressionTypeBZIP2() throws IOException {
     final File file =
         writeValuesWithWritableByteChannelFactory(CompressionType.BZIP2, "abc", "123");
     // Read Bzip2ed data back in using Apache commons API (de facto standard).
@@ -468,7 +468,7 @@ public class FileBasedSinkTest {
    * {@link CompressionType#GZIP} correctly writes Gzipped data.
    */
   @Test
-  public void testCompressionTypeGZIP() throws FileNotFoundException, IOException {
+  public void testCompressionTypeGZIP() throws IOException {
     final File file = writeValuesWithWritableByteChannelFactory(CompressionType.GZIP, "abc", "123");
     // Read Gzipped data back in using standard API.
     assertReadValues(new BufferedReader(new InputStreamReader(
@@ -480,7 +480,7 @@ public class FileBasedSinkTest {
    * {@link CompressionType#DEFLATE} correctly writes deflate data.
    */
   @Test
-  public void testCompressionTypeDEFLATE() throws FileNotFoundException, IOException {
+  public void testCompressionTypeDEFLATE() throws IOException {
     final File file = writeValuesWithWritableByteChannelFactory(
         CompressionType.DEFLATE, "abc", "123");
     // Read Gzipped data back in using standard API.
@@ -492,7 +492,7 @@ public class FileBasedSinkTest {
    * {@link CompressionType#UNCOMPRESSED} correctly writes uncompressed data.
    */
   @Test
-  public void testCompressionTypeUNCOMPRESSED() throws FileNotFoundException, IOException {
+  public void testCompressionTypeUNCOMPRESSED() throws IOException {
     final File file =
         writeValuesWithWritableByteChannelFactory(CompressionType.UNCOMPRESSED, "abc", "123");
     // Read uncompressed data back in using standard API.
@@ -511,7 +511,7 @@ public class FileBasedSinkTest {
 
   private File writeValuesWithWritableByteChannelFactory(final WritableByteChannelFactory factory,
       String... values)
-      throws IOException, FileNotFoundException {
+      throws IOException {
     final File file = tmpFolder.newFile("test.gz");
     final WritableByteChannel channel =
         factory.create(Channels.newChannel(new FileOutputStream(file)));

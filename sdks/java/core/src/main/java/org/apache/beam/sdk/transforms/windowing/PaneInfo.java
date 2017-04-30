@@ -341,7 +341,7 @@ public final class PaneInfo {
 
     @Override
     public void encode(PaneInfo value, final OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       Encoding encoding = chooseEncoding(value);
       switch (chooseEncoding(value)) {
         case FIRST:
@@ -363,7 +363,7 @@ public final class PaneInfo {
 
     @Override
     public PaneInfo decode(final InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));
       long index, onTimeIndex;

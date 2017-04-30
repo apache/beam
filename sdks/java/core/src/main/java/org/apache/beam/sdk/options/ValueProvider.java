@@ -312,7 +312,7 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException {
+        throws IOException {
       JsonDeserializer dser = ctxt.findRootValueDeserializer(
         checkNotNull(innerType, "Invalid %s: innerType is null. Serialization error?", getClass()));
       Object o = dser.deserialize(jp, ctxt);

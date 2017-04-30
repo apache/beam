@@ -76,13 +76,13 @@ public class WindowSupplierTest {
     @Override
     public void encode(
         BoundedWindow value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       throw new CoderException("Test Enccode Exception");
     }
 
     @Override
     public BoundedWindow decode(
-        InputStream inStream, Context context) throws CoderException, IOException {
+        InputStream inStream, Context context) throws IOException {
       throw new CoderException("Test Decode Exception");
     }
   }

@@ -683,7 +683,7 @@ public class ApproximateQuantiles {
     @Override
     public void encode(
         QuantileState<T, ComparatorT> state, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       Coder.Context nestedContext = context.nested();
       intCoder.encode(state.numQuantiles, outStream, nestedContext);
       intCoder.encode(state.bufferSize, outStream, nestedContext);
@@ -700,7 +700,7 @@ public class ApproximateQuantiles {
 
     @Override
     public QuantileState<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       Coder.Context nestedContext = context.nested();
       int numQuantiles = intCoder.decode(inStream, nestedContext);
       int bufferSize = intCoder.decode(inStream, nestedContext);
@@ -720,7 +720,7 @@ public class ApproximateQuantiles {
 
     private void encodeBuffer(
         QuantileBuffer<T> buffer, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       DataOutputStream outData = new DataOutputStream(outStream);
       outData.writeInt(buffer.level);
       outData.writeLong(buffer.weight);
@@ -729,7 +729,7 @@ public class ApproximateQuantiles {
 
     private QuantileBuffer<T> decodeBuffer(
         InputStream inStream, Coder.Context context)
-        throws IOException, CoderException {
+        throws IOException {
       DataInputStream inData = new DataInputStream(inStream);
       return new QuantileBuffer<>(
           inData.readInt(),

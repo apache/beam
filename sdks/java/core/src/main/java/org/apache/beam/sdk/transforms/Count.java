@@ -176,7 +176,7 @@ public class Count {
 
         @Override
         public long[] decode(InputStream inStream, Context context)
-            throws IOException, CoderException {
+            throws IOException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
           } catch (EOFException | UTFDataFormatException exn) {

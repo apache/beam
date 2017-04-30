@@ -69,7 +69,7 @@ public class InstantCoder extends CustomCoder<Instant> {
 
   @Override
   public void encode(Instant value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Instant");
     }
@@ -78,7 +78,7 @@ public class InstantCoder extends CustomCoder<Instant> {
 
   @Override
   public Instant decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     return ORDER_PRESERVING_CONVERTER.reverse().convert(LONG_CODER.decode(inStream, context));
   }
 

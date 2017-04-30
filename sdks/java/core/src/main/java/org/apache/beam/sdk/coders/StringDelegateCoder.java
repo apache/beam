@@ -101,12 +101,12 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     delegateCoder.encode(value, outStream, context);
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+  public T decode(InputStream inStream, Context context) throws IOException {
     return delegateCoder.decode(inStream, context);
   }
 

@@ -42,13 +42,13 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   @Override
   public void encode(BitSet value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     BYTE_ARRAY_CODER.encodeAndOwn(value.toByteArray(), outStream, context);
   }
 
   @Override
   public BitSet decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 

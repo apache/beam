@@ -354,13 +354,13 @@ public class  CombineFnsTest {
 
     @Override
     public void encode(UserString value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       StringUtf8Coder.of().encode(value.strValue, outStream, context);
     }
 
     @Override
     public UserString decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return UserString.of(StringUtf8Coder.of().decode(inStream, context));
     }
 

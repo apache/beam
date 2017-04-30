@@ -356,7 +356,7 @@ public class Create<T> {
       private final Coder<T> coder;
 
       public static <T> CreateSource<T> fromIterable(Iterable<T> elements, Coder<T> elemCoder)
-          throws CoderException, IOException {
+          throws IOException {
         ImmutableList.Builder<byte[]> allElementsBytes = ImmutableList.builder();
         long totalSize = 0L;
         for (T element : elements) {

@@ -67,12 +67,12 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     coder.encode(applyAndWrapExceptions(toFn, value), outStream, context);
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+  public T decode(InputStream inStream, Context context) throws IOException {
     return applyAndWrapExceptions(fromFn, coder.decode(inStream, context));
   }
 
@@ -155,7 +155,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
 
   private <InputT, OutputT> OutputT applyAndWrapExceptions(
       CodingFunction<InputT, OutputT> fn,
-      InputT input) throws CoderException, IOException {
+      InputT input) throws IOException {
     try {
       return fn.apply(input);
     } catch (IOException exc) {

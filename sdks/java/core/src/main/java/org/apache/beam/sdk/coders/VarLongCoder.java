@@ -53,7 +53,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
 
   @Override
   public void encode(Long value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
@@ -62,7 +62,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
 
   @Override
   public Long decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     try {
       return VarInt.decodeLong(inStream);
     } catch (EOFException | UTFDataFormatException exn) {

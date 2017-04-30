@@ -1722,7 +1722,7 @@ public class PipelineOptionsFactoryTest {
 
     @Override
     public JacksonIncompatible deserialize(JsonParser jsonParser,
-        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+        DeserializationContext deserializationContext) throws IOException {
       return new JacksonIncompatible(jsonParser.readValueAs(String.class));
     }
   }
@@ -1732,7 +1732,7 @@ public class PipelineOptionsFactoryTest {
 
     @Override
     public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+        SerializerProvider serializerProvider) throws IOException {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }

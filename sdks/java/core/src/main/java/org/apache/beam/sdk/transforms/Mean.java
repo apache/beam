@@ -187,14 +187,14 @@ public class Mean {
 
      @Override
      public void encode(CountSum<NumT> value, OutputStream outStream, Coder.Context context)
-         throws CoderException, IOException {
+         throws IOException {
        LONG_CODER.encode(value.count, outStream, context.nested());
        DOUBLE_CODER.encode(value.sum, outStream, context);
      }
 
      @Override
      public CountSum<NumT> decode(InputStream inStream, Coder.Context context)
-         throws CoderException, IOException {
+         throws IOException {
        return new CountSum<>(
            LONG_CODER.decode(inStream, context.nested()),
            DOUBLE_CODER.decode(inStream, context));

@@ -69,8 +69,7 @@ public class CoderProperties {
    * {@code Coder.Context}.
    */
   public static <T> void coderDeterministic(
-      Coder<T> coder, T value1, T value2)
-      throws Exception {
+      Coder<T> coder, T value1, T value2) throws IOException {
     for (Coder.Context context : ALL_CONTEXTS) {
       coderDeterministicInContext(coder, context, value1, value2);
     }
@@ -81,8 +80,7 @@ public class CoderProperties {
    * type {@code T}, if the values are equal then the encoded bytes are equal.
    */
   public static <T> void coderDeterministicInContext(
-      Coder<T> coder, Coder.Context context, T value1, T value2)
-      throws Exception {
+      Coder<T> coder, Coder.Context context, T value1, T value2) throws IOException {
     try {
       coder.verifyDeterministic();
     } catch (NonDeterministicException e) {
@@ -350,7 +348,7 @@ public class CoderProperties {
 
   @VisibleForTesting
   static <T> byte[] encode(
-      Coder<T> coder, Coder.Context context, T value) throws CoderException, IOException {
+      Coder<T> coder, Coder.Context context, T value) throws IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
 
@@ -361,7 +359,7 @@ public class CoderProperties {
 
   @VisibleForTesting
   static <T> T decode(
-      Coder<T> coder, Coder.Context context, byte[] bytes) throws CoderException, IOException {
+      Coder<T> coder, Coder.Context context, byte[] bytes) throws IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
 
@@ -382,7 +380,7 @@ public class CoderProperties {
   }
 
   private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)
-      throws CoderException, IOException {
+      throws IOException {
     return decode(coder, context, encode(coder, context, value));
   }
 

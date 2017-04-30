@@ -44,7 +44,7 @@ public class BigEndianIntegerCoder extends CustomCoder<Integer> {
 
   @Override
   public void encode(Integer value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
@@ -53,7 +53,7 @@ public class BigEndianIntegerCoder extends CustomCoder<Integer> {
 
   @Override
   public Integer decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     try {
       return new DataInputStream(inStream).readInt();
     } catch (EOFException | UTFDataFormatException exn) {

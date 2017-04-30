@@ -49,7 +49,7 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
 
   @Override
   public void encode(BigDecimal value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
     VAR_INT_CODER.encode(value.scale(), outStream, context.nested());
     BIG_INT_CODER.encode(value.unscaledValue(), outStream, context);
@@ -57,7 +57,7 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
 
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     int scale = VAR_INT_CODER.decode(inStream, context.nested());
     BigInteger bigInteger = BIG_INT_CODER.decode(inStream, context);
     return new BigDecimal(bigInteger, scale);

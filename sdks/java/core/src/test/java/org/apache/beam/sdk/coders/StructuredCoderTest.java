@@ -48,7 +48,7 @@ public class StructuredCoderTest {
 
     @Override
     public void encode(@Nullable Boolean value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (value == null) {
         outStream.write(2);
       } else if (value) {
@@ -62,7 +62,7 @@ public class StructuredCoderTest {
     @Nullable
     public Boolean decode(
         InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       int value = inStream.read();
       if (value == 0) {
         return false;
@@ -111,7 +111,7 @@ public class StructuredCoderTest {
     @Override
     public void encode(
         @Nullable ObjectIdentityBoolean value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (value == null) {
         outStream.write(2);
       } else if (value.getValue()){
@@ -125,7 +125,7 @@ public class StructuredCoderTest {
     @Nullable
     public ObjectIdentityBoolean decode(
         InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       int value = inStream.read();
       if (value == 0) {
         return new ObjectIdentityBoolean(false);
@@ -214,13 +214,13 @@ public class StructuredCoderTest {
 
     @Override
     public void encode(T value, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       throw new UnsupportedOperationException();
     }
 
     @Override
     public T decode(InputStream inStream, Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       throw new UnsupportedOperationException();
     }
 

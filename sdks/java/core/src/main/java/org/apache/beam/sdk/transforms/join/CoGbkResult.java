@@ -235,8 +235,8 @@ public class CoGbkResult {
     public void encode(
         CoGbkResult value,
         OutputStream outStream,
-        Context context) throws CoderException,
-        IOException {
+        Context context) throws
+            IOException {
       if (!schema.equals(value.getSchema())) {
         throw new CoderException("input schema does not match coder schema");
       }
@@ -254,7 +254,7 @@ public class CoGbkResult {
     public CoGbkResult decode(
         InputStream inStream,
         Context context)
-        throws CoderException, IOException {
+        throws IOException {
       if (schema.size() == 0) {
         return new CoGbkResult(schema, ImmutableList.<Iterable<?>>of());
       }

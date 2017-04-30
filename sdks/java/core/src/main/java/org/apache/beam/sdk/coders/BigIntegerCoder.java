@@ -43,14 +43,14 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
 
   @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
   }
 
   @Override
   public BigInteger decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     return new BigInteger(BYTE_ARRAY_CODER.decode(inStream, context));
   }
 

@@ -42,7 +42,7 @@ public class ByteCoder extends CustomCoder<Byte> {
 
   @Override
   public void encode(Byte value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Byte");
     }
@@ -51,7 +51,7 @@ public class ByteCoder extends CustomCoder<Byte> {
 
   @Override
   public Byte decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     try {
       // value will be between 0-255, -1 for EOF
       int value = inStream.read();

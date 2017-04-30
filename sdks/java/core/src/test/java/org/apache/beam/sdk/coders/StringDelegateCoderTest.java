@@ -20,7 +20,9 @@ package org.apache.beam.sdk.coders;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -48,7 +50,8 @@ public class StringDelegateCoderTest {
   // Tests
 
   @Test
-  public void testDeterministic() throws Exception, NonDeterministicException {
+  public void testDeterministic()
+      throws NonDeterministicException, URISyntaxException, IOException {
     uriCoder.verifyDeterministic();
     for (String uriString : TEST_URI_STRINGS) {
       CoderProperties.coderDeterministic(uriCoder, new URI(uriString), new URI(uriString));

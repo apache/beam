@@ -33,7 +33,7 @@ class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {
   @Override
   public SerializableMatcher<?> deserialize(JsonParser jsonParser,
       DeserializationContext deserializationContext)
-      throws IOException, JsonProcessingException {
+      throws IOException {
     ObjectNode node = jsonParser.readValueAsTree();
     String matcher = node.get("matcher").asText();
     byte[] in = Base64.decodeBase64(matcher);

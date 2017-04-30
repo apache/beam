@@ -85,7 +85,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
       Map<K, V> map,
       OutputStream outStream,
       Context context)
-      throws IOException, CoderException  {
+      throws IOException {
     if (map == null) {
       throw new CoderException("cannot encode a null Map");
     }
@@ -113,7 +113,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
   @Override
   public Map<K, V> decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
     if (size == 0) {

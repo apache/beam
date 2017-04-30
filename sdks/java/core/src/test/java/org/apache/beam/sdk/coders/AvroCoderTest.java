@@ -28,6 +28,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
@@ -635,7 +636,7 @@ public class AvroCoderTest {
 
   @Test
   public void testAvroCoderTreeMapDeterminism()
-      throws Exception, NonDeterministicException {
+          throws NonDeterministicException, IOException {
     TreeMapField size1 = new TreeMapField();
     TreeMapField size2 = new TreeMapField();
 

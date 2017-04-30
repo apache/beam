@@ -40,7 +40,7 @@ public class TextualIntegerCoder extends CustomCoder<Integer> {
 
   @Override
   public void encode(Integer value, OutputStream outStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
@@ -50,7 +50,7 @@ public class TextualIntegerCoder extends CustomCoder<Integer> {
 
   @Override
   public Integer decode(InputStream inStream, Context context)
-      throws IOException, CoderException {
+      throws IOException {
     String textualValue = StringUtf8Coder.of().decode(inStream, context);
     try {
       return Integer.valueOf(textualValue);

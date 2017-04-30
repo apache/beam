@@ -55,7 +55,7 @@ public class DurationCoder extends CustomCoder<ReadableDuration> {
 
   @Override
   public void encode(ReadableDuration value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null ReadableDuration");
     }
@@ -64,7 +64,7 @@ public class DurationCoder extends CustomCoder<ReadableDuration> {
 
   @Override
   public ReadableDuration decode(InputStream inStream, Context context)
-      throws CoderException, IOException {
+      throws IOException {
       return fromLong(LONG_CODER.decode(inStream, context));
   }
 

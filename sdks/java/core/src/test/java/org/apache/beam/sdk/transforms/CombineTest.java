@@ -875,14 +875,14 @@ public class CombineTest implements Serializable {
     private class CountSumCoder extends CustomCoder<CountSum> {
       @Override
       public void encode(CountSum value, OutputStream outStream,
-          Context context) throws CoderException, IOException {
+          Context context) throws IOException {
         LONG_CODER.encode(value.count, outStream, context.nested());
         DOUBLE_CODER.encode(value.sum, outStream, context);
       }
 
       @Override
       public CountSum decode(InputStream inStream, Coder.Context context)
-          throws CoderException, IOException {
+          throws IOException {
         long count = LONG_CODER.decode(inStream, context.nested());
         double sum = DOUBLE_CODER.decode(inStream, context);
         return new CountSum(count, sum);
@@ -928,13 +928,13 @@ public class CombineTest implements Serializable {
         return new CustomCoder<Accumulator>() {
           @Override
           public void encode(Accumulator accumulator, OutputStream outStream, Coder.Context context)
-              throws CoderException, IOException {
+              throws IOException {
             StringUtf8Coder.of().encode(accumulator.value, outStream, context);
           }
 
           @Override
           public Accumulator decode(InputStream inStream, Coder.Context context)
-              throws CoderException, IOException {
+              throws IOException {
             return new Accumulator(StringUtf8Coder.of().decode(inStream, context));
           }
         };
