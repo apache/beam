@@ -291,17 +291,23 @@ public class KafkaIO {
       if (parameterizedType.getRawType() == Deserializer.class) {
         Type parameter = parameterizedType.getActualTypeArguments()[0];
 
+        @SuppressWarnings("unchecked")
+        Class<T> clazz = (Class<T>) parameter;
+
         try {
-          @SuppressWarnings("unchecked")
-          Class<T> clazz = (Class<T>) parameter;
           return NullableCoder.of(coderRegistry.getDefaultCoder(clazz));
         } catch (CannotProvideCoderException e) {
-          LOG.warn("Could not infer coder from deserializer type", e);
+          throw new RuntimeException(
+                  String.format("Unable to automatically infer a Coder for "
+                                + "the Kafka Deserializer %s: no coder registered for type %s",
+                                deserializer, clazz));
         }
       }
     }
 
-    throw new RuntimeException("Could not extract deserializer type from " + deserializer);
+    throw new RuntimeException(
+            String.format("Could not extract the Kafaka Deserializer type from %s",
+                          deserializer));
   }
 
   /**
@@ -634,14 +640,14 @@ public class KafkaIO {
       Coder<K> keyCoder =
           checkNotNull(
               getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer()),
-              "Key coder must be set");
+              "Key coder must be inferable from input or set using readWithCoders");
 
       Coder<V> valueCoder =
           checkNotNull(
               getValueCoder() != null
                   ? getValueCoder()
                   : inferCoder(registry, getValueDeserializer()),
-              "Value coder must be set");
+              "Value coder must be inferable from input or set using readWithCoders");
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -688,9 +694,11 @@ public class KafkaIO {
      */
     private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES = ImmutableMap.of(
         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
-        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
+        ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead",
         // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
         //     lets allow these, applications can have better resume point for restarts.
+        CoderBasedKafkaDeserializer.configForKeyDeserializer(), "Use readWithCoders instead",
+        CoderBasedKafkaDeserializer.configForValueDeserializer(), "Use readWithCoders instead"
         );
 
     // set config defaults
@@ -1526,7 +1534,10 @@ public class KafkaIO {
      */
     private static final Map<String, String> IGNORED_PRODUCER_PROPERTIES = ImmutableMap.of(
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "Use withKeySerializer instead",
-        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead"
+        ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "Use withValueSerializer instead",
+
+        CoderBasedKafkaSerializer.configForKeySerializer(), "Use writeWithCoders instead",
+        CoderBasedKafkaSerializer.configForValueSerializer(), "Use writeWithCoders instead"
      );
 
     @Override
