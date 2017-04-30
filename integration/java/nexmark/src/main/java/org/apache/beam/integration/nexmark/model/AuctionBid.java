@@ -24,13 +24,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
-import org.apache.beam.integration.nexmark.WinningBids;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 
 /**
- * Result of {@link WinningBids} transform.
+ * Result of {@link org.apache.beam.integration.nexmark.queries.WinningBids} transform.
  */
 public class AuctionBid implements KnownSize, Serializable {
   public static final Coder<AuctionBid> CODER = new CustomCoder<AuctionBid>() {

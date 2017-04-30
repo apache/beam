@@ -16,13 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.beam.integration.nexmark;
+package org.apache.beam.integration.nexmark.queries;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
 
+import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;

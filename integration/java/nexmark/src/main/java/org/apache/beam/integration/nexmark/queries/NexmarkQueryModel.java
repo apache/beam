@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.integration.nexmark;
+package org.apache.beam.integration.nexmark.queries;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.beam.integration.nexmark.NexmarkConfiguration;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -40,7 +41,7 @@ import org.junit.Assert;
  * applied against the actual query results to check their consistency with the model.
  */
 public abstract class NexmarkQueryModel implements Serializable {
-  protected final NexmarkConfiguration configuration;
+  public final NexmarkConfiguration configuration;
 
   public NexmarkQueryModel(NexmarkConfiguration configuration) {
     this.configuration = configuration;
@@ -86,7 +87,7 @@ public abstract class NexmarkQueryModel implements Serializable {
   }
 
   /** Return simulator for query. */
-  protected abstract AbstractSimulator<?, ?> simulator();
+  public abstract AbstractSimulator<?, ?> simulator();
 
   /** Return sub-sequence of results which are significant for model. */
   protected Iterable<TimestampedValue<KnownSize>> relevantResults(
