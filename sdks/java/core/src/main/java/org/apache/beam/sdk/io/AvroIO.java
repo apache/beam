@@ -1032,8 +1032,7 @@ public class AvroIO {
                         AvroCoder<T> coder,
                         SerializableAvroCodecFactory codec,
                         ImmutableMap<String, Object> metadata) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
+        super(writeOperation, MimeTypes.BINARY);
         this.coder = coder;
         this.codec = codec;
         this.metadata = metadata;
