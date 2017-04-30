@@ -18,8 +18,6 @@
 package org.apache.beam.integration.nexmark.queries;
 
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
-import org.apache.beam.integration.nexmark.NexmarkQuery;
-import org.apache.beam.integration.nexmark.NexmarkQueryModel;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.sdk.PipelineResult;

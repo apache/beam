@@ -15,8 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.integration.nexmark;
+package org.apache.beam.integration.nexmark.queries;
 
+import org.apache.beam.integration.nexmark.Monitor;
+import org.apache.beam.integration.nexmark.NexmarkConfiguration;
+import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.integration.nexmark.model.Auction;
 import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
@@ -41,8 +44,8 @@ import org.joda.time.Instant;
  */
 public abstract class NexmarkQuery
     extends PTransform<PCollection<Event>, PCollection<TimestampedValue<KnownSize>>> {
-  protected static final TupleTag<Auction> AUCTION_TAG = new TupleTag<>("auctions");
-  protected static final TupleTag<Bid> BID_TAG = new TupleTag<>("bids");
+  public static final TupleTag<Auction> AUCTION_TAG = new TupleTag<>("auctions");
+  public static final TupleTag<Bid> BID_TAG = new TupleTag<>("bids");
   protected static final TupleTag<Person> PERSON_TAG = new TupleTag<>("person");
 
   /** Predicate to detect a new person event. */
@@ -169,7 +172,7 @@ public abstract class NexmarkQuery
   /**
    * Transform to filter for just the new auction events.
    */
-  protected static final PTransform<PCollection<Event>, PCollection<Auction>> JUST_NEW_AUCTIONS =
+  public static final PTransform<PCollection<Event>, PCollection<Auction>> JUST_NEW_AUCTIONS =
       new PTransform<PCollection<Event>, PCollection<Auction>>("justNewAuctions") {
         @Override
         public PCollection<Auction> expand(PCollection<Event> input) {
@@ -181,7 +184,7 @@ public abstract class NexmarkQuery
   /**
    * Transform to filter for just the new person events.
    */
-  protected static final PTransform<PCollection<Event>, PCollection<Person>> JUST_NEW_PERSONS =
+  public static final PTransform<PCollection<Event>, PCollection<Person>> JUST_NEW_PERSONS =
       new PTransform<PCollection<Event>, PCollection<Person>>("justNewPersons") {
         @Override
         public PCollection<Person> expand(PCollection<Event> input) {
@@ -193,7 +196,7 @@ public abstract class NexmarkQuery
   /**
    * Transform to filter for just the bid events.
    */
-  protected static final PTransform<PCollection<Event>, PCollection<Bid>> JUST_BIDS =
+  public static final PTransform<PCollection<Event>, PCollection<Bid>> JUST_BIDS =
       new PTransform<PCollection<Event>, PCollection<Bid>>("justBids") {
         @Override
         public PCollection<Bid> expand(PCollection<Event> input) {

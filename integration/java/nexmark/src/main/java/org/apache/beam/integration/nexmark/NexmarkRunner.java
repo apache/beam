@@ -38,6 +38,8 @@ import org.apache.beam.integration.nexmark.model.Bid;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.integration.nexmark.model.KnownSize;
 import org.apache.beam.integration.nexmark.model.Person;
+import org.apache.beam.integration.nexmark.queries.NexmarkQuery;
+import org.apache.beam.integration.nexmark.queries.NexmarkQueryModel;
 import org.apache.beam.integration.nexmark.queries.Query0;
 import org.apache.beam.integration.nexmark.queries.Query0Model;
 import org.apache.beam.integration.nexmark.queries.Query1;

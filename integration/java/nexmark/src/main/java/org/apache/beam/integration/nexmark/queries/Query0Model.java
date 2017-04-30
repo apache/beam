@@ -20,9 +20,7 @@ package org.apache.beam.integration.nexmark.queries;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.apache.beam.integration.nexmark.AbstractSimulator;
 import org.apache.beam.integration.nexmark.NexmarkConfiguration;
-import org.apache.beam.integration.nexmark.NexmarkQueryModel;
 import org.apache.beam.integration.nexmark.NexmarkUtils;
 import org.apache.beam.integration.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -56,7 +54,7 @@ public class Query0Model extends NexmarkQueryModel {
   }
 
   @Override
-  protected AbstractSimulator<?, ?> simulator() {
+  public AbstractSimulator<?, ?> simulator() {
     return new Simulator(configuration);
   }
 
