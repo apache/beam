@@ -5,6 +5,7 @@ try {
             checkout scm
             def mvnHome = tool 'maven-3'
             sh "${mvnHome}/bin/mvn clean install -DskipTests -Dcheckstyle.skip -Dfindbugs.skip"
+            stash 'all'
         }
     }
     
