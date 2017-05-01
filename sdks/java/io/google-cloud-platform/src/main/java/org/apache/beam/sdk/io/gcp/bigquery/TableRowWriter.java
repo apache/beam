@@ -26,7 +26,8 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,17 +40,17 @@ class TableRowWriter {
   private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
   private final String tempFilePrefix;
   private String id;
-  private String fileName;
+  private ResourceId resourceId;
   private WritableByteChannel channel;
   protected String mimeType = MimeTypes.TEXT;
   private CountingOutputStream out;
 
   public static final class Result {
-    final String filename;
+    final ResourceId resourceId;
     final long byteSize;
 
-    public Result(String filename, long byteSize) {
-      this.filename = filename;
+    public Result(ResourceId resourceId, long byteSize) {
+      this.resourceId = resourceId;
       this.byteSize = byteSize;
     }
   }
@@ -60,22 +61,22 @@ class TableRowWriter {
 
   public final void open(String uId) throws Exception {
     id = uId;
-    fileName = tempFilePrefix + id;
-    LOG.debug("Opening {}.", fileName);
-    channel = IOChannelUtils.create(fileName, mimeType);
+    resourceId = FileSystems.matchNewResource(tempFilePrefix + id, false);
+    LOG.debug("Opening {}.", resourceId);
+    channel = FileSystems.create(resourceId, mimeType);
     try {
       out = new CountingOutputStream(Channels.newOutputStream(channel));
-      LOG.debug("Writing header to {}.", fileName);
+      LOG.debug("Writing header to {}.", resourceId);
     } catch (Exception e) {
       try {
-        LOG.error("Writing header to {} failed, closing channel.", fileName);
+        LOG.error("Writing header to {} failed, closing channel.", resourceId);
         channel.close();
       } catch (IOException closeException) {
-        LOG.error("Closing channel for {} failed", fileName);
+        LOG.error("Closing channel for {} failed", resourceId);
       }
       throw e;
     }
-    LOG.debug("Starting write of bundle {} to {}.", this.id, fileName);
+    LOG.debug("Starting write of bundle {} to {}.", this.id, resourceId);
   }
 
   public void write(TableRow value) throws Exception {
@@ -85,6 +86,6 @@ class TableRowWriter {
 
   public final Result close() throws IOException {
     channel.close();
-    return new Result(fileName, out.getCount());
+    return new Result(resourceId, out.getCount());
   }
 }
