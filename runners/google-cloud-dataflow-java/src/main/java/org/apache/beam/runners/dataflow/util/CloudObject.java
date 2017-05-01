@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.dataflow.util;
 
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -24,6 +24,7 @@ import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * A representation of an arbitrary Java object to be instantiated by Dataflow
@@ -35,10 +36,7 @@ import javax.annotation.Nullable;
  * {@code CloudObject} is constructed, the method should explicitly add
  * additional properties to be presented during deserialization, representing
  * child objects by building additional {@code CloudObject}s.
- *
- * @deprecated replaced by {@code org.apache.beam.runners.dataflow.CloudKnownType}
  */
-@Deprecated
 public final class CloudObject extends GenericJson {
   /**
    * Constructs a {@code CloudObject} by copying the supplied serialized object
