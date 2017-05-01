@@ -19,6 +19,7 @@
 package org.apache.beam.runners.dataflow.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
@@ -26,9 +27,6 @@ import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.Structs;
 
 /** Utilities for converting an object to a {@link CloudObject}. */
 public class CloudObjects {
@@ -43,8 +41,8 @@ public class CloudObjects {
       populateCoderTranslators() {
     ImmutableMap.Builder<Class<? extends Coder>, CloudObjectTranslator<? extends Coder>> builder =
         ImmutableMap.builder();
-    for (CoderCloudObjectTranslatorRegistrar coderRegistrar :
-        ServiceLoader.load(CoderCloudObjectTranslatorRegistrar.class)) {
+    for (CoderCloudObjectTranslatorRegistrar coderRegistrar : ServiceLoader.load(
+        CoderCloudObjectTranslatorRegistrar.class)) {
       builder.putAll(coderRegistrar.classesToTranslators());
     }
     return builder.build();
@@ -70,22 +68,18 @@ public class CloudObjects {
     if (translator != null) {
       return translator.toCloudObject(coder);
     } else if (coder instanceof CustomCoder) {
-      return customCoderAsCloudObject((CustomCoder<?>) coder);
+      CloudObjectTranslator customCoderTranslator = CODER_TRANSLATORS.get(CustomCoder.class);
+      checkNotNull(
+          customCoderTranslator,
+          "No %s registered for %s, but it is in the %s",
+          CloudObjectTranslator.class.getSimpleName(),
+          CustomCoder.class.getSimpleName(),
+          DefaultCoderCloudObjectTranslatorRegistrar.class.getSimpleName());
+      return customCoderTranslator.toCloudObject(coder);
     }
     throw new IllegalArgumentException(
         String.format(
             "Non-Custom %s with no registered %s", Coder.class, CloudObjectTranslator.class));
-  }
-
-  private static CloudObject customCoderAsCloudObject(CustomCoder<?> coder) {
-    CloudObject result = CloudObject.forClass(CustomCoder.class);
-    Structs.addString(result, "type", coder.getClass().getName());
-    Structs.addString(
-        result,
-        "serialized_coder",
-        StringUtils.byteArrayToJsonString(SerializableUtils.serializeToByteArray(coder)));
-
-    return result;
   }
 
   public static Coder<?> coderFromCloudObject(CloudObject cloudObject) {
