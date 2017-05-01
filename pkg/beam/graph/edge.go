@@ -32,6 +32,11 @@ const (
 	ReIter    InputKind = "ReIter"
 )
 
+// Inbound represents an inbound data connection from a Node. It also stores
+// the _representation_ type (as opposed to the _underlying_ type) and
+// the shape of the representation, if side input. For example, a node with
+// underlying type W<KV<int,string>> can be bound to a DoFn with representation
+// type W<KV<int, T>> or W<KV<X,Y>>.
 type Inbound struct {
 	Kind InputKind
 	From *Node
@@ -42,6 +47,8 @@ func (i *Inbound) String() string {
 	return fmt.Sprintf("In(%v): %v <- %v", i.Kind, i.Type, i.From)
 }
 
+// Outbound represents an outbound data connection to a Node. Like Inbound,
+// it stores the _representation_ type of the output as well.
 type Outbound struct {
 	To   *Node
 	Type typex.FullType // actual, produced type by DoFn
@@ -63,7 +70,8 @@ type Target struct {
 	Name string
 }
 
-// MultiEdge represents a primitive Fn API instruction.
+// MultiEdge represents a primitive data processing operation. Each non-user
+// code operation may be implemented by either the harness or the runner.
 type MultiEdge struct {
 	id     int
 	parent *Scope
@@ -77,10 +85,12 @@ type MultiEdge struct {
 	Output []*Outbound
 }
 
+// ID returns the graph-local identifier for the scope.
 func (e *MultiEdge) ID() int {
 	return e.id
 }
 
+// Scope return the scope.
 func (e *MultiEdge) Scope() *Scope {
 	return e.parent
 }
@@ -149,8 +159,4 @@ func newUserFnNode(op Opcode, g *Graph, s *Scope, u *userfn.UserFn, in []*Node) 
 
 	log.Printf("EDGE: %v", edge)
 	return edge, nil
-}
-
-func determineInputKind() {
-
 }
