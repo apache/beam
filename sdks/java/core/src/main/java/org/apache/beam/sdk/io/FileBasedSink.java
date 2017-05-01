@@ -792,6 +792,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
+     *
+     * <p>This is the default for the sink, but it may be overridden by a supplied
+     * {@link WritableByteChannelFactory}. For example, {@link TextIO.Write} uses
+     * {@link MimeTypes#TEXT} by default but if {@link CompressionType#BZIP2} is set then
+     * The MIME type will be overridden to {@link MimeTypes#BINARY}.
      */
     private final String mimeType;
 
@@ -1025,7 +1030,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     /**
      * Returns the MIME type that should be used for the files that will hold the output data. May
-     * return {@code null} if this {@code WritableByteChannelFactory} does not meaningful change
+     * return {@code null} if this {@code WritableByteChannelFactory} does not meaningfully change
      * the MIME type (e.g., for {@link CompressionType#UNCOMPRESSED}).
      *
      * @see MimeTypes
