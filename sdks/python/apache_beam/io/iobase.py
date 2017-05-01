@@ -44,6 +44,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -931,7 +932,8 @@ class _WriteBundleDoFn(core.DoFn):
 
   def finish_bundle(self):
     if self.writer is not None:
-      yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
+      yield WindowedValue(self.writer.close(), window.MAX_TIMESTAMP,
+                          [window.GlobalWindow()])
 
 
 class _WriteKeyedBundleDoFn(core.DoFn):

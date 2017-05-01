@@ -33,6 +33,7 @@ from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
+from apache_beam.utils.windowed_value import WindowedValue
 
 # pylint: disable=expression-not-assigned
 from apache_beam.test_pipeline import TestPipeline
@@ -366,6 +367,7 @@ class TypeHintsTest(unittest.TestCase):
 
 class SnippetsTest(unittest.TestCase):
   # Replacing text read/write transforms with dummy transforms for testing.
+
   class DummyReadTransform(beam.PTransform):
     """A transform that will replace iobase.ReadFromText.
 
@@ -387,16 +389,20 @@ class SnippetsTest(unittest.TestCase):
         pass
 
       def finish_bundle(self):
+        from apache_beam.transforms import window
+
         assert self.file_to_read
         for file_name in glob.glob(self.file_to_read):
           if self.compression_type is None:
             with open(file_name) as file:
               for record in file:
-                yield self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip('\n'))
+                yield WindowedValue(value, -1, [window.GlobalWindow()])
           else:
             with gzip.open(file_name, 'r') as file:
               for record in file:
-                yield self.coder.decode(record.rstrip('\n'))
+                value = self.coder.decode(record.rstrip('\n'))
+                yield WindowedValue(value, -1, [window.GlobalWindow()])
 
     def expand(self, pcoll):
       return pcoll | beam.Create([None]) | 'DummyReadForTesting' >> beam.ParDo(
