@@ -75,6 +75,8 @@ public class GcpApiSurfaceTest {
             classesInPackage("javax"),
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
+            classesInPackage("com.google.cloud"),
+            classesInPackage("com.google.cloud.spanner"),
             // via Bigtable
             classesInPackage("org.joda.time"));
 
