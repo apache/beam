@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -114,7 +115,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(Class<T> clazz) {
-    return new AvroCoder<>(clazz, ReflectData.get().getSchema(clazz));
+    return new AvroCoder<>(clazz, new ReflectData(clazz.getClassLoader()).getSchema(clazz));
   }
 
   /**
@@ -198,6 +199,25 @@ public class AvroCoder<T> extends CustomCoder<T> {
     }
   }
 
+  /**
+   * A {@link Serializable} object that lazily supplies a {@link ReflectData} built from the
+   * appropriate {@link ClassLoader} for the type encoded by this {@link AvroCoder}.
+   */
+  private static class SerializableReflectDataSupplier
+      implements Serializable, Supplier<ReflectData> {
+
+    private final Class<?> clazz;
+
+    private SerializableReflectDataSupplier(Class<?> clazz) {
+      this.clazz = clazz;
+    }
+
+    @Override
+    public ReflectData get() {
+      return new ReflectData(clazz.getClassLoader());
+    }
+  }
+
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
@@ -205,6 +225,9 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
   private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
   private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
+
+  // Lazily re-instantiated after deserialization
+  private final Supplier<ReflectData> reflectData;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
@@ -217,26 +240,33 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    // Reader and writer are allocated once per thread and are "final" for thread-local Coder
-    // instance.
-    this.reader = new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
-      private final AvroCoder<T> myCoder = AvroCoder.this;
-      @Override
-      public DatumReader<T> initialValue() {
-        return myCoder.getType().equals(GenericRecord.class)
-            ? new GenericDatumReader<T>(myCoder.getSchema())
-            : new ReflectDatumReader<T>(myCoder.getSchema());
-      }
-    };
-    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-      private final AvroCoder<T> myCoder = AvroCoder.this;
-      @Override
-      public DatumWriter<T> initialValue() {
-        return myCoder.getType().equals(GenericRecord.class)
-            ? new GenericDatumWriter<T>(myCoder.getSchema())
-            : new ReflectDatumWriter<T>(myCoder.getSchema());
-      }
-    };
+    this.reflectData = Suppliers.memoize(new SerializableReflectDataSupplier(getType()));
+
+    // Reader and writer are allocated once per thread per Coder
+    this.reader =
+        new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumReader<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumReader<T>(myCoder.getSchema())
+                : new ReflectDatumReader<T>(
+                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
+
+    this.writer =
+        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
+          private final AvroCoder<T> myCoder = AvroCoder.this;
+
+          @Override
+          public DatumWriter<T> initialValue() {
+            return myCoder.getType().equals(GenericRecord.class)
+                ? new GenericDatumWriter<T>(myCoder.getSchema())
+                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.reflectData.get());
+          }
+        };
   }
 
   /**
