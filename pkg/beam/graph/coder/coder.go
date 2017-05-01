@@ -17,9 +17,11 @@ type CustomCoder struct {
 	// available to Enc and Dec. It must be a concrete type.
 	Type reflect.Type
 
-	// Enc is the encoding function : T -> []byte.
+	// Enc is the encoding function : T -> []byte. It may optionally take a
+	// reflect.Type parameter and return an error as well.
 	Enc *userfn.UserFn
-	// Dec is the decoding function: []byte -> T.
+	// Dec is the decoding function: []byte -> T. It may optionally take a
+	// reflect.Type parameter and return an error as well.
 	Dec *userfn.UserFn
 }
 

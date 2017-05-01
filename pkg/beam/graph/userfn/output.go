@@ -17,7 +17,7 @@ func IsEmit(t reflect.Type) bool {
 //       "func (EventTime, int)"
 //       "func (EventTime, string, T)"
 // If there are 2 regular parameters, a KV output is implied. An optional
-// evnet time is allowed as well. Emitters cannot fail.
+// EventTime is allowed as well. Emitters cannot fail.
 func UnfoldEmit(t reflect.Type) ([]reflect.Type, bool) {
 	if t.Kind() != reflect.Func {
 		return nil, false

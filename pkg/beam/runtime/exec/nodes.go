@@ -10,6 +10,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"io"
 	"log"
+	"path"
 	"reflect"
 )
 
@@ -128,7 +129,7 @@ func (n *Source) Down(ctx context.Context) error {
 }
 
 func (n *Source) String() string {
-	return fmt.Sprintf("Source[%v] Out:%v", n.Edge.DoFn.Name, IDs(n.Out...))
+	return fmt.Sprintf("Source[%v] Out:%v", path.Base(n.Edge.DoFn.Name), IDs(n.Out...))
 }
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -291,7 +292,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 }
 
 func (n *ParDo) String() string {
-	return fmt.Sprintf("ParDo[%v] Out:%v", n.Edge.DoFn.Name, IDs(n.Out...))
+	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Edge.DoFn.Name), IDs(n.Out...))
 }
 
 // DataSource is a Root execution unit.

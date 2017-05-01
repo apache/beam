@@ -72,7 +72,9 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			prop.OutputInfo = append(prop.OutputInfo, info)
 		}
 		if len(prop.OutputInfo) == 0 {
-			// NOTE: Dataflow seems to require at least one output.
+			// Dataflow seems to require at least one output. We insert
+			// a bogus one (named "bogus") and remove it in the harness.
+
 			coder, err := graphx.EncodeCoder(edge.Input[0].From.Coder)
 			if err != nil {
 				return nil, err
@@ -111,6 +113,7 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 }
 
 // TODO(herohde) 2/15/2017: user names encode composite names via "/"-separation.
+// We'll need to ensure that scopes are uniquely named.
 
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
