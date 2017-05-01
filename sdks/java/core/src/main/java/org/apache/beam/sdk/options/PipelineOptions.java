@@ -334,8 +334,8 @@ public interface PipelineOptions extends HasDisplayData {
    */
   @Hidden
   @Default.InstanceFactory(AtomicLongFactory.class)
-  Long getOptionsId();
-  void setOptionsId(Long id);
+  long getOptionsId();
+  void setOptionsId(long id);
 
   /**
    * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique
