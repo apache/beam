@@ -30,7 +30,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 
@@ -64,11 +63,6 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   private LengthPrefixCoder(Coder<T> valueCoder) {
     this.valueCoder = valueCoder;
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    return CloudObject.forClassName("kind:length_prefix");
   }
 
   @Override

@@ -42,7 +42,6 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.Serializer;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -352,7 +351,7 @@ public class CoderProperties {
   static <T> byte[] encode(
       Coder<T> coder, Coder.Context context, T value) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
-    Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
+    Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     deserializedCoder.encode(value, new UnownedOutputStream(os), context);
@@ -363,7 +362,7 @@ public class CoderProperties {
   static <T> T decode(
       Coder<T> coder, Coder.Context context, byte[] bytes) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
-    Coder<T> deserializedCoder = Serializer.deserialize(coder.asCloudObject(), Coder.class);
+    Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     byte[] buffer;
     if (context == Coder.Context.NESTED) {
