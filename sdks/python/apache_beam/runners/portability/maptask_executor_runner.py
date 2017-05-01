@@ -129,7 +129,8 @@ class MapTaskExecutorRunner(PipelineRunner):
       state_sampler = statesampler.StateSampler('%s-' % ix, counter_factory)
       map_executor = operations.SimpleMapTaskExecutor(
           operation_specs.MapTask(
-              all_operations, 'S%02d' % ix, system_names, stage_names),
+              all_operations, 'S%02d' % ix,
+              system_names, stage_names, system_names),
           counter_factory,
           state_sampler)
       self.executors.append(map_executor)

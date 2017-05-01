@@ -350,15 +350,18 @@ class MapTask(object):
       within the map task.
     stage_name: The name of this map task execution stage.
     system_names: The system names of the step corresponding to each map task
-      operation.
+      operation in the execution graph.
     step_names: The names of the step corresponding to each map task operation.
+    original_names: The internal name of a step in the original workflow graph.
   """
 
-  def __init__(self, operations, stage_name, system_names, step_names):
+  def __init__(
+      self, operations, stage_name, system_names, step_names, original_names):
     self.operations = operations
     self.stage_name = stage_name
     self.system_names = system_names
     self.step_names = step_names
+    self.original_names = original_names
 
   def __str__(self):
     return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,
