@@ -55,6 +55,7 @@ type properties struct {
 	// UserFn string  `json:"user_fn,omitempty"`
 
 	CustomSourceInputStep *customSourceInputStep      `json:"custom_source_step_input,omitempty"`
+	Inputs                []*outputReference          `json:"inputs,omitempty"` // Flatten.
 	ParallelInput         *outputReference            `json:"parallel_input,omitempty"`
 	NonParallelInputs     map[string]*outputReference `json:"non_parallel_inputs,omitempty"`
 	Format                string                      `json:"format,omitempty"`

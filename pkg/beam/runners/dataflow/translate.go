@@ -25,36 +25,42 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			return nil, err
 		}
 
-		if len(edge.Input) > 0 {
-			prop.ParallelInput = nodes[edge.Input[0].From.ID()]
+		if edge.Op == graph.Flatten {
+			for i := 0; i < len(edge.Input); i++ {
+				prop.Inputs = append(prop.Inputs, nodes[edge.Input[i].From.ID()])
+			}
+		} else {
+			if len(edge.Input) > 0 {
+				prop.ParallelInput = nodes[edge.Input[0].From.ID()]
 
-			prop.NonParallelInputs = make(map[string]*outputReference)
-			for i := 1; i < len(edge.Input); i++ {
-				// Side input requires an additional conversion step, which must
-				// be before the present one.
+				prop.NonParallelInputs = make(map[string]*outputReference)
+				for i := 1; i < len(edge.Input); i++ {
+					// Side input requires an additional conversion step, which must
+					// be before the present one.
 
-				ref := nodes[edge.Input[i].From.ID()]
-				c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
-				if err != nil {
-					return nil, err
+					ref := nodes[edge.Input[i].From.ID()]
+					c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
+					if err != nil {
+						return nil, err
+					}
+
+					side := &df.Step{
+						Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
+						Kind: "CollectionToSingleton",
+						Properties: newMsg(properties{
+							ParallelInput: ref,
+							OutputInfo: []output{{
+								UserName:   "out",
+								OutputName: "out",
+								Encoding:   graphx.WrapExtraWindowedValue(c),
+							}},
+							UserName: buildName(edge.Scope(), "AsView"),
+						}),
+					}
+					steps = append(steps, side)
+
+					prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "out")
 				}
-
-				side := &df.Step{
-					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
-					Kind: "CollectionToSingleton",
-					Properties: newMsg(properties{
-						ParallelInput: ref,
-						OutputInfo: []output{{
-							UserName:   "out",
-							OutputName: "out",
-							Encoding:   graphx.WrapExtraWindowedValue(c),
-						}},
-						UserName: buildName(edge.Scope(), "AsView"),
-					}),
-				}
-				steps = append(steps, side)
-
-				prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "out")
 			}
 		}
 
