@@ -10,16 +10,19 @@ import (
 	"path/filepath"
 )
 
-// TODO(herohde): require that options are top-level? Allow multiple named options?
-// TODO(herohde): can contexts and DoFns be private?
+// TODO(herohde) 5/1/2017: should godoc for deferred execution be written as if
+// it's immediate (as below)? We'll just write "Foo does Bar" instead of "Foo
+// inserts a source/sink/transformation into the pipeline that does Bar", say.
 
-type fileOpt struct {
-	Filename string `beam:"opt"`
-}
-
+// Read reads a local file and returns the lines as a PCollection<string>. The
+// newlines are not part of the lines.
 func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	p = p.Composite("textio.Read")
 	return beam.Source(p, readFn, beam.Data{filename})
+}
+
+type fileOpt struct {
+	Filename string `beam:"opt"`
 }
 
 func readFn(opt fileOpt, emit func(string)) error {
@@ -38,6 +41,8 @@ func readFn(opt fileOpt, emit func(string)) error {
 	return scanner.Err()
 }
 
+// Write writes a PCollection<string> to a local file as separate lines. The
+// writer add a newline after each element.
 func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
 	p = p.Composite("textio.Write")
 
@@ -71,8 +76,8 @@ func writeFn(opt fileOpt, _ string, lines func(*string) bool) error {
 	return nil
 }
 
-// Immediate reads the file locally and embeds the data as part of the pipeline.
-// Not to be used for anything but small files.
+// Immediate reads a local file at pipeline construction-time and embeds the
+// data into a I/O-free pipeline source. Should be used for small files only.
 func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	var data []string
 

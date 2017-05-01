@@ -1,9 +1,11 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
 	"log"
 )
@@ -32,8 +34,11 @@ func (n *GBK) Up(ctx context.Context) error {
 }
 
 func (n *GBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
-	// TODO: use coder
-	key := elm.Elm.Interface().(string)
+	var buf bytes.Buffer
+	if err := exec.EncodeElement(coder.SkipW(n.Edge.Input[0].From.Coder), elm, &buf); err != nil {
+		return fmt.Errorf("failed to encode key %v for GBK: %v", elm, err)
+	}
+	key := buf.String()
 
 	g, ok := n.m[key]
 	if !ok {

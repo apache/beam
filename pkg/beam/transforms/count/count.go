@@ -5,7 +5,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
-// PerElement counts the number of elements in a collection by key.
+// PerElement counts the number of elements in a collection by key. It expects
+// a PCollection<T> as input and returns a PCollection<KV<T,int>>. T's encoding
+// must be a well-defined injection.
 func PerElement(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
 	p = p.Composite("count.PerElement")
 
@@ -36,7 +38,9 @@ func addFn(key typex.T, counts func(*int) bool) (typex.T, int) {
 	return key, total
 }
 
-// Dedup removes all duplicates from a collection, under coder equality.
+// Dedup removes all duplicates from a collection, under coder equality. It
+// expects a PCollection<T> as input and returns a PCollection<T> with
+// duplicates removed.
 func Dedup(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
 	p = p.Composite("count.DeDup")
 

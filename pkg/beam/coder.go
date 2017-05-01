@@ -81,9 +81,9 @@ func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
 }
 
 // TODO(herohde) 4/5/2017: decide whether we want an Encoded form. For now,
-// we'll use exploded form coders only using typex.T. It seems too cumbersome
-// to to allow channel form for coders. We might also need a form that doesn't
-// require LengthPrefix'ing to cut up the bytestream from the FnHarness.
+// we'll use exploded form coders only using typex.T. We might also need a
+// form that doesn't require LengthPrefix'ing to cut up the bytestream from
+// the FnHarness.
 
 // Concrete and universal coders both have a similar signature. Conversion is
 // handled by reflection.
