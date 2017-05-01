@@ -47,7 +47,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Utility for converting objects between Java and Cloud representations.
+ *
+ * @deprecated Will no longer be used once all coders are converted via {@link CloudObjects}.
  */
+@Deprecated
 public final class Serializer {
   /** A mapping from well known coder types to their implementing classes. */
   private static final Map<String, Class<?>> WELL_KNOWN_CODER_TYPES =
