@@ -2,59 +2,82 @@ package beam
 
 import (
 	"encoding/json"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/typex"
-	"log"
+	"fmt"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"reflect"
 )
 
 // Coder represents a coder.
 type Coder struct {
-	coder *graph.Coder
+	coder *coder.Coder
+}
+
+func (c Coder) IsValid() bool {
+	return c.coder != nil
+}
+
+func (c Coder) String() string {
+	if c.coder == nil {
+		return "$"
+	}
+	return c.coder.String()
 }
 
 // TODO(herohde) 4/4/2017: for convenience, we use the magic json coding
 // everywhere. To be replaced by Coder registry, sharing, etc.
 
-func NewCoder(t reflect.Type) Coder {
-	inner, err := inferCoder(t)
+func NewCoder(t typex.FullType) Coder {
+	c, err := inferCoder(t)
 	if err != nil {
 		panic(err) // for now
-	}
-
-	c := &graph.Coder{
-		Kind:       graph.WindowedValue,
-		Components: []*graph.Coder{inner},
-		Window:     &graph.Window{Kind: graph.GlobalWindow},
 	}
 	return Coder{c}
 }
 
-func inferCoder(t reflect.Type) (*graph.Coder, error) {
-	if k, v, ok := reflectx.UnfoldComposite(t); ok {
-		key, err := inferCoder(k)
+func inferCoder(t typex.FullType) (*coder.Coder, error) {
+	switch t.Class() {
+	case typex.Concrete:
+		c, err := NewJSONCoder(t.Type())
 		if err != nil {
 			return nil, err
 		}
-		value, err := inferCoder(v)
-		if err != nil {
-			return nil, err
-		}
-		return &graph.Coder{Kind: graph.Pair, T: t, Components: []*graph.Coder{key, value}}, nil
-	}
+		return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 
-	if t.Kind() == reflect.Chan {
-		elm, err := inferCoder(t.Elem())
+	case typex.Composite:
+		c, err := inferCoders(t.Components())
 		if err != nil {
 			return nil, err
 		}
-		return &graph.Coder{Kind: graph.Stream, T: t, Components: []*graph.Coder{elm}}, nil
-	}
 
-	return &graph.Coder{Kind: graph.LengthPrefix, T: t, Components: []*graph.Coder{{
-		Kind: graph.Custom, T: t, Custom: NewCustomCoder(t),
-	}}}, nil
+		switch t.Type() {
+		case typex.KVType:
+			return &coder.Coder{Kind: coder.KV, T: t, Components: c}, nil
+		case typex.GBKType:
+			return &coder.Coder{Kind: coder.GBK, T: t, Components: c}, nil
+		case typex.CoGBKType:
+			return &coder.Coder{Kind: coder.CoGBK, T: t, Components: c}, nil
+		case typex.WindowedValueType:
+			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: &coder.Window{Kind: coder.GlobalWindow}}, nil
+
+		default:
+			panic(fmt.Sprintf("Unexpected composite type: %v", t))
+		}
+	default:
+		panic(fmt.Sprintf("Unexpected type: %v", t))
+	}
+}
+
+func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
+	var ret []*coder.Coder
+	for _, t := range list {
+		c, err := inferCoder(t)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, c)
+	}
+	return ret, nil
 }
 
 // TODO(herohde) 4/5/2017: decide whether we want an Encoded form. For now,
@@ -65,16 +88,12 @@ func inferCoder(t reflect.Type) (*graph.Coder, error) {
 // Concrete and universal coders both have a similar signature. Conversion is
 // handled by reflection.
 
-type jsonContext struct {
-	T graph.DataType `beam:"data"`
-}
-
-func jsonEnc(_ jsonContext, in typex.T) ([]byte, error) {
+func jsonEnc(in typex.T) ([]byte, error) {
 	return json.Marshal(in)
 }
 
-func jsonDec(ctx jsonContext, in []byte) (typex.T, error) {
-	val := reflect.New(ctx.T.T)
+func jsonDec(t reflect.Type, in []byte) (typex.T, error) {
+	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
 		return nil, err
 	}
@@ -83,14 +102,10 @@ func jsonDec(ctx jsonContext, in []byte) (typex.T, error) {
 
 // TODO: select optimal coder based on type, notably handling int, string, etc.
 
-func NewCustomCoder(t reflect.Type) *graph.CustomCoder {
-	if reflectx.ClassOf(t) != reflectx.Concrete {
-		log.Fatalf("Type must be concrete: %v", t)
-	}
-
-	coder, err := graph.NewCustomCoder("json", t, jsonEnc, jsonDec, graph.DataType{t})
+func NewJSONCoder(t reflect.Type) (*coder.CustomCoder, error) {
+	c, err := coder.NewCustomCoder("json", t, jsonEnc, jsonDec)
 	if err != nil {
-		log.Fatalf("Bad coder: %v", err)
+		return nil, fmt.Errorf("invalid coder: %v", err)
 	}
-	return coder
+	return c, nil
 }

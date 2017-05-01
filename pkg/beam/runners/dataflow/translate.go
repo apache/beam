@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	df "google.golang.org/api/dataflow/v1b3"
 	"log"
 	"path"
@@ -33,7 +34,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 				// which must be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
-				coder, err := graph.EncodeCoder(edge.Input[i].From.Coder)
+				coder, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
 				if err != nil {
 					return nil, err
 				}
@@ -47,7 +48,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 							OutputName: "out",
 							Encoding:   coder,
 						}},
-						UserName: buildName(edge.Parent, "AsView"),
+						UserName: buildName(edge.Scope(), "AsView"),
 					}),
 				}
 				steps = append(steps, side)
@@ -58,7 +59,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 		for _, out := range edge.Output {
 			ref := nodes[out.To.ID()]
-			coder, err := graph.EncodeCoder(out.To.Coder)
+			coder, err := graphx.EncodeCoder(out.To.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -71,7 +72,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 		}
 		if len(prop.OutputInfo) == 0 {
 			// NOTE: Dataflow seems to require at least one output.
-			coder, err := graph.EncodeCoder(edge.Input[0].From.Coder)
+			coder, err := graphx.EncodeCoder(edge.Input[0].From.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +120,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}
 		return "ParallelRead", properties{
 			CustomSourceInputStep: newCustomSourceInputStep(fn),
-			UserName:              buildName(edge.Parent, edge.DoFn.Name),
+			UserName:              buildName(edge.Scope(), edge.DoFn.Name),
 			Format:                "custom_source",
 		}, nil
 
@@ -129,13 +130,13 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			return "", properties{}, err
 		}
 		return "ParallelDo", properties{
-			UserName:     buildName(edge.Parent, edge.DoFn.Name),
+			UserName:     buildName(edge.Scope(), edge.DoFn.Name),
 			SerializedFn: fn,
 		}, nil
 
 	case graph.GBK:
 		return "GroupByKey", properties{
-			UserName: buildName(edge.Parent, "group"), // TODO: user-defined
+			UserName: buildName(edge.Scope(), "group"), // TODO: user-defined
 		}, nil
 
 	case graph.Sink:
@@ -145,7 +146,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 	case graph.Flatten:
 		return "Flatten", properties{
-			UserName: buildName(edge.Parent, "flatten"), // TODO: user-defined
+			UserName: buildName(edge.Scope(), "flatten"), // TODO: user-defined
 		}, nil
 
 	default:
@@ -156,7 +157,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 func serializeFn(edge *graph.MultiEdge) (string, error) {
 	// NOTE: Dataflow requires serialized functions to be base64 encoded.
 
-	ref, err := graph.EncodeMultiEdge(edge)
+	ref, err := graphx.EncodeMultiEdge(edge)
 	if err != nil {
 		return "", fmt.Errorf("Failed to serialize %v: %v", edge, err)
 	}

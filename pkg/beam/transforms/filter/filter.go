@@ -2,35 +2,31 @@ package filter
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"reflect"
 )
 
 // NOTE(herohde) 3/24/2017: the filter is an example of the user code being
 // used inside a 'generic' DoFn. The encoded form would here be a poor choice.
 
-type filterOpt struct {
-	Fn graph.DataFnValue `beam:"data"`
-}
-
-func filterFn(opt filterOpt, in <-chan typex.T, out chan<- typex.T) error {
-	fn := reflect.ValueOf(opt.Fn.Fn)
-	for elm := range in {
-		ret := fn.Call([]reflect.Value{reflect.ValueOf(elm)})
-		if ret[0].Bool() {
-			out <- elm
-		}
-	}
-	return nil
-}
-
 // Filter filters the elements based on the given function, which must be
 // of the form: T -> bool.
-func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
+func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) (beam.PCollection, error) {
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
+	return beam.ParDo(p, filterFn, col, beam.Data{graphx.DataFnValue{fn}})
+}
 
-	return beam.ParDo(p, filterFn, col, beam.Data{graph.DataFnValue{fn}})
+type filterOpt struct {
+	Fn graphx.DataFnValue `beam:"opt"`
+}
+
+func filterFn(opt filterOpt, elm typex.T, emit func(typex.T)) {
+	fn := reflect.ValueOf(opt.Fn.Fn)
+	ret := fn.Call([]reflect.Value{reflect.ValueOf(elm)})
+	if ret[0].Bool() {
+		emit(elm)
+	}
 }

@@ -33,8 +33,6 @@ func (p *Pipeline) Build() ([]*graph.MultiEdge, error) {
 	return p.real.Build()
 }
 
-// TODO(herohde): remove FakeBuild
-
-func (p *Pipeline) FakeBuild() (map[int]*graph.MultiEdge, error) {
-	return p.real.FakeBuild(), nil
+func (p *Pipeline) String() string {
+	return p.real.String()
 }
