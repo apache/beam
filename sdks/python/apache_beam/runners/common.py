@@ -487,18 +487,9 @@ class OutputProcessor(object):
 
       if isinstance(result, WindowedValue):
         windowed_value = result
-      elif isinstance(result, TimestampedValue):
-        value = result.value
-        timestamp = result.timestamp
-        assign_context = NoContext(value, timestamp)
-        windowed_value = WindowedValue(
-            value, timestamp, self.window_fn.assign(assign_context))
       else:
-        value = result
-        timestamp = -1
-        assign_context = NoContext(value)
-        windowed_value = WindowedValue(
-            value, timestamp, self.window_fn.assign(assign_context))
+        raise RuntimeError('Finish Bundle should only output WindowedValue ' +\
+                           'type but got %s' % type(result))
 
       if tag is None:
         self.main_receivers.receive(windowed_value)
