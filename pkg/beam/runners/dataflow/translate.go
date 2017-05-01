@@ -30,14 +30,15 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 			prop.NonParallelInputs = make(map[string]*outputReference)
 			for i := 1; i < len(edge.Input); i++ {
-				// Side input requires an additional conversion step,
-				// which must be before the present one.
+				// Side input requires an additional conversion step, which must
+				// be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
-				coder, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
+				c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
 				if err != nil {
 					return nil, err
 				}
+
 				side := &df.Step{
 					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
 					Kind: "CollectionToSingleton",
@@ -46,7 +47,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 						OutputInfo: []output{{
 							UserName:   "out",
 							OutputName: "out",
-							Encoding:   coder,
+							Encoding:   graphx.WrapExtraWindowedValue(c),
 						}},
 						UserName: buildName(edge.Scope(), "AsView"),
 					}),
