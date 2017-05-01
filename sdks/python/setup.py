@@ -121,7 +121,8 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={'apache_beam': ['**/*.pyx', '**/*.pxd', 'tests/data/*']},
+    package_data={'apache_beam': [
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'tests/data/*']},
     ext_modules=cythonize([
         '**/*.pyx',
         'apache_beam/coders/coder_impl.py',
