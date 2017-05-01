@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/harness"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/harness"
 	"log"
 	"time"
 )
@@ -33,10 +33,9 @@ func Init(ctx context.Context) {
 
 	log.Print("Worker exited successfully!")
 	for {
-		// TODO: For now, just hang around until we're terminated.
+		// TODO: Flush logs? For now, just hang around until we're terminated.
 		time.Sleep(time.Hour)
 	}
-
 }
 
 var runners = map[string]func(context.Context, *beam.Pipeline) error{
@@ -51,12 +50,12 @@ func Register(name string, fn func(context.Context, *beam.Pipeline) error) {
 // Run is a simple runner selector. Runners distributed with beam are pre-registered.
 func Run(ctx context.Context, p *beam.Pipeline) error {
 	if *worker {
-		return fmt.Errorf("Invalid call: failed to call Init at program startup")
+		return fmt.Errorf("invalid call: failed to call Init at program startup")
 	}
 
 	fn, ok := runners[*runner]
 	if !ok {
-		return fmt.Errorf("Unexpected runner: %v", *runner)
+		return fmt.Errorf("runner not found: %v", *runner)
 	}
 	return fn(ctx, p)
 }

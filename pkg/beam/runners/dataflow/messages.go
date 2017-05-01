@@ -3,7 +3,7 @@ package dataflow
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
 
@@ -40,7 +40,6 @@ type userAgent struct {
 //       "job_type": "PYTHON_BATCH",
 //       "major": "5"
 //    },
-// See: dataflow_job_settings.gcl for range.
 type version struct {
 	JobType string `json:"job_type,omitempty"`
 	Major   string `json:"major,omitempty"`
@@ -64,9 +63,9 @@ type properties struct {
 }
 
 type output struct {
-	UserName   string          `json:"user_name,omitempty"`
-	OutputName string          `json:"output_name,omitempty"`
-	Encoding   *graph.CoderRef `json:"encoding,omitempty"`
+	UserName   string           `json:"user_name,omitempty"`
+	OutputName string           `json:"output_name,omitempty"`
+	Encoding   *graphx.CoderRef `json:"encoding,omitempty"`
 }
 
 type integer struct {

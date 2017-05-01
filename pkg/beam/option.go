@@ -2,57 +2,37 @@ package beam
 
 import (
 	"fmt"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-)
-
-// TODO(herohde): make this metadata part of graph.Inbound?
-
-type SideInputKind int
-
-const (
-	Singleton SideInputKind = iota
-	Map
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
+	"reflect"
 )
 
 // Option is an optional value or context to a transformation, used at pipeline
 // construction time.
 type Option interface {
-	apply(*graph.MultiEdge) error
+	private()
 }
 
+// SideInput provides a view of the given PCollection to the transformation.
 type SideInput struct {
-	Kind  SideInputKind
 	Input PCollection
 
-	// TODO(wcn): better types for these?
-	// Motivating code snippet is
-	// https://paste.googleplex.com/6748543817613312
-	WindowFn interface{}
-	ViewFn   interface{}
+	// WindowFn interface{}
+	// ViewFn   interface{}
 }
 
-func (s SideInput) apply(edge *graph.MultiEdge) error {
-	_, side := edge.DoFn.Input()
-	index := len(edge.Input) - 1
-	if index < 0 || index >= len(side) {
-		return fmt.Errorf("No type for side input: %v", s.Input)
-	}
+func (_ SideInput) private() {}
 
-	edge.Input = append(edge.Input, &graph.Inbound{From: s.Input.n, T: side[index]})
-	return nil
-}
-
+// Data binds a concrete value to data options for a transformation. The actual
+// type must match the field type.
 type Data struct {
 	Data interface{}
 }
 
-func (d Data) apply(edge *graph.MultiEdge) error {
-	edge.Data = d.Data
-	return nil
-}
+func (_ Data) private() {}
 
-func parseOpts(opts []Option) ([]SideInput, []Data, error) {
+func parseOpts(opts []Option) ([]SideInput, []Data) {
 	var side []SideInput
 	var data []Data
 
@@ -63,17 +43,36 @@ func parseOpts(opts []Option) ([]SideInput, []Data, error) {
 		case SideInput:
 			side = append(side, opt.(SideInput))
 		default:
-			return nil, nil, fmt.Errorf("Unexpected opt: %v", opt)
+			panic(fmt.Sprintf("Unexpected opt: %v", opt))
 		}
 	}
-	return side, data, nil
+	return side, data
 }
 
-func applyOpts(opts []Option, edge *graph.MultiEdge) error {
-	for _, opt := range opts {
-		if err := opt.apply(edge); err != nil {
-			return err
-		}
+// applyData validates and populates the UserFn Opts.
+func applyData(fn *userfn.UserFn, data []Data) error {
+	// log.Printf("Data: %v <- %v [size=%v]", fn, data, len(data))
+
+	index, ok := fn.Options()
+	if len(data) > 1 || (!ok && len(data) == 1) {
+		return fmt.Errorf("too many data options %v for %v", data, fn)
 	}
+	if ok && len(data) == 0 {
+		return fmt.Errorf("missing data to bind for %v", fn)
+	}
+	if !ok {
+		return nil // ok: no data, no opt.
+	}
+
+	// Validate that data passed in matched the type expected at runtime. If ok,
+	// add it to the DoFn.
+
+	actual := data[0].Data
+
+	f, _ := reflectx.FindTaggedField(fn.Param[index].T, typex.OptTag)
+	if !reflect.TypeOf(actual).AssignableTo(f.Type) {
+		return fmt.Errorf("mismatched type opt %v in %v for data %v", f.Type, fn.Name, reflect.TypeOf(actual))
+	}
+	fn.Opt = append(fn.Opt, actual)
 	return nil
 }

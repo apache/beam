@@ -5,577 +5,182 @@ import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/coderx"
-	"github.com/apache/beam/sdks/go/pkg/beam/reflectx"
-	"github.com/apache/beam/sdks/go/pkg/beam/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
 	"log"
-	"reflect"
-	"sync"
-	"time"
 )
 
-// GOOD: Run doesn't have to be a method on the pipeline. Each runner could simply have
-// a function to execute a job: dataflow.Execute(p, options). A wrapper that knows about
-// all runners would then pick one from a flag, say.
-
-// GOOD: Would remove some of the job-level config from the runtime config. For example,
-// whether autoscaling enabled is an option solely meaningful to the dataflow runner at
-// submission time? Java has the superset of everything, which is less then awesome.
-
-// NEUTRAL: We don't validate options until execution time. Java does syntax up front, but
-// otherwise can't validate completeness until the runner is selected. Given that the transforms
-// are determined at pipeline construction time, they can't be validated earlier (without
-// lots of semantically-empty defaults that partly defeats the value of validation anyway).
-
-type chanID struct {
-	from  int // Node
-	to    int // MultiEdge
-	input int // input index
-}
-
+// Execute runs the pipeline in-process.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	edges, err := p.FakeBuild()
+	log.Print("Pipeline:")
+	log.Print(p)
+
+	list, err := p.Build()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid pipeline: %v", err)
 	}
-	return ExecuteBundle(ctx, edges)
+	return ExecuteInternal(ctx, nil, "", list)
 }
 
-func ExecuteBundle(ctx context.Context, edges map[int]*graph.MultiEdge) error {
-	// (1) create channels for each edge-to-edge connection. We need to insert
-	// multiplexing for outputs that are consumed by multiple transformations.
+// TODO(herohde) 4/29/2017: Cleaner separation of local (vs other runners) and core exec.
+// How to bind in data manager (and state later).
 
-	write := make(map[int]reflect.Value)   // node id -> chan T, T is produced input.
-	read := make(map[chanID]reflect.Value) // chanId -> chan T, T is accepted input.
+func ExecuteInternal(ctx context.Context, mgr exec.DataManager, instID string, list []*graph.MultiEdge) error {
+	units, err := build(mgr, instID, list)
+	if err != nil {
+		return fmt.Errorf("translation failed: %v", err)
+	}
 
-	consumers := make(map[int][]chanID)
-	for _, edge := range edges {
+	log.Print("Execution units:")
+	for _, u := range units {
+		log.Printf("%v: %v", u.ID(), u)
+	}
+	return exec.Execute(ctx, units)
+}
+
+type linkID struct {
+	to    int // graph.MultiEdge
+	input int // input index. If > 0, it's a side input.
+}
+
+func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec.Unit, error) {
+	// (1) Preprocess graph structure
+
+	succ := make(map[int][]linkID) // nodeID -> []linkID
+	for _, edge := range list {
 		for i, in := range edge.Input {
 			from := in.From.ID()
-			consumers[from] = append(consumers[from], chanID{from, edge.ID(), i})
-		}
-
-		for _, out := range edge.Output {
-			t := reflect.ChanOf(reflect.BothDir, out.T)
-			write[out.To.ID()] = reflect.MakeChan(t, 100)
+			succ[from] = append(succ[from], linkID{edge.ID(), i})
 		}
 	}
 
-	for id, list := range consumers {
-		if len(list) == 1 {
-			input := edges[list[0].to].Input[list[0].input]
-			read[list[0]] = shim(write[id], input.From.Coder, input.From.T, input.T)
+	next := make(map[linkID]exec.Node) // linkID -> Node
+	idgen := &exec.GenID{}
+
+	var units []exec.Unit
+	var aux []exec.Unit
+
+	// (2) Create units for each MultiEdge.
+
+	for _, edge := range list {
+		switch edge.Op {
+		case graph.Source:
+			unit := &exec.Source{UID: idgen.New(), Edge: edge}
+			units = append(units, unit)
+
+		case graph.ParDo:
+			unit := &exec.ParDo{UID: idgen.New(), Edge: edge}
+			units = append(units, unit)
+
+			if len(edge.Input) > 1 {
+				// If side inputs are present, we need to buffer them and delay
+				// the main processing until all side input are available.
+
+				w := &Wait{UID: idgen.New(), need: len(edge.Input) - 1, next: unit}
+				aux = append(aux, w)
+				next[linkID{edge.ID(), 0}] = w
+
+				for i := 1; i < len(edge.Input); i++ {
+					b := &Buffer{UID: idgen.New(), next: w.ID(), read: unit.ID(), notify: w.notify}
+					unit.Side = append(unit.Side, b)
+					aux = append(aux, b)
+					next[linkID{edge.ID(), i}] = b
+				}
+			} else {
+				next[linkID{edge.ID(), 0}] = unit
+			}
+
+		case graph.GBK:
+			unit := &GBK{UID: idgen.New(), Edge: edge}
+			units = append(units, unit)
+
+			next[linkID{edge.ID(), 0}] = unit
+
+		case graph.DataSource:
+			unit := &exec.DataSource{UID: idgen.New(), Edge: edge, InstID: instID, Source: mgr}
+			units = append(units, unit)
+
+		case graph.DataSink:
+			unit := &exec.DataSink{UID: idgen.New(), Edge: edge, InstID: instID, Sink: mgr}
+			units = append(units, unit)
+
+			next[linkID{edge.ID(), 0}] = unit
+
+		default:
+			return nil, fmt.Errorf("unexpected opcode: %v", edge)
+		}
+	}
+
+	// (3) Fixup output.
+
+	for _, unit := range units {
+		edge, ok := getEdge(unit)
+		if !ok {
 			continue
 		}
 
-		// Insert multiplexing. This output has multiple consumers, so we need to
-		// duplicate and buffer the data.
+		var out []exec.Node
+		for _, o := range edge.Output {
+			var n exec.Node
 
-		var dup []reflect.Value
-		for i := 0; i < len(list); i++ {
-			dup = append(dup, reflect.MakeChan(write[id].Type(), 100))
-		}
+			list := succ[o.To.ID()]
+			switch len(list) {
+			case 0:
+				// Insert discard to ensure that there are no loose ends
+				// in the execution graph.
+				n = &exec.Discard{UID: idgen.New()}
+				aux = append(aux, n)
+			case 1:
+				n = next[list[0]]
+			default:
+				// Insert multiplexer if fanout > 1.
 
-		go multiplex(write[id], dup)
-
-		for i, elm := range list {
-			ch := buffer(dup[i])
-			input := edges[elm.to].Input[elm.input]
-			read[elm] = shim(ch, input.From.Coder, input.From.T, input.T)
-		}
-	}
-
-	// (2) start gorutines to execute each step
-
-	var wg sync.WaitGroup
-
-	for _, edge := range edges {
-		var in []reflect.Value
-		for i, node := range edge.Input {
-			in = append(in, read[chanID{node.From.ID(), edge.ID(), i}])
-		}
-		var out []reflect.Value
-		for _, node := range edge.Output {
-			out = append(out, write[node.To.ID()])
-		}
-
-		switch edge.Op {
-		case graph.Source, graph.ParDo, graph.External:
-			dofn := edge.DoFn
-			data := edge.Data
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				call(ctx, dofn, data, in, out)
-			}()
-
-		case graph.GBK:
-			coder := edge.Input[0].From.Coder
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				gbk(ctx, coder, in[0], out[0])
-			}()
-
-		default:
-			log.Fatalf("Unexpected opcode: %v", edge)
-		}
-	}
-
-	wg.Wait()
-	return nil
-}
-
-func multiplex(ch reflect.Value, out []reflect.Value) {
-	defer closeout(out)
-
-	for {
-		val, ok := ch.Recv()
-		if !ok {
-			break
-		}
-
-		// TODO(herohde): we would need to dup the values from a GBK as well.
-		for i := 0; i < len(out); i++ {
-			out[i].Send(val)
-		}
-	}
-}
-
-type bufChan struct {
-	buf  []reflect.Value
-	done bool
-	mu   sync.Mutex
-}
-
-func (ch *bufChan) Write(val reflect.Value) {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-
-	ch.buf = append(ch.buf, val)
-}
-
-func (ch *bufChan) Close() {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-
-	ch.done = true
-}
-
-func (ch *bufChan) Read() ([]reflect.Value, bool) {
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-
-	tmp := ch.buf
-	ch.buf = nil
-
-	return tmp, len(tmp) == 0 && ch.done
-}
-
-func buffer(in reflect.Value) reflect.Value {
-	// NOTE(herohde): side input must be fully available and the different
-	// rates of consumption implies unbounded buffering, when split. In the
-	// service all this is handled for us.
-
-	ch := &bufChan{}
-	go func() {
-		defer ch.Close()
-
-		for {
-			val, ok := in.Recv()
-			if !ok {
-				break
-			}
-			ch.Write(val)
-		}
-	}()
-
-	ret := reflect.MakeChan(in.Type(), 100)
-	go func() {
-		defer ret.Close()
-
-		for {
-			buf, done := ch.Read()
-			if done {
-				break
-			}
-
-			if len(buf) == 0 {
-				time.Sleep(100 * time.Millisecond) // Lame
-			} else {
-				for _, elm := range buf {
-					ret.Send(elm)
+				var tmp []exec.Node
+				for _, elm := range list {
+					tmp = append(tmp, next[elm])
 				}
+				n = &exec.Multiplex{UID: idgen.New(), Out: tmp}
+				aux = append(aux, n)
 			}
+			out = append(out, n)
 		}
-	}()
-
-	return ret
+		setOut(unit, out)
+	}
+	return append(units, aux...), nil
 }
 
-func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out []reflect.Value) {
-	defer closeout(out)
-
-	log.Printf("Call: %v [Data: %v : %v]", userfn, data, reflect.TypeOf(data))
-
-	userCtx, hasCtx := makeContext(userfn, data)
-
-	switch {
-	case !userfn.HasDirectInput() && !userfn.HasDirectOutput():
-		// (1) chan only
-
-		var args []reflect.Value
-		if hasCtx {
-			args = append(args, userCtx)
-		}
-		args = append(args, in...)
-		args = append(args, out...)
-
-		ret := userfn.Fn.Call(args)
-		if index, ok := userfn.HasError(); ok && !ret[index].IsNil() {
-			log.Printf("UserFn error: %v", ret[index].Interface())
-		}
-
-	case userfn.HasDirectInput() && !userfn.HasDirectOutput():
-		// (1) input de-chan. Must be KV or GBK type.
-
-		primary := in[0]
-		rest := append(in[1:], out...)
-
-		keyFn, valueFn := reflectx.UnpackFn(primary.Type().Elem())
-
-		for {
-			val, ok := primary.Recv()
-			if !ok {
-				break
-			}
-
-			var args []reflect.Value
-			if hasCtx {
-				args = append(args, userCtx)
-			}
-			args = append(args, keyFn(val), valueFn(val))
-			args = append(args, rest...)
-
-			ret := userfn.Fn.Call(args)
-			if index, ok := userfn.HasError(); ok && !ret[index].IsNil() {
-				log.Printf("UserFn error: %v", ret[index].Interface())
-			}
-		}
-
+func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
+	switch unit.(type) {
+	case *exec.Source:
+		return unit.(*exec.Source).Edge, true
+	case *exec.ParDo:
+		return unit.(*exec.ParDo).Edge, true
+	case *GBK:
+		return unit.(*GBK).Edge, true
+	case *exec.DataSource:
+		return unit.(*exec.DataSource).Edge, true
+	case *exec.DataSink:
+		return unit.(*exec.DataSink).Edge, true
 	default:
-		// TODO(herohde): handle direct output
-		log.Fatalf("Invalid userfn: %v", userfn)
+		return nil, false
 	}
-
-	// log.Printf("Call exit: %v", userfn)
 }
 
-func makeContext(fn *graph.UserFn, data interface{}) (reflect.Value, bool) {
-	if ctxType, hasCtx := fn.Context(); hasCtx {
-		ctx := reflect.New(ctxType).Elem()
-
-		if f, ok := reflectx.FindTaggedField(ctxType, reflectx.DataTag); ok {
-			ctx.FieldByIndex(f.Index).Set(reflect.ValueOf(data))
+func setOut(unit exec.Unit, out []exec.Node) {
+	switch unit.(type) {
+	case *exec.Source:
+		unit.(*exec.Source).Out = out
+	case *exec.ParDo:
+		unit.(*exec.ParDo).Out = out
+	case *GBK:
+		if len(out) != 1 {
+			panic(fmt.Errorf("bad outputs for GBK: %v", out))
 		}
-		// TODO(herohde): other static context, such as context.Context
-
-		return ctx, true
-	}
-	return reflect.Value{}, false
-}
-
-func shim(ch reflect.Value, coder *graph.Coder, real, to reflect.Type) reflect.Value {
-	from := ch.Type().Elem()
-	if from == to {
-		// Same type: shortcuts Universal -> Universal, too.
-		return ch
-	}
-
-	log.Printf("Shim: %v -> %v -> %v", from, real, to)
-
-	ret := reflect.MakeChan(reflect.ChanOf(reflect.BothDir, to), 100)
-	go func() {
-		defer ret.Close()
-
-		for {
-			val, ok := ch.Recv()
-			if !ok {
-				break
-			}
-			ret.Send(reflectx.Convert(val, to))
-		}
-	}()
-	return ret
-}
-
-// gbk uses naive buffering, for now.
-
-type group struct {
-	ID     string
-	Key    reflect.Value
-	Values []reflect.Value
-}
-
-func gbk(ctx context.Context, coder *graph.Coder, in, out reflect.Value) error {
-	defer out.Close()
-
-	keyFn, valueFn := reflectx.UnpackFn(in.Type().Elem())
-	keyCoder := findKeyCoder(coder)
-	packFn := reflectx.PackFn(out.Type().Elem())
-
-	// (1) read all elements.
-
-	buffer := make(map[string]*group)
-	for {
-		val, ok := in.Recv()
-		if !ok {
-			break
-		}
-
-		key := keyFn(val)
-		encoded, err := Encode(keyCoder, key)
-		if err != nil {
-			return fmt.Errorf("failed to encode key: %v", key.Interface())
-		}
-		id := string(encoded)
-
-		g, ok := buffer[id]
-		if !ok {
-			g = &group{ID: id, Key: key}
-			buffer[id] = g
-		}
-
-		value := valueFn(val)
-		g.Values = append(g.Values, value)
-	}
-
-	// (2) write each group, with a fully closed values channel.
-
-	values, _ := reflectx.FindTaggedField(out.Type().Elem(), reflectx.ValuesTag)
-	for _, g := range buffer {
-		ch := reflect.MakeChan(values.Type, len(g.Values))
-		for _, elm := range g.Values {
-			ch.Send(elm)
-		}
-		ch.Close()
-
-		out.Send(packFn(g.Key, ch))
-	}
-	return nil
-}
-
-// TODO(herohde) 4/6/2017: move runtime execution parts out of local. Open
-// questions are where (graph/coder + graph/runtime?) and how to best handle
-// "magic" context, if any.
-
-func Encode(coder *graph.Coder, value reflect.Value) ([]byte, error) {
-	switch coder.Kind {
-	case graph.Custom:
-		c, _ := coder.UnfoldCustom()
-
-		var args []reflect.Value
-
-		userCtx, hasCtx := makeContext(c.Enc, c.Data)
-		if hasCtx {
-			args = append(args, userCtx)
-		}
-		args = append(args, value)
-
-		ret := c.Enc.Fn.Call(args)
-		if index, ok := c.Enc.HasError(); ok && !ret[index].IsNil() {
-			return nil, fmt.Errorf("encode error: %v", ret[index].Interface())
-		}
-		return ret[0].Interface().([]byte), nil
-
-	case graph.LengthPrefix:
-		c, _ := coder.UnfoldLengthPrefix()
-
-		data, err := Encode(c, value)
-		if err != nil {
-			return nil, err
-		}
-
-		size := len(data)
-		prefix := coderx.EncodeVarInt((int32)(size))
-		return append(prefix, data...), nil
-
-	case graph.Pair:
-		k, v, _ := coder.UnfoldPair()
-		keyFn, valFn := reflectx.UnpackFn(value.Type())
-
-		key, err := Encode(k, keyFn(value))
-		if err != nil {
-			return nil, err
-		}
-		val, err := Encode(v, valFn(value))
-		if err != nil {
-			return nil, err
-		}
-		return append(key, val...), nil
-
-	case graph.WindowedValue:
-		c, _, _ := coder.UnfoldWindowedValue()
-
-		// TODO(herohde) 4/7/2017: actually handle windows. Backfilling implicit
-		// context is the death of chan-based bundle processing.
-
-		// Encoding: Timestamp, Window, Pane, Element
-
-		ret := coderx.EncodeTimestamp(typex.Timestamp(time.Now()))
-
-		ret = append(ret, 0x0, 0x0, 0x0, 0x1) // #windows
-		// Ignore GlobalWindow, for now. It encoded into the empty string.
-
-		ret = append(ret, 0xf) // NO_FIRING pane
-
-		val, err := Encode(c, value)
-		if err != nil {
-			return nil, err
-		}
-		return append(ret, val...), nil
-
+		unit.(*GBK).Out = out[0]
+	case *exec.DataSource:
+		unit.(*exec.DataSource).Out = out[0]
+	case *exec.DataSink:
+		// nop
 	default:
-		return nil, fmt.Errorf("Unexpected coder: %v", coder)
-	}
-}
-
-func Decode(coder *graph.Coder, data []byte) (reflect.Value, int, error) {
-	switch coder.Kind {
-	case graph.Custom:
-		c, _ := coder.UnfoldCustom()
-
-		var args []reflect.Value
-
-		userCtx, hasCtx := makeContext(c.Dec, c.Data)
-		if hasCtx {
-			args = append(args, userCtx)
-		}
-		args = append(args, reflect.ValueOf(data))
-
-		ret := c.Dec.Fn.Call(args)
-		if index, ok := c.Enc.HasError(); ok && !ret[index].IsNil() {
-			return reflect.Value{}, 0, fmt.Errorf("decode error: %v", ret[index].Interface())
-		}
-		return reflectx.Convert(ret[0], c.T), len(data), nil
-
-	case graph.LengthPrefix:
-		c, _ := coder.UnfoldLengthPrefix()
-
-		size, offset, err := coderx.DecodeVarInt(data)
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-
-		value, _, err := Decode(c, data[offset:offset+int(size)])
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-		return value, offset + int(size), nil
-
-	case graph.Pair:
-		k, v, _ := coder.UnfoldPair()
-		pack := reflectx.PackFn(coder.T)
-
-		key, offset, err := Decode(k, data)
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-		val, offset2, err := Decode(v, data[offset:])
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-		return pack(key, val), offset + offset2, nil
-
-	case graph.Stream:
-		c, _ := coder.UnfoldStream()
-
-		size, offset, err := coderx.DecodeInt32(data)
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-
-		ch := reflect.MakeChan(coder.T, 1000) // hack
-		if size > -1 {
-			// Known length stream.
-
-			for i := int32(0); i < size; i++ {
-				elm, o, err := Decode(c, data[offset:])
-				if err != nil {
-					return reflect.Value{}, 0, fmt.Errorf("decode failed at %v:%v: %v", offset, data, err)
-				}
-
-				offset += o
-				ch.Send(elm)
-			}
-		} else {
-			// Unknown length stream.
-
-			for {
-				block, o, err := coderx.DecodeVarUint64(data[offset:])
-				if err != nil {
-					return reflect.Value{}, 0, err
-				}
-
-				log.Printf("Block: %v", block)
-
-				offset += o
-				if block == 0 {
-					break
-				}
-
-				for i := uint64(0); i < block; i++ {
-					elm, o, err := Decode(c, data[offset:])
-					if err != nil {
-						return reflect.Value{}, 0, fmt.Errorf("decode failed at %v:%v: %v", offset, data, err)
-					}
-
-					log.Printf("Elm %v: %v [size: %v @ %v]", i, elm, o, offset)
-
-					offset += o
-					ch.Send(reflectx.Convert(elm, c.T))
-				}
-			}
-		}
-		ch.Close()
-
-		return ch, offset, nil
-
-	case graph.WindowedValue:
-		c, _, _ := coder.UnfoldWindowedValue()
-
-		// TODO(herohde) 4/7/2017: actually handle windows. Skip
-		// timestamp, window and pane for now.
-
-		// Encoding: Timestamp, Window, Pane, Element
-
-		val, offset, err := Decode(c, data[13:])
-		if err != nil {
-			return reflect.Value{}, 0, err
-		}
-		return val, offset, nil
-
-	default:
-		return reflect.Value{}, 0, fmt.Errorf("Unexpected coder: %v", coder)
-	}
-}
-
-func findKeyCoder(coder *graph.Coder) *graph.Coder {
-	if c, _, ok := coder.UnfoldWindowedValue(); ok {
-		return findKeyCoder(c)
-	}
-
-	k, _, ok := coder.UnfoldPair()
-	if !ok {
-		panic(fmt.Errorf("Expected pair coder: %v", coder))
-	}
-	return k
-}
-
-func closeout(pipes []reflect.Value) {
-	for _, pipe := range pipes {
-		pipe.Close()
+		panic(fmt.Sprintf("Unit %v has no output", unit))
 	}
 }

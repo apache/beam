@@ -3,6 +3,7 @@ package textio
 import (
 	"bufio"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,18 +13,19 @@ import (
 // TODO(herohde): require that options are top-level? Allow multiple named options?
 // TODO(herohde): can contexts and DoFns be private?
 
-type Context struct {
-	Filename string `beam:"data"`
+type fileOpt struct {
+	Filename string `beam:"opt"`
 }
 
-func Read(p *beam.Pipeline, filename string) beam.PCollection {
+func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
+	p = p.Composite("textio.Read")
 	return beam.Source(p, readFn, beam.Data{filename})
 }
 
-func readFn(ctx Context, out chan<- string) error {
-	log.Printf("Reading from %v", ctx.Filename)
+func readFn(opt fileOpt, emit func(string)) error {
+	log.Printf("Reading from %v", opt.Filename)
 
-	file, err := os.Open(ctx.Filename)
+	file, err := os.Open(opt.Filename)
 	if err != nil {
 		return err
 	}
@@ -31,20 +33,23 @@ func readFn(ctx Context, out chan<- string) error {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		out <- scanner.Text()
+		emit(scanner.Text())
 	}
 	return scanner.Err()
 }
 
-func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
-	beam.Sink(p, writeFn, col, beam.Data{filename})
+func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
+	p = p.Composite("textio.Write")
+
+	// TODO(herohde) 4/28/2017: Write needs bundle hook. Hack as side input for now.
+	return beam.Sink(p, writeFn, debug.Tick(p), beam.SideInput{col}, beam.Data{filename})
 }
 
-func writeFn(ctx Context, lines <-chan string) error {
-	if err := os.MkdirAll(filepath.Dir(ctx.Filename), 0755); err != nil {
+func writeFn(opt fileOpt, _ string, lines func(*string) bool) error {
+	if err := os.MkdirAll(filepath.Dir(opt.Filename), 0755); err != nil {
 		return err
 	}
-	fd, err := ioutil.TempFile(filepath.Dir(ctx.Filename), filepath.Base(ctx.Filename))
+	fd, err := ioutil.TempFile(filepath.Dir(opt.Filename), filepath.Base(opt.Filename))
 	if err != nil {
 		return err
 	}
@@ -53,7 +58,8 @@ func writeFn(ctx Context, lines <-chan string) error {
 	defer fd.Close()
 	writer := bufio.NewWriterSize(fd, 1<<20)
 
-	for line := range lines {
+	var line string
+	for lines(&line) {
 		if _, err := writer.WriteString(line); err != nil {
 			return err
 		}
@@ -63,16 +69,6 @@ func writeFn(ctx Context, lines <-chan string) error {
 	}
 	writer.Flush()
 	return nil
-}
-
-type DirectContext struct {
-	Lines []string `beam:"data"`
-}
-
-func lines(ctx DirectContext, out chan<- string) {
-	for _, line := range ctx.Lines {
-		out <- line
-	}
 }
 
 // Immediate reads the file locally and embeds the data as part of the pipeline.
@@ -93,6 +89,15 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	if err := scanner.Err(); err != nil {
 		return beam.PCollection{}, err
 	}
+	return beam.Source(p, linesFn, beam.Data{data})
+}
 
-	return beam.Source(p, lines, beam.Data{data}), nil
+type linesOpt struct {
+	Lines []string `beam:"opt"`
+}
+
+func linesFn(opt linesOpt, emit func(string)) {
+	for _, line := range opt.Lines {
+		emit(line)
+	}
 }

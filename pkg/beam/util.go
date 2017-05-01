@@ -11,22 +11,27 @@ package beam
 
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
-func Seq(p *Pipeline, col PCollection, dofns ...interface{}) PCollection {
+func Seq(p *Pipeline, col PCollection, dofns ...interface{}) (PCollection, error) {
+	cur := col
 	for _, dofn := range dofns {
-		col = ParDo(p, dofn, col)
+		next, err := ParDo(p, dofn, cur)
+		if err != nil {
+			return PCollection{}, err
+		}
+		cur = next
 	}
-	return col
+	return cur, nil
 }
 
-func CompositeN(p *Pipeline, name string, fn func(pipeline *Pipeline) []PCollection) []PCollection {
+func CompositeN(p *Pipeline, name string, fn func(pipeline *Pipeline) ([]PCollection, error)) ([]PCollection, error) {
 	return fn(p.Composite(name))
 }
 
-func Composite0(p *Pipeline, name string, fn func(pipeline *Pipeline)) {
-	fn(p.Composite(name))
+func Composite0(p *Pipeline, name string, fn func(pipeline *Pipeline) error) error {
+	return fn(p.Composite(name))
 }
 
 // Composite is a helper to scope a composite transform.
-func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) PCollection) PCollection {
+func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) (PCollection, error)) (PCollection, error) {
 	return fn(p.Composite(name))
 }

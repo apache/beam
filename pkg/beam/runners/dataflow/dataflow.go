@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 	"log"
@@ -67,7 +68,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			Experiments: []string{"use_gci_image"},
 			UserAgent: newMsg(userAgent{
 				Name:    "Apache Beam SDK for Go",
-				Version: "0.2.0",
+				Version: "0.3.0",
 			}),
 			Version: newMsg(version{
 				JobType: "FNAPI_BATCH",
@@ -135,7 +136,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			return fmt.Errorf("job %s failed.", upd.Id)
 
 		case "JOB_STATE_RUNNING":
-			log.Printf("Job still running ...")
+			log.Print("Job still running ...")
 
 		default:
 			log.Printf("Job state: %v ...", j.CurrentState)
@@ -147,7 +148,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 // stageWorker uploads the worker binary to GCS as a unique object.
 func stageWorker(ctx context.Context, project, location, worker string) (string, error) {
-	bucket, prefix, err := ParseObject(location)
+	bucket, prefix, err := storagex.ParseObject(location)
 	if err != nil {
 		return "", fmt.Errorf("Invalid staging location %v: %v", location, err)
 	}
@@ -158,7 +159,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 		return full, nil
 	}
 
-	client, err := NewStorageClient(ctx)
+	client, err := storagex.NewClient(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +170,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	defer fd.Close()
 	defer os.Remove(worker)
 
-	return Upload(client, project, bucket, obj, fd)
+	return storagex.Upload(client, project, bucket, obj, fd)
 }
 
 // buildLocalBinary creates a local worker binary suitable to run on Dataflow. It finds the filename

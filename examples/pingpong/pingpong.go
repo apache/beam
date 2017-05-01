@@ -2,106 +2,134 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"log"
 	"os"
 	"regexp"
-	"strings"
 )
 
 var (
-	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/shakespeare/kinglear.txt"), "File to read.")
+	input  = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
 )
 
-var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-
-// Extract processes a bundle at a time.
-func Extract(lines <-chan string, out chan<- string) error {
-	for line := range lines {
-		for _, word := range wordRE.FindAllString(line, -1) {
-			out <- strings.ToLower(word)
-		}
+// PingPong constructs a convoluted pipeline with two "cyclic" composites.
+func PingPong(p *beam.Pipeline) error {
+	lines, err := textio.Read(p, *input)
+	if err != nil {
+		return err
 	}
-	return nil
-}
-
-func Multi(words, sample <-chan string, small, big chan<- string) error {
-	count := 0
-	size := 0
-	for word := range sample {
-		count++
-		size += len(word)
-	}
-	if count == 0 {
-		return fmt.Errorf("Empty sample")
+	words, err := beam.ParDo(p, extractFn, lines)
+	if err != nil {
+		return err
 	}
 
-	avg := size / count
-	log.Printf("Sample size: %v, avg: %v", count, avg)
+	// Run baseline and stitch; then compare them.
 
-	for word := range words {
-		if len(word) < avg {
-			small <- word
-		} else {
-			big <- word
-		}
+	small, big, err := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: words})
+	if err != nil {
+		return err
 	}
-	return nil
-}
-
-func Subset(a, b <-chan string) {
-	larger := make(map[string]bool)
-	for elm := range b {
-		larger[elm] = true
+	small2, big2, err := stitch(p, words)
+	if err != nil {
+		return err
 	}
 
-	for elm := range a {
-		if !larger[elm] {
-			panic(fmt.Sprintf("Extra element: %v", elm))
-		}
+	if err := subset(p, small, small2); err != nil {
+		return err
 	}
-}
-
-func subset(p *beam.Pipeline, a, b beam.PCollection) {
-	beam.ParDo0(p, Subset, a, beam.SideInput{Input: b})
-}
-
-func Drop(elms <-chan string) {
-	i := 0
-	for range elms {
-		i++
+	if err := subset(p, big2, big); err != nil {
+		return err
 	}
-	log.Printf("Dropped: %v", i)
-}
 
-func drop(p *beam.Pipeline, empty beam.PCollection) {
-	beam.ParDo0(p, Drop, empty)
+	if err := textio.Write(p, *output, small2); err != nil {
+		return err
+	}
+	return textio.Write(p, *output, big2)
 }
 
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
-func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection) {
+func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection, error) {
 	ping := p.Composite("ping")
 	pong := ping // p.Composite("pong")
 
 	// TODO(herohde) 2/23/2017: Dataflow UX seems to have limited support for composite
 	// structures. Fails to display a graph if "pong" above is used.
 
-	small1, big1 := beam.ParDo2(ping, Multi, words, beam.SideInput{Input: words})   // self-sample (ping)
-	small2, big2 := beam.ParDo2(pong, Multi, words, beam.SideInput{Input: big1})    // big-sample  (pong). More words are small.
-	empty3, big3 := beam.ParDo2(ping, Multi, big2, beam.SideInput{Input: small1})   // small-sample big (ping). All words are big.
-	small4, empty4 := beam.ParDo2(pong, Multi, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
+	small1, big1, err := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
+	if err != nil {
+		return beam.PCollection{}, beam.PCollection{}, err
+	}
+	small2, big2, err := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1}) // big-sample  (pong). More words are small.
+	if err != nil {
+		return beam.PCollection{}, beam.PCollection{}, err
+	}
+	_, big3, err := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1}) // small-sample big (ping). All words are big.
+	if err != nil {
+		return beam.PCollection{}, beam.PCollection{}, err
+	}
+	small4, _, err := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
+	if err != nil {
+		return beam.PCollection{}, beam.PCollection{}, err
+	}
+	return small4, big3, nil
+}
 
-	drop(p, empty3)
-	drop(p, empty4)
-	drop(p, small2) // Force buffering of small2. Workaround for inadequate buffering in local.
+// Slice side input.
 
-	return small4, big3
+func multiFn(word string, sample []string, small, big func(string)) error {
+	// TODO: side input processing into start bundle, once supported.
+
+	count := 0
+	size := 0
+	for _, w := range sample {
+		count++
+		size += len(w)
+	}
+	if count == 0 {
+		return errors.New("Empty sample")
+	}
+	avg := size / count
+
+	if len(word) < avg {
+		small(word)
+	} else {
+		big(word)
+	}
+	return nil
+}
+
+func subset(p *beam.Pipeline, a, b beam.PCollection) error {
+	return beam.ParDo0(p, subsetFn, debug.Tick(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
+}
+
+func subsetFn(_ string, a, b func(*string) bool) error {
+	larger := make(map[string]bool)
+	var elm string
+	for b(&elm) {
+		larger[elm] = true
+	}
+	for a(&elm) {
+		if !larger[elm] {
+			return fmt.Errorf("Extra element: %v", elm)
+		}
+	}
+	return nil
+}
+
+var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+
+func extractFn(line string, emit func(string)) {
+	for _, word := range wordRE.FindAllString(line, -1) {
+		emit(word)
+	}
 }
 
 func main() {
@@ -109,20 +137,12 @@ func main() {
 	ctx := context.Background()
 	beamexec.Init(ctx)
 
+	log.Print("Running pingpong")
+
 	p := beam.NewPipeline()
-
-	lines := textio.Read(p, *input)
-	words := beam.ParDo(p, Extract, lines)
-
-	small, big := beam.ParDo2(p, Multi, words, beam.SideInput{Input: words})
-	small2, big2 := stitch(p, words)
-
-	subset(p, small, small2)
-	subset(p, big2, big)
-
-	textio.Write(p, *output, small2)
-	textio.Write(p, *output, big2)
-
+	if err := PingPong(p); err != nil {
+		log.Fatalf("Failed to construct job: %v", err)
+	}
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}
