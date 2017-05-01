@@ -105,8 +105,6 @@ func (e *MultiEdge) String() string {
 
 // NewGBK inserts a new GBK edge into the graph.
 func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
-	// groupByKey inserts a GBK transform into the pipeline.
-
 	if !typex.IsWKV(n.Type()) {
 		return nil, fmt.Errorf("input type must be KV: %v", n)
 	}
@@ -130,7 +128,36 @@ func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
-// NewGBK inserts a new ParDo edge into the graph.
+// NewFlatten inserts a new Flatten edge in the graph.
+func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
+	if len(in) < 2 {
+		return nil, fmt.Errorf("flatten needs at least 2 input, got %v", len(in))
+	}
+	t := in[0].Type()
+	for _, n := range in {
+		if !typex.IsEqual(t, n.Type()) {
+			return nil, fmt.Errorf("mismatched flatten input types: %v, want %v", n.Type(), t)
+		}
+	}
+	if typex.IsWGBK(t) || typex.IsWCoGBK(t) {
+		return nil, fmt.Errorf("flatten input type cannot be GBK or CGBK: %v", t)
+	}
+
+	// Flatten output type is the shared input type.
+	out := g.NewNode(t)
+
+	edge := g.NewEdge(s)
+	edge.Op = Flatten
+	for _, n := range in {
+		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: t})
+	}
+	edge.Output = []*Outbound{{To: out, Type: t}}
+
+	log.Printf("EDGE: %v", edge)
+	return edge, nil
+}
+
+// NewParDo inserts a new ParDo edge into the graph.
 func NewParDo(g *Graph, s *Scope, u *userfn.UserFn, in []*Node) (*MultiEdge, error) {
 	return newUserFnNode(ParDo, g, s, u, in)
 }

@@ -71,6 +71,9 @@ func (m *Multiplex) String() string {
 	return fmt.Sprintf("Multiplex. Out:%v", IDs(m.Out...))
 }
 
+// NOTE(herohde) 5/1/2017: flatten is implicit in the execution model, so there
+// is no need for a separate unit.
+
 // Source is a simplified source. It emits all elements in one invocation.
 type Source struct {
 	UID  UnitID

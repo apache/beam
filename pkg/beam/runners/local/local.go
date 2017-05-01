@@ -105,12 +105,37 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 
 			next[linkID{edge.ID(), 0}] = unit
 
+		case graph.Flatten:
+			// nop
+
 		default:
 			return nil, fmt.Errorf("unexpected opcode: %v", edge)
 		}
 	}
 
-	// (3) Fixup output.
+	// (3) Eliminate flatten
+
+	done := false
+	for !done {
+		done = true
+		for _, edge := range list {
+			switch edge.Op {
+			case graph.Flatten:
+				list := succ[edge.Output[0].To.ID()]
+				unit, ok := next[list[0]]
+				if !ok {
+					// Next is a flatten that is not yet processed. Iterate again.
+					done = false
+					continue
+				}
+				for i, _ := range edge.Input {
+					next[linkID{edge.ID(), i}] = unit
+				}
+			}
+		}
+	}
+
+	// (4) Fixup output.
 
 	for _, unit := range units {
 		edge, ok := getEdge(unit)
