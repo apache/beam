@@ -307,7 +307,8 @@ public class TestDataflowRunnerTest {
    */
   @Test
   public void testCheckingForSuccessWhenPAssertSucceeds() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -326,7 +327,8 @@ public class TestDataflowRunnerTest {
    */
   @Test
   public void testCheckingForSuccessWhenPAssertFails() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job =
+        spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -342,7 +344,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckingForSuccessSkipsNonTentativeMetrics() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -363,7 +365,7 @@ public class TestDataflowRunnerTest {
    */
   @Test
   public void testStreamingPipelineFailsIfServiceFails() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -422,7 +424,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testGetJobMetricsThatSucceeds() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -438,7 +440,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testGetJobMetricsThatFailsForException() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
