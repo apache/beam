@@ -389,12 +389,12 @@ class DataflowApplicationClient(object):
                  mime_type='application/octet-stream'):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
-      local_path = os.path.join(gcs_or_local_path, file_name)
+      local_path = FileSystems.join(gcs_or_local_path, file_name)
       logging.info('Staging file locally to %s', local_path)
       with open(local_path, 'wb') as f:
         f.write(stream.read())
       return
-    gcs_location = gcs_or_local_path + '/' + file_name
+    gcs_location = FileSystems.join(gcs_or_local_path, file_name)
     bucket, name = gcs_location[5:].split('/', 1)
 
     request = storage.StorageObjectsInsertRequest(
