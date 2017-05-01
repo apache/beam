@@ -127,7 +127,6 @@ class DoFn(WithTypeHints, HasDisplayData):
   """
 
   ElementParam = 'ElementParam'
-  ContextParam = 'ContextParam'
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
   WindowParam = 'WindowParam'
