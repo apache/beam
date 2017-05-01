@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -100,6 +99,7 @@ import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.Utils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
+import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -588,7 +588,6 @@ public class KafkaIOTest {
         MetricsFilter.builder().build());
 
     Iterable<MetricResult<Long>> counters = metrics.counters();
-    Iterable<MetricResult<GaugeResult>> gauges = metrics.gauges();
 
     assertThat(counters, hasItem(
         MetricMatchers.attemptedMetricsResult(
@@ -618,19 +617,31 @@ public class KafkaIOTest {
             readStep,
             12000L)));
 
-    assertThat(gauges, hasItem(
-        attemptedMetricsResult(
-            backlogElementsOfSplit.namespace(),
-            backlogElementsOfSplit.name(),
-            readStep,
-            GaugeResult.create(0L, Instant.now()))));
+    MetricQueryResults backlogElementsMetrics =
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        backlogElementsOfSplit.namespace(),
+                        backlogElementsOfSplit.name()))
+                .build());
 
-    assertThat(gauges, hasItem(
-        attemptedMetricsResult(
-            backlogBytesOfSplit.namespace(),
-            backlogBytesOfSplit.name(),
-            readStep,
-            GaugeResult.create(0L, Instant.now()))));
+    // since gauge values may be inconsistent in some environments assert only on their existence.
+    assertThat(backlogElementsMetrics.gauges(),
+        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
+
+    MetricQueryResults backlogBytesMetrics =
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        backlogBytesOfSplit.namespace(),
+                        backlogBytesOfSplit.name()))
+                .build());
+
+    // since gauge values may be inconsistent in some environments assert only on their existence.
+    assertThat(backlogBytesMetrics.gauges(),
+        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
   }
 
   @Test
