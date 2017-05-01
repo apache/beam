@@ -1,4 +1,5 @@
 #!groovy
+
 try {
     stage('Build') {
         node {
@@ -13,15 +14,18 @@ try {
         parallel unitTest: {
             node {
                 unstash 'all'
-                echo 'ut'
-                sh 'ls -l'
+                def mvnHome = tool 'maven-3'
+                echo '$ghprbPullId'
+                echo "$ghprbPullId"
+                echo $ghprbPullId
+                sh "${mvnHome}/bin/mvn test"
             }
         },
         codeStyle: {
             node {
                 unstash 'all'
-                echo 'cs'
-                sh 'ls -al'
+                def mvnHome = tool 'maven-3'
+                sh "${mvnHome}/bin/mvn checkstyle:check findbugs:check"
             }
         }
     }
