@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,7 +26,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
@@ -121,13 +119,6 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
       return KV.of(getKeyCoder().structuralValue(kv.getKey()),
                    getValueCoder().structuralValue(kv.getValue()));
     }
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClassName("kind:pair");
-    addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
-    return result;
   }
 
   /**

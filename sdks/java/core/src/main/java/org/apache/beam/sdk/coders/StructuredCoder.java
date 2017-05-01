@@ -17,17 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.Structs.addList;
-
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -101,44 +96,6 @@ public abstract class StructuredCoder<T> implements Coder<T> {
       builder.append(')');
     }
     return builder.toString();
-  }
-
-  /**
-   * Adds the following properties to the {@link CloudObject} representation:
-   * <ul>
-   *   <li>component_encodings: A list of coders represented as {@link CloudObject}s
-   *       equivalent to the {@link #getCoderArguments}.</li>
-   * </ul>
-   *
-   * <p>{@link StructuredCoder} implementations should override {@link #initializeCloudObject}
-   * to customize the {@link CloudObject} representation.
-   */
-  @Override
-  public final CloudObject asCloudObject() {
-    CloudObject result = initializeCloudObject();
-
-    List<? extends Coder<?>> components = getComponents();
-    if (!components.isEmpty()) {
-      List<CloudObject> cloudComponents = new ArrayList<>(components.size());
-      for (Coder<?> coder : components) {
-        cloudComponents.add(coder.asCloudObject());
-      }
-      addList(result, PropertyNames.COMPONENT_ENCODINGS, cloudComponents);
-    }
-
-    return result;
-  }
-
-  /**
-   * Subclasses should override this method to customize the {@link CloudObject}
-   * representation. {@link StructuredCoder#asCloudObject} delegates to this method
-   * to provide an initial {@link CloudObject}.
-   *
-   * <p>The default implementation returns a {@link CloudObject} using
-   * {@link Object#getClass} for the type.
-   */
-  protected CloudObject initializeCloudObject() {
-    return CloudObject.forClass(getClass());
   }
 
   /**

@@ -22,7 +22,6 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.StructuredCoder;
-import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -81,11 +80,6 @@ public class GlobalWindow extends BoundedWindow {
     @Override
     public boolean consistentWithEquals() {
       return true;
-    }
-
-    @Override
-    protected CloudObject initializeCloudObject() {
-      return CloudObject.forClassName("kind:global_window");
     }
 
     @Override

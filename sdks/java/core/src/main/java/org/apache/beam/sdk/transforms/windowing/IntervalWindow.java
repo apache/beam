@@ -27,7 +27,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
-import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -215,11 +214,6 @@ public class IntervalWindow extends BoundedWindow
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
-    }
-
-    @Override
-    protected CloudObject initializeCloudObject() {
-      return CloudObject.forClassName("kind:interval_window");
     }
   }
 }
