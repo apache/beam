@@ -39,13 +39,9 @@ type Z interface{}
 // EventTime is a time.Time that Beam understands as attached to an element.
 type EventTime time.Time
 
-// TODO(herohde) 4/14/2017: Give up precise Coder.T types for built-ins? The
-// KV, etc. below (or equivalent) would be used for the runtime to avoid
-// reflective set. And they would be _mostly_ invisible to users, exposed solely
-// if coder types are inspected and for documentation. Not used in any DoFn.
-
-// KV, GBK, CoGBK, WindowedValue are composite types. They are not used in user
-// code signatures.
+// KV, GBK, CoGBK, WindowedValue are composite generic types. They are not used
+// in user code signatures, but only in FullTypes. The fields below are for
+// documentation only.
 
 type KV struct {
 	Key   T
