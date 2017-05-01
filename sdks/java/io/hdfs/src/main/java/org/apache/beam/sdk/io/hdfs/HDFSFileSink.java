@@ -211,7 +211,12 @@ public abstract class HDFSFileSink<T, K, V> extends Sink<T> {
       if (configuration == null) {
         configuration = new Configuration(false);
       }
-      return this.setSerializableConfiguration(new SerializableConfiguration(configuration));
+
+      SerializableConfiguration serializableConfiguration =
+        new SerializableConfiguration(configuration);
+      SerializableConfiguration.readConfigurationFromFile(serializableConfiguration);
+
+      return this.setSerializableConfiguration(serializableConfiguration);
     }
     public abstract Builder<T, K, V> setUsername(String username);
     public abstract Builder<T, K, V> setValidate(boolean validate);
