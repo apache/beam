@@ -32,4 +32,5 @@ def get_filesystem(path):
           'Google Cloud Platform IO not available, '
           'please install apache_beam[gcp]')
     return GCSFileSystem()
-  return LocalFileSystem()
+  else:
+    return LocalFileSystem()
