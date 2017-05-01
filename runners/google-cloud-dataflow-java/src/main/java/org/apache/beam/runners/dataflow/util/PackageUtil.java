@@ -52,9 +52,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -179,10 +179,9 @@ class PackageUtil {
     }
   }
 
-  private static WritableByteChannel makeWriter(String target)
+  private static WritableByteChannel makeWriter(String target, CreateOptions createOptions)
       throws IOException {
-    return FileSystems.create(FileSystems.matchNewResource(target, false),
-        MimeTypes.BINARY);
+    return FileSystems.create(FileSystems.matchNewResource(target, false), createOptions);
   }
 
   /**
@@ -191,7 +190,7 @@ class PackageUtil {
    */
   private static void stageOnePackage(
       PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
-      Sleeper retrySleeper) {
+      Sleeper retrySleeper, CreateOptions createOptions) {
     String source = attributes.getSourcePath();
     String target = attributes.getDataflowPackage().getLocation();
 
@@ -215,7 +214,7 @@ class PackageUtil {
       while (true) {
         try {
           LOG.debug("Uploading classpath element {} to {}", source, target);
-          try (WritableByteChannel writer = makeWriter(target)) {
+          try (WritableByteChannel writer = makeWriter(target, createOptions)) {
             copyContent(source, writer);
           }
           numUploaded.incrementAndGet();
@@ -256,12 +255,12 @@ class PackageUtil {
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
   static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath) {
+      Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
     ListeningExecutorService executorService =
         MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32));
     try {
       return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT,
-          executorService);
+          executorService, createOptions);
     } finally {
       executorService.shutdown();
     }
@@ -270,7 +269,8 @@ class PackageUtil {
   // Visible for testing.
   static List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, final String stagingPath,
-      final Sleeper retrySleeper, ListeningExecutorService executorService) {
+      final Sleeper retrySleeper, ListeningExecutorService executorService,
+      final CreateOptions createOptions) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
 
@@ -308,7 +308,7 @@ class PackageUtil {
       futures.add(executorService.submit(new Runnable() {
         @Override
         public void run() {
-          stageOnePackage(attributes, numUploaded, numCached, retrySleeper);
+          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, createOptions);
         }
       }));
     }

@@ -451,8 +451,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testRunWithFiles() throws IOException {
-    // Test that the function DataflowRunner.stageFiles works as
-    // expected.
+    // Test that the function DataflowRunner.stageFiles works as expected.
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
@@ -479,6 +478,8 @@ public class DataflowRunnerTest {
     options.setJobName("job");
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
+    // Provide a valid upload buffer size to prevent mockGcsUtil from being overridden.
+    options.setGcsUploadBufferSizeBytes(1024 * 1024);
     options.setGcpCredential(new TestCredential());
 
     Pipeline p = buildDataflowPipeline(options);
