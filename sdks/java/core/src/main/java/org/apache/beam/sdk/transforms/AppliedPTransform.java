@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -67,6 +68,7 @@ public abstract class AppliedPTransform<
 
   public abstract Map<TupleTag<?>, PValue> getOutputs();
 
+  @Nullable
   public abstract TransformT getTransform();
 
   public abstract Pipeline getPipeline();
