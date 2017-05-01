@@ -5,7 +5,7 @@ try {
         node {
             checkout scm
             def mvnHome = tool 'maven-3'
-            sh "${mvnHome}/bin/mvn clean install -DskipTests -Dcheckstyle.skip -Dfindbugs.skip"
+            // sh "${mvnHome}/bin/mvn clean install -DskipTests -Dcheckstyle.skip -Dfindbugs.skip"
             stash 'all'
         }
     }
@@ -16,16 +16,16 @@ try {
                 unstash 'all'
                 def mvnHome = tool 'maven-3'
                 echo '$ghprbPullId'
-                echo "$ghprbPullId"
+                // echo "$ghprbPullId"
                 echo $ghprbPullId
-                sh "${mvnHome}/bin/mvn test"
+                //sh "${mvnHome}/bin/mvn test"
             }
         },
         codeStyle: {
             node {
                 unstash 'all'
                 def mvnHome = tool 'maven-3'
-                sh "${mvnHome}/bin/mvn checkstyle:check findbugs:check"
+                //sh "${mvnHome}/bin/mvn checkstyle:check findbugs:check"
             }
         }
     }
