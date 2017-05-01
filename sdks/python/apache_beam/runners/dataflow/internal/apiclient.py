@@ -418,8 +418,7 @@ class DataflowApplicationClient(object):
     logging.info('Completed GCS upload to %s', gcs_location)
     return response
 
-  # TODO(silviuc): Refactor so that retry logic can be applied.
-  @retry.no_retries  # Using no_retries marks this as an integration point.
+  @retry.with_exponential_backoff(num_retries=3)
   def create_job(self, job):
     """Creates job description. May stage and/or submit for remote execution."""
     self.create_job_description(job)
