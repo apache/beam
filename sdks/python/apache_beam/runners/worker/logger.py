@@ -43,6 +43,7 @@ class _PerThreadWorkerData(threading.local):
       all_data.update(datum)
     return all_data
 
+
 per_thread_worker_data = _PerThreadWorkerData()
 
 

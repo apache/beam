@@ -84,6 +84,7 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
 
     self.assertEqual(num_received_log_entries, num_log_entries)
 
+
 # Test cases.
 data = {
     'one_batch': log_handler.FnApiLogRecordHandler._MAX_BATCH_SIZE - 47,

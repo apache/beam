@@ -143,6 +143,7 @@ class OperationCountersTest(unittest.TestCase):
                           10 * total_runs / i,
                           buckets[i] / (10.0 * total_runs / i)))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

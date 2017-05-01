@@ -176,6 +176,7 @@ class JsonLogFormatterTest(unittest.TestCase):
     self.assertNotEqual(exn_output.find('logger_test.py'), -1)
     self.assertEqual(log_output, self.SAMPLE_OUTPUT)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
