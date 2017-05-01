@@ -198,6 +198,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
              | beam.Map(lambda (k, vs): (k, sorted(vs))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
