@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
 class XmlSink<T> extends FileBasedSink<T> {
@@ -111,7 +112,7 @@ class XmlSink<T> extends FileBasedSink<T> {
     private OutputStream os = null;
 
     public XmlWriter(XmlWriteOperation<T> writeOperation, Marshaller marshaller) {
-      super(writeOperation);
+      super(writeOperation, MimeTypes.TEXT);
       this.marshaller = marshaller;
     }
 

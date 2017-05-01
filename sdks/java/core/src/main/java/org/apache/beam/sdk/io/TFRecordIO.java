@@ -603,8 +603,7 @@ public class TFRecordIO {
       private TFRecordCodec codec;
 
       private TFRecordWriter(FileBasedWriteOperation<byte[]> writeOperation) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
+        super(writeOperation, MimeTypes.BINARY);
       }
 
       @Override

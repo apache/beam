@@ -1079,10 +1079,9 @@ public class TextIO {
           FileBasedWriteOperation<String> writeOperation,
           @Nullable String header,
           @Nullable String footer) {
-        super(writeOperation);
+        super(writeOperation, MimeTypes.TEXT);
         this.header = header;
         this.footer = footer;
-        this.mimeType = MimeTypes.TEXT;
       }
 
       /**

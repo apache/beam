@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -156,7 +157,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * No compression, or any other transformation, will be used.
      */
-    UNCOMPRESSED("", MimeTypes.TEXT) {
+    UNCOMPRESSED("", null) {
       @Override
       public WritableByteChannel create(WritableByteChannel channel) throws IOException {
         return channel;
@@ -193,9 +194,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     };
 
     private String filenameSuffix;
-    private String mimeType;
+    @Nullable private String mimeType;
 
-    CompressionType(String suffix, String mimeType) {
+    CompressionType(String suffix, @Nullable String mimeType) {
       this.filenameSuffix = suffix;
       this.mimeType = mimeType;
     }
@@ -206,7 +207,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     @Override
-    public String getMimeType() {
+    @Nullable public String getMimeType() {
       return mimeType;
     }
   }
@@ -792,19 +793,20 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
      *
-     * <p>GCS, for example, supports writing files with Content-Type metadata.
-     *
-     * <p>May be overridden. Default is {@link MimeTypes#TEXT}. See {@link MimeTypes} for other
-     * options.
+     * <p>This is the default for the sink, but it may be overridden by a supplied
+     * {@link WritableByteChannelFactory}. For example, {@link TextIO.Write} uses
+     * {@link MimeTypes#TEXT} by default but if {@link CompressionType#BZIP2} is set then
+     * The MIME type will be overridden to {@link MimeTypes#BINARY}.
      */
-    protected String mimeType = MimeTypes.TEXT;
+    private final String mimeType;
 
     /**
      * Construct a new FileBasedWriter with a base filename.
      */
-    public FileBasedWriter(FileBasedWriteOperation<T> writeOperation) {
+    public FileBasedWriter(FileBasedWriteOperation<T> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
+      this.mimeType = mimeType;
     }
 
     /**
@@ -888,8 +890,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       LOG.debug("Opening {}.", filename);
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
-      mimeType = factory.getMimeType();
-      channel = factory.create(IOChannelUtils.create(filename, mimeType));
+      // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
+      String channelMimeType = firstNonNull(factory.getMimeType(), mimeType);
+      channel = factory.create(IOChannelUtils.create(filename, channelMimeType));
       try {
         prepareWrite(channel);
         LOG.debug("Writing header to {}.", filename);
@@ -1026,11 +1029,15 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     WritableByteChannel create(WritableByteChannel channel) throws IOException;
 
     /**
-     * @return the MIME type that should be used for the files that will hold the output data
+     * Returns the MIME type that should be used for the files that will hold the output data. May
+     * return {@code null} if this {@code WritableByteChannelFactory} does not meaningfully change
+     * the MIME type (e.g., for {@link CompressionType#UNCOMPRESSED}).
+     *
      * @see MimeTypes
      * @see <a href=
      *      'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
      */
+    @Nullable
     String getMimeType();
 
     /**
