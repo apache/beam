@@ -21,15 +21,19 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.cloudresourcemanager.model.Project;
 import com.google.api.services.storage.model.Bucket;
 import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -43,6 +47,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.GcpCredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -50,6 +55,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
+import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.joda.time.Duration;
@@ -229,8 +235,8 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
       if (isNullOrEmpty(tempLocation)) {
-        tempLocation = tryCreateDefaultBucket(options, Transport.newCloudResourceManagerClient(
-            options.as(CloudResourceManagerOptions.class)).build());
+        tempLocation = tryCreateDefaultBucket(options,
+            newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class)).build());
         options.setTempLocation(tempLocation);
       } else {
         try {
@@ -346,6 +352,38 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       String[] zoneParts = zone.split("-");
       checkArgument(zoneParts.length >= 2, "Invalid zone provided: %s", zone);
       return zoneParts[0] + "-" + zoneParts[1];
+    }
+
+    /**
+     * Returns a CloudResourceManager client builder using the specified
+     * {@link CloudResourceManagerOptions}.
+     */
+    @VisibleForTesting
+    static CloudResourceManager.Builder newCloudResourceManagerClient(
+        CloudResourceManagerOptions options) {
+      Credentials credentials = options.getGcpCredential();
+      if (credentials == null) {
+        NullCredentialInitializer.throwNullCredentialException();
+      }
+      return new CloudResourceManager.Builder(Transport.getTransport(), Transport.getJsonFactory(),
+          chainHttpRequestInitializer(
+              credentials,
+              // Do not log 404. It clutters the output and is possibly even required by the caller.
+              new RetryHttpRequestInitializer(ImmutableList.of(404))))
+          .setApplicationName(options.getAppName())
+          .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
+    }
+
+    private static HttpRequestInitializer chainHttpRequestInitializer(
+        Credentials credential, HttpRequestInitializer httpRequestInitializer) {
+      if (credential == null) {
+        return new ChainingHttpRequestInitializer(
+            new NullCredentialInitializer(), httpRequestInitializer);
+      } else {
+        return new ChainingHttpRequestInitializer(
+            new HttpCredentialsAdapter(credential),
+            httpRequestInitializer);
+      }
     }
   }
 }
