@@ -128,7 +128,7 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
         TableRowWriter writer = new TableRowWriter(c.element());
         writer.open(UUID.randomUUID().toString());
         TableRowWriter.Result writerResult = writer.close();
-        results.add(new Result(writerResult.filename, writerResult.byteSize,
+        results.add(new Result(writerResult.resourceId.toString(), writerResult.byteSize,
             new TableDestination(singletonTable, singletonOutputTableDescription)));
       }
     }

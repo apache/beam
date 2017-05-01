@@ -1775,7 +1775,7 @@ public class BigQueryIOTest implements Serializable {
     for (int i = 0; i < numFiles; ++i) {
       String fileName = String.format("files%05d", i);
       writer.open(fileName);
-      fileNames.add(writer.close().filename);
+      fileNames.add(writer.close().resourceId.toString());
     }
     fileNames.add(tempFilePrefix + String.format("files%05d", numFiles));
 
