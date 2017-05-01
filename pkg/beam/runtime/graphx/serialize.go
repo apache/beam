@@ -667,6 +667,12 @@ const (
 	globalWindowType = "kind:global_window"
 )
 
+// WrapExtraWindowedValue adds an additional WV needed for side input, which
+// expects the coder to have exactly one component with the element.
+func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
+	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c}}
+}
+
 // EncodeCoder returns the encoded form understood by the runner.
 func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 	switch c.Kind {
