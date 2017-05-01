@@ -21,6 +21,7 @@ import com.google.common.collect.Sets;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -99,9 +100,13 @@ public class DisplayDataEvaluator {
     }
 
     Pipeline pipeline = Pipeline.create(options);
-    pipeline
+    try {
+      pipeline
         .apply("Input", input)
         .apply("Transform", root);
+    } catch (ValidationException ve) {
+      throw new RuntimeException(ve);
+    }
 
     return displayDataForPipeline(pipeline, root);
   }
@@ -116,7 +121,11 @@ public class DisplayDataEvaluator {
   public Set<DisplayData> displayDataForPrimitiveSourceTransforms(
       final PTransform<? super PBegin, ? extends POutput> root) {
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply("SourceTransform", root);
+    try {
+      pipeline.apply("SourceTransform", root);
+    } catch (ValidationException ve) {
+      throw new RuntimeException(ve);
+    }
 
     return displayDataForPipeline(pipeline, root);
   }

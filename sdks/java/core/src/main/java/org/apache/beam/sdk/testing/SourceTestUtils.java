@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -724,7 +725,7 @@ public class SourceTestUtils {
     }
 
     @Override
-    public void validate() {
+    public void validate() throws ValidationException {
       boundedSource.validate();
     }
 

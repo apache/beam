@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.ValidationException;
+
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -52,7 +54,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
   }
 
   @Override
-  public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
+  public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) throws ValidationException {
     WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     // If the input has already had its windows merged, then the GBK that performed the merge
     // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained

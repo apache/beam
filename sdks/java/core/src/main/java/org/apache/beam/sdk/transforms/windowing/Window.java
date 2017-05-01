@@ -19,6 +19,9 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+
+import org.apache.beam.sdk.ValidationException;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -361,7 +364,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   @Override
-  public PCollection<T> expand(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) throws ValidationException {
     applicableTo(input);
 
     WindowingStrategy<?, ?> outputStrategy =
@@ -446,7 +449,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) throws ValidationException {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), updatedStrategy, input.isBounded());
     }
@@ -477,7 +480,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
    */
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) throws ValidationException {
       WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
           input.getWindowingStrategy());
 

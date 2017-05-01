@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import org.apache.avro.reflect.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -204,7 +205,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<Long> expand(PCollection<T> input) {
+    public PCollection<Long> expand(PCollection<T> input) throws ValidationException {
       Coder<T> coder = input.getCoder();
       return input.apply(
           Combine.globally(
@@ -271,7 +272,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       Coder<KV<K, V>> inputCoder = input.getCoder();
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(

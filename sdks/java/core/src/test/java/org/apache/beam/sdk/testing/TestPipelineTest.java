@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -160,7 +161,7 @@ public class TestPipelineTest implements Serializable {
     }
 
     @Test
-    public void testRunWithDummyEnvironmentVariableFails() {
+    public void testRunWithDummyEnvironmentVariableFails() throws ValidationException {
       System.getProperties()
           .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
       pipeline.apply(Create.of(1, 2, 3));
@@ -213,7 +214,7 @@ public class TestPipelineTest implements Serializable {
     private static final String P_ASSERT = "PAssert";
 
     @SuppressWarnings("UnusedReturnValue")
-    private static PCollection<String> addTransform(final PCollection<String> pCollection) {
+    private static PCollection<String> addTransform(final PCollection<String> pCollection) throws ValidationException {
       return pCollection.apply(
           "Map2",
           MapElements.via(
@@ -226,7 +227,7 @@ public class TestPipelineTest implements Serializable {
               }));
     }
 
-    private static PCollection<String> pCollection(final Pipeline pipeline) {
+    private static PCollection<String> pCollection(final Pipeline pipeline) throws ValidationException {
       return pipeline
           .apply("Create", Create.of(WORDS).withCoder(StringUtf8Coder.of()))
           .apply(

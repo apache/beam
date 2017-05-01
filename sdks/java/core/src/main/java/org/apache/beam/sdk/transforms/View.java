@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
@@ -246,7 +247,7 @@ public class View {
     private AsList() { }
 
     @Override
-    public PCollectionView<List<T>> expand(PCollection<T> input) {
+    public PCollectionView<List<T>> expand(PCollection<T> input) throws ValidationException {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
@@ -269,7 +270,7 @@ public class View {
     private AsIterable() { }
 
     @Override
-    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) throws ValidationException {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
@@ -323,7 +324,7 @@ public class View {
     }
 
     @Override
-    public PCollectionView<T> expand(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) throws ValidationException {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
@@ -406,7 +407,7 @@ public class View {
     private AsMultimap() { }
 
     @Override
-    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
@@ -440,7 +441,7 @@ public class View {
     }
 
     @Override
-    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
@@ -493,7 +494,7 @@ public class View {
     }
 
     @Override
-    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+    public PCollectionView<ViewT> expand(PCollection<ElemT> input) throws ValidationException {
       return view;
     }
   }

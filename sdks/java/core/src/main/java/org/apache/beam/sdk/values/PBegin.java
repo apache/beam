@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import org.apache.beam.sdk.ValidationException;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -43,7 +44,7 @@ public class PBegin implements PInput {
    * of the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<? super PBegin, OutputT> t) {
+      PTransform<? super PBegin, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(this, t);
   }
 
@@ -54,7 +55,7 @@ public class PBegin implements PInput {
    * and to stably identify this application node in the job graph.
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<? super PBegin, OutputT> t) {
+      String name, PTransform<? super PBegin, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(name, this, t);
   }
 

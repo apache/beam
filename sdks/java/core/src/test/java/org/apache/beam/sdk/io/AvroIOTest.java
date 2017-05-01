@@ -469,7 +469,7 @@ public class AvroIOTest {
 
 
   @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
-  private void runTestWrite(String[] expectedElements, int numShards) throws IOException {
+  private void runTestWrite(String[] expectedElements, int numShards) throws Exception {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     String outputFilePrefix = baseOutputFile.getAbsolutePath();
 

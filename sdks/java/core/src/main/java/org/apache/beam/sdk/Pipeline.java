@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -169,7 +170,7 @@ public class Pipeline {
    * @see #apply(String, PTransform)
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<? super PBegin, OutputT> root) {
+      PTransform<? super PBegin, OutputT> root) throws ValidationException {
     return begin().apply(root);
   }
 
@@ -184,7 +185,7 @@ public class Pipeline {
    * <p>Alias for {@code begin().apply(name, root)}.
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<? super PBegin, OutputT> root) {
+      String name, PTransform<? super PBegin, OutputT> root) throws ValidationException {
     return begin().apply(name, root);
   }
 
@@ -195,7 +196,7 @@ public class Pipeline {
    * <p>After all nodes are replaced, ensures that no nodes in the updated graph match any of the
    * overrides.
    */
-  public void replaceAll(List<PTransformOverride> overrides) {
+  public void replaceAll(List<PTransformOverride> overrides) throws ValidationException {
     for (PTransformOverride override : overrides) {
       replace(override);
     }
@@ -241,7 +242,7 @@ public class Pipeline {
         });
   }
 
-  private void replace(final PTransformOverride override) {
+  private void replace(final PTransformOverride override) throws ValidationException {
     final Set<Node> matches = new HashSet<>();
     final Set<Node> freedNodes = new HashSet<>();
     transforms.visit(
@@ -417,7 +418,7 @@ public class Pipeline {
    */
   public static <InputT extends PInput, OutputT extends POutput>
   OutputT applyTransform(InputT input,
-      PTransform<? super InputT, OutputT> transform) {
+      PTransform<? super InputT, OutputT> transform) throws ValidationException {
     return input.getPipeline().applyInternal(transform.getName(), input, transform);
   }
 
@@ -433,7 +434,7 @@ public class Pipeline {
    */
   public static <InputT extends PInput, OutputT extends POutput>
   OutputT applyTransform(String name, InputT input,
-      PTransform<? super InputT, OutputT> transform) {
+      PTransform<? super InputT, OutputT> transform) throws ValidationException {
     return input.getPipeline().applyInternal(name, input, transform);
   }
 
@@ -473,7 +474,7 @@ public class Pipeline {
    * @see Pipeline#apply
    */
   private <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(
-      String name, InputT input, PTransform<? super InputT, OutputT> transform) {
+      String name, InputT input, PTransform<? super InputT, OutputT> transform) throws ValidationException {
     String namePrefix = transforms.getCurrent().getFullName();
     String uniqueName = uniquifyInternal(namePrefix, name);
 
@@ -498,9 +499,8 @@ public class Pipeline {
 
   private <InputT extends PInput, OutputT extends POutput,
           TransformT extends PTransform<? super InputT, OutputT>>
-      void applyReplacement(
-          Node original,
-          PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
+      void applyReplacement( Node original,
+          PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) throws ValidationException {
     PTransformReplacement<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform(
             (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform());

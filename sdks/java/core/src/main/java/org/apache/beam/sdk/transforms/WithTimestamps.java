@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import org.apache.beam.sdk.ValidationException;
+
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -116,7 +118,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
   }
 
   @Override
-  public PCollection<T> expand(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) throws ValidationException {
     return input.apply(
         "AddTimestamps", ParDo.of(new AddTimestampsDoFn<T>(fn, allowedTimestampSkew)));
   }

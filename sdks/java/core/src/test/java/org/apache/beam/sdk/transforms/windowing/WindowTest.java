@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -82,7 +83,7 @@ public class WindowTest implements Serializable {
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testWindowIntoSetWindowfn() {
+  public void testWindowIntoSetWindowfn() throws ValidationException {
     WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))))
@@ -93,7 +94,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testWindowIntoTriggersAndAccumulating() {
+  public void testWindowIntoTriggersAndAccumulating() throws ValidationException {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = pipeline
@@ -110,7 +111,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testWindowIntoAccumulatingLatenessNoTrigger() {
+  public void testWindowIntoAccumulatingLatenessNoTrigger() throws ValidationException {
     FixedWindows fixed = FixedWindows.of(Duration.standardMinutes(10));
     WindowingStrategy<?, ?> strategy =
         pipeline
@@ -130,7 +131,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testWindowPropagatesEachPart() {
+  public void testWindowPropagatesEachPart() throws ValidationException {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
     WindowingStrategy<?, ?> strategy = pipeline
@@ -148,7 +149,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testWindowIntoPropagatesLateness() {
+  public void testWindowIntoPropagatesLateness() throws ValidationException {
 
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
@@ -170,7 +171,7 @@ public class WindowTest implements Serializable {
    * {@link Window} transform depends on if it actually assigns elements to windows.
    */
   @Test
-  public void testWindowIntoWindowFnAssign() {
+  public void testWindowIntoWindowFnAssign() throws ValidationException {
     pipeline
         .apply(Create.of(1, 2, 3))
         .apply(
@@ -194,7 +195,7 @@ public class WindowTest implements Serializable {
    * {@link Window} transform depends on if it actually assigns elements to windows.
    */
   @Test
-  public void testWindowIntoNullWindowFnNoAssign() {
+  public void testWindowIntoNullWindowFnNoAssign() throws ValidationException {
     pipeline
         .apply(Create.of(1, 2, 3))
         .apply(
@@ -234,7 +235,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testMissingMode() {
+  public void testMissingMode() throws ValidationException {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
 
@@ -252,7 +253,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testMissingModeViaLateness() {
+  public void testMissingModeViaLateness() throws ValidationException {
     FixedWindows fixed = FixedWindows.of(Duration.standardMinutes(10));
     PCollection<String> input =
         pipeline
@@ -266,7 +267,7 @@ public class WindowTest implements Serializable {
   }
 
   @Test
-  public void testMissingLateness() {
+  public void testMissingLateness() throws ValidationException {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
 
@@ -314,7 +315,7 @@ public class WindowTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testNoWindowFnDoesNotReassignWindows() {
+  public void testNoWindowFnDoesNotReassignWindows() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     final PCollection<Long> initialWindows =
@@ -366,7 +367,7 @@ public class WindowTest implements Serializable {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testTimestampCombinerDefault() {
+  public void testTimestampCombinerDefault() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline
@@ -400,7 +401,7 @@ public class WindowTest implements Serializable {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testTimestampCombinerEndOfWindow() {
+  public void testTimestampCombinerEndOfWindow() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline.apply(

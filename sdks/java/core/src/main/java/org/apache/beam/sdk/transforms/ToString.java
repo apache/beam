@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.common.base.Joiner;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -102,7 +103,7 @@ public final class ToString {
    */
   private static final class Elements extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
-    public PCollection<String> expand(PCollection<?> input) {
+    public PCollection<String> expand(PCollection<?> input) throws ValidationException {
       return input.apply(MapElements.via(new SimpleFunction<Object, String>() {
         @Override
         public String apply(Object input) {
@@ -136,7 +137,7 @@ public final class ToString {
     }
 
     @Override
-    public PCollection<String> expand(PCollection<? extends KV<?, ?>> input) {
+    public PCollection<String> expand(PCollection<? extends KV<?, ?>> input) throws ValidationException {
       return input.apply(MapElements.via(new SimpleFunction<KV<?, ?>, String>() {
         @Override
         public String apply(KV<?, ?> input) {
@@ -169,7 +170,7 @@ public final class ToString {
     }
 
     @Override
-    public PCollection<String> expand(PCollection<? extends Iterable<?>> input) {
+    public PCollection<String> expand(PCollection<? extends Iterable<?>> input) throws ValidationException {
       return input.apply(MapElements.via(new SimpleFunction<Iterable<?>, String>() {
         @Override
         public String apply(Iterable<?> input) {

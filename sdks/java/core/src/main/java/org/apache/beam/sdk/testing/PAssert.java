@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -151,7 +152,7 @@ public class PAssert {
    */
   public static class DefaultConcludeTransform
       extends PTransform<PCollection<SuccessOrFailure>, PCollection<Void>> {
-    public PCollection<Void> expand(PCollection<SuccessOrFailure> input) {
+    public PCollection<Void> expand(PCollection<SuccessOrFailure> input) throws ValidationException {
       return input.apply(ParDo.of(new DefaultConcludeFn()));
     }
   }
@@ -566,9 +567,13 @@ public class PAssert {
     @Override
     public PCollectionContentsAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
-      actual.apply(
+      try {
+        actual.apply(
           nextAssertionName(),
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+      } catch (ValidationException ve) {
+        throw new RuntimeException(ve);
+      }
       return this;
     }
 
@@ -608,9 +613,13 @@ public class PAssert {
       @SuppressWarnings({"rawtypes", "unchecked"})
       SerializableFunction<Iterable<T>, Void> checkerFn =
           (SerializableFunction) new MatcherCheckerFn<>(matcher);
-      actual.apply(
+      try {
+        actual.apply(
           "PAssert$" + (assertCount++),
           new GroupThenAssert<>(checkerFn, rewindowingStrategy, paneExtractor, site));
+      } catch (ValidationException ve) {
+        throw new RuntimeException(ve);
+      }
       return this;
     }
 
@@ -743,10 +752,14 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> satisfies(
         SerializableFunction<Iterable<T>, Void> checkerFn) {
-      actual.apply(
+      try {
+        actual.apply(
           "PAssert$" + (assertCount++),
           new GroupThenAssertForSingleton<>(
               checkerFn, rewindowingStrategy, paneExtractor, site));
+      } catch (ValidationException ve) {
+        throw new RuntimeException(ve);
+      }
       return this;
     }
 
@@ -837,7 +850,8 @@ public class PAssert {
     @Override
     public PCollectionViewAssert<ElemT, ViewT> satisfies(
         SerializableFunction<ViewT, Void> checkerFn) {
-      actual
+      try {
+        actual
           .getPipeline()
           .apply(
               "PAssert$" + (assertCount++),
@@ -846,6 +860,9 @@ public class PAssert {
                   rewindowActuals.<Integer>windowDummy(),
                   checkerFn,
                   site));
+      } catch (ValidationException ve) {
+        throw new RuntimeException(ve);
+      }
       return this;
     }
 
@@ -917,7 +934,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionView<ActualT> expand(PBegin input) {
+    public PCollectionView<ActualT> expand(PBegin input) throws ValidationException {
       final Coder<T> coder = actual.getCoder();
       return actual
           .apply("FilterActuals", rewindowActuals.<T>prepareActuals())
@@ -987,7 +1004,8 @@ public class PAssert {
     }
 
     @Override
-    public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) {
+    public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input)
+        throws ValidationException {
       final int combinedKey = 42;
 
       // Remove the triggering on both
@@ -1084,7 +1102,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) throws ValidationException {
       input
           .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
@@ -1121,7 +1139,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone expand(PCollection<Iterable<T>> input) {
+    public PDone expand(PCollection<Iterable<T>> input) throws ValidationException {
       input
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
@@ -1162,7 +1180,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone expand(PBegin input) {
+    public PDone expand(PBegin input) throws ValidationException {
       final PCollectionView<ActualT> actual = input.apply("CreateActual", createActual);
 
       input
@@ -1483,7 +1501,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) throws ValidationException {
       return input.apply("FilterWindows", ParDo.of(new Fn()));
     }
 

@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -102,7 +103,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
    * provided by the {@link PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
+      PTransform<KeyedPCollectionTuple<K>, OutputT> transform) throws ValidationException {
     return Pipeline.applyTransform(this, transform);
   }
 
@@ -113,7 +114,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
    * logging, and to stably identify this application node in the job graph.
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<KeyedPCollectionTuple<K>, OutputT> transform) {
+      String name, PTransform<KeyedPCollectionTuple<K>, OutputT> transform) throws ValidationException {
     return Pipeline.applyTransform(name, this, transform);
   }
 

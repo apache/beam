@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -296,7 +297,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> expand(PBegin input) {
+    public PCollection<T> expand(PBegin input) throws ValidationException {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
         try {
@@ -518,7 +519,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> expand(PBegin input) {
+    public PCollection<T> expand(PBegin input) throws ValidationException {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
 

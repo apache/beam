@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.Externalizable;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
@@ -333,7 +334,7 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
   }
 
   @Override
-  public void validate() {
+  public void validate() throws ValidationException {
     if (validateSource()) {
       try {
         UGIHelper.getBestUGI(username()).doAs(new PrivilegedExceptionAction<Void>() {
@@ -349,8 +350,10 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
                   return null;
                 }
               });
-      } catch (IOException | InterruptedException e) {
-        throw new RuntimeException(e);
+      } catch (InterruptedException e) {
+        InterruptedIOException iie = new InterruptedIOException();
+        iie.initCause(e);
+        throw iie;
       }
     }
   }

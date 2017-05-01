@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Iterator;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -174,7 +175,7 @@ public class Latest {
   /** Implementation of {@link #globally()}. */
   private static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) throws ValidationException {
       Coder<T> inputCoder = input.getCoder();
 
       return input
@@ -194,7 +195,7 @@ public class Latest {
   private static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
-    public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       checkNotNull(input);
       checkArgument(input.getCoder() instanceof KvCoder,
           "Input specifiedCoder must be an instance of KvCoder, but was %s", input.getCoder());

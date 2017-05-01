@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.lang.reflect.ParameterizedType;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -119,7 +120,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   }
 
   @Override
-  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+  public PCollection<OutputT> expand(PCollection<? extends InputT> input) throws ValidationException {
     checkNotNull(fn, "Must specify a function on FlatMapElements using .via()");
     return input.apply(
         "FlatMap",

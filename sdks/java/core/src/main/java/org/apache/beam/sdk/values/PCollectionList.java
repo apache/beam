@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -179,7 +180,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * of the {@code PTransform}.
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<PCollectionList<T>, OutputT> t) {
+      PTransform<PCollectionList<T>, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(this, t);
   }
 
@@ -192,7 +193,7 @@ public class PCollectionList<T> implements PInput, POutput {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<PCollectionList<T>, OutputT> t) {
+      String name, PTransform<PCollectionList<T>, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(name, this, t);
   }
 

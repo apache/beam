@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -111,7 +112,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   }
 
   @Override
-  public PCollection<KV<K, V>> expand(PCollection<V> in) {
+  public PCollection<KV<K, V>> expand(PCollection<V> in) throws ValidationException {
     PCollection<KV<K, V>> result =
         in.apply("AddKeys", MapElements.via(new SimpleFunction<V, KV<K, V>>() {
           @Override

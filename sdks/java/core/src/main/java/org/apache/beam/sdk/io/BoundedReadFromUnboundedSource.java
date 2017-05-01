@@ -27,6 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -102,7 +103,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   }
 
   @Override
-  public PCollection<T> expand(PBegin input) {
+  public PCollection<T> expand(PBegin input) throws ValidationException {
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
@@ -216,7 +217,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public void validate() {
+    public void validate() throws ValidationException {
       getSource().validate();
     }
 

@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.TestUtils;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -155,7 +156,7 @@ public class ApproximateUniqueTest implements Serializable {
 
 
     private void runApproximateUniqueWithDuplicates(final int elementCount,
-                                                    final int uniqueCount, final int sampleSize) {
+                                                    final int uniqueCount, final int sampleSize) throws ValidationException {
 
       assert elementCount >= uniqueCount;
       final List<Double> elements = Lists.newArrayList();
@@ -176,7 +177,7 @@ public class ApproximateUniqueTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testApproximateUniqueWithDuplicates() {
+    public void testApproximateUniqueWithDuplicates() throws ValidationException {
       runApproximateUniqueWithDuplicates(elementCount, uniqueCount, sampleSize);
     }
   }
@@ -234,7 +235,7 @@ public class ApproximateUniqueTest implements Serializable {
      * Applies {@code ApproximateUnique(sampleSize)} verifying that the estimation
      * error falls within the maximum allowed error of {@code 2/sqrt(sampleSize)}.
      */
-    private void runApproximateUniquePipeline(final int sampleSize) {
+    private void runApproximateUniquePipeline(final int sampleSize) throws ValidationException {
       final PCollection<String> input = p.apply(Create.of(TEST_LINES));
       final PCollection<Long> approximate =
           input.apply(ApproximateUnique.<String>globally(sampleSize));
@@ -265,7 +266,7 @@ public class ApproximateUniqueTest implements Serializable {
      */
     @Test
     @Category(NeedsRunner.class)
-    public void testApproximateUniqueWithDifferentSampleSizes() {
+    public void testApproximateUniqueWithDifferentSampleSizes() throws ValidationException {
       if (sampleSize > 16) {
         runApproximateUniquePipeline(sampleSize);
       } else {
@@ -301,7 +302,7 @@ public class ApproximateUniqueTest implements Serializable {
 
     @Test
     @Category(ValidatesRunner.class)
-    public void testApproximateUniqueWithSmallInput() {
+    public void testApproximateUniqueWithSmallInput() throws ValidationException {
       final PCollection<Integer> input = p.apply(
           Create.of(Arrays.asList(1, 2, 3, 3)));
 
@@ -316,13 +317,13 @@ public class ApproximateUniqueTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testApproximateUniqueWithSkewedDistributionsAndLargeSampleSize() {
+    public void testApproximateUniqueWithSkewedDistributionsAndLargeSampleSize() throws ValidationException {
       runApproximateUniqueWithSkewedDistributions(10000, 2000, 1000);
     }
 
     private void runApproximateUniqueWithSkewedDistributions(final int elementCount,
                                                              final int uniqueCount,
-                                                             final int sampleSize) {
+                                                             final int sampleSize) throws ValidationException {
       final List<Integer> elements = Lists.newArrayList();
       // Zipf distribution with approximately elementCount items.
       final double s = 1 - 1.0 * uniqueCount / elementCount;
@@ -346,7 +347,7 @@ public class ApproximateUniqueTest implements Serializable {
 
     @Test
     @Category(NeedsRunner.class)
-    public void testApproximateUniquePerKey() {
+    public void testApproximateUniquePerKey() throws ValidationException {
       final List<KV<Long, Long>> elements = Lists.newArrayList();
       final List<Long> keys = ImmutableList.of(20L, 50L, 100L);
       final int elementCount = 1000;

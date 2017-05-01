@@ -20,6 +20,7 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.TestUtils.LINES;
 
 import java.io.File;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -67,7 +68,7 @@ public class PDoneTest {
     }
 
     @Override
-    public PDone expand(PBegin begin) {
+    public PDone expand(PBegin begin) throws ValidationException {
       return
           begin
           .apply(Create.of(LINES))
@@ -80,7 +81,7 @@ public class PDoneTest {
   @Ignore
   @Test
   @Category(ValidatesRunner.class)
-  public void testEmptyTransform() {
+  public void testEmptyTransform() throws ValidationException {
     p.begin().apply(new EmptyTransform());
 
     p.run();

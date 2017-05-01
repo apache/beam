@@ -39,6 +39,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -91,7 +92,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSingletonSideInput() {
+  public void testSingletonSideInput() throws ValidationException {
 
     final PCollectionView<Integer> view =
         pipeline.apply("Create47", Create.of(47)).apply(View.<Integer>asSingleton());
@@ -113,7 +114,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedSingletonSideInput() {
+  public void testWindowedSingletonSideInput() throws ValidationException {
 
     final PCollectionView<Integer> view =
         pipeline.apply("Create47", Create.timestamped(
@@ -192,7 +193,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testListSideInput() {
+  public void testListSideInput() throws ValidationException {
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.<Integer>asList());
@@ -218,7 +219,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedListSideInput() {
+  public void testWindowedListSideInput() throws ValidationException {
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -284,7 +285,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testListSideInputIsImmutable() {
+  public void testListSideInputIsImmutable() throws ValidationException {
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asList());
@@ -329,7 +330,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testIterableSideInput() {
+  public void testIterableSideInput() throws ValidationException {
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23))
@@ -354,7 +355,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedIterableSideInput() {
+  public void testWindowedIterableSideInput() throws ValidationException {
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -418,7 +419,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testIterableSideInputIsImmutable() {
+  public void testIterableSideInputIsImmutable() throws ValidationException {
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asIterable());
@@ -449,7 +450,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultimapSideInput() {
+  public void testMultimapSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
@@ -476,7 +477,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultimapAsEntrySetSideInput() {
+  public void testMultimapAsEntrySetSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
@@ -527,7 +528,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultimapSideInputWithNonDeterministicKeyCoder() {
+  public void testMultimapSideInputWithNonDeterministicKeyCoder() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput",
@@ -556,7 +557,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMultimapSideInput() {
+  public void testWindowedMultimapSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -594,7 +595,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMultimapAsEntrySetSideInput() {
+  public void testWindowedMultimapAsEntrySetSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -636,7 +637,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() {
+  public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput",
@@ -733,7 +734,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultimapSideInputIsImmutable() {
+  public void testMultimapSideInputIsImmutable() throws ValidationException {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
@@ -780,7 +781,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMapSideInput() {
+  public void testMapSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
@@ -806,7 +807,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMapAsEntrySetSideInput() {
+  public void testMapAsEntrySetSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
@@ -835,7 +836,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMapSideInputWithNonDeterministicKeyCoder() {
+  public void testMapSideInputWithNonDeterministicKeyCoder() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput",
@@ -863,7 +864,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMapSideInput() {
+  public void testWindowedMapSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -900,7 +901,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMapAsEntrySetSideInput() {
+  public void testWindowedMapAsEntrySetSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -941,7 +942,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedMapSideInputWithNonDeterministicKeyCoder() {
+  public void testWindowedMapSideInputWithNonDeterministicKeyCoder() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput",
@@ -1037,7 +1038,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMapSideInputWithNullValuesCatchesDuplicates() {
+  public void testMapSideInputWithNullValuesCatchesDuplicates() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline
@@ -1072,7 +1073,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMapSideInputIsImmutable() {
+  public void testMapSideInputIsImmutable() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
@@ -1118,7 +1119,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCombinedMapSideInput() {
+  public void testCombinedMapSideInput() throws ValidationException {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
@@ -1144,7 +1145,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedSideInputFixedToFixed() {
+  public void testWindowedSideInputFixedToFixed() throws ValidationException {
 
     final PCollectionView<Integer> view =
         pipeline.apply(
@@ -1176,7 +1177,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedSideInputFixedToGlobal() {
+  public void testWindowedSideInputFixedToGlobal() throws ValidationException {
 
     final PCollectionView<Integer> view =
         pipeline.apply(
@@ -1208,7 +1209,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedSideInputFixedToFixedWithDefault() {
+  public void testWindowedSideInputFixedToFixedWithDefault() throws ValidationException {
 
     final PCollectionView<Integer> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -1238,7 +1239,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSideInputWithNullDefault() {
+  public void testSideInputWithNullDefault() throws ValidationException {
 
     final PCollectionView<Void> view =
         pipeline.apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
@@ -1267,7 +1268,7 @@ public class ViewTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSideInputWithNestedIterables() {
+  public void testSideInputWithNestedIterables() throws ValidationException {
     final PCollectionView<Iterable<Integer>> view1 =
         pipeline.apply("CreateVoid1", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply("OutputOneInteger", ParDo.of(new DoFn<Void, Integer>() {
@@ -1319,7 +1320,7 @@ public class ViewTest implements Serializable {
 
   private void testViewUnbounded(
       Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
+      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) throws ValidationException {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
@@ -1341,7 +1342,7 @@ public class ViewTest implements Serializable {
 
   private void testViewNonmerging(
       Pipeline pipeline,
-      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) {
+      PTransform<PCollection<KV<String, Integer>>, ? extends PCollectionView<?>> view) throws ValidationException {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
@@ -1353,52 +1354,52 @@ public class ViewTest implements Serializable {
   }
 
   @Test
-  public void testViewUnboundedAsSingletonDirect() {
+  public void testViewUnboundedAsSingletonDirect() throws ValidationException {
     testViewUnbounded(pipeline, View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
-  public void testViewUnboundedAsIterableDirect() {
+  public void testViewUnboundedAsIterableDirect() throws ValidationException {
     testViewUnbounded(pipeline, View.<KV<String, Integer>>asIterable());
   }
 
   @Test
-  public void testViewUnboundedAsListDirect() {
+  public void testViewUnboundedAsListDirect() throws ValidationException {
     testViewUnbounded(pipeline, View.<KV<String, Integer>>asList());
   }
 
   @Test
-  public void testViewUnboundedAsMapDirect() {
+  public void testViewUnboundedAsMapDirect() throws ValidationException {
     testViewUnbounded(pipeline, View.<String, Integer>asMap());
   }
 
   @Test
-  public void testViewUnboundedAsMultimapDirect() {
+  public void testViewUnboundedAsMultimapDirect() throws ValidationException {
     testViewUnbounded(pipeline, View.<String, Integer>asMultimap());
   }
 
   @Test
-  public void testViewNonmergingAsSingletonDirect() {
+  public void testViewNonmergingAsSingletonDirect() throws ValidationException {
     testViewNonmerging(pipeline, View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
-  public void testViewNonmergingAsIterableDirect() {
+  public void testViewNonmergingAsIterableDirect() throws ValidationException {
     testViewNonmerging(pipeline, View.<KV<String, Integer>>asIterable());
   }
 
   @Test
-  public void testViewNonmergingAsListDirect() {
+  public void testViewNonmergingAsListDirect() throws ValidationException {
     testViewNonmerging(pipeline, View.<KV<String, Integer>>asList());
   }
 
   @Test
-  public void testViewNonmergingAsMapDirect() {
+  public void testViewNonmergingAsMapDirect() throws ValidationException {
     testViewNonmerging(pipeline, View.<String, Integer>asMap());
   }
 
   @Test
-  public void testViewNonmergingAsMultimapDirect() {
+  public void testViewNonmergingAsMultimapDirect() throws ValidationException {
     testViewNonmerging(pipeline, View.<String, Integer>asMultimap());
   }
 }

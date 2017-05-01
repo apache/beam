@@ -27,6 +27,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
@@ -77,7 +78,7 @@ public class TransformTreeTest {
       extends PTransform<PBegin, PCollectionList<String>> {
 
     @Override
-    public PCollectionList<String> expand(PBegin b) {
+    public PCollectionList<String> expand(PBegin b) throws ValidationException {
       // Composite transform: apply delegates to other transformations,
       // here a Create transform.
       PCollection<String> result = b.apply(Create.of("hello", "world"));
@@ -99,7 +100,7 @@ public class TransformTreeTest {
       extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
-    public PDone expand(PCollection<Integer> input) {
+    public PDone expand(PCollection<Integer> input) throws ValidationException {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -187,7 +188,7 @@ public class TransformTreeTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMultiGraphSetup() {
+  public void testMultiGraphSetup() throws ValidationException {
     PCollection<Integer> input = p.begin()
         .apply(Create.of(1, 2, 3));
 

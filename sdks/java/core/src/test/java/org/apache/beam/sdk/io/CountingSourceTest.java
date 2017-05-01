@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
@@ -59,7 +60,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CountingSourceTest {
 
-  public static void addCountingAsserts(PCollection<Long> input, long numElements) {
+  public static void addCountingAsserts(PCollection<Long> input, long numElements) throws ValidationException {
     // Count == numElements
     PAssert
       .thatSingleton(input.apply("Count", Count.<Long>globally()))
@@ -84,7 +85,7 @@ public class CountingSourceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBoundedSource() {
+  public void testBoundedSource() throws ValidationException {
     long numElements = 1000;
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
 
@@ -94,7 +95,7 @@ public class CountingSourceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testEmptyBoundedSource() {
+  public void testEmptyBoundedSource() throws ValidationException {
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(0)));
 
     PAssert.that(input).empty();
@@ -156,7 +157,7 @@ public class CountingSourceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testUnboundedSource() {
+  public void testUnboundedSource() throws ValidationException {
     long numElements = 1000;
 
     PCollection<Long> input = p
@@ -175,7 +176,7 @@ public class CountingSourceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testUnboundedSourceTimestamps() {
+  public void testUnboundedSourceTimestamps() throws ValidationException {
     long numElements = 1000;
 
     PCollection<Long> input = p.apply(
@@ -194,7 +195,7 @@ public class CountingSourceTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testUnboundedSourceWithRate() {
+  public void testUnboundedSourceWithRate() throws ValidationException {
 
     Duration period = Duration.millis(5);
     long numElements = 1000L;

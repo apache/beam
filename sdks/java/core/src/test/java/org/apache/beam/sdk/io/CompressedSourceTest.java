@@ -49,6 +49,7 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -229,7 +230,7 @@ public class CompressedSourceTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testReadConcatenatedGzip() throws IOException {
+  public void testReadConcatenatedGzip() throws Exception {
     byte[] header = "a,b,c\n".getBytes(StandardCharsets.UTF_8);
     byte[] body = "1,2,3\n4,5,6\n7,8,9\n".getBytes(StandardCharsets.UTF_8);
     byte[] expected = concat(header, body);
@@ -539,14 +540,14 @@ public class CompressedSourceTest {
   private void runReadTest(byte[] input,
       CompressionMode inputCompressionMode,
       @Nullable DecompressingChannelFactory decompressionFactory)
-      throws IOException {
+      throws Exception {
     File tmpFile = tmpFolder.newFile();
     writeFile(tmpFile, input, inputCompressionMode);
     verifyReadContents(input, tmpFile, decompressionFactory);
   }
 
   private void verifyReadContents(byte[] expected, File inputFile,
-      @Nullable DecompressingChannelFactory decompressionFactory) {
+      @Nullable DecompressingChannelFactory decompressionFactory) throws ValidationException {
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(inputFile.toPath().toString(), 1));
     if (decompressionFactory != null) {
@@ -560,7 +561,7 @@ public class CompressedSourceTest {
   /**
    * Run a single read test, writing and reading back input with the given compression mode.
    */
-  private void runReadTest(byte[] input, CompressionMode mode) throws IOException {
+  private void runReadTest(byte[] input, CompressionMode mode) throws Exception {
     runReadTest(input, mode, mode);
   }
 

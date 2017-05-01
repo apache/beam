@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
@@ -228,7 +230,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   @Override
-  public PCollection<T> expand(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) throws ValidationException {
     return input.apply(ParDo.of(new DoFn<T, T>() {
       @ProcessElement
       public void processElement(ProcessContext c) {

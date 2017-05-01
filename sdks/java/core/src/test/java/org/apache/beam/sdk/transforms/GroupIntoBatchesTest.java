@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -84,7 +85,7 @@ public class GroupIntoBatchesTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
-  public void testInGlobalWindow() {
+  public void testInGlobalWindow() throws ValidationException {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
             .apply("Input data", Create.of(data))
@@ -124,7 +125,7 @@ public class GroupIntoBatchesTest implements Serializable {
     UsesTestStream.class,
     UsesStatefulParDo.class
   })
-  public void testInStreamingMode() {
+  public void testInStreamingMode() throws ValidationException {
     int timestampInterval = 1;
     Instant startInstant = new Instant(0L);
     TestStream.Builder<KV<String, String>> streamBuilder =

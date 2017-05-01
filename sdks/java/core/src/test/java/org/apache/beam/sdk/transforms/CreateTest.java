@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -80,7 +81,7 @@ public class CreateTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCreate() {
+  public void testCreate() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.of(LINES));
 
@@ -91,7 +92,7 @@ public class CreateTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCreateEmpty() {
+  public void testCreateEmpty() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.empty(StringUtf8Coder.of()));
 
@@ -103,7 +104,7 @@ public class CreateTest {
   }
 
   @Test
-  public void testCreateEmptyIterableRequiresCoder() {
+  public void testCreateEmptyIterableRequiresCoder() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
@@ -117,7 +118,7 @@ public class CreateTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testCreateEmptyIterableWithCoder() {
+  public void testCreateEmptyIterableWithCoder() throws ValidationException {
     PCollection<Void> output =
         p.apply(Create.of(Collections.<Void>emptyList()).withCoder(VoidCoder.of()));
 
@@ -250,7 +251,7 @@ public class CreateTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCreateTimestamped() {
+  public void testCreateTimestamped() throws ValidationException {
     List<TimestampedValue<String>> data = Arrays.asList(
         TimestampedValue.of("a", new Instant(1L)),
         TimestampedValue.of("b", new Instant(2L)),
@@ -267,7 +268,7 @@ public class CreateTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCreateTimestampedEmpty() {
+  public void testCreateTimestampedEmpty() throws ValidationException {
     PCollection<String> output = p
         .apply(Create.timestamped(new ArrayList<TimestampedValue<String>>())
             .withCoder(StringUtf8Coder.of()));
@@ -277,7 +278,7 @@ public class CreateTest {
   }
 
   @Test
-  public void testCreateTimestampedEmptyUnspecifiedCoder() {
+  public void testCreateTimestampedEmptyUnspecifiedCoder() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);

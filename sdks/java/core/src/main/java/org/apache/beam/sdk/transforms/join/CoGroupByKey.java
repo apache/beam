@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.join;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -88,7 +89,7 @@ public class CoGroupByKey<K> extends
 
   @Override
   public PCollection<KV<K, CoGbkResult>> expand(
-      KeyedPCollectionTuple<K> input) {
+      KeyedPCollectionTuple<K> input) throws ValidationException {
     if (input.isEmpty()) {
       throw new IllegalArgumentException(
           "must have at least one input to a KeyedPCollections");
@@ -159,7 +160,7 @@ public class CoGroupByKey<K> extends
   private <V> PCollection<KV<K, RawUnionValue>> makeUnionTable(
       final int index,
       PCollection<KV<K, V>> pCollection,
-      KvCoder<K, RawUnionValue> unionTableEncoder) {
+      KvCoder<K, RawUnionValue> unionTableEncoder) throws ValidationException {
 
     return pCollection.apply("MakeUnionTable" + index,
         ParDo.of(new ConstructUnionTableFn<K, V>(index))).setCoder(unionTableEncoder);

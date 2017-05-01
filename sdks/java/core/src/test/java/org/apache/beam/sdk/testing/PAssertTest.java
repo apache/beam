@@ -35,6 +35,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -431,7 +432,7 @@ public class PAssertTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testEmpty() {
+  public void testEmpty() throws ValidationException {
     PCollection<Long> vals =
         pipeline.apply(Create.empty(VarLongCoder.of()));
 
@@ -562,7 +563,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  public void countAssertsSucceeds() {
+  public void countAssertsSucceeds() throws ValidationException {
     PCollection<Integer> create = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
 
     PAssert.that(create).containsInAnyOrder(1, 2, 3);
@@ -574,7 +575,7 @@ public class PAssertTest implements Serializable {
   }
 
   @Test
-  public void countAssertsMultipleCallsIndependent() {
+  public void countAssertsMultipleCallsIndependent() throws ValidationException {
     PCollection<Integer> create = pipeline.apply("FirstCreate", Create.of(1, 2, 3));
 
     PAssert.that(create).containsInAnyOrder(1, 2, 3);

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -146,7 +147,7 @@ public class DoFnTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testCreateAggregatorInStartBundleThrows() {
+  public void testCreateAggregatorInStartBundleThrows() throws ValidationException {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @StartBundle
       public void startBundle(Context c) {
@@ -165,7 +166,7 @@ public class DoFnTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testCreateAggregatorInProcessElementThrows() {
+  public void testCreateAggregatorInProcessElementThrows() throws ValidationException {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -181,7 +182,7 @@ public class DoFnTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testCreateAggregatorInFinishBundleThrows() {
+  public void testCreateAggregatorInFinishBundleThrows() throws ValidationException {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @FinishBundle
       public void finishBundle(Context c) {
@@ -201,7 +202,7 @@ public class DoFnTest implements Serializable {
   /**
    * Initialize a test pipeline with the specified {@link DoFn}.
    */
-  private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
+  private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) throws ValidationException {
     pipeline.apply(Create.of((InputT) null))
      .apply(ParDo.of(fn));
 

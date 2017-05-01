@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -103,7 +104,7 @@ public class  CombineFnsTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testComposedCombine() {
+  public void testComposedCombine() throws ValidationException {
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
@@ -155,7 +156,7 @@ public class  CombineFnsTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testComposedCombineWithContext() {
+  public void testComposedCombineWithContext() throws ValidationException {
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p
@@ -217,7 +218,7 @@ public class  CombineFnsTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testComposedCombineNullValues() {
+  public void testComposedCombineNullValues() throws ValidationException {
     p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
     p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
 

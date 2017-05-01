@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -67,14 +68,14 @@ public class ApproximateQuantilesTest {
   @Rule
   public TestPipeline p = TestPipeline.create();
 
-  public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {
+  public PCollection<KV<String, Integer>> createInputTable(Pipeline p) throws ValidationException {
     return p.apply(Create.of(TABLE).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void testQuantilesGlobally() {
+  public void testQuantilesGlobally() throws ValidationException {
     PCollection<Integer> input = intRangeCollection(p, 101);
     PCollection<List<Integer>> quantiles =
         input.apply(ApproximateQuantiles.<Integer>globally(5));
@@ -86,7 +87,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testQuantilesGobally_comparable() {
+  public void testQuantilesGobally_comparable() throws ValidationException {
     PCollection<Integer> input = intRangeCollection(p, 101);
     PCollection<List<Integer>> quantiles =
         input.apply(
@@ -99,7 +100,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testQuantilesPerKey() {
+  public void testQuantilesPerKey() throws ValidationException {
     PCollection<KV<String, Integer>> input = createInputTable(p);
     PCollection<KV<String, List<Integer>>> quantiles = input.apply(
         ApproximateQuantiles.<String, Integer>perKey(2));
@@ -114,7 +115,7 @@ public class ApproximateQuantilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testQuantilesPerKey_reversed() {
+  public void testQuantilesPerKey_reversed() throws ValidationException {
     PCollection<KV<String, Integer>> input = createInputTable(p);
     PCollection<KV<String, List<Integer>>> quantiles = input.apply(
         ApproximateQuantiles.<String, Integer, DescendingIntComparator>perKey(
@@ -296,7 +297,7 @@ public class ApproximateQuantilesTest {
   }
 
 
-  private PCollection<Integer> intRangeCollection(Pipeline p, int size) {
+  private PCollection<Integer> intRangeCollection(Pipeline p, int size) throws ValidationException {
     return p.apply("CreateIntsUpTo(" + size + ")", Create.of(intRange(size)));
   }
 

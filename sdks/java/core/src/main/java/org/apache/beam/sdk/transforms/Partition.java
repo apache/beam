@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -100,7 +101,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
-  public PCollectionList<T> expand(PCollection<T> in) {
+  public PCollectionList<T> expand(PCollection<T> in) throws ValidationException {
     final TupleTagList outputTags = partitionDoFn.getOutputTags();
 
     PCollectionTuple outputs = in.apply(

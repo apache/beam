@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -148,7 +149,7 @@ public class Sample {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> in) {
+    public PCollection<T> expand(PCollection<T> in) throws ValidationException {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
       return in.getPipeline()
           .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
@@ -174,7 +175,7 @@ public class Sample {
     }
 
     @Override
-    public PCollection<Iterable<T>> expand(PCollection<T> input) {
+    public PCollection<Iterable<T>> expand(PCollection<T> input) throws ValidationException {
       return input.apply(Combine.globally(new FixedSizedSampleFn<T>(sampleSize)));
     }
 
@@ -196,7 +197,7 @@ public class Sample {
     }
 
     @Override
-    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       return input.apply(Combine.<K, V, Iterable<V>>perKey(new FixedSizedSampleFn<V>(sampleSize)));
     }
 

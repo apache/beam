@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -80,7 +81,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testJustReshuffle() {
+  public void testJustReshuffle() throws ValidationException {
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)
@@ -104,7 +105,7 @@ public class ReshuffleTest implements Serializable {
    */
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshufflePreservesTimestamps() {
+  public void testReshufflePreservesTimestamps() throws ValidationException {
     PCollection<KV<String, TimestampedValue<String>>> input =
         pipeline
             .apply(
@@ -156,7 +157,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshuffleAfterSessionsAndGroupByKey() {
+  public void testReshuffleAfterSessionsAndGroupByKey() throws ValidationException {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -179,7 +180,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshuffleAfterFixedWindowsAndGroupByKey() {
+  public void testReshuffleAfterFixedWindowsAndGroupByKey() throws ValidationException {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -202,7 +203,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshuffleAfterSlidingWindowsAndGroupByKey() {
+  public void testReshuffleAfterSlidingWindowsAndGroupByKey() throws ValidationException {
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -225,7 +226,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshuffleAfterFixedWindows() {
+  public void testReshuffleAfterFixedWindows() throws ValidationException {
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)
@@ -248,7 +249,7 @@ public class ReshuffleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testReshuffleAfterSlidingWindows() {
+  public void testReshuffleAfterSlidingWindows() throws ValidationException {
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)

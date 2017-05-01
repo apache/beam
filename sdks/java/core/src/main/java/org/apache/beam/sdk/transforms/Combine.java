@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -1120,7 +1121,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<OutputT> expand(PCollection<InputT> input) {
+    public PCollection<OutputT> expand(PCollection<InputT> input) throws ValidationException {
       PCollection<KV<Void, InputT>> withKeys = input
           .apply(WithKeys.<Void, InputT>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
@@ -1157,7 +1158,8 @@ public class Combine {
       Combine.populateGlobalDisplayData(builder, fanout, insertDefault);
     }
 
-    private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
+    private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty)
+        throws ValidationException {
       final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
           View.<OutputT>asIterable());
 
@@ -1257,7 +1259,7 @@ public class Combine {
     }
 
     @Override
-    public PCollectionView<OutputT> expand(PCollection<InputT> input) {
+    public PCollectionView<OutputT> expand(PCollection<InputT> input) throws ValidationException {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       return combined.apply(
@@ -1568,7 +1570,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) throws ValidationException {
       return input
           .apply(
               fewKeys ? GroupByKey.<K, InputT>createWithFewKeys() : GroupByKey.<K, InputT>create())
@@ -1609,11 +1611,12 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) throws ValidationException {
       return applyHelper(input);
     }
 
-    private <AccumT> PCollection<KV<K, OutputT>> applyHelper(PCollection<KV<K, InputT>> input) {
+    private <AccumT> PCollection<KV<K, OutputT>> applyHelper(PCollection<KV<K, InputT>> input)
+        throws ValidationException {
 
       // Name the accumulator type.
       @SuppressWarnings("unchecked")
@@ -2098,7 +2101,7 @@ public class Combine {
 
     @Override
     public PCollection<KV<K, OutputT>> expand(
-        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input) {
+        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input) throws ValidationException {
 
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
           new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {

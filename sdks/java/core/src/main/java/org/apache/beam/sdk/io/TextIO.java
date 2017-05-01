@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -222,7 +223,7 @@ public class TextIO {
       }
 
       @Override
-      public PCollection<String> expand(PBegin input) {
+      public PCollection<String> expand(PBegin input) throws ValidationException {
         if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }
@@ -646,7 +647,7 @@ public class TextIO {
       }
 
       @Override
-      public PDone expand(PCollection<String> input) {
+      public PDone expand(PCollection<String> input) throws ValidationException {
         if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
               "need to set the filename prefix of an TextIO.Write transform");

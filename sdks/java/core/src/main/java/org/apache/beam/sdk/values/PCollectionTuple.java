@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.collect.ImmutableMap;
+
+import org.apache.beam.sdk.ValidationException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -156,7 +158,7 @@ public class PCollectionTuple implements PInput, POutput {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<PCollectionTuple, OutputT> t) {
+      PTransform<PCollectionTuple, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(this, t);
   }
 
@@ -169,7 +171,7 @@ public class PCollectionTuple implements PInput, POutput {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<PCollectionTuple, OutputT> t) {
+      String name, PTransform<PCollectionTuple, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(name, this, t);
   }
 

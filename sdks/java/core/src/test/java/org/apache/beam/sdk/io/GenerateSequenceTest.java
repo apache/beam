@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -46,7 +47,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GenerateSequence}. */
 @RunWith(JUnit4.class)
 public class GenerateSequenceTest {
-  public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
+  public static void addCountingAsserts(PCollection<Long> input, long start, long end) throws ValidationException {
     // Count == numElements
     PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(end - start);
     // Unique count == numElements
@@ -63,7 +64,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBoundedInput() {
+  public void testBoundedInput() throws ValidationException {
     long numElements = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
 
@@ -73,7 +74,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testEmptyBoundedInput() {
+  public void testEmptyBoundedInput() throws ValidationException {
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(0));
 
     PAssert.that(input).empty();
@@ -82,7 +83,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testEmptyBoundedInputSubrange() {
+  public void testEmptyBoundedInputSubrange() throws ValidationException {
     PCollection<Long> input = p.apply(GenerateSequence.from(42).to(42));
 
     PAssert.that(input).empty();
@@ -91,7 +92,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBoundedInputSubrange() {
+  public void testBoundedInputSubrange() throws ValidationException {
     long start = 10;
     long end = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(start).to(end));
@@ -118,7 +119,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testUnboundedInputRate() {
+  public void testUnboundedInputRate() throws ValidationException {
     long numElements = 5000;
 
     long elemsPerPeriod = 10L;
@@ -143,7 +144,7 @@ public class GenerateSequenceTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testUnboundedInputTimestamps() {
+  public void testUnboundedInputTimestamps() throws ValidationException {
     long numElements = 1000;
 
     PCollection<Long> input =
@@ -161,7 +162,7 @@ public class GenerateSequenceTest {
   }
 
   @Test
-  public void testUnboundedDisplayData() {
+  public void testUnboundedDisplayData() throws ValidationException {
     Duration maxReadTime = Duration.standardHours(5);
     SerializableFunction<Long, Instant> timestampFn =
         new SerializableFunction<Long, Instant>() {

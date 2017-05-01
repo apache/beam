@@ -36,6 +36,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -259,7 +260,7 @@ public class AvroIO {
       }
 
       @Override
-      public PCollection<T> expand(PBegin input) {
+      public PCollection<T> expand(PBegin input) throws ValidationException {
         if (filepattern == null) {
           throw new IllegalStateException(
               "need to set the filepattern of an AvroIO.Read transform");
@@ -808,7 +809,7 @@ public class AvroIO {
       }
 
       @Override
-      public PDone expand(PCollection<T> input) {
+      public PDone expand(PCollection<T> input) throws ValidationException{
         if (filenamePolicy == null && filenamePrefix == null) {
           throw new IllegalStateException(
               "need to set the filename prefix of an AvroIO.Write transform");

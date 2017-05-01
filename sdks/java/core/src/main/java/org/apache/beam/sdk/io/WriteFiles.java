@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -118,7 +119,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone expand(PCollection<T> input) {
+  public PDone expand(PCollection<T> input) throws ValidationException {
     checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites,
         "%s can only be applied to an unbounded PCollection if doing windowed writes",
         WriteFiles.class.getSimpleName());
@@ -426,7 +427,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * phase. This is why implementations should guarantee that
    * {@link FileBasedWriteOperation#createWriter} does not mutate FileBasedWriteOperation).
    */
-  private PDone createWrite(PCollection<T> input) {
+  private PDone createWrite(PCollection<T> input) throws ValidationException {
     Pipeline p = input.getPipeline();
 
     if (!windowedWrites) {

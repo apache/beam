@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -59,7 +60,7 @@ public class PCollectionListTest {
   }
 
   @Test
-  public void testIterationOrder() {
+  public void testIterationOrder() throws ValidationException {
     Pipeline p = TestPipeline.create();
     PCollection<Long> createOne = p.apply("CreateOne", Create.of(1L, 2L, 3L));
     PCollection<Long> boundedCount = p.apply("CountBounded", GenerateSequence.from(0).to(23));
@@ -104,7 +105,7 @@ public class PCollectionListTest {
   }
 
   @Test
-  public void testExpandWithDuplicates() {
+  public void testExpandWithDuplicates() throws ValidationException {
     Pipeline p = TestPipeline.create();
     PCollection<Long> createOne = p.apply("CreateOne", Create.of(1L, 2L, 3L));
 
@@ -115,7 +116,7 @@ public class PCollectionListTest {
   }
 
   @Test
-  public void testEquals() {
+  public void testEquals() throws ValidationException {
     Pipeline p = TestPipeline.create();
     PCollection<String> first = p.apply("Meta", Create.of("foo", "bar"));
     PCollection<String> second = p.apply("Pythonic", Create.of("spam, ham"));

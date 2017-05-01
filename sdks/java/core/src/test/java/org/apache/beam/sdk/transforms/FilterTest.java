@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -63,7 +64,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testIdentityFilterByPredicate() {
+  public void testIdentityFilterByPredicate() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
         .apply(Filter.by(new TrivialFn(true)));
@@ -74,7 +75,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testNoFilterByPredicate() {
+  public void testNoFilterByPredicate() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 4, 5))
         .apply(Filter.by(new TrivialFn(false)));
@@ -85,7 +86,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterByPredicate() {
+  public void testFilterByPredicate() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.by(new EvenFn()));
@@ -96,7 +97,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterLessThan() {
+  public void testFilterLessThan() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.lessThan(4));
@@ -107,7 +108,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterGreaterThan() {
+  public void testFilterGreaterThan() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.greaterThan(4));
@@ -118,7 +119,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterLessThanEq() {
+  public void testFilterLessThanEq() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.lessThanEq(4));
@@ -129,7 +130,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterGreaterThanEq() {
+  public void testFilterGreaterThanEq() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.greaterThanEq(4));
@@ -140,7 +141,7 @@ public class FilterTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFilterEqual() {
+  public void testFilterEqual() throws ValidationException {
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.equal(4));
