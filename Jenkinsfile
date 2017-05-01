@@ -15,7 +15,7 @@ try {
             node {
                 unstash 'all'
                 def mvnHome = tool 'maven-3'
-                sh "${mvnHome}/bin/mvn test"
+                sh "${mvnHome}/bin/mvn clean"
             }
         }, codeStyle: {
             node {
