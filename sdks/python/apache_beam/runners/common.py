@@ -23,7 +23,7 @@ import sys
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.pvalue import OutputValue
+from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
@@ -430,7 +430,7 @@ class OutputProcessor(object):
   def process_outputs(self, windowed_input_element, results):
     """Dispatch the result of process computation to the appropriate receivers.
 
-    A value wrapped in a OutputValue object will be unwrapped and
+    A value wrapped in a TaggedOutput object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
     if results is None:
@@ -438,7 +438,7 @@ class OutputProcessor(object):
 
     for result in results:
       tag = None
-      if isinstance(result, OutputValue):
+      if isinstance(result, TaggedOutput):
         tag = result.tag
         if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
@@ -472,7 +472,7 @@ class OutputProcessor(object):
   def finish_bundle_outputs(self, results):
     """Dispatch the result of finish_bundle to the appropriate receivers.
 
-    A value wrapped in a OutputValue object will be unwrapped and
+    A value wrapped in a TaggedOutput object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
     if results is None:
@@ -480,7 +480,7 @@ class OutputProcessor(object):
 
     for result in results:
       tag = None
-      if isinstance(result, OutputValue):
+      if isinstance(result, TaggedOutput):
         tag = result.tag
         if not isinstance(tag, basestring):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))

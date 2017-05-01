@@ -214,9 +214,9 @@ class PTransformTest(unittest.TestCase):
       def process(self, element):
         yield element
         if element % 2 == 0:
-          yield pvalue.OutputValue('even', element)
+          yield pvalue.TaggedOutput('even', element)
         else:
-          yield pvalue.OutputValue('odd', element)
+          yield pvalue.TaggedOutput('odd', element)
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -231,8 +231,8 @@ class PTransformTest(unittest.TestCase):
   def test_par_do_with_multiple_outputs_and_using_return(self):
     def some_fn(v):
       if v % 2 == 0:
-        return [v, pvalue.OutputValue('even', v)]
-      return [v, pvalue.OutputValue('odd', v)]
+        return [v, pvalue.TaggedOutput('even', v)]
+      return [v, pvalue.TaggedOutput('odd', v)]
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -249,7 +249,7 @@ class PTransformTest(unittest.TestCase):
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
-                   pvalue.OutputValue('even' if x % 2 == 0 else 'odd', x)]
+                   pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
@@ -262,7 +262,7 @@ class PTransformTest(unittest.TestCase):
     nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
     results = nums | 'ClassifyNumbers' >> beam.FlatMap(
         lambda x: [x,
-                   pvalue.OutputValue('even' if x % 2 == 0 else 'odd', x)]
+                   pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x)]
     ).with_outputs()
     assert_that(results[None], equal_to([1, 3, 5]))
     assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')

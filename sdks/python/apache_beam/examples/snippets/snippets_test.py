@@ -186,11 +186,11 @@ class ParDoTest(unittest.TestCase):
           yield element
         else:
           # Emit this word's long length to the 'above_cutoff_lengths' output.
-          yield pvalue.OutputValue(
+          yield pvalue.TaggedOutput(
               'above_cutoff_lengths', len(element))
         if element.startswith(marker):
           # Emit this word to a different output with the 'marked strings' tag.
-          yield pvalue.OutputValue('marked strings', element)
+          yield pvalue.TaggedOutput('marked strings', element)
     # [END model_pardo_emitting_values_on_tagged_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
@@ -226,7 +226,7 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_with_undeclared_outputs]
     def even_odd(x):
-      yield pvalue.OutputValue('odd' if x % 2 else 'even', x)
+      yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
       if x % 10 == 0:
         yield x
 

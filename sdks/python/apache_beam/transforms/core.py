@@ -184,7 +184,7 @@ class DoFn(WithTypeHints, HasDisplayData):
         trivial_inference.infer_return_type(self.process, [input_type]))
 
   def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.OutputValue)
+    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
     # TODO(robertwb): These should be parameterized types that the
     # type inferencer understands.
     if (type_hint in annotations
@@ -1157,7 +1157,7 @@ class Partition(PTransformWithSideInputs):
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the output that corresponds to the
       # selected partition.
-      yield pvalue.OutputValue(str(partition), element)
+      yield pvalue.TaggedOutput(str(partition), element)
 
   def make_fn(self, fn):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
