@@ -31,8 +31,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -142,27 +141,17 @@ class SparkStateInternals<K> implements StateInternals<K> {
             StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new SparkCombiningState<>(namespace, address, accumCoder, key,
-          combineFn.<K>asKeyedFn());
+      return new SparkCombiningState<>(namespace, address, accumCoder, combineFn);
     }
 
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindKeyedCombiningValue(
+        bindCombiningValueWithContext(
             StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
-            KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new SparkCombiningState<>(namespace, address, accumCoder, key, combineFn);
-    }
-
-    @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindKeyedCombiningValueWithContext(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder,
-            KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new SparkCombiningState<>(namespace, address, accumCoder, key,
-          CombineFnUtil.bindContext(combineFn, c));
+            CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      return new SparkCombiningState<>(
+          namespace, address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
     }
 
     @Override
@@ -307,17 +296,14 @@ class SparkStateInternals<K> implements StateInternals<K> {
       extends AbstractState<AccumT>
           implements CombiningState<InputT, AccumT, OutputT> {
 
-    private final K key;
-    private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
+    private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private SparkCombiningState(
         StateNamespace namespace,
         StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
-        K key,
-        KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
+        CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(namespace, address, coder);
-      this.key = key;
       this.combineFn = combineFn;
     }
 
@@ -328,13 +314,13 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
     @Override
     public OutputT read() {
-      return combineFn.extractOutput(key, getAccum());
+      return combineFn.extractOutput(getAccum());
     }
 
     @Override
     public void add(InputT input) {
       AccumT accum = getAccum();
-      combineFn.addInput(key, accum, input);
+      combineFn.addInput(accum, input);
       writeValue(accum);
     }
 
@@ -342,7 +328,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
     public AccumT getAccum() {
       AccumT accum = readValue();
       if (accum == null) {
-        accum = combineFn.createAccumulator(key);
+        accum = combineFn.createAccumulator();
       }
       return accum;
     }
@@ -363,13 +349,13 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
     @Override
     public void addAccum(AccumT accum) {
-      accum = combineFn.mergeAccumulators(key, Arrays.asList(getAccum(), accum));
+      accum = combineFn.mergeAccumulators(Arrays.asList(getAccum(), accum));
       writeValue(accum);
     }
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-      return combineFn.mergeAccumulators(key, accumulators);
+      return combineFn.mergeAccumulators(accumulators);
     }
 
   }

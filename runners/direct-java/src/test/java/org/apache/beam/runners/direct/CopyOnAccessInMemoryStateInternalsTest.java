@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -231,39 +230,6 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     StateTag<Object, CombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
             sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
-    GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(0L));
-
-    underlyingValue.add(1L);
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    CopyOnAccessInMemoryStateInternals<String> internals =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, underlying);
-    GroupingState<Long, Long> copyOnAccessState = internals.state(namespace, stateTag);
-    assertThat(copyOnAccessState.read(), equalTo(1L));
-
-    copyOnAccessState.add(4L);
-    assertThat(copyOnAccessState.read(), equalTo(5L));
-    assertThat(underlyingValue.read(), equalTo(1L));
-
-    GroupingState<Long, Long> reReadUnderlyingValue = underlying.state(namespace, stateTag);
-    assertThat(underlyingValue.read(), equalTo(reReadUnderlyingValue.read()));
-  }
-
-  @Test
-  public void testKeyedAccumulatorCombiningStateWithUnderlying() throws Exception {
-    CopyOnAccessInMemoryStateInternals<String> underlying =
-        CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    KeyedCombineFn<String, Long, long[], Long> sumLongFn = Sum.ofLongs().asKeyedFn();
-
-    StateNamespace namespace = new StateNamespaceForTest("foo");
-    CoderRegistry reg = pipeline.getCoderRegistry();
-    StateTag<String, CombiningState<Long, long[], Long>> stateTag =
-        StateTags.keyedCombiningValue(
-            "summer",
-            sumLongFn.getAccumulatorCoder(
-                reg, StringUtf8Coder.of(), reg.getDefaultCoder(Long.class)),
-            sumLongFn);
     GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 

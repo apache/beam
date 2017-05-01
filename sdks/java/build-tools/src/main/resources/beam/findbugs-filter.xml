@@ -361,7 +361,7 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->

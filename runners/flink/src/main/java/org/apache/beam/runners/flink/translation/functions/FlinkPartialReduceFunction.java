@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
 public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWindow>
     extends RichGroupCombineFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, AccumT>>> {
 
-  protected final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn;
+  protected final CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn;
 
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
@@ -51,7 +51,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
   public FlinkPartialReduceFunction(
-      CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, ?> combineFn,
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, ?> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
@@ -83,7 +83,7 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
     }
 
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.PartialFlinkCombiner<>(combineFn),
+        new AbstractFlinkCombineRunner.PartialFlinkCombiner<K, InputT, AccumT>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,

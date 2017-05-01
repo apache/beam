@@ -234,7 +234,7 @@ public class Top {
   public static <K, V, ComparatorT extends Comparator<V> & Serializable>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       perKey(int count, ComparatorT compareFn) {
-    return Combine.perKey(new TopCombineFn<>(count, compareFn).<K>asKeyedFn());
+    return Combine.perKey(new TopCombineFn<>(count, compareFn));
   }
 
   /**
@@ -280,7 +280,7 @@ public class Top {
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       smallestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Smallest<V>()).<K>asKeyedFn());
+    return Combine.perKey(new TopCombineFn<>(count, new Smallest<V>()));
   }
 
   /**
@@ -326,7 +326,7 @@ public class Top {
   public static <K, V extends Comparable<V>>
       PerKey<K, V, List<V>>
       largestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Largest<V>()).<K>asKeyedFn());
+    return Combine.perKey(new TopCombineFn<>(count, new Largest<V>()));
   }
 
   /**

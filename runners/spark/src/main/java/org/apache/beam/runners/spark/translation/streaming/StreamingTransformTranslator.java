@@ -327,8 +327,8 @@ public final class StreamingTransformTranslator {
             context.getInput(transform);
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         @SuppressWarnings("unchecked")
-        final CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
-            (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
+        final CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> fn =
+            (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
                 CombineFnUtil.toFnWithContext(transform.getFn());
 
         @SuppressWarnings("unchecked")

@@ -41,7 +41,7 @@ public class FlinkMergingNonShuffleReduceFunction<
     K, InputT, AccumT, OutputT, W extends BoundedWindow>
     extends RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> {
 
-  private final CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> combineFn;
+  private final CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
 
   private final WindowingStrategy<Object, W> windowingStrategy;
 
@@ -50,12 +50,12 @@ public class FlinkMergingNonShuffleReduceFunction<
   private final SerializedPipelineOptions serializedOptions;
 
   public FlinkMergingNonShuffleReduceFunction(
-      CombineFnBase.PerKeyCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn,
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn,
       WindowingStrategy<Object, W> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions pipelineOptions) {
 
-    this.combineFn = keyedCombineFn;
+    this.combineFn = combineFn;
 
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -75,7 +75,6 @@ public class FlinkMergingNonShuffleReduceFunction<
         new FlinkSideInputReader(sideInputs, getRuntimeContext());
 
     AbstractFlinkCombineRunner<K, InputT, AccumT, OutputT, W> reduceRunner;
-
     if (windowingStrategy.getWindowFn().windowCoder().equals(IntervalWindow.getCoder())) {
       reduceRunner = new SortingFlinkCombineRunner<>();
     } else {
@@ -83,13 +82,12 @@ public class FlinkMergingNonShuffleReduceFunction<
     }
 
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<>(combineFn),
+        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<K, InputT, AccumT, OutputT>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,
         elements,
         out);
-
   }
 
 }

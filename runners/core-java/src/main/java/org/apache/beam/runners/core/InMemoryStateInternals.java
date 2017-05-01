@@ -31,8 +31,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
@@ -152,7 +151,7 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
             StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             final CombineFn<InputT, AccumT, OutputT> combineFn) {
-      return new InMemoryCombiningState<K, InputT, AccumT, OutputT>(key, combineFn.<K>asKeyedFn());
+      return new InMemoryCombiningState<>(combineFn);
     }
 
     @Override
@@ -164,20 +163,11 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
 
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindKeyedCombiningValue(
+        bindCombiningValueWithContext(
             StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
-            KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      return new InMemoryCombiningState<K, InputT, AccumT, OutputT>(key, combineFn);
-    }
-
-    @Override
-    public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
-        bindKeyedCombiningValueWithContext(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-            Coder<AccumT> accumCoder,
-            KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
-      return bindKeyedCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
+            CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+      return bindCombiningValue(address, accumCoder, CombineFnUtil.bindContext(combineFn, c));
     }
   }
 
@@ -310,23 +300,21 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
   /**
    * An {@link InMemoryState} implementation of {@link CombiningState}.
    */
-  public static final class InMemoryCombiningState<K, InputT, AccumT, OutputT>
+  public static final class InMemoryCombiningState<InputT, AccumT, OutputT>
       implements CombiningState<InputT, AccumT, OutputT>,
-          InMemoryState<InMemoryCombiningState<K, InputT, AccumT, OutputT>> {
-    private final K key;
+          InMemoryState<InMemoryCombiningState<InputT, AccumT, OutputT>> {
     private boolean isCleared = true;
-    private final KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
+    private final CombineFn<InputT, AccumT, OutputT> combineFn;
     private AccumT accum;
 
     public InMemoryCombiningState(
-        K key, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-      this.key = key;
+        CombineFn<InputT, AccumT, OutputT> combineFn) {
       this.combineFn = combineFn;
-      accum = combineFn.createAccumulator(key);
+      accum = combineFn.createAccumulator();
     }
 
     @Override
-    public InMemoryCombiningState<K, InputT, AccumT, OutputT> readLater() {
+    public InMemoryCombiningState<InputT, AccumT, OutputT> readLater() {
       return this;
     }
 
@@ -334,19 +322,19 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     public void clear() {
       // Even though we're clearing we can't remove this from the in-memory state map, since
       // other users may already have a handle on this CombiningValue.
-      accum = combineFn.createAccumulator(key);
+      accum = combineFn.createAccumulator();
       isCleared = true;
     }
 
     @Override
     public OutputT read() {
-      return combineFn.extractOutput(key, accum);
+      return combineFn.extractOutput(accum);
     }
 
     @Override
     public void add(InputT input) {
       isCleared = false;
-      accum = combineFn.addInput(key, accum, input);
+      accum = combineFn.addInput(accum, input);
     }
 
     @Override
@@ -371,12 +359,12 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     @Override
     public void addAccum(AccumT accum) {
       isCleared = false;
-      this.accum = combineFn.mergeAccumulators(key, Arrays.asList(this.accum, accum));
+      this.accum = combineFn.mergeAccumulators(Arrays.asList(this.accum, accum));
     }
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-      return combineFn.mergeAccumulators(key, accumulators);
+      return combineFn.mergeAccumulators(accumulators);
     }
 
     @Override
@@ -385,9 +373,9 @@ public class InMemoryStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public InMemoryCombiningState<K, InputT, AccumT, OutputT> copy() {
-      InMemoryCombiningState<K, InputT, AccumT, OutputT> that =
-          new InMemoryCombiningState<>(key, combineFn);
+    public InMemoryCombiningState<InputT, AccumT, OutputT> copy() {
+      InMemoryCombiningState<InputT, AccumT, OutputT> that =
+          new InMemoryCombiningState<>(combineFn);
       if (!this.isCleared) {
         that.isCleared = this.isCleared;
         that.addAccum(accum);

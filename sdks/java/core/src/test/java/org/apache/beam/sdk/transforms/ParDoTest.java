@@ -2501,7 +2501,7 @@ public class ParDoTest implements Serializable {
         };
 
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Unable to infer a coder for GroupingState and no Coder was specified.");
+    thrown.expectMessage("Unable to infer a coder for CombiningState and no Coder was specified.");
 
     pipeline
         .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))

@@ -45,20 +45,11 @@ public interface StateBinder<K> {
       Coder<AccumT> accumCoder,
       Combine.CombineFn<InputT, AccumT, OutputT> combineFn);
 
-  <InputT, AccumT, OutputT>
-  CombiningState<InputT, AccumT, OutputT> bindKeyedCombining(
-          String id,
-          StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-          Coder<AccumT> accumCoder,
-          Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-  <InputT, AccumT, OutputT>
-  CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningWithContext(
-          String id,
-          StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-          Coder<AccumT> accumCoder,
-          CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
-              combineFn);
+  <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT> bindCombiningWithContext(
+      String id,
+      StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+      Coder<AccumT> accumCoder,
+      CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn);
 
   /**
    * Bind to a watermark {@link StateSpec}.
