@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
@@ -30,6 +31,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -44,7 +46,6 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
@@ -66,6 +67,22 @@ public class Coders {
           .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
           .put(FullWindowedValueCoder.class, "urn:beam:coders:windowed_value:0.1")
           .build();
+
+  @VisibleForTesting
+  static final Map<Class<? extends StructuredCoder>, CoderTranslator<? extends StructuredCoder>>
+      KNOWN_TRANSLATORS =
+          ImmutableMap
+              .<Class<? extends StructuredCoder>, CoderTranslator<? extends StructuredCoder>>
+                  builder()
+              .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
+              .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
+              .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
+              .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
+              .put(KvCoder.class, CoderTranslators.kv())
+              .put(IterableCoder.class, CoderTranslators.iterable())
+              .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
+              .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+              .build();
 
   public static RunnerApi.MessageWithComponents toProto(Coder<?> coder) throws IOException {
     SdkComponents components = SdkComponents.create();
@@ -94,16 +111,24 @@ public class Coders {
         coder,
         coder.getClass().getName());
     StructuredCoder<?> stdCoder = (StructuredCoder<?>) coder;
-    List<String> componentIds = new ArrayList<>();
-    for (Coder<?> componentCoder : stdCoder.getComponents()) {
-      componentIds.add(components.registerCoder(componentCoder));
-    }
+    CoderTranslator translator = KNOWN_TRANSLATORS.get(stdCoder.getClass());
+    List<String> componentIds = registerComponents(coder, translator, components);
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
             SdkFunctionSpec.newBuilder()
-                .setSpec(FunctionSpec.newBuilder().setUrn(KNOWN_CODER_URNS.get(coder.getClass()))))
+                .setSpec(
+                    FunctionSpec.newBuilder().setUrn(KNOWN_CODER_URNS.get(stdCoder.getClass()))))
         .build();
+  }
+
+  private static <T extends Coder<?>> List<String> registerComponents(
+      T coder, CoderTranslator<T> translator, SdkComponents components) throws IOException {
+    List<String> componentIds = new ArrayList<>();
+    for (Coder<?> component : translator.getComponents(coder)) {
+      componentIds.add(components.registerCoder(component));
+    }
+    return componentIds;
   }
 
   private static RunnerApi.Coder toCustomCoder(Coder<?> coder) throws IOException {
@@ -141,30 +166,14 @@ public class Coders {
       Coder<?> innerCoder = fromProto(components.getCodersOrThrow(componentId), components);
       coderComponents.add(innerCoder);
     }
-    switch (coderUrn) {
-      case "urn:beam:coders:bytes:0.1":
-        return ByteArrayCoder.of();
-      case "urn:beam:coders:kv:0.1":
-        return KvCoder.of(coderComponents);
-      case "urn:beam:coders:varint:0.1":
-        return VarLongCoder.of();
-      case "urn:beam:coders:interval_window:0.1":
-        return IntervalWindowCoder.of();
-      case "urn:beam:coders:length_prefix:0.1":
-        checkArgument(
-            coderComponents.size() == 1, "Expecting 1 component, got %s", coderComponents.size());
-        return LengthPrefixCoder.of(coderComponents.get(0));
-      case "urn:beam:coders:stream:0.1":
-        return IterableCoder.of(coderComponents);
-      case "urn:beam:coders:global_window:0.1":
-        return GlobalWindow.Coder.INSTANCE;
-      case "urn:beam:coders:windowed_value:0.1":
-        return WindowedValue.FullWindowedValueCoder.of(coderComponents);
-      default:
-        throw new IllegalStateException(
-            String.format(
-                "Unknown coder URN %s. Known URNs: %s", coderUrn, KNOWN_CODER_URNS.values()));
-    }
+    Class<? extends StructuredCoder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
+    CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
+    checkArgument(
+        translator != null,
+        "Unknown Coder URN %s. Known URNs: %s",
+        coderUrn,
+        KNOWN_CODER_URNS.values());
+    return translator.fromComponents(coderComponents);
   }
 
   private static Coder<?> fromCustomCoder(
@@ -179,6 +188,6 @@ public class Coders {
                 .unpack(BytesValue.class)
                 .getValue()
                 .toByteArray(),
-            protoCoder.getSpec().getSpec().getUrn());
+            "Custom Coder Bytes");
   }
 }

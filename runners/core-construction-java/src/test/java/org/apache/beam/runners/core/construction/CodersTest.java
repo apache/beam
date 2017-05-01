@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core.construction;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
@@ -92,11 +91,20 @@ public class CodersTest {
       }
       Set<Class<? extends StructuredCoder>> missingKnownCoders = new HashSet<>(knownCoderClasses);
       missingKnownCoders.removeAll(knownCoderTests);
-      checkState(
-          missingKnownCoders.isEmpty(),
-          "Missing validation of known coder %s in %s",
+      assertThat(
+          String.format(
+              "Missing validation of known coder %s in %s",
+              missingKnownCoders, CodersTest.class.getSimpleName()),
           missingKnownCoders,
-          CodersTest.class.getSimpleName());
+          Matchers.empty());
+    }
+
+    @Test
+    public void validateCoderTranslators() {
+      assertThat(
+          "Every Known Coder must have a Known Translator",
+          Coders.KNOWN_CODER_URNS.keySet(),
+          equalTo(Coders.KNOWN_TRANSLATORS.keySet()));
     }
   }
 
