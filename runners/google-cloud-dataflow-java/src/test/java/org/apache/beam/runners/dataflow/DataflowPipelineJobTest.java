@@ -23,6 +23,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -35,14 +37,20 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Locations.Jobs.Messages;
 import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.JobMessage;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.Collections;
+import java.util.List;
+import java.util.NavigableMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.dataflow.testing.TestDataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -57,6 +65,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,6 +86,8 @@ public class DataflowPipelineJobTest {
   private static final String REPLACEMENT_JOB_ID = "4321";
 
   @Mock
+  private DataflowClient mockDataflowClient;
+  @Mock
   private Dataflow mockWorkflowClient;
   @Mock
   private Dataflow.Projects mockProjects;
@@ -84,6 +95,8 @@ public class DataflowPipelineJobTest {
   private Dataflow.Projects.Locations mockLocations;
   @Mock
   private Dataflow.Projects.Locations.Jobs mockJobs;
+  @Mock
+  private MonitoringUtil.JobMessagesHandler mockHandler;
   @Rule
   public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
 
@@ -157,7 +170,10 @@ public class DataflowPipelineJobTest {
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     State state = job.waitUntilFinish(
@@ -179,7 +195,10 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
@@ -246,7 +265,10 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     long startTime = fastClock.nanoTime();
@@ -266,7 +288,10 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
@@ -289,7 +314,10 @@ public class DataflowPipelineJobTest {
     FastNanoClockAndFuzzySleeper clock = new FastNanoClockAndFuzzySleeper();
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
     long startTime = clock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
@@ -311,7 +339,10 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     assertEquals(
@@ -328,7 +359,10 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(JOB_ID, options,
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            JOB_ID,
+            options,
             ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     long startTime = fastClock.nanoTime();
@@ -379,7 +413,8 @@ public class DataflowPipelineJobTest {
         .thenReturn(update);
     when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_CANCELLED"));
 
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
 
     assertEquals(State.CANCELLED, job.cancel());
     Job content = new Job();
@@ -406,7 +441,8 @@ public class DataflowPipelineJobTest {
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException("Some random IOException"));
 
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
 
     thrown.expect(IOException.class);
     thrown.expectMessage("Failed to cancel job in state RUNNING, "
@@ -436,7 +472,8 @@ public class DataflowPipelineJobTest {
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException("Job has terminated in state SUCCESS"));
 
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
     State returned = job.cancel();
     assertThat(returned, equalTo(State.RUNNING));
     expectedLogs.verifyWarn("Cancel failed because job is already terminated.");
@@ -458,7 +495,8 @@ public class DataflowPipelineJobTest {
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
 
-    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
 
     assertEquals(State.FAILED, job.cancel());
     Job content = new Job();
@@ -468,5 +506,72 @@ public class DataflowPipelineJobTest {
     verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
     verify(mockJobs).get(PROJECT_ID, REGION_ID, JOB_ID);
     verifyNoMoreInteractions(mockJobs);
+  }
+
+  /**
+   * Tests that a {@link DataflowPipelineJob} does not duplicate messages.
+   */
+  @Test
+  public void testWaitUntilFinishNoRepeatedLogs() throws Exception {
+    DataflowPipelineJob job = new DataflowPipelineJob(mockDataflowClient, JOB_ID, options, null);
+    Sleeper sleeper = new ZeroSleeper();
+    NanoClock nanoClock = mock(NanoClock.class);
+
+    Instant separatingTimestamp = new Instant(42L);
+    JobMessage theMessage = infoMessage(separatingTimestamp, "nothing");
+
+    MonitoringUtil mockMonitor = mock(MonitoringUtil.class);
+    when(mockMonitor.getJobMessages(anyString(), anyLong()))
+        .thenReturn(ImmutableList.of(theMessage));
+
+    // The Job just always reports "running" across all calls
+    Job fakeJob = new Job();
+    fakeJob.setCurrentState("JOB_STATE_RUNNING");
+    when(mockDataflowClient.getJob(anyString())).thenReturn(fakeJob);
+
+    // After waitUntilFinish the DataflowPipelineJob should record the latest message timestamp
+    when(nanoClock.nanoTime()).thenReturn(0L).thenReturn(2000000000L);
+    job.waitUntilFinish(Duration.standardSeconds(1), mockHandler, sleeper, nanoClock, mockMonitor);
+    verify(mockHandler).process(ImmutableList.of(theMessage));
+
+    // Second waitUntilFinish should request jobs with `separatingTimestamp` so the monitor
+    // will only return new messages
+    when(nanoClock.nanoTime()).thenReturn(3000000000L).thenReturn(6000000000L);
+    job.waitUntilFinish(Duration.standardSeconds(1), mockHandler, sleeper, nanoClock, mockMonitor);
+    verify(mockMonitor).getJobMessages(anyString(), eq(separatingTimestamp.getMillis()));
+  }
+
+  private static JobMessage infoMessage(Instant timestamp, String text) {
+    JobMessage message = new JobMessage();
+    message.setTime(TimeUtil.toCloudTime(timestamp));
+    message.setMessageText(text);
+    return message;
+  }
+
+  private class FakeMonitor extends MonitoringUtil {
+    // Messages in timestamp order
+    private final NavigableMap<Long, JobMessage> timestampedMessages;
+
+    public FakeMonitor(JobMessage... messages) {
+      // The client should never be used; this Fake is intended to intercept relevant methods
+      super(mockDataflowClient);
+
+      NavigableMap<Long, JobMessage> timestampedMessages = Maps.newTreeMap();
+      for (JobMessage message : messages) {
+        timestampedMessages.put(Long.parseLong(message.getTime()), message);
+      }
+
+      this.timestampedMessages = timestampedMessages;
+    }
+
+    @Override
+    public List<JobMessage> getJobMessages(String jobId, long startTimestampMs) {
+      return ImmutableList.copyOf(timestampedMessages.headMap(startTimestampMs).values());
+    }
+  }
+
+  private static class ZeroSleeper implements Sleeper {
+    @Override
+    public void sleep(long l) throws InterruptedException {}
   }
 }

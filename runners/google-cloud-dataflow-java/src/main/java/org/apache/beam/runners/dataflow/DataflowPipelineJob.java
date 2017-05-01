@@ -100,6 +100,11 @@ public class DataflowPipelineJob implements PipelineResult {
   private List<MetricUpdate> terminalMetricUpdates;
 
   /**
+   * The latest timestamp up to which job messages have been retrieved.
+   */
+  private long lastTimestamp = Long.MIN_VALUE;
+
+  /**
    * The polling interval for job status and messages information.
    */
   static final Duration MESSAGES_POLLING_INTERVAL = Duration.standardSeconds(2);
@@ -132,12 +137,13 @@ public class DataflowPipelineJob implements PipelineResult {
    * @param transformStepNames a mapping from AppliedPTransforms to Step Names
    */
   public DataflowPipelineJob(
+      DataflowClient dataflowClient,
       String jobId,
       DataflowPipelineOptions dataflowOptions,
       Map<AppliedPTransform<?, ?, ?>, String> transformStepNames) {
+    this.dataflowClient = dataflowClient;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
-    this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
     this.transformStepNames = HashBiMap.create(
         firstNonNull(transformStepNames, ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of()));
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
@@ -183,7 +189,8 @@ public class DataflowPipelineJob implements PipelineResult {
   @Nullable
   public State waitUntilFinish(Duration duration) {
     try {
-      return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
+      return waitUntilFinish(
+          duration, new MonitoringUtil.LoggingHandler());
     } catch (Exception e) {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
@@ -229,10 +236,27 @@ public class DataflowPipelineJob implements PipelineResult {
 
     try {
       Runtime.getRuntime().addShutdownHook(shutdownHook);
-      return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+      return waitUntilFinish(
+          duration,
+          messageHandler,
+          Sleeper.DEFAULT,
+          NanoClock.SYSTEM,
+          new MonitoringUtil(dataflowClient));
     } finally {
       Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }
+  }
+
+  @Nullable
+  @VisibleForTesting
+  State waitUntilFinish(
+      Duration duration,
+      @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
+      Sleeper sleeper,
+      NanoClock nanoClock)
+      throws IOException, InterruptedException {
+    return waitUntilFinish(
+        duration, messageHandler, sleeper, nanoClock, new MonitoringUtil(dataflowClient));
   }
 
   /**
@@ -256,10 +280,9 @@ public class DataflowPipelineJob implements PipelineResult {
       Duration duration,
       @Nullable MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
-      NanoClock nanoClock) throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(dataflowClient);
+      NanoClock nanoClock,
+      MonitoringUtil monitor) throws IOException, InterruptedException {
 
-    long lastTimestamp = 0;
     BackOff backoff;
     if (!duration.isLongerThan(Duration.ZERO)) {
       backoff = MESSAGES_BACKOFF_FACTORY.backoff();
@@ -460,7 +483,7 @@ public class DataflowPipelineJob implements PipelineResult {
         if (currentState.isTerminal()) {
           terminalState = currentState;
           replacedByJob = new DataflowPipelineJob(
-              job.getReplacedByJobId(), dataflowOptions, transformStepNames);
+              dataflowClient, job.getReplacedByJobId(), dataflowOptions, transformStepNames);
         }
         return job;
       } catch (IOException exn) {

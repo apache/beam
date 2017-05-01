@@ -621,7 +621,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Use a raw client for post-launch monitoring, as status calls may fail
     // regularly and need not be retried automatically.
     DataflowPipelineJob dataflowPipelineJob =
-        new DataflowPipelineJob(jobResult.getId(), options, jobSpecification.getStepNames());
+        new DataflowPipelineJob(
+            DataflowClient.create(options),
+            jobResult.getId(),
+            options,
+            jobSpecification.getStepNames());
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same
