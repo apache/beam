@@ -22,7 +22,6 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.storage.Storage;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -33,7 +32,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
-import org.apache.beam.sdk.extensions.gcp.options.CloudResourceManagerOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 
 /**
@@ -85,25 +83,6 @@ public class Transport {
     } catch (MalformedURLException e) {
       throw new RuntimeException("Invalid URL: " + urlString);
     }
-  }
-
-  /**
-   * Returns a CloudResourceManager client builder using the specified
-   * {@link CloudResourceManagerOptions}.
-   */
-  public static CloudResourceManager.Builder
-      newCloudResourceManagerClient(CloudResourceManagerOptions options) {
-    Credentials credentials = options.getGcpCredential();
-    if (credentials == null) {
-      NullCredentialInitializer.throwNullCredentialException();
-    }
-    return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
-        chainHttpRequestInitializer(
-            credentials,
-            // Do not log 404. It clutters the output and is possibly even required by the caller.
-            new RetryHttpRequestInitializer(ImmutableList.of(404))))
-        .setApplicationName(options.getAppName())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
   }
 
   /**

@@ -113,9 +113,9 @@ public class GoogleApiDebugOptionsTest {
         Transport.newStorageClient(options).build().objects().get("testBucketId", "testObjectId");
     assertEquals("TraceDestination", getRequest.get("$trace"));
 
-    Delete deleteRequest =
-        Transport.newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class))
-            .build().projects().delete("testProjectId");
+    Delete deleteRequest = GcpOptions.GcpTempLocationFactory.newCloudResourceManagerClient(
+        options.as(CloudResourceManagerOptions.class))
+        .build().projects().delete("testProjectId");
     assertNull(deleteRequest.get("$trace"));
   }
 
