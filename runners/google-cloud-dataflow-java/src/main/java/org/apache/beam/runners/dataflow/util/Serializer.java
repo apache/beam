@@ -15,24 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.dataflow.util;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
+import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
+import com.fasterxml.jackson.databind.jsontype.impl.TypeIdResolverBase;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.google.common.collect.ImmutableMap;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Utility for converting objects between Java and Cloud representations.
- *
- * @deprecated replaced by {@code org.apache.beam.runners.dataflow.util.Serializer}
  */
-@Deprecated
 public final class Serializer {
+  /** A mapping from well known coder types to their implementing classes. */
+  private static final Map<String, Class<?>> WELL_KNOWN_CODER_TYPES =
+      ImmutableMap.<String, Class<?>>builder()
+          .put("kind:pair", KvCoder.class)
+          .put("kind:stream", IterableCoder.class)
+          .put("kind:global_window", GlobalWindow.Coder.class)
+          .put("kind:interval_window", IntervalWindow.IntervalWindowCoder.class)
+          .put("kind:length_prefix", LengthPrefixCoder.class)
+          .put("kind:windowed_value", WindowedValue.FullWindowedValueCoder.class)
+          .build();
+
   // Delay initialization of statics until the first call to Serializer.
   private static class SingletonHelper {
     static final ObjectMapper OBJECT_MAPPER = createObjectMapper();
@@ -67,7 +94,7 @@ public final class Serializer {
            ObjectMapper.DefaultTyping.JAVA_LANG_OBJECT,
            PropertyNames.OBJECT_TYPE_NAME);
 
-      m.registerModule(new CoderUtils.Jackson2Module());
+      m.registerModule(new Jackson2Module());
 
       return m;
     }
@@ -108,10 +135,10 @@ public final class Serializer {
   }
 
   /**
-   * Recursively walks the supplied map, looking for well-known cloud type
-   * information (keyed as {@link PropertyNames#OBJECT_TYPE_NAME}, matching a
-   * URI value from the {@link CloudKnownType} enum.  Upon finding this type
-   * information, it converts it into the correspondingly typed Java value.
+   * Recursively walks the supplied map, looking for well-known cloud type information (keyed as
+   * {@link PropertyNames#OBJECT_TYPE_NAME}, matching a URI value from the {@link CloudKnownType}
+   * enum. Upon finding this type information, it converts it into the correspondingly typed Java
+   * value.
    */
   @SuppressWarnings("unchecked")
   private static Object deserializeCloudKnownTypes(Object src) {
@@ -143,5 +170,90 @@ public final class Serializer {
     }
     // Neither a Map nor a List; no translation needed.
     return src;
+  }
+
+  /**
+   * A {@link com.fasterxml.jackson.databind.Module} that adds the type
+   * resolver needed for Coder definitions.
+   */
+  static final class Jackson2Module extends SimpleModule {
+    /**
+     * The Coder custom type resolver.
+     *
+     * <p>This resolver resolves coders. If the Coder ID is a particular
+     * well-known identifier, it's replaced with the corresponding class.
+     * All other Coder instances are resolved by class name, using the package
+     * org.apache.beam.sdk.coders if there are no "."s in the ID.
+     */
+    private static final class Resolver extends TypeIdResolverBase {
+      @SuppressWarnings("unused") // Used via @JsonTypeIdResolver annotation on Mixin
+      public Resolver() {
+        super(TypeFactory.defaultInstance().constructType(Coder.class),
+            TypeFactory.defaultInstance());
+      }
+
+      @Override
+      public JavaType typeFromId(DatabindContext context, String id) {
+        Class<?> clazz = getClassForId(id);
+        @SuppressWarnings("rawtypes")
+        TypeVariable[] tvs = clazz.getTypeParameters();
+        JavaType[] types = new JavaType[tvs.length];
+        for (int lupe = 0; lupe < tvs.length; lupe++) {
+          types[lupe] = TypeFactory.unknownType();
+        }
+        return _typeFactory.constructSimpleType(clazz, types);
+      }
+
+      private Class<?> getClassForId(String id) {
+        try {
+          if (id.contains(".")) {
+            return Class.forName(id);
+          }
+
+          if (WELL_KNOWN_CODER_TYPES.containsKey(id)) {
+            return WELL_KNOWN_CODER_TYPES.get(id);
+          }
+
+          // Otherwise, see if the ID is the name of a class in
+          // org.apache.beam.sdk.coders.  We do this via creating
+          // the class object so that class loaders have a chance to get
+          // involved -- and since we need the class object anyway.
+          return Class.forName(Coder.class.getPackage().getName() + "." + id);
+        } catch (ClassNotFoundException e) {
+          throw new RuntimeException("Unable to convert coder ID " + id + " to class", e);
+        }
+      }
+
+      @Override
+      public String idFromValueAndType(Object o, Class<?> clazz) {
+        return clazz.getName();
+      }
+
+      @Override
+      public String idFromValue(Object o) {
+        return o.getClass().getName();
+      }
+
+      @Override
+      public JsonTypeInfo.Id getMechanism() {
+        return JsonTypeInfo.Id.CUSTOM;
+      }
+    }
+
+    /**
+     * The mixin class defining how Coders are handled by the deserialization
+     * {@link ObjectMapper}.
+     *
+     * <p>This is done via a mixin so that this resolver is <i>only</i> used
+     * during deserialization requested by the Apache Beam SDK.
+     */
+    @JsonTypeIdResolver(Resolver.class)
+    @JsonTypeInfo(use = Id.CUSTOM, include = As.PROPERTY, property = PropertyNames.OBJECT_TYPE_NAME)
+    private static final class Mixin {}
+
+    public Jackson2Module() {
+      super("BeamCoders");
+      setMixInAnnotation(Coder.class, Mixin.class);
+    }
   }
 }
