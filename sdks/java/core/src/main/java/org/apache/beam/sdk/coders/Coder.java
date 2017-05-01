@@ -31,7 +31,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -140,12 +139,6 @@ public interface Coder<T> extends Serializable {
    * parameterized type.
    */
   List<? extends Coder<?>> getCoderArguments();
-
-  /**
-   * Returns the {@link CloudObject} that represents this {@code Coder}.
-   */
-  @Deprecated
-  CloudObject asCloudObject();
 
   /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.

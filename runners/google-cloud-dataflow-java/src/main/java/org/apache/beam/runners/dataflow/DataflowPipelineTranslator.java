@@ -62,6 +62,7 @@ import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
@@ -87,7 +88,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -557,7 +557,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void addEncodingInput(Coder<?> coder) {
-      CloudObject encoding = SerializableUtils.ensureSerializable(coder);
+      CloudObject encoding = CloudObjects.asCloudObject(coder);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
     }
 
@@ -669,7 +669,7 @@ public class DataflowPipelineTranslator {
       if (valueCoder != null) {
         // Verify that encoding can be decoded, in order to catch serialization
         // failures as early as possible.
-        CloudObject encoding = SerializableUtils.ensureSerializable(valueCoder);
+        CloudObject encoding = CloudObjects.asCloudObject(valueCoder);
         addObject(outputInfo, PropertyNames.ENCODING, encoding);
         translator.outputCoders.put(value, valueCoder);
       }

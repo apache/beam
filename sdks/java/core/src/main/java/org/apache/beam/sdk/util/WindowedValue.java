@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -696,13 +695,6 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClassName("kind:windowed_value");
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
-    }
-
-    @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return null;
     }
@@ -767,13 +759,6 @@ public abstract class WindowedValue<T> {
         WindowedValue<T> value, ElementByteSizeObserver observer, Context context)
         throws Exception {
       valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
-    }
-
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
     }
 
     @Override
