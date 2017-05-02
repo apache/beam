@@ -634,11 +634,6 @@ public class HBaseIO {
                 recordsWritten = 0;
             }
 
-            @StartBundle
-            public void startBundle(Context c) throws Exception {
-
-            }
-
             @ProcessElement
             public void processElement(ProcessContext ctx) throws Exception {
                 KV<byte[], Iterable<Mutation>> record = ctx.element();
@@ -651,7 +646,7 @@ public class HBaseIO {
             }
 
             @FinishBundle
-            public void finishBundle(Context c) throws Exception {
+            public void finishBundle() throws Exception {
                 mutator.flush();
             }
 

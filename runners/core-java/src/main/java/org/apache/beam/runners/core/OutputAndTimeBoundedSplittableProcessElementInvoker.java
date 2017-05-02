@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -117,9 +119,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
-          public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+          public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
             throw new IllegalStateException(
-                "Should not access context() from @"
+                "Should not access startBundleContext() from @"
+                    + DoFn.ProcessElement.class.getSimpleName());
+          }
+
+          @Override
+          public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+            throw new IllegalStateException(
+                "Should not access finishBundleContext() from @"
                     + DoFn.ProcessElement.class.getSimpleName());
           }
 

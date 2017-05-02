@@ -348,12 +348,12 @@ public class SimpleDoFnRunnerTest {
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle() throws Exception {
       throw exceptionToThrow;
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       throw exceptionToThrow;
     }
 

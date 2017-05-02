@@ -888,7 +888,7 @@ public class PubsubIO {
       private transient PubsubClient pubsubClient;
 
       @StartBundle
-      public void startBundle(Context c) throws IOException {
+      public void startBundle(StartBundleContext c) throws IOException {
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
@@ -911,7 +911,7 @@ public class PubsubIO {
       }
 
       @FinishBundle
-      public void finishBundle(Context c) throws IOException {
+      public void finishBundle() throws IOException {
         if (!output.isEmpty()) {
           publish();
         }
