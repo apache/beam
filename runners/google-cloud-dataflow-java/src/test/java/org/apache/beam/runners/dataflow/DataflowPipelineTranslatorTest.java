@@ -66,6 +66,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -132,6 +133,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private Pipeline buildPipeline(DataflowPipelineOptions options) {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultConfigInWorkers(options);
 
     p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
      .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));

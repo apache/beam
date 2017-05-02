@@ -93,7 +93,7 @@ public class TFRecordIOTest {
   private static final String[] FOO_BAR_RECORDS = {"foo", "bar"};
 
   private static final Iterable<String> EMPTY = Collections.emptyList();
-  private static final Iterable<String> LARGE = makeLines(5000);
+  private static final Iterable<String> LARGE = makeLines(1000);
 
   private static Path tempFolder;
 
@@ -159,7 +159,7 @@ public class TFRecordIOTest {
   @Test
   public void testWriteDisplayData() {
     TFRecordIO.Write write = TFRecordIO.write()
-        .to("foo")
+        .to("/foo")
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
@@ -167,7 +167,7 @@ public class TFRecordIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));

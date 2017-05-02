@@ -578,9 +578,9 @@ public class TextIOTest {
 
   @Test
   public void testCompressionTypeIsSet() throws Exception {
-    TextIO.Read.Bound read = TextIO.Read.from("gs://bucket/test");
+    TextIO.Read.Bound read = TextIO.Read.from("/tmp/test");
     assertEquals(AUTO, read.getCompressionType());
-    read = TextIO.Read.from("gs://bucket/test").withCompressionType(GZIP);
+    read = TextIO.Read.from("/tmp/test").withCompressionType(GZIP);
     assertEquals(GZIP, read.getCompressionType());
   }
 

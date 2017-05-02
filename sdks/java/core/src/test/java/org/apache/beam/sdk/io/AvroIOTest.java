@@ -102,8 +102,8 @@ public class AvroIOTest {
 
   @Test
   public void testAvroIOGetName() {
-    assertEquals("AvroIO.Read", AvroIO.read(String.class).from("gs://bucket/foo*/baz").getName());
-    assertEquals("AvroIO.Write", AvroIO.write(String.class).to("gs://bucket/foo/baz").getName());
+    assertEquals("AvroIO.Read", AvroIO.read(String.class).from("/tmp/foo*/baz").getName());
+    assertEquals("AvroIO.Write", AvroIO.write(String.class).to("/tmp/foo/baz").getName());
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -403,14 +403,14 @@ public class AvroIOTest {
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("gs://bucket/foo/baz");
+        .to("/tmp/foo/baz");
     assertEquals(CodecFactory.deflateCodec(6).toString(), write.getCodec().toString());
   }
 
   @Test
   public void testWriteWithCustomCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.snappyCodec());
     assertEquals(SNAPPY_CODEC, write.getCodec().toString());
   }
@@ -419,7 +419,7 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomDeflateCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.deflateCodec(9));
 
     assertEquals(
@@ -431,7 +431,7 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   public void testWriteWithSerDeCustomXZCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class)
-        .to("gs://bucket/foo/baz")
+        .to("/tmp/foo/baz")
         .withCodec(CodecFactory.xzCodec(9));
 
     assertEquals(
@@ -552,7 +552,7 @@ public class AvroIOTest {
   @Test
   public void testWriteDisplayData() {
     AvroIO.Write<GenericClass> write = AvroIO.write(GenericClass.class)
-        .to("foo")
+        .to("/foo")
         .withShardNameTemplate("-SS-of-NN-")
         .withSuffix("bar")
         .withNumShards(100)
@@ -560,7 +560,7 @@ public class AvroIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
