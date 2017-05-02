@@ -42,10 +42,10 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
  */
 public class FlinkMetricResults extends MetricResults {
 
-  private Map<String, Object> aggregators;
+  private Map<String, Object> accumulators;
 
-  public FlinkMetricResults(Map<String, Object> aggregators) {
-    this.aggregators = aggregators;
+  public FlinkMetricResults(Map<String, Object> accumulators) {
+    this.accumulators = accumulators;
   }
 
   @Override
@@ -64,12 +64,12 @@ public class FlinkMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<Long>> counters() {
       List<MetricResult<Long>> result = new ArrayList<>();
-      for (Map.Entry<String, Object> entry : aggregators.entrySet()) {
-        if (entry.getKey().startsWith(COUNTER_PREFIX)) {
-          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(entry.getKey());
+      for (Map.Entry<String, Object> accumulator : accumulators.entrySet()) {
+        if (accumulator.getKey().startsWith(COUNTER_PREFIX)) {
+          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(accumulator.getKey());
           if (MetricFiltering.matches(filter, metricKey)) {
             result.add(new FlinkMetricResult<>(
-                metricKey.metricName(), metricKey.stepName(), (Long) entry.getValue()));
+                metricKey.metricName(), metricKey.stepName(), (Long) accumulator.getValue()));
           }
         }
       }
@@ -79,10 +79,10 @@ public class FlinkMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<DistributionResult>> distributions() {
       List<MetricResult<DistributionResult>> result = new ArrayList<>();
-      for (Map.Entry<String, Object> entry : aggregators.entrySet()) {
-        if (entry.getKey().startsWith(DISTRIBUTION_PREFIX)) {
-          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(entry.getKey());
-          DistributionData data = (DistributionData) entry.getValue();
+      for (Map.Entry<String, Object> accumulator : accumulators.entrySet()) {
+        if (accumulator.getKey().startsWith(DISTRIBUTION_PREFIX)) {
+          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(accumulator.getKey());
+          DistributionData data = (DistributionData) accumulator.getValue();
           if (MetricFiltering.matches(filter, metricKey)) {
             result.add(new FlinkMetricResult<>(
                 metricKey.metricName(), metricKey.stepName(), data.extractResult()));
@@ -95,10 +95,10 @@ public class FlinkMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<GaugeResult>> gauges() {
       List<MetricResult<GaugeResult>> result = new ArrayList<>();
-      for (Map.Entry<String, Object> entry : aggregators.entrySet()) {
-        if (entry.getKey().startsWith(GAUGE_PREFIX)) {
-          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(entry.getKey());
-          GaugeData data = (GaugeData) entry.getValue();
+      for (Map.Entry<String, Object> accumulator : accumulators.entrySet()) {
+        if (accumulator.getKey().startsWith(GAUGE_PREFIX)) {
+          MetricKey metricKey = FlinkMetricContainer.parseMetricKey(accumulator.getKey());
+          GaugeData data = (GaugeData) accumulator.getValue();
           if (MetricFiltering.matches(filter, metricKey)) {
             result.add(new FlinkMetricResult<>(
                 metricKey.metricName(), metricKey.stepName(), data.extractResult()));

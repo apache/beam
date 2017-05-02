@@ -126,8 +126,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
       if (accumulators != null && !accumulators.isEmpty()) {
-        LOG.info("Final aggregator values:");
-
+        LOG.info("Final accumulator values:");
         for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
