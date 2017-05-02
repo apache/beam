@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Information accessible the state API.
+ * For internal use only; no backwards-compatibility guarantees.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
+@Internal
 public interface StateContext<W extends BoundedWindow> {
   /**
    * Returns the {@code PipelineOptions} specified with the
