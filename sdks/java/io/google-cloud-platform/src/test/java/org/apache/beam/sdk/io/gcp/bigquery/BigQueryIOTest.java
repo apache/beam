@@ -279,7 +279,7 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setProject(projectId);
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testValidateReadSetsDefaultProject");
-    bqOptions.setTempLocation(baseDir.toString());
+    bqOptions.setTempLocation(StaticValueProvider.of(baseDir.toString()));
 
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
     fakeDatasetService.createDataset(projectId, datasetId, "", "");
@@ -330,7 +330,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildSourceWithTableAndFlatten() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
 
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
@@ -348,7 +348,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
 
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
@@ -367,7 +367,7 @@ public class BigQueryIOTest implements Serializable {
   public void testBuildSourceWithTableAndSqlDialect() {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
 
     Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
@@ -385,7 +385,8 @@ public class BigQueryIOTest implements Serializable {
   public void testReadFromTable() throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     Job job = new Job();
     JobStatus status = new JobStatus();
@@ -445,7 +446,8 @@ public class BigQueryIOTest implements Serializable {
   public void testWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     FakeDatasetService datasetService = new FakeDatasetService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
@@ -470,7 +472,7 @@ public class BigQueryIOTest implements Serializable {
         .withoutValidation());
     p.run();
 
-    File tempDir = new File(bqOptions.getTempLocation());
+    File tempDir = new File(bqOptions.getTempLocation().get());
     testNumFiles(tempDir, 0);
   }
 
@@ -478,7 +480,8 @@ public class BigQueryIOTest implements Serializable {
   public void testStreamingWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     FakeDatasetService datasetService = new FakeDatasetService();
     datasetService.createDataset("project-id", "dataset-id", "", "");
@@ -618,7 +621,8 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteWithDynamicTables(boolean streaming) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     FakeDatasetService datasetService = new FakeDatasetService();
     datasetService.createDataset("project-id", "dataset-id", "", "");
@@ -703,7 +707,8 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteUnknown() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     FakeDatasetService datasetService = new FakeDatasetService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
@@ -726,7 +731,7 @@ public class BigQueryIOTest implements Serializable {
     try {
       p.run();
     } finally {
-      File tempDir = new File(bqOptions.getTempLocation());
+      File tempDir = new File(bqOptions.getTempLocation().get());
       testNumFiles(tempDir, 0);
     }
   }
@@ -735,7 +740,8 @@ public class BigQueryIOTest implements Serializable {
   public void testWriteFailedJobs() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     FakeDatasetService datasetService = new FakeDatasetService();
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
@@ -761,7 +767,7 @@ public class BigQueryIOTest implements Serializable {
     try {
       p.run();
     } finally {
-      File tempDir = new File(bqOptions.getTempLocation());
+      File tempDir = new File(bqOptions.getTempLocation().get());
       testNumFiles(tempDir, 0);
     }
   }
@@ -1214,10 +1220,13 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
     String jobIdToken = "testJobIdToken";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        baseDir.toString(), fakeBqServices,
-        StaticValueProvider.of("project"));
+    BoundedSource<TableRow> bqSource =
+        BigQueryTableSource.create(
+            StaticValueProvider.of(jobIdToken),
+            StaticValueProvider.of(table),
+            StaticValueProvider.of(baseDir.toString()),
+            fakeBqServices,
+            StaticValueProvider.of("project"));
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Assert.assertThat(
@@ -1257,13 +1266,17 @@ public class BigQueryIOTest implements Serializable {
 
     String jobIdToken = "testJobIdToken";
     String extractDestinationDir = baseDir.toString();
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
+    BoundedSource<TableRow> bqSource =
+        BigQueryTableSource.create(
+            StaticValueProvider.of(jobIdToken),
+            StaticValueProvider.of(table),
+            StaticValueProvider.of(extractDestinationDir),
+            fakeBqServices,
+            StaticValueProvider.of("project"));
 
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(baseDir.toString());
+    options.setTempLocation(StaticValueProvider.of(baseDir.toString()));
 
     List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
@@ -1330,14 +1343,18 @@ public class BigQueryIOTest implements Serializable {
     String jobIdToken = "testJobIdToken";
     String query = FakeBigQueryServices.encodeQuery(expected);
     String extractDestinationDir = baseDir.toString();
-    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
-        true /* flattenResults */, true /* useLegacySql */,
-        extractDestinationDir, fakeBqServices);
+    BoundedSource<TableRow> bqSource =
+        BigQueryQuerySource.create(
+            StaticValueProvider.of(jobIdToken),
+            StaticValueProvider.of(query),
+            StaticValueProvider.of(destinationTable),
+            true /* flattenResults */,
+            true /* useLegacySql */,
+            StaticValueProvider.of(extractDestinationDir),
+            fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(extractDestinationDir);
+    options.setTempLocation(StaticValueProvider.of(extractDestinationDir));
 
     TableReference queryTable = new TableReference()
         .setProjectId("project")
@@ -1415,16 +1432,20 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryNoTableQuerySourceInitSplit");
     String jobIdToken = "testJobIdToken";
-    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken),
-        StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
-        true /* flattenResults */, true /* useLegacySql */, baseDir.toString(), fakeBqServices);
+    BoundedSource<TableRow> bqSource =
+        BigQueryQuerySource.create(
+            StaticValueProvider.of(jobIdToken),
+            StaticValueProvider.of(query),
+            StaticValueProvider.of(destinationTable),
+            true /* flattenResults */,
+            true /* useLegacySql */,
+            StaticValueProvider.of(baseDir.toString()),
+            fakeBqServices);
 
 
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(baseDir.toString());
+    options.setTempLocation(StaticValueProvider.of(baseDir.toString()));
     List<TableRow> read = convertBigDecimaslToLong(
         SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
@@ -1738,7 +1759,7 @@ public class BigQueryIOTest implements Serializable {
         false,
         fakeBqServices,
         jobIdTokenView,
-        tempFilePrefix,
+        StaticValueProvider.of(tempFilePrefix),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
         null);
@@ -1766,7 +1787,8 @@ public class BigQueryIOTest implements Serializable {
   public void testRemoveTemporaryFiles() throws Exception {
     BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    bqOptions.setTempLocation(
+        StaticValueProvider.of(testFolder.newFolder("BigQueryIOTest").getAbsolutePath()));
 
     int numFiles = 10;
     List<String> fileNames = Lists.newArrayList();
@@ -1779,7 +1801,7 @@ public class BigQueryIOTest implements Serializable {
     }
     fileNames.add(tempFilePrefix + String.format("files%05d", numFiles));
 
-    File tempDir = new File(bqOptions.getTempLocation());
+    File tempDir = new File(bqOptions.getTempLocation().get());
     testNumFiles(tempDir, 10);
 
     WriteTables.removeTemporaryFiles(bqOptions, tempFilePrefix, fileNames);
@@ -1942,7 +1964,7 @@ public class BigQueryIOTest implements Serializable {
   public void testRuntimeOptionsNotCalledInApplyInputTable() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
     Pipeline pipeline = TestPipeline.create(options);
     BigQueryIO.Read read = BigQueryIO.read().from(
         options.getInputTable()).withoutValidation();
@@ -1955,7 +1977,7 @@ public class BigQueryIOTest implements Serializable {
   public void testRuntimeOptionsNotCalledInApplyInputQuery() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
     Pipeline pipeline = TestPipeline.create(options);
     BigQueryIO.Read read = BigQueryIO.read().fromQuery(
         options.getInputQuery()).withoutValidation();
@@ -1968,7 +1990,7 @@ public class BigQueryIOTest implements Serializable {
   public void testRuntimeOptionsNotCalledInApplyOutput() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(StaticValueProvider.of("gs://testbucket/testdir"));
     Pipeline pipeline = TestPipeline.create(options);
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
         .to(options.getOutputTable())

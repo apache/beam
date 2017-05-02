@@ -39,6 +39,7 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -78,7 +79,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         dataflowOptions.getJobName(),
         "output",
         "results");
-    dataflowOptions.setTempLocation(tempLocation);
+    dataflowOptions.setTempLocation(StaticValueProvider.of(tempLocation));
 
     return new TestDataflowRunner(
         dataflowOptions, DataflowClient.create(options.as(DataflowPipelineOptions.class)));

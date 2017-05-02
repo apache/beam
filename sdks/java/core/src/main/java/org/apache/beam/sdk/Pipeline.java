@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.InaccessibleValueProvider;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
@@ -447,6 +448,7 @@ public class Pipeline {
   private final PipelineOptions defaultOptions;
 
   protected Pipeline(PipelineOptions options) {
+    options.setTempLocation(InaccessibleValueProvider.of(options.getTempLocation()));
     this.defaultOptions = options;
   }
 

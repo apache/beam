@@ -40,6 +40,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -161,7 +162,8 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setJobName("some-job-name");
     options.setProject("some-project");
-    options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
+    options.setTempLocation(
+        StaticValueProvider.of(GcsPath.fromComponents("somebucket", "some/path").toString()));
     options.setFilesToStage(new LinkedList<String>());
     options.setGcsUtil(mockGcsUtil);
     return options;

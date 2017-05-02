@@ -43,6 +43,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.DefaultProjectFacto
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.GcpTempLocationFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.NoopPathValidator;
@@ -140,7 +141,7 @@ public class GcpOptionsTest {
     public void testDefaultGcpTempLocation() throws Exception {
       GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
       String tempLocation = "gs://bucket";
-      options.setTempLocation(tempLocation);
+      options.setTempLocation(StaticValueProvider.of(tempLocation));
       options.as(GcsOptions.class).setPathValidatorClass(NoopPathValidator.class);
       assertEquals(tempLocation, options.getGcpTempLocation());
     }
@@ -148,7 +149,7 @@ public class GcpOptionsTest {
     @Test
     public void testDefaultGcpTempLocationInvalid() throws Exception {
       GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
-      options.setTempLocation("file://");
+      options.setTempLocation(StaticValueProvider.of("file://"));
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage(
           "Error constructing default value for gcpTempLocation: tempLocation is not"
@@ -160,7 +161,7 @@ public class GcpOptionsTest {
     public void testDefaultGcpTempLocationDoesNotExist() {
       GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
       String tempLocation = "gs://does/not/exist";
-      options.setTempLocation(tempLocation);
+      options.setTempLocation(StaticValueProvider.of(tempLocation));
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage(
           "Error constructing default value for gcpTempLocation: tempLocation is not"

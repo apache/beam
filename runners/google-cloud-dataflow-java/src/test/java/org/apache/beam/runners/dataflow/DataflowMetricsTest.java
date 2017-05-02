@@ -42,6 +42,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.junit.Before;
 import org.junit.Test;
@@ -83,7 +84,7 @@ public class DataflowMetricsTest {
     options.setDataflowClient(mockWorkflowClient);
     options.setProject(PROJECT_ID);
     options.setRunner(DataflowRunner.class);
-    options.setTempLocation("gs://fakebucket/temp");
+    options.setTempLocation(StaticValueProvider.of("gs://fakebucket/temp"));
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setGcpCredential(new TestCredential());
   }

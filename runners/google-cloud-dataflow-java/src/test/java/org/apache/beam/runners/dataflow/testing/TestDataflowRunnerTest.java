@@ -55,6 +55,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -94,7 +95,7 @@ public class TestDataflowRunnerTest {
     options = PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
     options.setAppName("TestAppName");
     options.setProject("test-project");
-    options.setTempLocation("gs://test/temp/location");
+    options.setTempLocation(StaticValueProvider.of("gs://test/temp/location"));
     options.setTempRoot("gs://test");
     options.setGcpCredential(new TestCredential());
     options.setRunner(TestDataflowRunner.class);

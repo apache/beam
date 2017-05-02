@@ -45,7 +45,7 @@ class BigQueryTableSource extends BigQuerySourceBase {
   static BigQueryTableSource create(
       ValueProvider<String> jobIdToken,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
+      ValueProvider<String> extractDestinationDir,
       BigQueryServices bqServices,
       ValueProvider<String> executingProject) {
     return new BigQueryTableSource(
@@ -58,7 +58,7 @@ class BigQueryTableSource extends BigQuerySourceBase {
   private BigQueryTableSource(
       ValueProvider<String> jobIdToken,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
+      ValueProvider<String> extractDestinationDir,
       BigQueryServices bqServices,
       ValueProvider<String> executingProject) {
     super(jobIdToken, extractDestinationDir, bqServices, executingProject);

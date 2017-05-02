@@ -393,7 +393,7 @@ public class BigQueryIO {
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
 
-      String tempLocation = bqOptions.getTempLocation();
+      String tempLocation = bqOptions.getTempLocation().get();
       checkArgument(
           !Strings.isNullOrEmpty(tempLocation),
           "BigQueryIO.Read needs a GCS temp location to store temp files.");
@@ -468,24 +468,32 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
-      String stepUuid = BigQueryHelpers.randomUUIDString();
-      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-      ValueProvider<String> jobUuid = NestedValueProvider.of(
+      final String stepUuid = BigQueryHelpers.randomUUIDString();
+      final BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+      final ValueProvider<String> jobUuid = NestedValueProvider.of(
          StaticValueProvider.of(bqOptions.getJobName()), new CreatePerBeamJobUuid(stepUuid));
       final ValueProvider<String> jobIdToken = NestedValueProvider.of(
           jobUuid, new BeamJobUuidToBigQueryJobUuid());
 
       BoundedSource<TableRow> source;
 
-      final String extractDestinationDir;
-      String tempLocation = bqOptions.getTempLocation();
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-        extractDestinationDir = factory.resolve(tempLocation, stepUuid);
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format("Failed to resolve extract destination directory in %s", tempLocation));
-      }
+      final ValueProvider<String> tempLocation = bqOptions.getTempLocation();
+      final ValueProvider<String> extractDestinationDir =
+          NestedValueProvider.of(
+              tempLocation,
+              new SerializableFunction<String, String>() {
+                @Override
+                public String apply(String input) {
+                  try {
+                    IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation.get());
+                    return factory.resolve(tempLocation.get(), stepUuid);
+                  } catch (IOException e) {
+                    throw new RuntimeException(
+                        String.format(
+                            "Failed to resolve extract destination directory in %s", tempLocation));
+                  }
+                }
+              });
 
       final String executingProject = bqOptions.getProject();
       if (getQuery() != null
@@ -524,12 +532,12 @@ public class BigQueryIO {
 
               Collection<String> extractFiles = null;
               if (extractJob != null) {
-                extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
+                extractFiles = getExtractFilePaths(extractDestinationDir.get(), extractJob);
               } else {
-                IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-                Collection<String> dirMatch = factory.match(extractDestinationDir);
+                IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir.get());
+                Collection<String> dirMatch = factory.match(extractDestinationDir.get());
                 if (!dirMatch.isEmpty()) {
-                  extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                  extractFiles = factory.match(factory.resolve(extractDestinationDir.get(), "*"));
                 }
               }
               if (extractFiles != null && !extractFiles.isEmpty()) {

@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -84,7 +85,7 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
   @Override
   public void validate(PipelineOptions options) {
     // We will use a BigQuery load job -- validate the temp location.
-    String tempLocation = options.getTempLocation();
+    String tempLocation = options.getTempLocation().get();
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
         "BigQueryIO.Write needs a GCS temp location to store temp files.");
@@ -106,24 +107,40 @@ class BatchLoads extends PTransform<PCollection<KV<TableDestination, TableRow>>,
     Pipeline p = input.getPipeline();
     BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
 
-    validate(p.getOptions());
-
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 
-    String tempLocation = options.getTempLocation();
-    String tempFilePrefix;
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix =
-          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-    }
+    ValueProvider<String> tempLocation = options.getTempLocation();
+    final ValueProvider<String> tempFilePrefix =
+        NestedValueProvider.of(
+            tempLocation,
+            new SerializableFunction<String, String>() {
+              @Override
+              public String apply(String tempLocation) {
+                try {
+                  IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+                  return factory.resolve(
+                      factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
+                } catch (IOException e) {
+                  throw new RuntimeException(
+                      String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
+                      e);
+                }
+              }
+            });
 
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transfomr.
-    PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
+    PCollection<String> singleton =
+        p.apply("Create", Create.<Void>of(null))
+            .apply(
+                "ReadTempFilePrefix",
+                MapElements.via(
+                    new SimpleFunction<Void, String>() {
+                      public String apply(Void input) {
+                        return tempFilePrefix.get();
+                      }
+                    }));
+
     PCollectionView<String> jobIdTokenView =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(

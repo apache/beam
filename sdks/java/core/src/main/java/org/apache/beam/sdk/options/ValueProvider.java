@@ -101,6 +101,43 @@ public interface ValueProvider<T> extends Serializable {
   }
 
   /**
+   * An implementation of {@link ValueProvider} that has a statically-provided value but is
+   * still considered inaccessible. During pipeline execution, it will be accessible as
+   * a {@link RuntimeValueProvider}.
+   */
+  class InaccessibleValueProvider<T> implements ValueProvider<T>, Serializable {
+    private final ValueProvider<T> wrapped;
+
+    InaccessibleValueProvider(ValueProvider<T> wrapped) {
+      this.wrapped = wrapped;
+    }
+
+    /**
+     * Creates a {@link StaticValueProvider} that wraps the provided value.
+     */
+    public static <T> InaccessibleValueProvider<T> of(ValueProvider<T> wrapped) {
+      return new InaccessibleValueProvider<>(wrapped);
+    }
+
+    @Override
+    public T get() {
+      return wrapped.get();
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("wrapped", wrapped)
+          .toString();
+    }
+  }
+
+  /**
    * {@link NestedValueProvider} is an implementation of {@link ValueProvider} that
    * allows for wrapping another {@link ValueProvider} object.
    */

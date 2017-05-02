@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -129,7 +130,7 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setTempLocation("gs://temp_location");
+    options.setTempLocation(StaticValueProvider.of("gs://temp_location"));
     options.setStagingLocation("gs://staging_location");
     assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://staging_location", options.getStagingLocation());
@@ -140,7 +141,7 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setTempLocation("gs://temp_location");
+    options.setTempLocation(StaticValueProvider.of("gs://temp_location"));
     assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://temp_location/staging", options.getStagingLocation());
   }
@@ -150,7 +151,7 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setTempLocation("gs://temp_location");
+    options.setTempLocation(StaticValueProvider.of("gs://temp_location"));
     options.setGcpTempLocation("gs://gcp_temp_location");
     assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());
   }
@@ -158,7 +159,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultNoneGcsTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setTempLocation("file://temp_location");
+    options.setTempLocation(StaticValueProvider.of("file://temp_location"));
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Error constructing default value for stagingLocation: "
         + "failed to retrieve gcpTempLocation.");
