@@ -17,27 +17,29 @@
  */
 package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.annotations.Experimental;
+
 /**
- * {@code TimeDomain} specifies whether an operation is based on
- * timestamps of elements or current "real-world" time as reported while processing.
+ * {@link TimeDomain} specifies whether an operation is based on timestamps of elements or current
+ * "real-world" time as reported while processing.
  */
+@Experimental(Experimental.Kind.TIMERS)
 public enum TimeDomain {
   /**
-   * The {@code EVENT_TIME} domain corresponds to the timestamps on the elements. Time advances
-   * on the system watermark advances.
+   * The {@link #EVENT_TIME} domain corresponds to the timestamps on the elements. Time advances on
+   * the system watermark advances.
    */
   EVENT_TIME,
 
   /**
-   * The {@code PROCESSING_TIME} domain corresponds to the current to the current (system) time.
+   * The {@link #PROCESSING_TIME} domain corresponds to the current to the current (system) time.
    * This is advanced during execution of the pipeline.
    */
   PROCESSING_TIME,
 
   /**
-   * Same as the {@code PROCESSING_TIME} domain, except it won't fire a timer set for time
-   * {@code T} until all timers from earlier stages set for a time earlier than {@code T} have
-   * fired.
+   * Same as the {@link #PROCESSING_TIME} domain, except it won't fire a timer set for time <i>t</i>
+   * until all timers from earlier stages set for a time earlier than <i>t</i> have fired.
    */
   SYNCHRONIZED_PROCESSING_TIME
 }
