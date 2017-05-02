@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -44,7 +46,13 @@ public class FlinkSideInputReader implements SideInputReader {
                               RuntimeContext runtimeContext) {
     sideInputs = new HashMap<>();
     for (Map.Entry<PCollectionView<?>, WindowingStrategy<?, ?>> entry : indexByView.entrySet()) {
-      sideInputs.put(entry.getKey().getTagInternal(), entry.getValue());
+      checkArgument(
+          entry.getKey() instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          entry.getKey().getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) entry.getKey();
+      sideInputs.put(simpleView.getTagInternal(), entry.getValue());
     }
     this.runtimeContext = runtimeContext;
   }
@@ -53,7 +61,13 @@ public class FlinkSideInputReader implements SideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
-    TupleTag<Iterable<WindowedValue<?>>> tag = view.getTagInternal();
+    checkArgument(
+        view instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        view.getClass().getName());
+    SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
+    TupleTag<Iterable<WindowedValue<?>>> tag = simpleView.getTagInternal();
     checkNotNull(
         sideInputs.get(tag),
         "Side input for " + view + " not available.");
@@ -63,14 +77,20 @@ public class FlinkSideInputReader implements SideInputReader {
             tag.getId(), new SideInputInitializer<>(view));
     T result = sideInputs.get(window);
     if (result == null) {
-      result = view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
+      result = simpleView.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
     }
     return result;
   }
 
   @Override
   public <T> boolean contains(PCollectionView<T> view) {
-    return sideInputs.containsKey(view.getTagInternal());
+    checkArgument(
+        view instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        view.getClass().getName());
+    SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
+    return sideInputs.containsKey(simpleView.getTagInternal());
   }
 
   @Override

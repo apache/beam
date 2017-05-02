@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -210,9 +212,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
       return sideInputReader.get(
           view,
-          view.getWindowMappingFn()
+          simpleView
+              .getWindowMappingFn()
               .getSideInputWindow(Iterables.getOnlyElement(element.getWindows())));
     }
 

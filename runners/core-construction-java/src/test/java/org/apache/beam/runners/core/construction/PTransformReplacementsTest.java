@@ -30,8 +30,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
@@ -48,8 +48,9 @@ public class PTransformReplacementsTest {
   @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public ExpectedException thrown = ExpectedException.none();
   private PCollection<Long> mainInput = pipeline.apply(GenerateSequence.from(0));
-  private PCollectionView<String> sideInput =
-      pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+  private SimplePCollectionView<?, String, ?> sideInput =
+      (SimplePCollectionView<?, String, ?>)
+          pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
 
   private PCollection<Long> output = mainInput.apply(ParDo.of(new TestDoFn()));
 

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -33,10 +36,15 @@ import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 public class SideInputInitializer<ElemT, ViewT, W extends BoundedWindow>
     implements BroadcastVariableInitializer<WindowedValue<ElemT>, Map<BoundedWindow, ViewT>> {
 
-  PCollectionView<ViewT> view;
+  SimplePCollectionView<ElemT, ViewT, W> view;
 
   public SideInputInitializer(PCollectionView<ViewT> view) {
-    this.view = view;
+    checkArgument(
+        view instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        view.getClass().getName());
+    this.view = (SimplePCollectionView<ElemT, ViewT, W>) view;
   }
 
   @Override

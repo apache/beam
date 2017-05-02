@@ -86,6 +86,7 @@ import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -935,8 +936,14 @@ public class DataflowPipelineTranslator {
     Map<String, Object> nonParInputs = new HashMap<>();
 
     for (PCollectionView<?> view : sideInputs) {
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view;
       nonParInputs.put(
-          view.getTagInternal().getId(),
+          simpleView.getTagInternal().getId(),
           context.asOutputReference(view, context.getProducer(view)));
     }
 

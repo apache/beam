@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashMultimap;
@@ -369,8 +370,11 @@ public class PCollectionViews {
     /**
      * Call this constructor to initialize the fields for which this base class provides
      * boilerplate accessors.
+     *
+     * <p>For internal use only.
      */
-    private SimplePCollectionView(
+    @VisibleForTesting
+    protected SimplePCollectionView(
         PCollection<ElemT> pCollection,
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
         ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
@@ -418,7 +422,6 @@ public class PCollectionViews {
       super();
     }
 
-    @Override
     public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
       // Safe cast: it is required that the rest of the SDK maintain the invariant
       // that a PCollectionView is only provided an iterable for the elements of an
@@ -428,12 +431,10 @@ public class PCollectionViews {
       return untypedViewFn;
     }
 
-    @Override
     public WindowMappingFn<?> getWindowMappingFn() {
       return windowMappingFn;
     }
 
-    @Override
     public PCollection<?> getPCollection() {
       return pCollection;
     }
@@ -443,7 +444,6 @@ public class PCollectionViews {
      *
      * <p>For internal use only by runner implementors.
      */
-    @Override
     public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
       // Safe cast: It is required that the rest of the SDK maintain the invariant that
       // this tag is only used to access the contents of an appropriately typed underlying
@@ -459,12 +459,10 @@ public class PCollectionViews {
      *
      * <p>For internal use only by runner implementors.
      */
-    @Override
     public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
       return windowingStrategy;
     }
 
-    @Override
     public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
       // Safe cast: It is required that the rest of the SDK only use this untyped coder
       // for the elements of an appropriately typed underlying PCollection.
@@ -480,11 +478,11 @@ public class PCollectionViews {
 
     @Override
     public boolean equals(Object other) {
-      if (!(other instanceof PCollectionView)) {
+      if (!(other instanceof SimplePCollectionView)) {
         return false;
       }
       @SuppressWarnings("unchecked")
-      PCollectionView<?> otherView = (PCollectionView<?>) other;
+      SimplePCollectionView<?, ?, ?> otherView = (SimplePCollectionView<?, ?, ?>) other;
       return tag.equals(otherView.getTagInternal());
     }
 

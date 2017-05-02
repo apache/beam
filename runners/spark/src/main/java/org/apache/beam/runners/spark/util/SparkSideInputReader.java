@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Predicate;
@@ -25,6 +26,7 @@ import com.google.common.collect.Iterables;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -49,13 +51,19 @@ public class SparkSideInputReader implements SideInputReader {
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     //--- validate sideInput.
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
+    checkArgument(
+        view instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        view.getClass().getName());
+    SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
     KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =
-        sideInputs.get(view.getTagInternal());
+        sideInputs.get(simpleView.getTagInternal());
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
     //--- sideInput window
     final BoundedWindow sideInputWindow =
-        view.getWindowMappingFn().getSideInputWindow(window);
+        simpleView.getWindowMappingFn().getSideInputWindow(window);
 
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
@@ -79,12 +87,18 @@ public class SparkSideInputReader implements SideInputReader {
             return false;
           }
         });
-    return view.getViewFn().apply(sideInputForWindow);
+    return simpleView.getViewFn().apply(sideInputForWindow);
   }
 
   @Override
   public <T> boolean contains(PCollectionView<T> view) {
-    return sideInputs.containsKey(view.getTagInternal());
+    checkArgument(
+        view instanceof SimplePCollectionView,
+        "Unknown %s type: %s",
+        PCollectionView.class.getSimpleName(),
+        view.getClass().getName());
+    SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
+    return sideInputs.containsKey(simpleView.getTagInternal());
   }
 
   @Override

@@ -38,6 +38,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.PCollectionViewWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -169,7 +170,13 @@ class SideInputContainer {
         load(PCollectionViewWindow<?> view) {
 
       AtomicReference<Iterable<? extends WindowedValue<?>>> contents = new AtomicReference<>();
-      WindowingStrategy<?, ?> windowingStrategy = view.getView().getWindowingStrategyInternal();
+      checkArgument(
+          view.getView() instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view.getView();
+      WindowingStrategy<?, ?> windowingStrategy = simpleView.getWindowingStrategyInternal();
 
       context.scheduleAfterOutputWouldBeProduced(view.getView(),
           view.getWindow(),
@@ -240,11 +247,17 @@ class SideInputContainer {
           "calling get() on PCollectionView %s that is not ready in window %s",
           view,
           window);
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, T, ?> simpleView = (SimplePCollectionView<?, T, ?>) view;
       // Safe covariant cast
       @SuppressWarnings("unchecked") Iterable<WindowedValue<?>> values =
           (Iterable<WindowedValue<?>>) viewContents.getUnchecked(PCollectionViewWindow.of(view,
               window)).get();
-      return view.getViewFn().apply(values);
+      return simpleView.getViewFn().apply(values);
     }
 
     @Override
