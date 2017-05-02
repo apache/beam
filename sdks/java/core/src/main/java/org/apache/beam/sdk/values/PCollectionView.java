@@ -21,6 +21,7 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -44,54 +45,76 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  * {@link View#asIterable()}, and {@link View#asMap()} for more detail on specific views
  * available in the SDK.
  *
+ * <p>NOTE: View methods should not be considered to be user-accessible. They are implementation
+ * details of how a Runner obtains information required to construct a view, and are subject to
+ * change at any time.
+ *
  * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
-   * Gets the {@link PCollection} this {@link PCollectionView} was created from.
+   * For internal use only.
+   *
+   * <p>Gets the {@link PCollection} this {@link PCollectionView} was created from.
    *
    * <p>The {@link PCollection} may not be available in all contexts.
    */
   @Nullable
+  @Internal
   PCollection<?> getPCollection();
 
   /**
+   * For internal use only.
+   *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, is part of the side input's specification with a {@link ParDo} transform, which will
    *     obtain that information via a package-private channel.
    */
   @Deprecated
+  @Internal
   TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
+   * For internal use only.
+   *
    * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
    *     attribute of the side input's specification with a {@link ParDo} transform, which will
    *     obtain this specification via a package-private channel.
    */
   @Deprecated
+  @Internal
   ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
 
   /**
-   * Returns the {@link WindowMappingFn} used to map windows from a main input to the side input of
-   * this {@link PCollectionView}.
+   * For internal use only.
+   *
+   * <p>Returns the {@link WindowMappingFn} used to map windows from a main input to the side input
+   * of this {@link PCollectionView}.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
+  @Internal
   WindowMappingFn<?> getWindowMappingFn();
 
   /**
+   * For internal use only.
+   *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, including its {@link WindowingStrategy}, is part of the side input's specification
    *     with a {@link ParDo} transform, which will obtain that information via a package-private
    *     channel.
    */
   @Deprecated
+  @Internal
   WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
+   * For internal use only.
+   *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, including its {@link Coder}, is part of the side input's specification with a {@link
    *     ParDo} transform, which will obtain that information via a package-private channel.
    */
   @Deprecated
+  @Internal
   Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }
