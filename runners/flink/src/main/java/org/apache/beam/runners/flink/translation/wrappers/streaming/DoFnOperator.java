@@ -695,13 +695,17 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     @Override
     public void setTimer(TimerData timerKey) {
       long time = timerKey.getTimestamp().getMillis();
-      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        timerService.registerEventTimeTimer(timerKey, time);
-      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-        timerService.registerProcessingTimeTimer(timerKey, time);
-      } else {
-        throw new UnsupportedOperationException(
-            "Unsupported time domain: " + timerKey.getDomain());
+      switch (timerKey.getDomain()) {
+        case EVENT_TIME:
+          timerService.registerEventTimeTimer(timerKey, time);
+          break;
+        case PROCESSING_TIME:
+        case SYNCHRONIZED_PROCESSING_TIME:
+          timerService.registerProcessingTimeTimer(timerKey, time);
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported time domain: " + timerKey.getDomain());
       }
     }
 
@@ -722,13 +726,17 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     @Override
     public void deleteTimer(TimerData timerKey) {
       long time = timerKey.getTimestamp().getMillis();
-      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-        timerService.deleteEventTimeTimer(timerKey, time);
-      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-        timerService.deleteProcessingTimeTimer(timerKey, time);
-      } else {
-        throw new UnsupportedOperationException(
-            "Unsupported time domain: " + timerKey.getDomain());
+      switch (timerKey.getDomain()) {
+        case EVENT_TIME:
+          timerService.deleteEventTimeTimer(timerKey, time);
+          break;
+        case PROCESSING_TIME:
+        case SYNCHRONIZED_PROCESSING_TIME:
+          timerService.deleteProcessingTimeTimer(timerKey, time);
+          break;
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported time domain: " + timerKey.getDomain());
       }
     }
 
