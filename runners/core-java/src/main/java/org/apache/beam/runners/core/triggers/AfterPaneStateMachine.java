@@ -27,7 +27,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStat
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.state.CombiningState;
+import org.apache.beam.sdk.state.CombiningState;
 
 /**
  * {@link TriggerStateMachine}s that fire based on properties of the elements in the current pane.

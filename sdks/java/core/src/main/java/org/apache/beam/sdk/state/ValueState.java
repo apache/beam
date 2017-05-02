@@ -15,8 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.state;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Defines internal utilities for interacting with pipeline state.
+ * State holding a single value.
+ *
+ * @param <T> The type of values being stored.
  */
-package org.apache.beam.sdk.util.state;
+@Experimental(Kind.STATE)
+public interface ValueState<T> extends ReadableState<T>, State {
+  /**
+   * Set the value of the buffer.
+   */
+  void write(T input);
+
+  @Override
+  ValueState<T> readLater();
+}
