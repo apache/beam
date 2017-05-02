@@ -15,18 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 /**
- * Base interface for all state locations.
+ * State containing no duplicate elements.
+ * Items can be added to the set and the contents read out.
  *
- * <p>Specific types of state add appropriate accessors for reading and writing values, see
- * {@link ValueState}, {@link BagState}, and {@link GroupingState}.
+ * @param <T> The type of elements in the set.
  */
-public interface State {
+public interface SetState<T> extends GroupingState<T, Iterable<T>> {
+  /**
+   * Returns true if this set contains the specified element.
+   */
+  ReadableState<Boolean> contains(T t);
 
   /**
-   * Clear out the state location.
+   * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
+   * false} otherwise.
    */
-  void clear();
+  ReadableState<Boolean> addIfAbsent(T t);
+
+  /**
+   * Removes the specified element from this set if it is present.
+   */
+  void remove(T t);
+
+  @Override
+  SetState<T> readLater();
 }

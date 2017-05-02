@@ -15,14 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
 
 /**
- * State containing a bag values. Items can be added to the bag and the contents read out.
- *
- * @param <T> The type of elements in the bag.
+ * Defines internal utilities for interacting with pipeline state.
  */
-public interface BagState<T> extends GroupingState<T, Iterable<T>> {
-  @Override
-  BagState<T> readLater();
-}
+package org.apache.beam.sdk.state;

@@ -15,31 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
-
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+package org.apache.beam.sdk.state;
 
 /**
- * Utilities for constructing and manipulating {@link ReadableState} instances.
+ * Base interface for all state locations.
+ *
+ * <p>Specific types of state add appropriate accessors for reading and writing values, see
+ * {@link ValueState}, {@link BagState}, and {@link GroupingState}.
  */
-@Experimental(Kind.STATE)
-public class ReadableStates {
+public interface State {
 
   /**
-   * A {@link ReadableState} constructed from a constant value, hence immediately available.
+   * Clear out the state location.
    */
-  public static <T> ReadableState<T> immediate(final T value) {
-    return new ReadableState<T>() {
-      @Override
-      public T read() {
-        return value;
-      }
-
-      @Override
-      public ReadableState<T> readLater() {
-        return this;
-      }
-    };
-  }
+  void clear();
 }

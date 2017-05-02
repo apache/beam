@@ -320,7 +320,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public org.apache.beam.sdk.util.state.State state(String stateId) {
+            public org.apache.beam.sdk.state.State state(String stateId) {
               throw new UnsupportedOperationException("DoFnTester doesn't support state yet");
             }
 

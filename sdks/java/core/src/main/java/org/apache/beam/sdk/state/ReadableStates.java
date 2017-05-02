@@ -15,37 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * {@link State} that can be read via {@link #read()}.
- *
- * <p>Use {@link #readLater()} for marking several states for prefetching. Runners
- * can potentially batch these into one read.
- *
- * @param <T> The type of value returned by {@link #read}.
+ * Utilities for constructing and manipulating {@link ReadableState} instances.
  */
 @Experimental(Kind.STATE)
-public interface ReadableState<T> {
-  /**
-   * Read the current value, blocking until it is available.
-   *
-   * <p>If there will be many calls to {@link #read} for different state in short succession,
-   * you should first call {@link #readLater} for all of them so the reads can potentially be
-   * batched (depending on the underlying implementation}.
-   */
-  T read();
+public class ReadableStates {
 
   /**
-   * Indicate that the value will be read later.
-   *
-   * <p>This allows an implementation to start an asynchronous prefetch or
-   * to include this state in the next batch of reads.
-   *
-   * @return this for convenient chaining
+   * A {@link ReadableState} constructed from a constant value, hence immediately available.
    */
-  ReadableState<T> readLater();
+  public static <T> ReadableState<T> immediate(final T value) {
+    return new ReadableState<T>() {
+      @Override
+      public T read() {
+        return value;
+      }
+
+      @Override
+      public ReadableState<T> readLater() {
+        return this;
+      }
+    };
+  }
 }

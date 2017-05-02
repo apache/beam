@@ -24,8 +24,8 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.sdk.util.state.State;
-import org.apache.beam.sdk.util.state.StateContext;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateContext;
 
 /**
  * State internals for reusable processing context.
