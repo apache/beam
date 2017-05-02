@@ -25,8 +25,6 @@ import com.google.api.services.dataflow.model.DataflowPackage;
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.io.fs.CreateOptions;
-import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -59,17 +57,10 @@ public class GcsStager implements Stager {
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
     uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
-    CreateOptions createOptions;
-    if (options.getGcsUploadBufferSizeBytes() != null
-        && options.getGcsUploadBufferSizeBytes() == uploadSizeBytes) {
-      // Nothing to override, use the default options.
-      createOptions = StandardCreateOptions.builder().setMimeType(MimeTypes.BINARY).build();
-    } else {
-      createOptions = GcsCreateOptions.builder()
-          .setGcsUploadBufferSizeBytes(uploadSizeBytes)
-          .setMimeType(MimeTypes.BINARY)
-          .build();
-    }
+    GcsCreateOptions createOptions = GcsCreateOptions.builder()
+        .setGcsUploadBufferSizeBytes(uploadSizeBytes)
+        .setMimeType(MimeTypes.BINARY)
+        .build();
 
     return PackageUtil.stageClasspathElements(
         options.getFilesToStage(),

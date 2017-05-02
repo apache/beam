@@ -33,6 +33,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -478,9 +479,17 @@ public class DataflowRunnerTest {
     options.setJobName("job");
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
-    // Provide a valid upload buffer size to prevent mockGcsUtil from being overridden.
-    options.setGcsUploadBufferSizeBytes(1024 * 1024);
     options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(new Answer<SeekableByteChannel>() {
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
 
     Pipeline p = buildDataflowPipeline(options);
 

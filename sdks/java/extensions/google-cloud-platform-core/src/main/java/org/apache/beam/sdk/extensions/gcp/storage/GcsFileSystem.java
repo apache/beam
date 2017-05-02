@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
@@ -47,9 +46,7 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
-import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +102,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return getGcsUtil(createOptions).create(resourceId.getGcsPath(), createOptions.mimeType());
+    if (createOptions instanceof GcsCreateOptions) {
+      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType(),
+          ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
+    } else {
+      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
+    }
   }
 
   @Override
@@ -166,27 +168,6 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
             }
           }})
         .toList();
-  }
-
-  /**
-   * Returns a {@link GcsUtil} from the given {@link CreateOptions}.
-   *
-   * <p>It creates a new gcs client if the gcs options are overridden through
-   * {@link GcsCreateOptions}, else returns the default {@link GcsUtil} from the pipeline options.
-   */
-  private GcsUtil getGcsUtil(CreateOptions createOptions) {
-    if (createOptions instanceof GcsCreateOptions) {
-      GcsCreateOptions gcsCreateOptions = (GcsCreateOptions) createOptions;
-      Storage.Builder storageBuilder = Transport.newStorageClient(options);
-      GcsUtil util = GcsUtilFactory.create(
-          storageBuilder.build(),
-          storageBuilder.getHttpRequestInitializer(),
-          options.getExecutorService(),
-          gcsCreateOptions.gcsUploadBufferSizeBytes());
-      return util;
-    } else {
-      return options.getGcsUtil();
-    }
   }
 
   /**
