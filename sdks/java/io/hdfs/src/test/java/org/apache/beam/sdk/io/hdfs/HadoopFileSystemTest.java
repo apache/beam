@@ -46,6 +46,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -210,6 +211,7 @@ public class HadoopFileSystemTest {
   }
 
   @Test
+  @Ignore("TestPipeline needs a way to take in HadoopFileSystemOptions")
   public void testReadPipeline() throws Exception {
     create("testFileA", "testDataA".getBytes());
     create("testFileB", "testDataB".getBytes());
