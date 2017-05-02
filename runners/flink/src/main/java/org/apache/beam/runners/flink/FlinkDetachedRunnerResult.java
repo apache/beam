@@ -18,7 +18,6 @@
 package org.apache.beam.runners.flink;
 
 import java.io.IOException;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;

@@ -15,23 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * State holding a single value.
+ * {@link State} that can be read via {@link #read()}.
  *
- * @param <T> The type of values being stored.
+ * <p>Use {@link #readLater()} for marking several states for prefetching. Runners
+ * can potentially batch these into one read.
+ *
+ * @param <T> The type of value returned by {@link #read}.
  */
 @Experimental(Kind.STATE)
-public interface ValueState<T> extends ReadableState<T>, State {
+public interface ReadableState<T> {
   /**
-   * Set the value of the buffer.
+   * Read the current value, blocking until it is available.
+   *
+   * <p>If there will be many calls to {@link #read} for different state in short succession,
+   * you should first call {@link #readLater} for all of them so the reads can potentially be
+   * batched (depending on the underlying implementation}.
    */
-  void write(T input);
+  T read();
 
-  @Override
-  ValueState<T> readLater();
+  /**
+   * Indicate that the value will be read later.
+   *
+   * <p>This allows an implementation to start an asynchronous prefetch or
+   * to include this state in the next batch of reads.
+   *
+   * @return this for convenient chaining
+   */
+  ReadableState<T> readLater();
 }
