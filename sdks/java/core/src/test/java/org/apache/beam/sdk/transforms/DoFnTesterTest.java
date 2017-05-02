@@ -195,12 +195,12 @@ public class DoFnTesterTest {
     }
 
     @StartBundle
-    public void startBundle(Context context) {
+    public void startBundle() {
       ++numStartBundleCalls;
     }
 
     @FinishBundle
-    public void finishBundle(Context context) {
+    public void finishBundle() {
       ++numFinishBundleCalls;
     }
   }
@@ -397,7 +397,7 @@ public class DoFnTesterTest {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       checkState(state == LifecycleState.SET_UP, "Wrong state: %s", state);
       state = LifecycleState.INSIDE_BUNDLE;
       startBundleCalls.inc();
@@ -412,7 +412,7 @@ public class DoFnTesterTest {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       checkState(state == LifecycleState.INSIDE_BUNDLE, "Wrong state: %s", state);
       state = LifecycleState.SET_UP;
       finishBundleCalls.inc();

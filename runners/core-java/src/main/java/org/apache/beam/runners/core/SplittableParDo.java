@@ -440,13 +440,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
-      invoker.invokeStartBundle(wrapContext(c));
+    public void startBundle(StartBundleContext c) throws Exception {
+      invoker.invokeStartBundle(wrapContextAsStartBundle(c));
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
-      invoker.invokeFinishBundle(wrapContext(c));
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      invoker.invokeFinishBundle(wrapContextAsFinishBundle(c));
     }
 
     @ProcessElement
@@ -522,31 +522,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
     }
 
-    private DoFn<InputT, OutputT>.Context wrapContext(final Context baseContext) {
-      return fn.new Context() {
+    private DoFn<InputT, OutputT>.StartBundleContext wrapContextAsStartBundle(
+        final StartBundleContext baseContext) {
+      return fn.new StartBundleContext() {
         @Override
         public PipelineOptions getPipelineOptions() {
           return baseContext.getPipelineOptions();
-        }
-
-        @Override
-        public void output(OutputT output) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public void outputWithTimestamp(OutputT output, Instant timestamp) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public <T> void output(TupleTag<T> tag, T output) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-          throwUnsupportedOutput();
         }
 
         private void throwUnsupportedOutput() {
@@ -557,6 +538,34 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
       };
     }
+
+    private DoFn<InputT, OutputT>.FinishBundleContext wrapContextAsFinishBundle(
+        final FinishBundleContext baseContext) {
+      return fn.new FinishBundleContext() {
+        @Override
+        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return baseContext.getPipelineOptions();
+        }
+
+        private void throwUnsupportedOutput() {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Splittable DoFn can only output from @%s",
+                  ProcessElement.class.getSimpleName()));
+        }
+      };
+    }
+
   }
 
   /** Splits the restriction using the given {@link DoFn.SplitRestriction} method. */

@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -246,6 +245,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     // Writer that will write the records in this bundle. Lazily
     // initialized in processElement.
     private FileBasedWriter<T> writer = null;
+    private BoundedWindow window = null;
 
     WriteBundles() {
     }
@@ -263,6 +263,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         } else {
           writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
         }
+        this.window = window;
         LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
       }
       try {
@@ -285,10 +286,10 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle(FinishBundleContext c) throws Exception {
       if (writer != null) {
         FileResult result = writer.close();
-        c.output(result);
+        c.output(result, window.maxTimestamp(), window);
         // Reset state in case of reuse.
         writer = null;
       }

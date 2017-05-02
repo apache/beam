@@ -33,9 +33,10 @@ import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -137,9 +138,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void startBundle() {
+    DoFnStartBundleContext<InputT, OutputT> startBundleContext =
+        createStartBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeStartBundle(context);
+      invoker.invokeStartBundle(startBundleContext);
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
@@ -200,13 +203,25 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void finishBundle() {
+    DoFnFinishBundleContext<InputT, OutputT> finishBundleContext =
+        createFinishBundleContext(fn, context);
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeFinishBundle(context);
+      invoker.invokeFinishBundle(finishBundleContext);
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
     }
+  }
+
+  private DoFnStartBundleContext<InputT, OutputT> createStartBundleContext(
+      DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+    return new DoFnStartBundleContext<>(this.fn, this.context);
+  }
+
+  private DoFnFinishBundleContext<InputT, OutputT> createFinishBundleContext(
+      DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+    return new DoFnFinishBundleContext<>(fn, context);
   }
 
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
@@ -228,8 +243,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <InputT> the type of the {@link DoFn} (main) input elements
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+  private static class DoFnContext<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -255,7 +269,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         List<TupleTag<?>> additionalOutputTags,
         StepContext stepContext,
         WindowFn<?, ?> windowFn) {
-      fn.super();
       this.options = options;
       this.fn = fn;
       this.sideInputReader = sideInputReader;
@@ -274,7 +287,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     //////////////////////////////////////////////////////////////////////////////
 
-    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -374,30 +386,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         stepContext.noteOutput(tag, windowedElem);
       }
     }
+  }
 
-    // Following implementations of output, outputWithTimestamp, and output
-    // are only accessible in DoFn.startBundle and DoFn.finishBundle, and will be shadowed by
-    // ProcessContext's versions in DoFn.processElement.
-    @Override
-    public void output(OutputT output) {
-      outputWindowedValue(output, null, null, PaneInfo.NO_FIRING);
+
+  /**
+   * A concrete implementation of {@link DoFn.StartBundleContext}.
+   */
+  private class DoFnStartBundleContext<InputT, OutputT>
+      extends DoFn<InputT, OutputT>.StartBundleContext
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final DoFn<InputT, OutputT> fn;
+    private final DoFnContext<InputT, OutputT> context;
+
+    private DoFnStartBundleContext(DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+      fn.super();
+      this.fn = fn;
+      this.context = context;
     }
 
     @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      outputWindowedValue(output, timestamp, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      checkNotNull(tag, "TupleTag passed to output cannot be null");
-      outputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
-      outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
     }
 
     @Override
@@ -407,14 +416,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Context context(DoFn<InputT, OutputT> doFn) {
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
       return this;
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access FinishBundleContext outside of @FinishBundle method.");
     }
 
     @Override
     public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          "Cannot access ProcessContext outside of @Processelement method.");
+          "Cannot access ProcessContext outside of @ProcessElement method.");
     }
 
     @Override
@@ -439,6 +454,85 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Timer timer(String timerId) {
       throw new UnsupportedOperationException(
           "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+  }
+
+  /**
+   * B
+   * A concrete implementation of {@link DoFn.FinishBundleContext}.
+   */
+  private class DoFnFinishBundleContext<InputT, OutputT>
+      extends DoFn<InputT, OutputT>.FinishBundleContext
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final DoFnContext<InputT, OutputT> context;
+
+    private DoFnFinishBundleContext(
+        DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
+      fn.super();
+      this.context = context;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return context.getPipelineOptions();
+    }
+
+    @Override
+    public BoundedWindow window() {
+      throw new UnsupportedOperationException(
+          "Cannot access window outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access StartBundleContext outside of @StartBundle method.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access ProcessContext outside of @ProcessElement method.");
+    }
+
+    @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
+    public RestrictionTracker<?> restrictionTracker() {
+      throw new UnsupportedOperationException(
+          "Cannot access RestrictionTracker outside of @ProcessElement method.");
+    }
+
+    @Override
+    public State state(String stateId) {
+      throw new UnsupportedOperationException(
+          "Cannot access state outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException(
+          "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+      context.outputWindowedValue(WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      context.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
     }
   }
 
@@ -590,8 +684,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
-      return this;
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
     }
 
     @Override
@@ -698,14 +797,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
+    }
+
+    @Override
     public TimeDomain timeDomain() {
       return timeDomain;
     }
 
-    @Override
-    public Context context(DoFn<InputT, OutputT> doFn) {
-      throw new UnsupportedOperationException("Context parameters are not supported.");
-    }
 
     @Override
     public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {

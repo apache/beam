@@ -704,7 +704,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
       }
 
@@ -748,7 +748,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
@@ -821,7 +821,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
       }
@@ -1145,7 +1145,7 @@ public class DatastoreV1 {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
     }
 
@@ -1158,7 +1158,7 @@ public class DatastoreV1 {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       if (!mutations.isEmpty()) {
         flushBatch();
       }

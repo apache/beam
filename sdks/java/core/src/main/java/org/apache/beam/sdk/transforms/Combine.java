@@ -1844,9 +1844,8 @@ public class Combine {
           new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
             @StartBundle
-            public void startBundle(Context c) {
-              counter = ThreadLocalRandom.current().nextInt(
-                  Integer.MAX_VALUE);
+            public void startBundle() {
+              counter = ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE);
             }
 
             @ProcessElement

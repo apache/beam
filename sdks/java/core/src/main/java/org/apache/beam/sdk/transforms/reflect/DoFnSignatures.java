@@ -346,14 +346,14 @@ public class DoFnSignatures {
     if (startBundleMethod != null) {
       ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
       signatureBuilder.setStartBundle(
-          analyzeBundleMethod(startBundleErrors, fnT, startBundleMethod, inputT, outputT));
+          analyzeStartBundleMethod(startBundleErrors, fnT, startBundleMethod, inputT, outputT));
     }
 
     if (finishBundleMethod != null) {
       ErrorReporter finishBundleErrors =
           errors.forMethod(DoFn.FinishBundle.class, finishBundleMethod);
       signatureBuilder.setFinishBundle(
-          analyzeBundleMethod(finishBundleErrors, fnT, finishBundleMethod, inputT, outputT));
+          analyzeFinishBundleMethod(finishBundleErrors, fnT, finishBundleMethod, inputT, outputT));
     }
 
     if (setupMethod != null) {
@@ -607,12 +607,25 @@ public class DoFnSignatures {
   }
 
   /**
-   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
-   * InputT} and {@code OutputT}.
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.StartBundleContext} given
+   * {@code InputT} and {@code OutputT}.
    */
-  private static <InputT, OutputT> TypeDescriptor<DoFn<InputT, OutputT>.Context> doFnContextTypeOf(
-      TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
-    return new TypeDescriptor<DoFn<InputT, OutputT>.Context>() {}.where(
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.StartBundleContext> doFnStartBundleContextTypeOf(
+          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.StartBundleContext>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.FinishBundleContext} given
+   * {@code InputT} and {@code OutputT}.
+   */
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.FinishBundleContext> doFnFinishBundleContextTypeOf(
+          TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.FinishBundleContext>() {}.where(
             new TypeParameter<InputT>() {}, inputT)
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
@@ -752,7 +765,6 @@ public class DoFnSignatures {
       TypeDescriptor<?> outputT) {
 
     TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
-    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
 
     TypeDescriptor<?> paramT = param.getType();
@@ -765,11 +777,6 @@ public class DoFnSignatures {
         "ProcessContext argument must have type %s",
         formatType(expectedProcessContextT));
       return Parameter.processContext();
-    } else if (rawType.equals(DoFn.Context.class)) {
-      paramErrors.checkArgument(paramT.equals(expectedContextT),
-          "Context argument must have type %s",
-          formatType(expectedContextT));
-      return Parameter.context();
     } else if (rawType.equals(DoFn.OnTimerContext.class)) {
       paramErrors.checkArgument(
           paramT.equals(expectedOnTimerContextT),
@@ -921,17 +928,36 @@ public class DoFnSignatures {
   }
 
   @VisibleForTesting
-  static DoFnSignature.BundleMethod analyzeBundleMethod(
+  static DoFnSignature.BundleMethod analyzeStartBundleMethod(
       ErrorReporter errors,
       TypeDescriptor<? extends DoFn<?, ?>> fnT,
       Method m,
       TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
-    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedContextT = doFnStartBundleContextTypeOf(inputT, outputT);
     Type[] params = m.getGenericParameterTypes();
     errors.checkArgument(
-        params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT),
+        params.length == 0
+            || (params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT)),
+        "Must take a single argument of type %s",
+        formatType(expectedContextT));
+    return DoFnSignature.BundleMethod.create(m);
+  }
+
+  @VisibleForTesting
+  static DoFnSignature.BundleMethod analyzeFinishBundleMethod(
+      ErrorReporter errors,
+      TypeDescriptor<? extends DoFn<?, ?>> fnT,
+      Method m,
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT) {
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+    TypeDescriptor<?> expectedContextT = doFnFinishBundleContextTypeOf(inputT, outputT);
+    Type[] params = m.getGenericParameterTypes();
+    errors.checkArgument(
+        params.length == 0
+            || (params.length == 1 && fnT.resolveType(params[0]).equals(expectedContextT)),
         "Must take a single argument of type %s",
         formatType(expectedContextT));
     return DoFnSignature.BundleMethod.create(m);

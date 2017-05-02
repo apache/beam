@@ -572,7 +572,7 @@ public class BigtableIO {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws IOException {
+      public void startBundle(StartBundleContext c) throws IOException {
         if (bigtableWriter == null) {
           bigtableWriter = bigtableServiceFactory.apply(
               c.getPipelineOptions()).openForWriting(tableId);
@@ -589,7 +589,7 @@ public class BigtableIO {
       }
 
       @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      public void finishBundle() throws Exception {
         bigtableWriter.flush();
         checkForFailures();
         LOG.info("Wrote {} records", recordsWritten);

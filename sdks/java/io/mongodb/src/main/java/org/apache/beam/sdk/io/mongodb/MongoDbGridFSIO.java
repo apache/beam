@@ -641,7 +641,7 @@ public class MongoDbGridFSIO {
     }
 
     @StartBundle
-    public void startBundle(Context context) {
+    public void startBundle() {
       gridFsFile = gridfs.createFile(spec.filename());
       if (spec.chunkSize() != null) {
         gridFsFile.setChunkSize(spec.chunkSize());
@@ -656,7 +656,7 @@ public class MongoDbGridFSIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context context) throws Exception {
+    public void finishBundle() throws Exception {
       if (gridFsFile != null) {
         outputStream.flush();
         outputStream.close();

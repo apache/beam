@@ -71,6 +71,8 @@ import org.mockito.MockitoAnnotations;
 public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
+  @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
   @Mock private IntervalWindow mockWindow;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
@@ -79,6 +81,10 @@ public class DoFnInvokersTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
+    when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
+        .thenReturn(mockStartBundleContext);
+    when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
+        .thenReturn(mockFinishBundleContext);
     when(mockArgumentProvider.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
   }
 
@@ -233,10 +239,10 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c) {}
 
       @StartBundle
-      public void startBundle(Context c) {}
+      public void startBundle(StartBundleContext c) {}
 
       @FinishBundle
-      public void finishBundle(Context c) {}
+      public void finishBundle(FinishBundleContext c) {}
 
       @Setup
       public void before() {}
@@ -247,12 +253,12 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
-    invoker.invokeStartBundle(mockProcessContext);
-    invoker.invokeFinishBundle(mockProcessContext);
+    invoker.invokeStartBundle(mockStartBundleContext);
+    invoker.invokeFinishBundle(mockFinishBundleContext);
     invoker.invokeTeardown();
     verify(fn).before();
-    verify(fn).startBundle(mockProcessContext);
-    verify(fn).finishBundle(mockProcessContext);
+    verify(fn).startBundle(mockStartBundleContext);
+    verify(fn).finishBundle(mockFinishBundleContext);
     verify(fn).after();
   }
 
@@ -601,7 +607,7 @@ public class DoFnInvokersTest {
         DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @StartBundle
-              public void startBundle(@SuppressWarnings("unused") Context c) {
+              public void startBundle(@SuppressWarnings("unused") StartBundleContext c) {
                 throw new IllegalArgumentException("bogus");
               }
 
@@ -619,7 +625,7 @@ public class DoFnInvokersTest {
         DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @FinishBundle
-              public void finishBundle(@SuppressWarnings("unused") Context c) {
+              public void finishBundle(@SuppressWarnings("unused") FinishBundleContext c) {
                 throw new IllegalArgumentException("bogus");
               }
 

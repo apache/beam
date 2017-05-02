@@ -71,6 +71,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -304,20 +305,21 @@ public class ProcessBundleHandlerTest {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
     private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
-    @StartBundle
-    public void startBundle(Context context) {
-      context.output("StartBundle");
-    }
+    private BoundedWindow window;
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context, BoundedWindow window) {
       context.output("MainOutput" + context.element());
       context.output(additionalOutput, "AdditionalOutput" + context.element());
+      this.window = window;
     }
 
     @FinishBundle
-    public void finishBundle(Context context) {
-      context.output("FinishBundle");
+    public void finishBundle(FinishBundleContext context) {
+      if (window != null) {
+        context.output("FinishBundle", window.maxTimestamp(), window);
+        window = null;
+      }
     }
   }
 
@@ -411,7 +413,6 @@ public class ProcessBundleHandlerTest {
         finishFunctions::add);
 
     Iterables.getOnlyElement(startFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("StartBundle")));
     mainOutputValues.clear();
 
     assertEquals(newConsumers.keySet(),

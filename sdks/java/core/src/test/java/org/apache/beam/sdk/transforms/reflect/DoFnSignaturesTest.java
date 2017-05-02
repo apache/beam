@@ -76,13 +76,14 @@ public class DoFnSignaturesTest {
   @Test
   public void testBadExtraContext() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take a single argument of type DoFn<Integer, String>.Context");
+    thrown.expectMessage(
+        "Must take a single argument of type DoFn<Integer, String>.StartBundleContext");
 
-    DoFnSignatures.analyzeBundleMethod(
+    DoFnSignatures.analyzeStartBundleMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),
         new DoFnSignaturesTestUtils.AnonymousMethod() {
-          void method(DoFn<Integer, String>.Context c, int n) {}
+          void method(DoFn<Integer, String>.StartBundleContext c, int n) {}
         }.getMethod(),
         TypeDescriptor.of(Integer.class),
         TypeDescriptor.of(String.class));
@@ -112,8 +113,8 @@ public class DoFnSignaturesTest {
   public void testMultipleFinishBundleMethods() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Found multiple methods annotated with @FinishBundle");
-    thrown.expectMessage("bar(Context)");
-    thrown.expectMessage("baz(Context)");
+    thrown.expectMessage("bar(FinishBundleContext)");
+    thrown.expectMessage("baz(FinishBundleContext)");
     thrown.expectMessage(getClass().getName() + "$");
     DoFnSignatures.getSignature(
         new DoFn<String, String>() {
@@ -121,10 +122,10 @@ public class DoFnSignaturesTest {
           public void foo(ProcessContext context) {}
 
           @FinishBundle
-          public void bar(Context context) {}
+          public void bar(FinishBundleContext context) {}
 
           @FinishBundle
-          public void baz(Context context) {}
+          public void baz(FinishBundleContext context) {}
         }.getClass());
   }
 

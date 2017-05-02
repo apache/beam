@@ -1632,7 +1632,7 @@ public class KafkaIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws IOException {
+    public void finishBundle() throws IOException {
       producer.flush();
       checkForFailures();
     }

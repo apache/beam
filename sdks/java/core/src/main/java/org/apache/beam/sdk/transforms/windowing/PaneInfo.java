@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.util.VarInt;
 
@@ -70,7 +71,7 @@ public final class PaneInfo {
    * definitions:
    * <ol>
    * <li>We'll call a pipeline 'simple' if it does not use
-   * {@link DoFn.Context#outputWithTimestamp} in
+   * {@link WindowedContext#outputWithTimestamp} in
    * any {@link DoFn}, and it uses the same
    * {@link org.apache.beam.sdk.transforms.windowing.Window#withAllowedLateness}
    * argument value on all windows (or uses the default of {@link org.joda.time.Duration#ZERO}).

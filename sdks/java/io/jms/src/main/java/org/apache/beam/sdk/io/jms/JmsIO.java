@@ -674,7 +674,7 @@ public class JmsIO {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle() throws Exception {
         if (producer == null) {
           if (spec.getUsername() != null) {
             this.connection =
@@ -703,13 +703,13 @@ public class JmsIO {
           TextMessage message = session.createTextMessage(value);
           producer.send(message);
         } catch (Exception t) {
-          finishBundle(null);
+          finishBundle();
           throw t;
         }
       }
 
       @FinishBundle
-      public void finishBundle(Context c) throws Exception {
+      public void finishBundle() throws Exception {
         producer.close();
         producer = null;
         session.close();

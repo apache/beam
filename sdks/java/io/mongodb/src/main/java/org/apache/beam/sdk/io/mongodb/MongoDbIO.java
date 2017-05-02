@@ -466,7 +466,7 @@ public class MongoDbIO {
       }
 
       @StartBundle
-      public void startBundle(Context ctx) throws Exception {
+      public void startBundle() throws Exception {
         batch = new ArrayList<>();
       }
 
@@ -476,12 +476,16 @@ public class MongoDbIO {
         // before inserting (will assign an id).
         batch.add(new Document(ctx.element()));
         if (batch.size() >= spec.batchSize()) {
-          finishBundle(ctx);
+          flush();
         }
       }
 
       @FinishBundle
-      public void finishBundle(Context ctx) throws Exception {
+      public void finishBundle() throws Exception {
+        flush();
+      }
+
+      private void flush() {
         MongoDatabase mongoDatabase = client.getDatabase(spec.database());
         MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
 
