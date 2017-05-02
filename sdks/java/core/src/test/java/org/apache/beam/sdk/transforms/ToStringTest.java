@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -43,7 +44,7 @@ public class ToStringTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testToStringOf() {
+  public void testToStringOf() throws ValidationException {
     Integer[] ints = {1, 2, 3, 4, 5};
     String[] strings = {"1", "2", "3", "4", "5"};
     PCollection<Integer> input = p.apply(Create.of(Arrays.asList(ints)));
@@ -54,7 +55,7 @@ public class ToStringTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testToStringKV() {
+  public void testToStringKV() throws ValidationException {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
     kvs.add(KV.of("two", 2));
@@ -71,7 +72,7 @@ public class ToStringTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testToStringKVWithDelimiter() {
+  public void testToStringKVWithDelimiter() throws ValidationException {
     ArrayList<KV<String, Integer>> kvs = new ArrayList<>();
     kvs.add(KV.of("one", 1));
     kvs.add(KV.of("two", 2));
@@ -88,7 +89,7 @@ public class ToStringTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testToStringIterable() {
+  public void testToStringIterable() throws ValidationException {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
     iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));
@@ -106,7 +107,7 @@ public class ToStringTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testToStringIterableWithDelimiter() {
+  public void testToStringIterableWithDelimiter() throws ValidationException {
     ArrayList<Iterable<String>> iterables = new ArrayList<>();
     iterables.add(Arrays.asList(new String[]{"one", "two", "three"}));
     iterables.add(Arrays.asList(new String[]{"four", "five", "six"}));

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -56,7 +57,7 @@ class GatherAllPanes<T>
   private GatherAllPanes() {}
 
   @Override
-  public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) {
+  public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) throws ValidationException {
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input

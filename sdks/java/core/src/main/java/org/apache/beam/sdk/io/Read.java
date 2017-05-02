@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import org.apache.beam.sdk.ValidationException;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -100,7 +102,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> expand(PBegin input) {
+    public final PCollection<T> expand(PBegin input) throws ValidationException {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
@@ -168,7 +170,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> expand(PBegin input) {
+    public final PCollection<T> expand(PBegin input) throws ValidationException {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(

@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.util.Iterator;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -115,7 +116,7 @@ public class Count {
     private PerElement() { }
 
     @Override
-    public PCollection<KV<T, Long>> expand(PCollection<T> input) {
+    public PCollection<KV<T, Long>> expand(PCollection<T> input) throws ValidationException {
       return
           input
           .apply("Init", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {

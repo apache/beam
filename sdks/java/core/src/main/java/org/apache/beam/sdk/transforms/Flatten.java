@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
@@ -164,7 +165,7 @@ public class Flatten {
     private Iterables() {}
 
     @Override
-    public PCollection<T> expand(PCollection<? extends Iterable<T>> in) {
+    public PCollection<T> expand(PCollection<? extends Iterable<T>> in) throws ValidationException {
       Coder<? extends Iterable<T>> inCoder = in.getCoder();
       if (!(inCoder instanceof IterableLikeCoder)) {
         throw new IllegalArgumentException(

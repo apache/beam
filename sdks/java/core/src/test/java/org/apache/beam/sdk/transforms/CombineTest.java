@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -111,14 +112,14 @@ public class CombineTest implements Serializable {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   PCollection<KV<String, Integer>> createInput(Pipeline p,
-                                               List<KV<String, Integer>> table) {
+                                               List<KV<String, Integer>> table) throws ValidationException {
     return p.apply(Create.of(table).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
   private void runTestSimpleCombine(List<KV<String, Integer>> table,
                                     int globalSum,
-                                    List<KV<String, String>> perKeyCombines) {
+                                    List<KV<String, String>> perKeyCombines) throws ValidationException {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Integer> sum = input
@@ -138,7 +139,7 @@ public class CombineTest implements Serializable {
   private void runTestSimpleCombineWithContext(List<KV<String, Integer>> table,
                                                int globalSum,
                                                List<KV<String, String>> perKeyCombines,
-                                               String[] globallyCombines) {
+                                               String[] globallyCombines) throws ValidationException {
     PCollection<KV<String, Integer>> perKeyInput = createInput(pipeline, table);
     PCollection<Integer> globallyInput = perKeyInput.apply(Values.<Integer>create());
 
@@ -167,14 +168,14 @@ public class CombineTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testSimpleCombine() {
+  public void testSimpleCombine() throws ValidationException {
     runTestSimpleCombine(TABLE, 20, Arrays.asList(KV.of("a", "114"), KV.of("b", "113")));
   }
 
   @Test
   @Category(ValidatesRunner.class)
   @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testSimpleCombineWithContext() {
+  public void testSimpleCombineWithContext() throws ValidationException {
     runTestSimpleCombineWithContext(TABLE, 20,
         Arrays.asList(KV.of("a", "01124"), KV.of("b", "01123")),
         new String[] {"01111234"});
@@ -182,21 +183,21 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSimpleCombineWithContextEmpty() {
+  public void testSimpleCombineWithContextEmpty() throws ValidationException {
     runTestSimpleCombineWithContext(
         EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList(), new String[] {});
   }
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSimpleCombineEmpty() {
+  public void testSimpleCombineEmpty() throws ValidationException {
     runTestSimpleCombine(EMPTY_TABLE, 0, Collections.<KV<String, String>>emptyList());
   }
 
   @SuppressWarnings("unchecked")
   private void runTestBasicCombine(List<KV<String, Integer>> table,
                                    Set<Integer> globalUnique,
-                                   List<KV<String, Set<Integer>>> perKeyUnique) {
+                                   List<KV<String, Set<Integer>>> perKeyUnique) throws ValidationException {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Set<Integer>> unique = input
@@ -215,7 +216,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBasicCombine() {
+  public void testBasicCombine() throws ValidationException {
     runTestBasicCombine(TABLE, ImmutableSet.of(1, 13, 4), Arrays.asList(
         KV.of("a", (Set<Integer>) ImmutableSet.of(1, 4)),
         KV.of("b", (Set<Integer>) ImmutableSet.of(1, 13))));
@@ -223,14 +224,14 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testBasicCombineEmpty() {
+  public void testBasicCombineEmpty() throws ValidationException {
     runTestBasicCombine(
         EMPTY_TABLE, ImmutableSet.<Integer>of(), Collections.<KV<String, Set<Integer>>>emptyList());
   }
 
   private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
                                           Double globalMean,
-                                          List<KV<String, Double>> perKeyMeans) {
+                                          List<KV<String, Double>> perKeyMeans) throws ValidationException {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Double> mean = input
@@ -249,7 +250,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFixedWindowsCombine() {
+  public void testFixedWindowsCombine() throws ValidationException {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -273,7 +274,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testFixedWindowsCombineWithContext() {
+  public void testFixedWindowsCombineWithContext() throws ValidationException {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 1L, 6L, 7L, 8L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -308,7 +309,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSlidingWindowsCombineWithContext() {
+  public void testSlidingWindowsCombineWithContext() throws ValidationException {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(2L, 3L, 8L, 9L, 10L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -355,7 +356,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testGlobalCombineWithDefaultsAndTriggers() {
+  public void testGlobalCombineWithDefaultsAndTriggers() throws ValidationException {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 1));
 
     PCollection<String> output = input
@@ -381,7 +382,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSessionsCombine() {
+  public void testSessionsCombine() throws ValidationException {
     PCollection<KV<String, Integer>> input =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
@@ -404,7 +405,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSessionsCombineWithContext() {
+  public void testSessionsCombineWithContext() throws ValidationException {
     PCollection<KV<String, Integer>> perKeyInput =
         pipeline.apply(Create.timestamped(TABLE, Arrays.asList(0L, 4L, 7L, 10L, 16L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
@@ -447,7 +448,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedCombineEmpty() {
+  public void testWindowedCombineEmpty() throws ValidationException {
     PCollection<Double> mean = pipeline
         .apply(Create.empty(BigEndianIntegerCoder.of()))
         .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(1))))
@@ -460,13 +461,13 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testAccumulatingCombine() {
+  public void testAccumulatingCombine() throws ValidationException {
     runTestAccumulatingCombine(TABLE, 4.0, Arrays.asList(KV.of("a", 2.0), KV.of("b", 7.0)));
   }
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testAccumulatingCombineEmpty() {
+  public void testAccumulatingCombineEmpty() throws ValidationException {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
   }
 
@@ -502,7 +503,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testHotKeyCombining() {
+  public void testHotKeyCombining() throws ValidationException {
     PCollection<KV<String, Integer>> input = copy(createInput(pipeline, TABLE), 10);
 
     CombineFn<Integer, ?, Double> mean = new MeanInts();
@@ -535,7 +536,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testHotKeyCombiningWithAccumulationMode() {
+  public void testHotKeyCombiningWithAccumulationMode() throws ValidationException {
     PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5));
 
     PCollection<Integer> output = input
@@ -559,7 +560,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testBinaryCombineFn() {
+  public void testBinaryCombineFn() throws ValidationException {
     PCollection<KV<String, Integer>> input = copy(createInput(pipeline, TABLE), 2);
     PCollection<KV<String, Integer>> intProduct = input
         .apply("IntProduct", Combine.<String, Integer, Integer>perKey(new TestProdInt()));
@@ -613,7 +614,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCombineGloballyAsSingletonView() {
+  public void testCombineGloballyAsSingletonView() throws ValidationException {
     final PCollectionView<Integer> view = pipeline
         .apply("CreateEmptySideInput", Create.empty(BigEndianIntegerCoder.of()))
         .apply(Sum.integersGlobally().asSingletonView());
@@ -633,7 +634,7 @@ public class CombineTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowedCombineGloballyAsSingletonView() {
+  public void testWindowedCombineGloballyAsSingletonView() throws ValidationException {
     FixedWindows windowFn = FixedWindows.of(Duration.standardMinutes(1));
     final PCollectionView<Integer> view =
         pipeline
@@ -1118,7 +1119,7 @@ public class CombineTest implements Serializable {
     }
   }
 
-  private static <T> PCollection<T> copy(PCollection<T> pc, final int n) {
+  private static <T> PCollection<T> copy(PCollection<T> pc, final int n) throws ValidationException {
     return pc.apply(ParDo.of(new DoFn<T, T>() {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {

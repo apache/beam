@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -774,7 +775,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void pipelineOptionsDisplayDataExceptionShouldFail() {
+  public void pipelineOptionsDisplayDataExceptionShouldFail() throws ValidationException {
     Object brokenValueType = new Object() {
       @JsonValue
       public int getValue () {

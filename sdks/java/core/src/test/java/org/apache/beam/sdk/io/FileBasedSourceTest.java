@@ -693,7 +693,7 @@ public class FileBasedSourceTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDataflowFile() throws IOException {
+  public void testDataflowFile() throws Exception {
     List<String> data = createStringDataset(3, 50);
 
     String fileName = "file";
@@ -708,7 +708,7 @@ public class FileBasedSourceTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDataflowFilePattern() throws IOException {
+  public void testDataflowFilePattern() throws Exception {
 
     List<String> data1 = createStringDataset(3, 50);
     File file1 = createFileWithData("file1", data1);

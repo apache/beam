@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -57,7 +58,7 @@ public class ValuesTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testValues() {
+  public void testValues() throws ValidationException {
 
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
@@ -73,7 +74,7 @@ public class ValuesTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testValuesEmpty() {
+  public void testValuesEmpty() throws ValidationException {
 
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(

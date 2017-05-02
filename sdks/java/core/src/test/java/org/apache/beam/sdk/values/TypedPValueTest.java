@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -55,7 +56,7 @@ public class TypedPValueTest {
   }
 
   private PCollectionTuple buildPCollectionTupleWithTags(
-      TupleTag<Integer> mainOutputTag, TupleTag<Integer> additionalOutputTag) {
+      TupleTag<Integer> mainOutputTag, TupleTag<Integer> additionalOutputTag) throws ValidationException {
     PCollection<Integer> input = p.apply(Create.of(1, 2, 3));
     PCollectionTuple tuple = input.apply(
         ParDo
@@ -69,7 +70,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testUntypedOutputTupleTagGivesActionableMessage() {
+  public void testUntypedOutputTupleTagGivesActionableMessage() throws ValidationException {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
     // untypedOutputTag did not use anonymous subclass.
     TupleTag<Integer> untypedOutputTag = new TupleTag<Integer>();
@@ -88,7 +89,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testStaticFactoryOutputTupleTagGivesActionableMessage() {
+  public void testStaticFactoryOutputTupleTagGivesActionableMessage() throws ValidationException {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
     // untypedOutputTag constructed from a static factory method.
     TupleTag<Integer> untypedOutputTag = makeTagStatically();
@@ -107,7 +108,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testTypedOutputTupleTag() {
+  public void testTypedOutputTupleTag() throws ValidationException {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
     // typedOutputTag was constructed with compile-time type information.
     TupleTag<Integer> typedOutputTag = new TupleTag<Integer>() {};
@@ -117,7 +118,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testUntypedMainOutputTagTypedOutputTupleTag() {
+  public void testUntypedMainOutputTagTypedOutputTupleTag() throws ValidationException {
     // mainOutputTag is allowed to be untyped because Coder can be inferred other ways.
     TupleTag<Integer> mainOutputTag = new TupleTag<>();
     TupleTag<Integer> typedOutputTag = new TupleTag<Integer>() {};
@@ -139,7 +140,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testParDoWithNoOutputsErrorDoesNotMentionTupleTag() {
+  public void testParDoWithNoOutputsErrorDoesNotMentionTupleTag() throws ValidationException {
     PCollection<EmptyClass> input =
         p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
 
@@ -158,7 +159,7 @@ public class TypedPValueTest {
   }
 
   @Test
-  public void testFinishSpecifyingShouldFailIfNoCoderInferrable() {
+  public void testFinishSpecifyingShouldFailIfNoCoderInferrable() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     ParDo.SingleOutput<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());

@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -181,7 +182,7 @@ public class FlatMapElementsTest implements Serializable {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Void>>> {
 
     @Override
-    public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) throws ValidationException {
       return input.apply(FlatMapElements.<KV<K, V>, KV<K, Void>>via(
           new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
             @Override

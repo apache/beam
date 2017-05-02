@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -66,7 +67,7 @@ public class PartitionTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testEvenOddPartition() {
+  public void testEvenOddPartition() throws ValidationException {
 
     PCollectionList<Integer> outputs = pipeline
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
@@ -80,7 +81,7 @@ public class PartitionTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testModPartition() {
+  public void testModPartition() throws ValidationException {
 
     PCollectionList<Integer> outputs = pipeline
         .apply(Create.of(1, 2, 4, 5))
@@ -94,7 +95,7 @@ public class PartitionTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testOutOfBoundsPartitions() {
+  public void testOutOfBoundsPartitions() throws ValidationException {
 
     pipeline
     .apply(Create.of(-1))
@@ -107,7 +108,7 @@ public class PartitionTest implements Serializable {
   }
 
   @Test
-  public void testZeroNumPartitions() {
+  public void testZeroNumPartitions() throws ValidationException {
 
     PCollection<Integer> input = pipeline.apply(Create.of(591));
 
@@ -118,7 +119,7 @@ public class PartitionTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testDroppedPartition() {
+  public void testDroppedPartition() throws ValidationException {
 
     // Compute the set of integers either 1 or 2 mod 3, the hard way.
     PCollectionList<Integer> outputs = pipeline

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
+import org.apache.beam.sdk.ValidationException;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -151,7 +153,8 @@ public class PCollection<T> extends TypedPValue<T> {
    *
    * @return the output of the applied {@link PTransform}
    */
-  public <OutputT extends POutput> OutputT apply(PTransform<? super PCollection<T>, OutputT> t) {
+  public <OutputT extends POutput> OutputT apply(PTransform<? super PCollection<T>, OutputT> t) 
+      throws ValidationException {
     return Pipeline.applyTransform(this, t);
   }
 
@@ -164,7 +167,7 @@ public class PCollection<T> extends TypedPValue<T> {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<? super PCollection<T>, OutputT> t) {
+      String name, PTransform<? super PCollection<T>, OutputT> t) throws ValidationException {
     return Pipeline.applyTransform(name, this, t);
   }
 

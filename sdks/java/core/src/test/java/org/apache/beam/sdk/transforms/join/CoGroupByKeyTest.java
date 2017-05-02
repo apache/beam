@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -64,7 +65,7 @@ public class CoGroupByKeyTest implements Serializable {
    * Pipeline in such a way that coder inference needs to be performed.
    */
   private PCollection<KV<Integer, String>> createInput(String name,
-      Pipeline p, List<KV<Integer, String>> list) {
+      Pipeline p, List<KV<Integer, String>> list) throws ValidationException {
     return createInput(name, p, list,  new ArrayList<Long>());
   }
 
@@ -72,7 +73,7 @@ public class CoGroupByKeyTest implements Serializable {
    * Converts the given list with timestamps into a PCollection.
    */
   private PCollection<KV<Integer, String>> createInput(String name,
-      Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) {
+      Pipeline p, List<KV<Integer, String>> list, List<Long> timestamps) throws ValidationException {
     PCollection<KV<Integer, String>> input;
     if (timestamps.isEmpty()) {
       input = p.apply("Create" + name, Create.of(list)
@@ -101,7 +102,7 @@ public class CoGroupByKeyTest implements Serializable {
   private PCollection<KV<Integer, CoGbkResult>> buildGetOnlyGbk(
       Pipeline p,
       TupleTag<String> tag1,
-      TupleTag<String> tag2) {
+      TupleTag<String> tag2) throws ValidationException {
     List<KV<Integer, String>> list1 =
         Arrays.asList(
             KV.of(1, "collection1-1"),
@@ -124,7 +125,7 @@ public class CoGroupByKeyTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCoGroupByKeyGetOnly() {
+  public void testCoGroupByKeyGetOnly() throws ValidationException {
     final TupleTag<String> tag1 = new TupleTag<>();
     final TupleTag<String> tag2 = new TupleTag<>();
 
@@ -156,7 +157,7 @@ public class CoGroupByKeyTest implements Serializable {
       Pipeline p,
       TupleTag<String> purchasesTag,
       TupleTag<String> addressesTag,
-      TupleTag<String> namesTag) {
+      TupleTag<String> namesTag) throws ValidationException {
     List<KV<Integer, String>> idToPurchases =
         Arrays.asList(
             KV.of(2, "Boat"),
@@ -212,7 +213,7 @@ public class CoGroupByKeyTest implements Serializable {
   private PCollection<KV<Integer, CoGbkResult>> buildPurchasesCoGbkWithWindowing(
       Pipeline p,
       TupleTag<String> clicksTag,
-      TupleTag<String> purchasesTag) {
+      TupleTag<String> purchasesTag) throws ValidationException {
     List<KV<Integer, String>> idToClick =
         Arrays.asList(
             KV.of(1, "Click t0"),
@@ -261,7 +262,7 @@ public class CoGroupByKeyTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testCoGroupByKey() {
+  public void testCoGroupByKey() throws ValidationException {
     final TupleTag<String> namesTag = new TupleTag<>();
     final TupleTag<String> addressesTag = new TupleTag<>();
     final TupleTag<String> purchasesTag = new TupleTag<>();
@@ -452,7 +453,7 @@ public class CoGroupByKeyTest implements Serializable {
   @SuppressWarnings("unchecked")
   @Test
   @Category(ValidatesRunner.class)
-  public void testCoGroupByKeyHandleResults() {
+  public void testCoGroupByKeyHandleResults() throws ValidationException {
     TupleTag<String> namesTag = new TupleTag<>();
     TupleTag<String> addressesTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();
@@ -481,7 +482,7 @@ public class CoGroupByKeyTest implements Serializable {
   @SuppressWarnings("unchecked")
   @Test
   @Category(ValidatesRunner.class)
-  public void testCoGroupByKeyWithWindowing() {
+  public void testCoGroupByKeyWithWindowing() throws ValidationException {
     TupleTag<String> clicksTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();
 

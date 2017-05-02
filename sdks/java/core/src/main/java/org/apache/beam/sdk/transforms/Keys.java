@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -56,7 +57,7 @@ public class Keys<K> extends PTransform<PCollection<? extends KV<K, ?>>,
   private Keys() { }
 
   @Override
-  public PCollection<K> expand(PCollection<? extends KV<K, ?>> in) {
+  public PCollection<K> expand(PCollection<? extends KV<K, ?>> in) throws ValidationException {
     return
         in.apply("Keys", MapElements.via(new SimpleFunction<KV<K, ?>, K>() {
           @Override

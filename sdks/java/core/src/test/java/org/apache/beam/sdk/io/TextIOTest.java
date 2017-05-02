@@ -68,6 +68,7 @@ import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -542,7 +543,7 @@ public class TextIOTest {
   }
 
   @Test
-  public void testUnsupportedFilePattern() throws IOException {
+  public void testUnsupportedFilePattern() throws Exception {
     p.enableAbandonedNodeEnforcement(false);
     // Windows doesn't like resolving paths with * in them.
     String filename = tempFolder.resolve("output@5").toString();
@@ -601,7 +602,7 @@ public class TextIOTest {
    * and asserts that the results match the given expected output.
    */
   private void assertReadingCompressedFileMatchesExpected(
-      File file, CompressionType compressionType, String[] expected) {
+      File file, CompressionType compressionType, String[] expected) throws ValidationException {
 
     TextIO.Read.Bound read =
         TextIO.Read.from(file.getPath()).withCompressionType(compressionType);

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -75,7 +76,7 @@ public final class PCollectionTupleTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testComposePCollectionTuple() {
+  public void testComposePCollectionTuple() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(true);
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
@@ -105,7 +106,7 @@ public final class PCollectionTupleTest implements Serializable {
   }
 
   @Test
-  public void testEquals() {
+  public void testEquals() throws ValidationException {
     TestPipeline p = TestPipeline.create();
     TupleTag<Long> longTag = new TupleTag<>();
     PCollection<Long> longs = p.apply(GenerateSequence.from(0));
@@ -129,7 +130,7 @@ public final class PCollectionTupleTest implements Serializable {
   }
 
   @Test
-  public void testExpandHasMatchingTags() {
+  public void testExpandHasMatchingTags() throws ValidationException {
     TupleTag<Integer> intTag = new TupleTag<>();
     TupleTag<String> strTag = new TupleTag<>();
     TupleTag<Long> longTag = new TupleTag<>();

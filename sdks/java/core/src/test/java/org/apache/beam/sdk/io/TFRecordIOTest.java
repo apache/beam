@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -131,7 +132,7 @@ public class TFRecordIOTest {
   }
 
   @Test
-  public void testReadNamed() {
+  public void testReadNamed() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     assertEquals(
@@ -227,11 +228,11 @@ public class TFRecordIOTest {
     runTestRead(data, FOO_RECORDS);
   }
 
-  private void runTestRead(String base64, String[] expected) throws IOException {
+  private void runTestRead(String base64, String[] expected) throws Exception {
     runTestRead(BaseEncoding.base64().decode(base64), expected);
   }
 
-  private void runTestRead(byte[] data, String[] expected) throws IOException {
+  private void runTestRead(byte[] data, String[] expected) throws Exception {
     File tmpFile = Files.createTempFile(tempFolder, "file", ".tfrecords").toFile();
     String filename = tmpFile.getPath();
 
@@ -246,7 +247,7 @@ public class TFRecordIOTest {
     p.run();
   }
 
-  private void runTestWrite(String[] elems, String ...base64) throws IOException {
+  private void runTestWrite(String[] elems, String ...base64) throws Exception {
     File tmpFile = Files.createTempFile(tempFolder, "file", ".tfrecords").toFile();
     String filename = tmpFile.getPath();
 
@@ -266,55 +267,55 @@ public class TFRecordIOTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTrip() throws IOException {
+  public void runTestRoundTrip() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", NONE, NONE);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripWithEmptyData() throws IOException {
+  public void runTestRoundTripWithEmptyData() throws Exception {
     runTestRoundTrip(EMPTY, 10, ".tfrecords", NONE, NONE);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripWithOneShards() throws IOException {
+  public void runTestRoundTripWithOneShards() throws Exception {
     runTestRoundTrip(LARGE, 1, ".tfrecords", NONE, NONE);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripWithSuffix() throws IOException {
+  public void runTestRoundTripWithSuffix() throws Exception {
     runTestRoundTrip(LARGE, 10, ".suffix", NONE, NONE);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripGzip() throws IOException {
+  public void runTestRoundTripGzip() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", GZIP, GZIP);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripZlib() throws IOException {
+  public void runTestRoundTripZlib() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", ZLIB, ZLIB);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripUncompressedFilesWithAuto() throws IOException {
+  public void runTestRoundTripUncompressedFilesWithAuto() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", NONE, AUTO);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripGzipFilesWithAuto() throws IOException {
+  public void runTestRoundTripGzipFilesWithAuto() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", GZIP, AUTO);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void runTestRoundTripZlibFilesWithAuto() throws IOException {
+  public void runTestRoundTripZlibFilesWithAuto() throws Exception {
     runTestRoundTrip(LARGE, 10, ".tfrecords", ZLIB, AUTO);
   }
 
@@ -322,7 +323,7 @@ public class TFRecordIOTest {
                                 int numShards,
                                 String suffix,
                                 CompressionType writeCompressionType,
-                                CompressionType readCompressionType) throws IOException {
+                                CompressionType readCompressionType) throws Exception {
     String outputName = "file";
     Path baseDir = Files.createTempDirectory(tempFolder, "test-rt");
     String baseFilename = baseDir.resolve(outputName).toString();

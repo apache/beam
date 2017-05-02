@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
 import org.apache.beam.sdk.options.Description;
@@ -135,7 +136,7 @@ public class WriteFilesTest {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) throws ValidationException {
       return input
           .apply(window)
           .apply(ParDo.of(new AddArbitraryKey<T>()))
@@ -157,7 +158,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testWrite() throws IOException {
+  public void testWrite() throws Exception {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename());
@@ -168,7 +169,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testEmptyWrite() throws IOException {
+  public void testEmptyWrite() throws Exception {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP, getBaseOutputFilename());
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
         Optional.of(1));
@@ -180,7 +181,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testShardedWrite() throws IOException {
+  public void testShardedWrite() throws Exception {
     runShardedWrite(
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
@@ -190,7 +191,7 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testCustomShardedWrite() throws IOException {
+  public void testCustomShardedWrite() throws Exception {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
     options.setTestFlag("test_value");
@@ -221,7 +222,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testExpandShardedWrite() throws IOException {
+  public void testExpandShardedWrite() throws Exception {
     runShardedWrite(
         Arrays.asList("one", "two", "three", "four", "five", "six"),
         IDENTITY_MAP,
@@ -234,7 +235,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testWriteWithEmptyPCollection() throws IOException {
+  public void testWriteWithEmptyPCollection() throws Exception {
     List<String> inputs = new ArrayList<>();
     runWrite(inputs, IDENTITY_MAP, getBaseOutputFilename());
   }
@@ -244,7 +245,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testWriteWindowed() throws IOException {
+  public void testWriteWindowed() throws Exception {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(
@@ -257,7 +258,7 @@ public class WriteFilesTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testWriteWithSessions() throws IOException {
+  public void testWriteWithSessions() throws Exception {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
 
@@ -356,7 +357,7 @@ public class WriteFilesTest {
    */
   private static void runWrite(
       List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
-      String baseName) throws IOException {
+      String baseName) throws Exception {
     runShardedWrite(inputs, transform, baseName, Optional.<Integer>absent());
   }
 
@@ -370,7 +371,7 @@ public class WriteFilesTest {
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       String baseName,
-      Optional<Integer> numConfiguredShards) throws IOException {
+      Optional<Integer> numConfiguredShards) throws Exception {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
     options.setTestFlag("test_value");
@@ -439,7 +440,7 @@ public class WriteFilesTest {
   private static class LargestInt
       extends PTransform<PCollection<String>, PCollectionView<Integer>> {
     @Override
-    public PCollectionView<Integer> expand(PCollection<String> input) {
+    public PCollectionView<Integer> expand(PCollection<String> input) throws ValidationException {
       return input
           .apply(
               ParDo.of(

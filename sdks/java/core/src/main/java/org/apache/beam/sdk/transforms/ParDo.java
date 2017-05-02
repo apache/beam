@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
+import org.apache.beam.sdk.ValidationException;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -613,7 +615,7 @@ public class ParDo {
     }
 
     @Override
-    public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
+    public PCollection<OutputT> expand(PCollection<? extends InputT> input) throws ValidationException {
       finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>();
       return input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);

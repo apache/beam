@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -55,7 +56,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGloballyEventTimestamp() {
+  public void testGloballyEventTimestamp() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.timestamped(
             TimestampedValue.of("foo", new Instant(100)),
@@ -69,7 +70,7 @@ public class LatestTest implements Serializable {
   }
 
   @Test
-  public void testGloballyOutputCoder() {
+  public void testGloballyOutputCoder() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     BigEndianLongCoder inputCoder = BigEndianLongCoder.of();
@@ -85,7 +86,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testGloballyEmptyCollection() {
+  public void testGloballyEmptyCollection() throws ValidationException {
     PCollection<Long> emptyInput = p.apply(Create.empty(VarLongCoder.of()));
     PCollection<Long> output = emptyInput.apply(Latest.<Long>globally());
 
@@ -95,7 +96,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKeyEventTimestamp() {
+  public void testPerKeyEventTimestamp() throws ValidationException {
     PCollection<KV<String, String>> output =
         p.apply(Create.timestamped(
             TimestampedValue.of(KV.of("A", "foo"), new Instant(100)),
@@ -109,7 +110,7 @@ public class LatestTest implements Serializable {
   }
 
   @Test
-  public void testPerKeyOutputCoder() {
+  public void testPerKeyOutputCoder() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     KvCoder<String, Long> inputCoder = KvCoder.of(
@@ -124,7 +125,7 @@ public class LatestTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testPerKeyEmptyCollection() {
+  public void testPerKeyEmptyCollection() throws ValidationException {
     PCollection<KV<String, String>> output =
         p.apply(Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
             .apply(Latest.<String, String>perKey());

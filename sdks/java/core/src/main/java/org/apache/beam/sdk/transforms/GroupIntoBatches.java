@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -82,7 +83,7 @@ public class GroupIntoBatches<K, InputT>
   }
 
   @Override
-  public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
+  public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) throws ValidationException {
     Duration allowedLateness = input.getWindowingStrategy().getAllowedLateness();
 
     checkArgument(

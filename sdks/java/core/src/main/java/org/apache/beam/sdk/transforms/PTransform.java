@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -184,8 +185,10 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * transforms, which do not apply any transforms internally, should return
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
+   * 
+   * @throws ValidationException when valiation fails
    */
-  public abstract OutputT expand(InputT input);
+  public abstract OutputT expand(InputT input) throws ValidationException;
 
   /**
    * Called before running the Pipeline to verify this transform is fully and correctly

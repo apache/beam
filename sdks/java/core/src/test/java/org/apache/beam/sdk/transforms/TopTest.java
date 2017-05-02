@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -80,12 +81,12 @@ public class TopTest {
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
 
-  public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {
+  public PCollection<KV<String, Integer>> createInputTable(Pipeline p) throws ValidationException {
     return p.apply("CreateInputTable", Create.of(Arrays.asList(TABLE)).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
 
-  public PCollection<KV<String, Integer>> createEmptyInputTable(Pipeline p) {
+  public PCollection<KV<String, Integer>> createEmptyInputTable(Pipeline p) throws ValidationException {
     return p.apply("CreateEmptyInputTable", Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
         KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
   }
@@ -93,7 +94,7 @@ public class TopTest {
   @Test
   @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
-  public void testTop() {
+  public void testTop() throws ValidationException {
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION))
                  .withCoder(StringUtf8Coder.of()));
@@ -124,7 +125,7 @@ public class TopTest {
   @Test
   @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
-  public void testTopEmpty() {
+  public void testTopEmpty() throws ValidationException {
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(EMPTY_COLLECTION))
                  .withCoder(StringUtf8Coder.of()));
@@ -149,7 +150,7 @@ public class TopTest {
   }
 
   @Test
-  public void testTopEmptyWithIncompatibleWindows() {
+  public void testTopEmptyWithIncompatibleWindows() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     Window<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
@@ -167,7 +168,7 @@ public class TopTest {
   @Test
   @Category(NeedsRunner.class)
   @SuppressWarnings("unchecked")
-  public void testTopZero() {
+  public void testTopZero() throws ValidationException {
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION))
                  .withCoder(StringUtf8Coder.of()));
@@ -198,7 +199,7 @@ public class TopTest {
 
   // This is a purely compile-time test.  If the code compiles, then it worked.
   @Test
-  public void testPerKeySerializabilityRequirement() {
+  public void testPerKeySerializabilityRequirement() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     p.apply("CreateCollection", Create.of(Arrays.asList(COLLECTION))
@@ -215,7 +216,7 @@ public class TopTest {
   }
 
   @Test
-  public void testCountConstraint() {
+  public void testCountConstraint() throws ValidationException {
     p.enableAbandonedNodeEnforcement(false);
 
     PCollection<String> input =

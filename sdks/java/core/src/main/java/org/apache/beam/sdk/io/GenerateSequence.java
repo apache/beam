@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -137,7 +138,7 @@ public abstract class GenerateSequence extends PTransform<PBegin, PCollection<Lo
   }
 
   @Override
-  public PCollection<Long> expand(PBegin input) {
+  public PCollection<Long> expand(PBegin input) throws ValidationException {
     boolean isRangeUnbounded = getTo() < 0;
     boolean usesUnboundedFeatures =
         getTimestampFn() != null || getElementsPerPeriod() > 0 || getMaxReadTime() != null;

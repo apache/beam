@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -82,7 +83,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
   }
 
   @Override
-  public PCollection<T> expand(PCollection<T> in) {
+  public PCollection<T> expand(PCollection<T> in) throws ValidationException{
     return in
         .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
           @Override
@@ -121,7 +122,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> in) {
+    public PCollection<T> expand(PCollection<T> in) throws ValidationException {
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);

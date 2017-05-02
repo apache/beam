@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,7 +48,7 @@ public class DistinctTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testDistinct() {
+  public void testDistinct() throws ValidationException {
     List<String> strings = Arrays.asList(
         "k1",
         "k5",
@@ -71,7 +72,7 @@ public class DistinctTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testDistinctEmpty() {
+  public void testDistinctEmpty() throws ValidationException {
     List<String> strings = Arrays.asList();
 
     PCollection<String> input =
@@ -109,7 +110,7 @@ public class DistinctTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testDistinctWithRepresentativeValue() {
+  public void testDistinctWithRepresentativeValue() throws ValidationException {
     List<KV<String, String>> strings = Arrays.asList(
         KV.of("k1", "v1"),
         KV.of("k1", "v2"),

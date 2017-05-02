@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -52,7 +53,7 @@ public class GatherAllPanesTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void singlePaneSingleReifiedPane() {
+  public void singlePaneSingleReifiedPane() throws ValidationException {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         p.apply(GenerateSequence.from(0).to(20000))
             .apply(
@@ -94,7 +95,7 @@ public class GatherAllPanesTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void multiplePanesMultipleReifiedPane() {
+  public void multiplePanesMultipleReifiedPane() throws ValidationException {
     PCollection<Long> someElems = p.apply("someLongs", GenerateSequence.from(0).to(20000));
     PCollection<Long> otherElems = p.apply("otherLongs", GenerateSequence.from(0).to(20000));
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =

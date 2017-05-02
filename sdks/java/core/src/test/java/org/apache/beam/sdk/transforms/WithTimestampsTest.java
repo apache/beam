@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.hamcrest.Matchers.isA;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -50,7 +51,7 @@ public class WithTimestampsTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void withTimestampsShouldApplyTimestamps() {
+  public void withTimestampsShouldApplyTimestamps() throws ValidationException {
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -88,7 +89,7 @@ public class WithTimestampsTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void withTimestampsBackwardsInTimeShouldThrow() {
+  public void withTimestampsBackwardsInTimeShouldThrow() throws ValidationException {
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -121,7 +122,7 @@ public class WithTimestampsTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
+  public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() throws ValidationException {
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -173,7 +174,7 @@ public class WithTimestampsTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void withTimestampsWithNullTimestampShouldThrow() {
+  public void withTimestampsWithNullTimestampShouldThrow() throws ValidationException {
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
           @Override
@@ -196,7 +197,7 @@ public class WithTimestampsTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void withTimestampsWithNullFnShouldThrowOnConstruction() {
+  public void withTimestampsWithNullFnShouldThrowOnConstruction() throws ValidationException {
 
     SerializableFunction<String, Instant> timestampFn = null;
 

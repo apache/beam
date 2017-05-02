@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -426,7 +427,7 @@ public class Regex {
       this.group = group;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -468,7 +469,7 @@ public class Regex {
       this.groupName = groupName;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -510,7 +511,7 @@ public class Regex {
       this.pattern = pattern;
     }
 
-    public PCollection<List<String>> expand(PCollection<String> in) {
+    public PCollection<List<String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, List<String>>() {
@@ -562,7 +563,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
-    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -608,7 +609,7 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
-    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -650,7 +651,7 @@ public class Regex {
       this.group = group;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -692,7 +693,7 @@ public class Regex {
       this.groupName = groupName;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -733,7 +734,7 @@ public class Regex {
       this.pattern = pattern;
     }
 
-    public PCollection<List<String>> expand(PCollection<String> in) {
+    public PCollection<List<String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, List<String>>() {
@@ -786,7 +787,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
-    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -833,7 +834,7 @@ public class Regex {
       this.valueGroupName = valueGroupName;
     }
 
-    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -875,7 +876,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -914,7 +915,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -955,7 +956,7 @@ public class Regex {
       this.outputEmpty = outputEmpty;
     }
 
-    public PCollection<String> expand(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) throws ValidationException {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {

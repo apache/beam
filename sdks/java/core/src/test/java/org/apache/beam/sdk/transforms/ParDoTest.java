@@ -54,6 +54,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -301,7 +302,7 @@ public class ParDoTest implements Serializable {
     private static final TupleTag<Integer> BY3 = new TupleTag<Integer>("by3"){};
 
     @Override
-    public PCollectionTuple expand(PCollection<Integer> input) {
+    public PCollectionTuple expand(PCollection<Integer> input) throws ValidationException {
       PCollection<Integer> by2 = input.apply("Filter2s", ParDo.of(new FilterFn(2)));
       PCollection<Integer> by3 = input.apply("Filter3s", ParDo.of(new FilterFn(3)));
       return PCollectionTuple.of(BY2, by2).and(BY3, by3);
@@ -325,7 +326,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDo() {
+  public void testParDo() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -341,7 +342,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDo2() {
+  public void testParDo2() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -357,7 +358,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoEmpty() {
+  public void testParDoEmpty() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList();
 
@@ -373,7 +374,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoEmptyOutputs() {
+  public void testParDoEmptyOutputs() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList();
 
@@ -388,7 +389,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoWithTaggedOutput() {
+  public void testParDoWithTaggedOutput() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -430,7 +431,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoEmptyWithTaggedOutput() {
+  public void testParDoEmptyWithTaggedOutput() throws ValidationException {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
     TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
@@ -468,7 +469,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoWithEmptyTaggedOutput() {
+  public void testParDoWithEmptyTaggedOutput() throws ValidationException {
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
     TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
     TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
@@ -492,7 +493,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoWithOnlyTaggedOutput() {
+  public void testParDoWithOnlyTaggedOutput() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -517,7 +518,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoWritingToUndeclaredTag() {
+  public void testParDoWritingToUndeclaredTag() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -538,7 +539,7 @@ public class ParDoTest implements Serializable {
   @Test
   // TODO: The exception thrown is runner-specific, even if the behavior is general
   @Category(NeedsRunner.class)
-  public void testParDoUndeclaredTagLimit() {
+  public void testParDoUndeclaredTagLimit() throws ValidationException {
 
     PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3)));
 
@@ -575,7 +576,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoWithSideInputs() {
+  public void testParDoWithSideInputs() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -607,7 +608,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoWithSideInputsIsCumulative() {
+  public void testParDoWithSideInputsIsCumulative() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -641,7 +642,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultiOutputParDoWithSideInputs() {
+  public void testMultiOutputParDoWithSideInputs() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -679,7 +680,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testMultiOutputParDoWithSideInputsIsCumulative() {
+  public void testMultiOutputParDoWithSideInputsIsCumulative() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -717,7 +718,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoReadingFromUnknownSideInput() {
+  public void testParDoReadingFromUnknownSideInput() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -750,7 +751,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testSideInputsWithMultipleWindows() {
+  public void testSideInputsWithMultipleWindows() throws ValidationException {
     // Tests that the runner can safely run a DoFn that uses side inputs
     // on an input where the element is in multiple windows. The complication is
     // that side inputs are per-window, so the runner has to make sure
@@ -779,7 +780,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoWithErrorInStartBatch() {
+  public void testParDoWithErrorInStartBatch() throws ValidationException {
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     pipeline.apply(Create.of(inputs))
@@ -792,7 +793,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoWithErrorInProcessElement() {
+  public void testParDoWithErrorInProcessElement() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -806,7 +807,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoWithErrorInFinishBatch() {
+  public void testParDoWithErrorInFinishBatch() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -819,7 +820,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoOutputNameBasedOnDoFnWithTrimmedSuffix() {
+  public void testParDoOutputNameBasedOnDoFnWithTrimmedSuffix() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     PCollection<String> output = pipeline.apply(Create.of(1)).apply(ParDo.of(new TestDoFn()));
@@ -827,7 +828,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoOutputNameBasedOnLabel() {
+  public void testParDoOutputNameBasedOnLabel() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     PCollection<String> output =
@@ -836,7 +837,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoOutputNameBasedDoFnWithoutMatchingSuffix() {
+  public void testParDoOutputNameBasedDoFnWithoutMatchingSuffix() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     PCollection<String> output =
@@ -857,7 +858,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoWithTaggedOutputName() {
+  public void testParDoWithTaggedOutputName() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(false);
 
     TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
@@ -886,7 +887,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testMultiOutputAppliedMultipleTimesDifferentOutputs() {
+  public void testMultiOutputAppliedMultipleTimesDifferentOutputs() throws ValidationException {
     pipeline.enableAbandonedNodeEnforcement(false);
     PCollection<Long> longs = pipeline.apply(GenerateSequence.from(0));
 
@@ -918,7 +919,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoInCustomTransform() {
+  public void testParDoInCustomTransform() throws ValidationException {
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
@@ -926,7 +927,7 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(inputs))
         .apply("CustomTransform", new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
-            public PCollection<String> expand(PCollection<Integer> input) {
+            public PCollection<String> expand(PCollection<Integer> input) throws ValidationException {
               return input.apply(ParDo.of(new TestDoFn()));
             }
           });
@@ -941,7 +942,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMultiOutputChaining() {
+  public void testMultiOutputChaining() throws ValidationException {
 
     PCollectionTuple filters = pipeline
         .apply(Create.of(Arrays.asList(3, 4, 5, 6)))
@@ -1251,7 +1252,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMainOutputUnregisteredExplicitCoder() {
+  public void testMainOutputUnregisteredExplicitCoder() throws ValidationException {
 
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
@@ -1270,7 +1271,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMainOutputApplyTaggedOutputNoCoder() {
+  public void testMainOutputApplyTaggedOutputNoCoder() throws ValidationException {
     // Regression test: applying a transform to the main output
     // should not cause a crash based on lack of a coder for the
     // additional output.
@@ -1312,7 +1313,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoOutputWithTimestamp() {
+  public void testParDoOutputWithTimestamp() throws ValidationException {
 
     PCollection<Integer> input =
         pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
@@ -1333,7 +1334,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoTaggedOutputWithTimestamp() {
+  public void testParDoTaggedOutputWithTimestamp() throws ValidationException {
 
     PCollection<Integer> input =
         pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
@@ -1365,7 +1366,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoShiftTimestamp() {
+  public void testParDoShiftTimestamp() throws ValidationException {
 
     PCollection<Integer> input =
         pipeline.apply(Create.of(Arrays.asList(3, 42, 6)));
@@ -1389,7 +1390,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoShiftTimestampInvalid() {
+  public void testParDoShiftTimestampInvalid() throws ValidationException {
 
     pipeline
         .apply(Create.of(Arrays.asList(3, 42, 6)))
@@ -1411,7 +1412,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testParDoShiftTimestampInvalidZeroAllowed() {
+  public void testParDoShiftTimestampInvalidZeroAllowed() throws ValidationException {
     pipeline
         .apply(Create.of(Arrays.asList(3, 42, 6)))
         .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
@@ -1428,7 +1429,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testParDoShiftTimestampUnlimited() {
+  public void testParDoShiftTimestampUnlimited() throws ValidationException {
     PCollection<Long> outputs =
         pipeline
             .apply(
@@ -1514,7 +1515,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testWindowingInStartAndFinishBundle() {
+  public void testWindowingInStartAndFinishBundle() throws ValidationException {
 
     PCollection<String> output =
         pipeline
@@ -1551,7 +1552,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWindowingInStartBundleException() {
+  public void testWindowingInStartBundleException() throws ValidationException {
 
     pipeline
         .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
@@ -1618,7 +1619,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateSimple() {
+  public void testValueStateSimple() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, Integer> fn =
@@ -1647,7 +1648,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateDedup() {
+  public void testValueStateDedup() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<Integer, Integer>, Integer> onePerKey =
@@ -1695,7 +1696,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateCoderInference() {
+  public void testValueStateCoderInference() throws ValidationException {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
@@ -1757,7 +1758,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateCoderInferenceFromInputCoder() {
+  public void testValueStateCoderInferenceFromInputCoder() throws ValidationException {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
 
@@ -1788,7 +1789,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testCoderInferenceOfList() {
+  public void testCoderInferenceOfList() throws ValidationException {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
@@ -1821,7 +1822,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateFixedWindows() {
+  public void testValueStateFixedWindows() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, Integer> fn =
@@ -1869,7 +1870,7 @@ public class ParDoTest implements Serializable {
    */
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateSameId() {
+  public void testValueStateSameId() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, KV<String, Integer>> fn =
@@ -1919,7 +1920,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testValueStateTaggedOutput() {
+  public void testValueStateTaggedOutput() throws ValidationException {
     final String stateId = "foo";
 
     final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
@@ -1969,7 +1970,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testBagState() {
+  public void testBagState() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, List<Integer>> fn =
@@ -2004,7 +2005,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testBagStateCoderInference() {
+  public void testBagStateCoderInference() throws ValidationException {
     final String stateId = "foo";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
@@ -2080,7 +2081,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
-  public void testSetState() {
+  public void testSetState() throws ValidationException {
     final String stateId = "foo";
     final String countStateId = "count";
 
@@ -2122,7 +2123,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesSetState.class})
-  public void testSetStateCoderInference() {
+  public void testSetStateCoderInference() throws ValidationException {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -2209,7 +2210,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
-  public void testMapState() {
+  public void testMapState() throws ValidationException {
     final String stateId = "foo";
     final String countStateId = "count";
 
@@ -2254,7 +2255,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesMapState.class})
-  public void testMapStateCoderInference() {
+  public void testMapStateCoderInference() throws ValidationException {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
@@ -2347,7 +2348,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testCombiningState() {
+  public void testCombiningState() throws ValidationException {
     final String stateId = "foo";
 
     DoFn<KV<String, Double>, String> fn =
@@ -2386,7 +2387,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testCombiningStateCoderInference() {
+  public void testCombiningStateCoderInference() throws ValidationException {
     pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
 
     final String stateId = "foo";
@@ -2512,7 +2513,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
-  public void testBagStateSideInput() {
+  public void testBagStateSideInput() throws ValidationException {
 
     final PCollectionView<List<Integer>> listView =
         pipeline
@@ -2895,7 +2896,7 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testRejectsWrongWindowType() {
+  public void testRejectsWrongWindowType() throws ValidationException {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(GlobalWindow.class.getSimpleName());
@@ -2924,7 +2925,7 @@ public class ParDoTest implements Serializable {
    */
   @Ignore("ParDo rejects this on account of it using timers")
   @Test
-  public void testMultipleWindowSubtypesOK() {
+  public void testMultipleWindowSubtypesOK() throws ValidationException {
     final String timerId = "gobbledegook";
 
     pipeline

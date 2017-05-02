@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -41,7 +42,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFind() {
+  public void testFind() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("[xyz]"));
 
@@ -51,7 +52,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFindGroup() {
+  public void testFindGroup() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("([xyz])", 1));
 
@@ -61,7 +62,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFindNone() {
+  public void testFindNone() throws ValidationException {
     PCollection<String> output = p.apply(Create.of("a", "b", "c", "d")).apply(Regex.find("[xyz]"));
 
     PAssert.that(output).empty();
@@ -70,7 +71,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFindNameGroup() {
+  public void testFindNameGroup() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.of("aj", "xj", "yj", "zj"))
             .apply(Regex.find("(?<namedgroup>[xyz])", "namedgroup"));
@@ -81,7 +82,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFindAllGroups() {
+  public void testFindAllGroups() throws ValidationException {
     PCollection<List<String>> output =
         p.apply(Create.of("aj", "xjx", "yjy", "zjz")).apply(Regex.findAll("([xyz])j([xyz])"));
 
@@ -95,7 +96,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testFindNameNone() {
+  public void testFindNameNone() throws ValidationException {
     PCollection<String> output =
         p.apply(Create.of("a", "b", "c", "d"))
             .apply(Regex.find("(?<namedgroup>[xyz])", "namedgroup"));
@@ -106,7 +107,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVFind() {
+  public void testKVFind() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c")).apply(Regex.findKV("a (b) (c)", 1, 2));
@@ -117,7 +118,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVFindNone() {
+  public void testKVFindNone() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.findKV("a (b) (c)", 1, 2));
@@ -128,7 +129,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVFindName() {
+  public void testKVFindName() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c"))
@@ -140,7 +141,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVFindNameNone() {
+  public void testKVFindNameNone() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z"))
@@ -152,7 +153,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMatches() {
+  public void testMatches() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("a", "x", "y", "z")).apply(Regex.matches("[xyz]"));
@@ -163,7 +164,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMatchesNone() {
+  public void testMatchesNone() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("a", "b", "c", "d")).apply(Regex.matches("[xyz]"));
@@ -174,7 +175,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMatchesGroup() {
+  public void testMatchesGroup() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("a", "x xxx", "x yyy", "x zzz")).apply(Regex.matches("x ([xyz]*)", 1));
@@ -185,7 +186,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMatchesName() {
+  public void testMatchesName() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("a", "x xxx", "x yyy", "x zzz"))
@@ -197,7 +198,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testMatchesNameNone() {
+  public void testMatchesNameNone() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("a", "b", "c", "d"))
@@ -209,7 +210,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testAllMatches() {
+  public void testAllMatches() throws ValidationException {
 
     PCollection<List<String>> output =
         p.apply(Create.of("a x", "x x", "y y", "z z")).apply(Regex.allMatches("([xyz]) ([xyz])"));
@@ -224,7 +225,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVMatches() {
+  public void testKVMatches() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
@@ -235,7 +236,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVMatchesNone() {
+  public void testKVMatchesNone() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
@@ -245,7 +246,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVMatchesName() {
+  public void testKVMatchesName() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c"))
@@ -257,7 +258,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testKVMatchesNameNone() {
+  public void testKVMatchesNameNone() throws ValidationException {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z"))
@@ -268,7 +269,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReplaceAll() {
+  public void testReplaceAll() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("xj", "yj", "zj")).apply(Regex.replaceAll("[xyz]", "new"));
@@ -279,7 +280,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReplaceAllMixed() {
+  public void testReplaceAllMixed() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("abc", "xj", "yj", "zj", "def")).apply(Regex.replaceAll("[xyz]", "new"));
@@ -290,7 +291,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReplaceFirst() {
+  public void testReplaceFirst() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("xjx", "yjy", "zjz")).apply(Regex.replaceFirst("[xyz]", "new"));
@@ -301,7 +302,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReplaceFirstMixed() {
+  public void testReplaceFirstMixed() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
@@ -313,7 +314,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testSplits() {
+  public void testSplits() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
@@ -326,7 +327,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testSplitsWithEmpty() {
+  public void testSplitsWithEmpty() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
@@ -343,7 +344,7 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testSplitsWithoutEmpty() {
+  public void testSplitsWithoutEmpty() throws ValidationException {
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))

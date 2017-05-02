@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
 import org.apache.beam.sdk.io.CountingSource;
@@ -164,7 +165,7 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
-  public void producingOwnOutputWithCompositeFails() {
+  public void producingOwnOutputWithCompositeFails() throws ValidationException {
     final PCollection<Long> comp =
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
@@ -190,7 +191,7 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
-  public void replaceSucceeds() {
+  public void replaceSucceeds() throws ValidationException {
     PTransform<?, ?> enclosingPT =
         new PTransform<PInput, POutput>() {
           @Override
@@ -243,7 +244,7 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
-  public void replaceWithCompositeSucceeds() {
+  public void replaceWithCompositeSucceeds() throws ValidationException {
     final SingleOutput<Long, Long> originalParDo =
         ParDo.of(
             new DoFn<Long, Long>() {
@@ -279,7 +280,7 @@ public class TransformHierarchyTest implements Serializable {
     PTransform<PCollection<Long>, PCollection<Long>> replacementComposite =
         new PTransform<PCollection<Long>, PCollection<Long>>() {
           @Override
-          public PCollection<Long> expand(PCollection<Long> input) {
+          public PCollection<Long> expand(PCollection<Long> input) throws ValidationException {
             return input.apply("Contained", replacementParDo).get(longs);
           }
         };
@@ -405,7 +406,7 @@ public class TransformHierarchyTest implements Serializable {
    * new inaccessible replacement values, and the original output values.
    */
   @Test
-  public void visitAfterReplace() {
+  public void visitAfterReplace() throws ValidationException {
     Node root = hierarchy.getCurrent();
     final SingleOutput<Long, Long> originalParDo =
         ParDo.of(
@@ -442,7 +443,7 @@ public class TransformHierarchyTest implements Serializable {
     PTransform<PCollection<Long>, PCollection<Long>> replacementComposite =
         new PTransform<PCollection<Long>, PCollection<Long>>() {
           @Override
-          public PCollection<Long> expand(PCollection<Long> input) {
+          public PCollection<Long> expand(PCollection<Long> input) throws ValidationException {
             return input.apply("Contained", replacementParDo).get(longs);
           }
         };

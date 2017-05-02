@@ -32,6 +32,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -148,7 +149,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public PCollection<byte[]> expand(PBegin input) {
+    public PCollection<byte[]> expand(PBegin input) throws ValidationException {
       if (getFilepattern() == null) {
         throw new IllegalStateException(
             "Need to set the filepattern of a TFRecordIO.Read transform");
@@ -340,7 +341,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public PDone expand(PCollection<byte[]> input) {
+    public PDone expand(PCollection<byte[]> input) throws ValidationException {
       if (getFilenamePrefix() == null) {
         throw new IllegalStateException(
             "need to set the filename prefix of a TFRecordIO.Write transform");

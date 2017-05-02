@@ -28,6 +28,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -134,7 +135,7 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,
       UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void testAllCommittedMetrics() {
+  public void testAllCommittedMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
 
@@ -144,7 +145,7 @@ public class MetricsTest implements Serializable {
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class,
       UsesDistributionMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void testAllAttemptedMetrics() {
+  public void testAllAttemptedMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
 
@@ -154,7 +155,7 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class})
   @Test
-  public void testCommittedCounterMetrics() {
+  public void testCommittedCounterMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertCounterMetrics(metrics, true);
@@ -162,7 +163,7 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   @Test
-  public void testAttemptedCounterMetrics() {
+  public void testAttemptedCounterMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertCounterMetrics(metrics, false);
@@ -170,7 +171,7 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesDistributionMetrics.class})
   @Test
-  public void testCommittedDistributionMetrics() {
+  public void testCommittedDistributionMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertDistributionMetrics(metrics, true);
@@ -178,7 +179,7 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesDistributionMetrics.class})
   @Test
-  public void testAttemptedDistributionMetrics() {
+  public void testAttemptedDistributionMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertDistributionMetrics(metrics, false);
@@ -186,7 +187,7 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void testCommittedGaugeMetrics() {
+  public void testCommittedGaugeMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertGaugeMetrics(metrics, true);
@@ -194,13 +195,13 @@ public class MetricsTest implements Serializable {
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesGaugeMetrics.class})
   @Test
-  public void testAttemptedGaugeMetrics() {
+  public void testAttemptedGaugeMetrics() throws ValidationException {
     PipelineResult result = runPipelineWithMetrics();
     MetricQueryResults metrics = queryTestMetrics(result);
     assertGaugeMetrics(metrics, false);
   }
 
-  private PipelineResult runPipelineWithMetrics() {
+  private PipelineResult runPipelineWithMetrics() throws ValidationException {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     final TupleTag<Integer> output1 = new TupleTag<Integer>(){};
     final TupleTag<Integer> output2 = new TupleTag<Integer>(){};
@@ -285,7 +286,7 @@ public class MetricsTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
-  public void testBoundedSourceMetrics() {
+  public void testBoundedSourceMetrics() throws ValidationException{
     long numElements = 1000;
 
     pipeline.apply(GenerateSequence.from(0).to(numElements));
@@ -311,7 +312,7 @@ public class MetricsTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
-  public void testUnboundedSourceMetrics() {
+  public void testUnboundedSourceMetrics() throws ValidationException{
     long numElements = 1000;
 
     // Use withMaxReadTime to force unbounded mode.

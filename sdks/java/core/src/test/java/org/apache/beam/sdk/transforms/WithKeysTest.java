@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -68,7 +69,7 @@ public class WithKeysTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testExtractKeys() {
+  public void testExtractKeys() throws ValidationException {
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
@@ -84,7 +85,7 @@ public class WithKeysTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testConstantKeys() {
+  public void testConstantKeys() throws ValidationException {
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
@@ -105,7 +106,7 @@ public class WithKeysTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWithKeysWithUnneededWithKeyTypeSucceeds() {
+  public void testWithKeysWithUnneededWithKeyTypeSucceeds() throws ValidationException {
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(

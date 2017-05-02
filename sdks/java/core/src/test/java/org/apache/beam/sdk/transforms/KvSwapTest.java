@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -57,7 +58,7 @@ public class KvSwapTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testKvSwap() {
+  public void testKvSwap() throws ValidationException {
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(BigEndianIntegerCoder.of()))));
@@ -78,7 +79,7 @@ public class KvSwapTest {
 
   @Test
   @Category(ValidatesRunner.class)
-  public void testKvSwapEmpty() {
+  public void testKvSwapEmpty() throws ValidationException {
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.ValidationException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -58,8 +59,9 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    *
    * <p>It is recommended to use {@link com.google.common.base.Preconditions} for implementing
    * this method.
+   * @throws ValidationException when validation fails
    */
-  public abstract void validate();
+  public abstract void validate() throws ValidationException;
 
   /**
    * Returns the default {@code Coder} to use for the data read from this source.
