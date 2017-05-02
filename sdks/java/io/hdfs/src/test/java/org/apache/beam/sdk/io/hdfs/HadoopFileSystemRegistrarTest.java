@@ -17,17 +17,24 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.net.URI;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -37,13 +44,35 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HadoopFileSystemRegistrarTest {
 
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  private Configuration configuration;
+  private MiniDFSCluster hdfsCluster;
+  private URI hdfsClusterBaseUri;
+
+  @Before
+  public void setUp() throws Exception {
+    configuration = new Configuration();
+    configuration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpFolder.getRoot().getAbsolutePath());
+    MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(configuration);
+    hdfsCluster = builder.build();
+    hdfsClusterBaseUri = new URI(configuration.get("fs.defaultFS") + "/");
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    hdfsCluster.shutdown();
+  }
+
   @Test
   public void testServiceLoader() {
+    HadoopFileSystemOptions options = PipelineOptionsFactory.as(HadoopFileSystemOptions.class);
+    options.setHdfsConfiguration(ImmutableList.of(configuration));
     for (FileSystemRegistrar registrar
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
-        Iterable<FileSystem> fileSystems = registrar.fromOptions(PipelineOptionsFactory.create());
-        assertThat(fileSystems, contains(instanceOf(HadoopFileSystem.class)));
+        Iterable<FileSystem> fileSystems = registrar.fromOptions(options);
+        assertEquals(hdfsClusterBaseUri.getScheme(),
+            ((HadoopFileSystem) Iterables.getOnlyElement(fileSystems)).getScheme());
         return;
       }
     }
