@@ -63,7 +63,7 @@ public class DedupingOperatorTest {
         WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key2, key2.getBytes()))));
 
     harness.processElement(new StreamRecord<>(
-        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key2.getBytes()))));
+        WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
 
     assertThat(
         this.<String>stripStreamRecordFromWindowedValue(harness.getOutput()),
