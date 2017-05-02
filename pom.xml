@@ -141,6 +141,7 @@
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
+    <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -215,6 +216,11 @@
                   </goals>
                 </execution>
               </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-resources-plugin</artifactId>
+              <version>${maven-resources-plugin.version}</version>
             </plugin>
           </plugins>
         </pluginManagement>

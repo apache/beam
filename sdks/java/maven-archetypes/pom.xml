@@ -35,6 +35,41 @@
     <module>starter</module>
   </modules>
 
+  <build>
+    <resources>
+      <!-- use filtering for the pom.xml template (with custom delimiter, see bellow) -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <includes>
+          <include>archetype-resources/pom.xml</include>
+        </includes>
+      </resource>
+      <!-- all of the other resources file should be used as resource but without filtering -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <excludes>
+          <exclude>archetype-resources/pom.xml</exclude>
+        </excludes>
+      </resource>
+    </resources>
+
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-resources-plugin</artifactId>
+          <configuration>
+            <delimiters>
+              <delimiter>@</delimiter>
+            </delimiters>
+            <useDefaultDelimiters>false</useDefaultDelimiters>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
   <profiles>
     <!--
       The builds for the example archetypes use unix scripting, so are enabled only on
