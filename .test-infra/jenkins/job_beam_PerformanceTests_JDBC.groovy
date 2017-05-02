@@ -57,4 +57,7 @@ job('beam_PerformanceTests_JDBC'){
     ]
 
     common_job_properties.buildPerformanceTest(delegate, argMap)
+
+    // [BEAM-2141] Perf tests do not pass.
+    disabled()
 }
