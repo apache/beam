@@ -24,7 +24,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
   <td>Java</td>
   <td>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java">AvroIO</a></p>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hdfs">Apache Hadoop HDFS</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-file-system">Apache Hadoop File System</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java">TextIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/">XML</a></p>
   </td>
