@@ -67,7 +67,7 @@ public class CloudObjects {
         (CloudObjectTranslator<Coder>) CODER_TRANSLATORS.get(coder.getClass());
     if (translator != null) {
       return translator.toCloudObject(coder);
-    } else if (coder instanceof CustomCoder) {
+    } else {
       CloudObjectTranslator customCoderTranslator = CODER_TRANSLATORS.get(CustomCoder.class);
       checkNotNull(
           customCoderTranslator,
@@ -77,9 +77,6 @@ public class CloudObjects {
           DefaultCoderCloudObjectTranslatorRegistrar.class.getSimpleName());
       return customCoderTranslator.toCloudObject(coder);
     }
-    throw new IllegalArgumentException(
-        String.format(
-            "Non-Custom %s with no registered %s", Coder.class, CloudObjectTranslator.class));
   }
 
   public static Coder<?> coderFromCloudObject(CloudObject cloudObject) {
