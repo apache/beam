@@ -26,8 +26,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-io-hdfs</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: HDFS</name>
+  <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop File System</name>
   <description>Library to read and write Hadoop/HDFS file formats from Beam.</description>
 
   <build>
