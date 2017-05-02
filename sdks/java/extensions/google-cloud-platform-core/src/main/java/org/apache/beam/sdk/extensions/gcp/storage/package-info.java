@@ -18,4 +18,4 @@
 /**
  * Defines IO connectors for Google Cloud Storage.
  */
-package org.apache.beam.sdk.io.gcp.storage;
+package org.apache.beam.sdk.extensions.gcp.storage;
