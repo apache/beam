@@ -62,7 +62,7 @@ import org.joda.time.Instant;
  * <p>{@link EvaluationContext} contains shared state for an execution of the
  * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
  * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and managing the {@link AggregatorContainer} and
+ * {@link PCollectionView PCollectionViews}, and managing the
  * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
  * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
  * known to be empty).
@@ -95,8 +95,6 @@ class EvaluationContext {
 
   private final SideInputContainer sideInputContainer;
 
-  private final AggregatorContainer mergedAggregators;
-
   private final DirectMetrics metrics;
 
   private final Set<PValue> keyedPValues;
@@ -126,7 +124,6 @@ class EvaluationContext {
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.mergedAggregators = AggregatorContainer.create();
     this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
@@ -174,10 +171,6 @@ class EvaluationContext {
             : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
         committedBundles,
         outputTypes);
-    // Commit aggregator changes
-    if (result.getAggregatorChanges() != null) {
-      result.getAggregatorChanges().commit();
-    }
     // Update state internals
     CopyOnAccessInMemoryStateInternals<?> theirState = result.getState();
     if (theirState != null) {
@@ -360,20 +353,6 @@ class EvaluationContext {
   public ReadyCheckingSideInputReader createSideInputReader(
       final List<PCollectionView<?>> sideInputs) {
     return sideInputContainer.createReaderForViews(sideInputs);
-  }
-
-  /**
-   * Returns a new mutator for the {@link AggregatorContainer}.
-   */
-  public AggregatorContainer.Mutator getAggregatorMutator() {
-    return mergedAggregators.createMutator();
-  }
-
-  /**
-   * Returns the counter container for this context.
-   */
-  public AggregatorContainer getAggregatorContainer() {
-    return mergedAggregators;
   }
 
   /** Returns the metrics container for this pipeline. */

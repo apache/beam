@@ -61,12 +61,6 @@ public interface TransformResult<InputT> {
   Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
   /**
-   * Returns the {@link AggregatorContainer.Mutator} used by this {@link PTransform}, or null if
-   * this transform did not use an {@link AggregatorContainer.Mutator}.
-   */
-  @Nullable AggregatorContainer.Mutator getAggregatorChanges();
-
-  /**
    * Returns the logical metric updates.
    */
   MetricUpdates getLogicalMetricUpdates();

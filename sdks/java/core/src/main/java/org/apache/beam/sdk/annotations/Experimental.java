@@ -63,9 +63,6 @@ public @interface Experimental {
     /** Trigger-related experimental APIs. */
     TRIGGER,
 
-    /** Aggregator-related experimental APIs. */
-    AGGREGATOR,
-
     /** Experimental APIs for Coder binary format identifiers. */
     CODER_ENCODING_ID,
 

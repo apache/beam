@@ -260,7 +260,6 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                   delegateResult.getTransform(), delegateResult.getWatermarkHold())
               .withTimerUpdate(delegateResult.getTimerUpdate())
               .withState(delegateResult.getState())
-              .withAggregatorChanges(delegateResult.getAggregatorChanges())
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
               .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));
 

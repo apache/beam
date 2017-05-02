@@ -204,7 +204,6 @@ public class StatefulDoFnRunnerTest {
         null,
         Collections.<TupleTag<?>>emptyList(),
         mockStepContext,
-        null,
         WINDOWING_STRATEGY);
   }
 
