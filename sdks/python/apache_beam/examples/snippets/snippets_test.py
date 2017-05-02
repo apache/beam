@@ -31,7 +31,8 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.pipeline_options import TypeOptions
+# from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned
@@ -246,10 +247,11 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
     # [START type_hints_missing_define_numbers]
-    p = TestPipeline(
-        options=TypeOptions.from_dictionary({'pipeline_type_check': True})
-    )
-    evens = None  # pylint: disable=unused-variable
+    # p = TestPipeline(
+    #     options=TypeOptions.from_dictionary({'pipeline_type_check': True})
+    # )
+    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+    # evens = None  # pylint: disable=unused-variable
 
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
@@ -316,12 +318,12 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline(
-        options=TypeOptions.from_dictionary({'runtime_type_check': True})
-    )
+    # p = TestPipeline(
+    #     options=TypeOptions.from_dictionary({'runtime_type_check': True})
+    # )
+    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
-      # p._options.view_as(TypeOptions).runtime_type_check = True
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]

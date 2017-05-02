@@ -142,7 +142,8 @@ class Pipeline(object):
 
   @property
   @deprecated(since='First stable release',
-              extra_message='Avoid references to <pipeline>.options')
+              extra_message='References to <pipeline>.options'
+              ' will not be supported')
   def options(self):
     return self._options
 

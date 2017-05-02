@@ -210,6 +210,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
+  # TODO(mariagh): Make this method take pipepline_options
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
