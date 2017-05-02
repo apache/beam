@@ -83,10 +83,10 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
     StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
       @Override
-      public StateInternals<K> stateInternalsForKey(K key) {
+      public StateInternals stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals<K>) stateInternals;
+        return (StateInternals) stateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {

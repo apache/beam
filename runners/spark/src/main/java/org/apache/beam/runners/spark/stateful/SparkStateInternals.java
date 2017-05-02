@@ -32,7 +32,6 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
@@ -51,7 +50,7 @@ import org.joda.time.Instant;
 /**
  * An implementation of {@link StateInternals} for the SparkRunner.
  */
-class SparkStateInternals<K> implements StateInternals<K> {
+class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
   //Serializable state for internals (namespace to state tag to coded value).
@@ -86,50 +85,47 @@ class SparkStateInternals<K> implements StateInternals<K> {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address) {
+  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
     return state(namespace, address, StateContexts.nullContext());
   }
 
   @Override
   public <T extends State> T state(
       StateNamespace namespace,
-      StateTag<? super K, T> address,
+      StateTag<T> address,
       StateContext<?> c) {
-    return address.bind(new SparkStateBinder(key, namespace, c));
+    return address.bind(new SparkStateBinder(namespace, c));
   }
 
-  private class SparkStateBinder implements StateBinder<K> {
-    private final K key;
+  private class SparkStateBinder implements StateBinder {
     private final StateNamespace namespace;
     private final StateContext<?> c;
 
-    private SparkStateBinder(K key,
-                             StateNamespace namespace,
+    private SparkStateBinder(StateNamespace namespace,
                              StateContext<?> c) {
-      this.key = key;
       this.namespace = namespace;
       this.c = c;
     }
 
     @Override
-    public <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder) {
+    public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
       return new SparkValueState<>(namespace, address, coder);
     }
 
     @Override
-    public <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder) {
+    public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
       return new SparkBagState<>(namespace, address, elemCoder);
     }
 
     @Override
-    public <T> SetState<T> bindSet(StateTag<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+    public <T> SetState<T> bindSet(StateTag<SetState<T>> spec, Coder<T> elemCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", SetState.class.getSimpleName()));
     }
 
     @Override
     public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-        StateTag<? super K, MapState<KeyT, ValueT>> spec,
+        StateTag<MapState<KeyT, ValueT>> spec,
         Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
       throw new UnsupportedOperationException(
           String.format("%s is not supported", MapState.class.getSimpleName()));
@@ -138,7 +134,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValue(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFn<InputT, AccumT, OutputT> combineFn) {
       return new SparkCombiningState<>(namespace, address, accumCoder, combineFn);
@@ -147,7 +143,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
     @Override
     public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
         bindCombiningValueWithContext(
-            StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+            StateTag<CombiningState<InputT, AccumT, OutputT>> address,
             Coder<AccumT> accumCoder,
             CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return new SparkCombiningState<>(
@@ -155,8 +151,8 @@ class SparkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-        StateTag<? super K, WatermarkHoldState> address,
+    public WatermarkHoldState bindWatermark(
+        StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
       return new SparkWatermarkHoldState(namespace, address, timestampCombiner);
     }
@@ -164,12 +160,12 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
   private class AbstractState<T> {
     final StateNamespace namespace;
-    final StateTag<?, ? extends State> address;
+    final StateTag<? extends State> address;
     final Coder<T> coder;
 
     private AbstractState(
         StateNamespace namespace,
-        StateTag<?, ? extends State> address,
+        StateTag<? extends State> address,
         Coder<T> coder) {
       this.namespace = namespace;
       this.address = address;
@@ -218,7 +214,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
     private SparkValueState(
             StateNamespace namespace,
-            StateTag<?, ValueState<T>> address,
+            StateTag<ValueState<T>> address,
             Coder<T> coder) {
       super(namespace, address, coder);
     }
@@ -246,7 +242,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
     public SparkWatermarkHoldState(
         StateNamespace namespace,
-        StateTag<?, WatermarkHoldState> address,
+        StateTag<WatermarkHoldState> address,
         TimestampCombiner timestampCombiner) {
       super(namespace, address, InstantCoder.of());
       this.timestampCombiner = timestampCombiner;
@@ -300,7 +296,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
 
     private SparkCombiningState(
         StateNamespace namespace,
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
         CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(namespace, address, coder);
@@ -363,7 +359,7 @@ class SparkStateInternals<K> implements StateInternals<K> {
   private final class SparkBagState<T> extends AbstractState<List<T>> implements BagState<T> {
     private SparkBagState(
         StateNamespace namespace,
-        StateTag<?, BagState<T>> address,
+        StateTag<BagState<T>> address,
         Coder<T> coder) {
       super(namespace, address, ListCoder.of(coder));
     }

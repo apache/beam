@@ -54,9 +54,9 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * used for elements.
    */
   public static <W extends BoundedWindow>
-      StateTag<Object, WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
+      StateTag<WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
           TimestampCombiner timestampCombiner) {
-    return StateTags.<Object, WatermarkHoldState>makeSystemTagInternal(
+    return StateTags.<WatermarkHoldState>makeSystemTagInternal(
         StateTags.<W>watermarkStateInternal("hold", timestampCombiner));
   }
 
@@ -67,13 +67,13 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * would take the end-of-window time as its element time.)
    */
   @VisibleForTesting
-  public static final StateTag<Object, WatermarkHoldState> EXTRA_HOLD_TAG =
+  public static final StateTag<WatermarkHoldState> EXTRA_HOLD_TAG =
       StateTags.makeSystemTagInternal(StateTags.watermarkStateInternal(
           "extra", TimestampCombiner.EARLIEST));
 
   private final TimerInternals timerInternals;
   private final WindowingStrategy<?, W> windowingStrategy;
-  private final StateTag<Object, WatermarkHoldState> elementHoldTag;
+  private final StateTag<WatermarkHoldState> elementHoldTag;
 
   public WatermarkHold(TimerInternals timerInternals, WindowingStrategy<?, W> windowingStrategy) {
     this.timerInternals = timerInternals;

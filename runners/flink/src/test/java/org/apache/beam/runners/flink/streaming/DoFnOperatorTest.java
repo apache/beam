@@ -196,7 +196,7 @@ public class DoFnOperatorTest {
     DoFn<Integer, String> fn = new DoFn<Integer, String>() {
 
       @StateId("state")
-      private final StateSpec<Object, ValueState<String>> stateSpec =
+      private final StateSpec<ValueState<String>> stateSpec =
           StateSpecs.value(StringUtf8Coder.of());
 
       @ProcessElement
@@ -296,7 +296,7 @@ public class DoFnOperatorTest {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<String>> stateSpec =
+          private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());
 
           @ProcessElement

@@ -614,8 +614,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
@@ -726,8 +726,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));

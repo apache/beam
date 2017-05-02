@@ -113,7 +113,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
   private static class GeneralNonEmptyPanes<K, W extends BoundedWindow>
       extends NonEmptyPanes<K, W> {
 
-    private static final StateTag<Object, CombiningState<Long, long[], Long>>
+    private static final StateTag<CombiningState<Long, long[], Long>>
         PANE_ADDITIONS_TAG =
         StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
             "count", VarLongCoder.of(), Sum.ofLongs()));

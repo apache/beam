@@ -175,10 +175,11 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             @Override
             public void run() {
               for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-                StateTag<Object, ?> tag;
+                StateTag<?> tag;
                 try {
                   tag =
-                      StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+                      StateTags.tagForSpec(
+                          stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
                 } catch (IllegalAccessException e) {
                   throw new RuntimeException(
                       String.format(

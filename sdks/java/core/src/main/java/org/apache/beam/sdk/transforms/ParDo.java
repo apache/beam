@@ -446,7 +446,7 @@ public class ParDo {
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
-        StateSpec<?, ?> stateSpec = (StateSpec<?, ?>) stateDeclaration.field().get(fn);
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
         stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {

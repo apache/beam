@@ -127,7 +127,7 @@ class SplittableProcessElementsEvaluatorFactory<
         new StateInternalsFactory<String>() {
           @SuppressWarnings({"unchecked", "rawtypes"})
           @Override
-          public StateInternals<String> stateInternalsForKey(String key) {
+          public StateInternals stateInternalsForKey(String key) {
             return (StateInternals) stepContext.stateInternals();
           }
         });

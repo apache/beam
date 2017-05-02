@@ -108,7 +108,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final OutputWindowedValue<KV<K, OutputT>> outputter;
 
-  private final StateInternals<K> stateInternals;
+  private final StateInternals stateInternals;
 
   private final Counter droppedDueToClosedWindow;
 
@@ -214,7 +214,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       K key,
       WindowingStrategy<?, W> windowingStrategy,
       ExecutableTriggerStateMachine triggerStateMachine,
-      StateInternals<K> stateInternals,
+      StateInternals stateInternals,
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
       SideInputReader sideInputReader,

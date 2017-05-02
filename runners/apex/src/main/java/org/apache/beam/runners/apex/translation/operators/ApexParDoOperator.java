@@ -94,7 +94,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   private StateInternalsProxy<?> currentKeyStateInternals;
   private final ApexTimerInternals<Object> currentKeyTimerInternals;
 
-  private final StateInternals<Void> sideInputStateInternals;
+  private final StateInternals sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
@@ -327,7 +327,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     NoOpStepContext stepContext = new NoOpStepContext() {
 
       @Override
-      public StateInternals<?> stateInternals() {
+      public StateInternals stateInternals() {
         return currentKeyStateInternals;
       }
 

@@ -331,10 +331,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
-   * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
-   * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
-   * annotate it with {@link StateId}. See the following code for an example:
+   * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a
+   * {@link StateId}. To use the cell during processing, add a parameter of the appropriate {@link
+   * State} subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer}
+   * method, and annotate it with {@link StateId}. See the following code for an example:
    *
    * <pre><code>{@literal new DoFn<KV<Key, Foo>, Baz>()} {
    *
