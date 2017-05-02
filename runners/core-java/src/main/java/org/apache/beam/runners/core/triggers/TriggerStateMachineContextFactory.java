@@ -35,10 +35,10 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachine.MergingTriggerI
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.TriggerInfo;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.TimeDomain;
-import org.apache.beam.sdk.util.Timers;
 import org.joda.time.Instant;
 
 /**

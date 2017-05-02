@@ -24,7 +24,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 
 /**
  * {@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a

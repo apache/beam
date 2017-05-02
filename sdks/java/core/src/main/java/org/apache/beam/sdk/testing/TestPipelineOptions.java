@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;

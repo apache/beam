@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.state;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;

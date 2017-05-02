@@ -15,16 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.state;
 
-import java.io.Serializable;
+import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * A specification for a {@link Timer}. This includes its {@link TimeDomain}.
+ * Static methods for working with {@link TimerSpec}.
  */
 @Experimental(Kind.TIMERS)
-public interface TimerSpec extends Serializable {
-  TimeDomain getTimeDomain();
+public class TimerSpecs {
+
+  public static TimerSpec timer(TimeDomain timeDomain) {
+    return new org.apache.beam.sdk.util.AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
+  }
+
+  /**
+   * A straightforward POJO {@link TimerSpec}. Package-level access for AutoValue.
+   */
+  @AutoValue
+  abstract static class SimpleTimerSpec implements TimerSpec {
+    public abstract TimeDomain getTimeDomain();
+  }
 }
