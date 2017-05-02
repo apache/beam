@@ -15,31 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 /**
- * State containing no duplicate elements.
- * Items can be added to the set and the contents read out.
+ * State containing a bag values. Items can be added to the bag and the contents read out.
  *
- * @param <T> The type of elements in the set.
+ * @param <T> The type of elements in the bag.
  */
-public interface SetState<T> extends GroupingState<T, Iterable<T>> {
-  /**
-   * Returns true if this set contains the specified element.
-   */
-  ReadableState<Boolean> contains(T t);
-
-  /**
-   * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
-   * false} otherwise.
-   */
-  ReadableState<Boolean> addIfAbsent(T t);
-
-  /**
-   * Removes the specified element from this set if it is present.
-   */
-  void remove(T t);
-
+public interface BagState<T> extends GroupingState<T, Iterable<T>> {
   @Override
-  SetState<T> readLater();
+  BagState<T> readLater();
 }

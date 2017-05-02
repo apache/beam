@@ -15,29 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Information accessible the state API.
+ * Factory that produces {@link StateContext} based on different inputs.
  */
-public interface StateContext<W extends BoundedWindow> {
-  /**
-   * Returns the {@code PipelineOptions} specified with the
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}.
-   */
-  PipelineOptions getPipelineOptions();
+public class StateContexts {
+  private static final StateContext<BoundedWindow> NULL_CONTEXT =
+      new StateContext<BoundedWindow>() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          throw new IllegalArgumentException("cannot call getPipelineOptions() in a null context");
+        }
 
-  /**
-   * Returns the value of the side input for the corresponding state window.
-   */
-  <T> T sideInput(PCollectionView<T> view);
+        @Override
+        public <T> T sideInput(PCollectionView<T> view) {
+          throw new IllegalArgumentException("cannot call sideInput() in a null context");
+        }
 
-  /**
-   * Returns the window corresponding to the state.
-   */
-  W window();
+        @Override
+        public BoundedWindow window() {
+          throw new IllegalArgumentException("cannot call window() in a null context");
+        }
+      };
+
+  /** Returns a fake {@link StateContext}. */
+  @SuppressWarnings("unchecked")
+  public static <W extends BoundedWindow> StateContext<W> nullContext() {
+    return (StateContext<W>) NULL_CONTEXT;
+  }
 }
