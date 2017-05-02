@@ -170,12 +170,11 @@ public class ParDoTest implements Serializable {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertThat(state,
           anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
 
       state = State.STARTED;
-      outputToAll(c, "started");
     }
 
     @ProcessElement
@@ -187,18 +186,17 @@ public class ParDoTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle(FinishBundleContext c) {
       assertThat(state,
                  anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
       state = State.FINISHED;
-      outputToAll(c, "finished");
-    }
-
-    private void outputToAll(Context c, String value) {
-      c.output(value);
+      c.output("finished", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
       for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
-        c.output(additionalOutputTupleTag,
-                     additionalOutputTupleTag.getId() + ": " + value);
+        c.output(
+            additionalOutputTupleTag,
+            additionalOutputTupleTag.getId() + ": " + "finished",
+            BoundedWindow.TIMESTAMP_MIN_VALUE,
+            GlobalWindow.INSTANCE);
       }
     }
 
@@ -220,7 +218,7 @@ public class ParDoTest implements Serializable {
 
   static class TestStartBatchErrorDoFn extends DoFn<Integer, String> {
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       throw new RuntimeException("test error in initialize");
     }
 
@@ -244,7 +242,7 @@ public class ParDoTest implements Serializable {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle(FinishBundleContext c) {
       throw new RuntimeException("test error in finalize");
     }
   }
@@ -1156,13 +1154,10 @@ public class ParDoTest implements Serializable {
 
     @Override
     public Void apply(Iterable<String> outputs) {
-      List<String> starteds = new ArrayList<>();
       List<String> processeds = new ArrayList<>();
       List<String> finisheds = new ArrayList<>();
       for (String output : outputs) {
-        if (output.contains("started")) {
-          starteds.add(output);
-        } else if (output.contains("finished")) {
+        if (output.contains("finished")) {
           finisheds.add(output);
         } else {
           processeds.add(output);
@@ -1196,10 +1191,6 @@ public class ParDoTest implements Serializable {
         assertThat(processeds, contains(expectedProcessedsArray));
       }
 
-      assertEquals(starteds.size(), finisheds.size());
-      for (String started : starteds) {
-        assertEquals(additionalOutputPrefix + "started", started);
-      }
       for (String finished : finisheds) {
         assertEquals(additionalOutputPrefix + "finished", finished);
       }
@@ -1481,7 +1472,6 @@ public class ParDoTest implements Serializable {
   private static class Checker implements SerializableFunction<Iterable<String>, Void> {
     @Override
     public Void apply(Iterable<String> input) {
-      boolean foundStart = false;
       boolean foundElement = false;
       boolean foundFinish = false;
       for (String str : input) {
@@ -1490,16 +1480,11 @@ public class ParDoTest implements Serializable {
             throw new AssertionError("Received duplicate element");
           }
           foundElement = true;
-        } else if (str.equals("start:2:2")) {
-          foundStart = true;
         } else if (str.equals("finish:3:3")) {
           foundFinish = true;
         } else {
           throw new AssertionError("Got unexpected value: " + str);
         }
-      }
-      if (!foundStart) {
-        throw new AssertionError("Missing \"start:2:2\"");
       }
       if (!foundElement) {
         throw new AssertionError("Missing \"elem:1:1\"");
@@ -1516,19 +1501,14 @@ public class ParDoTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testWindowingInStartAndFinishBundle() {
 
+    final FixedWindows windowFn = FixedWindows.of(Duration.millis(1));
     PCollection<String> output =
         pipeline
             .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
-            .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
+            .apply(Window.<String>into(windowFn))
             .apply(
                 ParDo.of(
                     new DoFn<String, String>() {
-                      @StartBundle
-                      public void startBundle(Context c) {
-                        c.outputWithTimestamp("start", new Instant(2));
-                        System.out.println("Start: 2");
-                      }
-
                       @ProcessElement
                       public void processElement(ProcessContext c) {
                         c.output(c.element());
@@ -1537,8 +1517,9 @@ public class ParDoTest implements Serializable {
                       }
 
                       @FinishBundle
-                      public void finishBundle(Context c) {
-                        c.outputWithTimestamp("finish", new Instant(3));
+                      public void finishBundle(FinishBundleContext c) {
+                        Instant ts = new Instant(3);
+                        c.output("finish", ts, windowFn.assignWindow(ts));
                         System.out.println("Finish: 3");
                       }
                     }))
@@ -1549,30 +1530,6 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testWindowingInStartBundleException() {
-
-    pipeline
-        .apply(Create.timestamped(TimestampedValue.of("elem", new Instant(1))))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(1))))
-        .apply(
-            ParDo.of(
-                new DoFn<String, String>() {
-                  @StartBundle
-                  public void startBundle(Context c) {
-                    c.output("start");
-                  }
-
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    c.output(c.element());
-                  }
-                }));
-
-    thrown.expectMessage("WindowFn attempted to access input timestamp when none was available");
-    pipeline.run();
-  }
   @Test
   public void testDoFnDisplayData() {
     DoFn<String, String> fn = new DoFn<String, String>() {

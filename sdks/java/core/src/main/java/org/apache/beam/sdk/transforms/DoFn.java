@@ -82,15 +82,62 @@ import org.joda.time.Instant;
  * @param <OutputT> the type of the (main) output elements
  */
 public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayData {
+  /**
+   * Information accessible while within the {@link StartBundle} method.
+   */
+  public abstract class StartBundleContext {
+    /**
+     * Returns the {@code PipelineOptions} specified with the {@link
+     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     */
+    public abstract PipelineOptions getPipelineOptions();
+  }
 
-  /** Information accessible to all methods in this {@code DoFn}. */
-  public abstract class Context {
+  /**
+   * Information accessible while within the {@link FinishBundle} method.
+   */
+  public abstract class FinishBundleContext {
+    /**
+     * Returns the {@code PipelineOptions} specified with the {@link
+     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     */
+    public abstract PipelineOptions getPipelineOptions();
 
     /**
-     * Returns the {@code PipelineOptions} specified with the
-     * {@link org.apache.beam.sdk.runners.PipelineRunner}
-     * invoking this {@code DoFn}.  The {@code PipelineOptions} will
-     * be the default running via {@link DoFnTester}.
+     * Adds the given element to the main output {@code PCollection} at the given
+     * timestamp in the given window.
+     *
+     * <p>Once passed to {@code output} the element should not be modified in
+     * any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the
+     * {@link FinishBundle} method.
+     */
+    public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
+
+    /**
+     * Adds the given element to the output {@code PCollection} with the given tag at the given
+     * timestamp in the given window.
+     *
+     * <p>Once passed to {@code output} the element should not be modified in any way.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from the {@link
+     * FinishBundle} method.
+     */
+    public abstract <T> void output(
+        TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
+  }
+
+  /**
+   * Information accessible to all methods in this {@link DoFn} where the context is in some window.
+   */
+  public abstract class WindowedContext {
+    /**
+     * Returns the {@code PipelineOptions} specified with the {@link
+     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * PipelineOptions} will be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();
 
@@ -205,7 +252,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Information accessible when running a {@link DoFn.ProcessElement} method.
    */
-  public abstract class ProcessContext extends Context {
+  public abstract class ProcessContext extends WindowedContext {
 
     /**
      * Returns the input element to be processed.
@@ -214,7 +261,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * without copying.
      */
     public abstract InputT element();
-
 
     /**
      * Returns the value of the side input.
@@ -257,7 +303,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Information accessible when running a {@link DoFn.OnTimer} method.
    */
-  public abstract class OnTimerContext extends Context {
+  public abstract class OnTimerContext extends WindowedContext {
 
     /**
      * Returns the timestamp of the current timer.
@@ -277,7 +323,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
-   * be shifted backward in {@link DoFn.Context#outputWithTimestamp}.
+   * be shifted backward in {@link WindowedContext#outputWithTimestamp}.
    *
    * <p>The default value is {@code Duration.ZERO}, in which case timestamps can only be shifted
    * forward to future. For infinite skew, return {@code Duration.millis(Long.MAX_VALUE)}.
@@ -449,14 +495,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation for the method to use to prepare an instance for processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
-   *   <li>It must have exactly one argument.
-   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
+   *   <li>It must have exactly zero or one arguments.
+   *   <li>If it has any arguments, its only argument must be a {@link DoFn.StartBundleContext}.
    * </ul>
-   *
-   * <p>A simple method declaration would look like:
-   * <code>
-   *   public void setup(DoFn.Context c) { .. }
-   * </code>
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -524,8 +565,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation for the method to use to finish processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
-   *   <li>It must have at least one argument.
-   *   <li>Its first (and only) argument must be a {@link DoFn.Context}.
+   *   <li>It must have exactly zero or one arguments.
+   *   <li>If it has any arguments, its only argument must be a {@link DoFn.FinishBundleContext}.
    * </ul>
    */
   @Documented

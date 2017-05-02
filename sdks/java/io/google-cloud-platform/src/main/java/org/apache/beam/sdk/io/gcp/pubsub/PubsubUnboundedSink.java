@@ -255,7 +255,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle(StartBundleContext c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
       pubsubClient = pubsubFactory.newClient(timestampAttribute, idAttribute,
                                              c.getPipelineOptions().as(PubsubOptions.class));
@@ -287,7 +287,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       pubsubClient.close();
       pubsubClient = null;
     }
