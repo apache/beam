@@ -40,15 +40,11 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -116,8 +112,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     }
     SparkPipelineResult result = null;
 
-    int expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
-
     // clear state of Aggregators, Metrics and Watermarks if exists.
     AggregatorsAccumulator.clear();
     MetricsAccumulator.clear();
@@ -137,47 +131,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
             String.format("Finish state %s is not allowed.", finishState),
             finishState,
             isOneOf(PipelineResult.State.STOPPED, PipelineResult.State.DONE));
-
-        // validate assertion succeeded (at least once).
-        long successAssertions = 0;
-        Iterable<MetricResult<Long>> counterResults = result.metrics().queryMetrics(
-            MetricsFilter.builder()
-                .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
-                .build()).counters();
-        for (MetricResult<Long> counter : counterResults) {
-          if (counter.attempted().longValue() > 0) {
-            successAssertions++;
-          }
-        }
-        Integer expectedAssertions = testSparkPipelineOptions.getExpectedAssertions() != null
-            ? testSparkPipelineOptions.getExpectedAssertions() : expectedNumberOfAssertions;
-        assertThat(
-            String.format(
-                "Expected %d successful assertions, but found %d.",
-                expectedAssertions, successAssertions),
-            successAssertions,
-            is(expectedAssertions.longValue()));
-        // validate assertion didn't fail.
-        long failedAssertions = 0;
-        Iterable<MetricResult<Long>> failCounterResults = result.metrics().queryMetrics(
-            MetricsFilter.builder()
-                .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
-                .build()).counters();
-        for (MetricResult<Long> counter : failCounterResults) {
-          if (counter.attempted().longValue() > 0) {
-            failedAssertions++;
-          }
-        }
-        assertThat(
-            String.format("Found %d failed assertions.", failedAssertions),
-            failedAssertions,
-            is(0L));
-
-        LOG.info(
-            String.format(
-                "Successfully asserted pipeline %s with %d successful assertions.",
-                testSparkPipelineOptions.getJobName(),
-                successAssertions));
       } finally {
         try {
           // cleanup checkpoint dir.

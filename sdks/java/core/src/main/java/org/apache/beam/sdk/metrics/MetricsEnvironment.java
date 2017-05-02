@@ -70,6 +70,11 @@ public class MetricsEnvironment {
     METRICS_SUPPORTED.set(supported);
   }
 
+  /** Indicates whether metrics reporting is supported. */
+  public static boolean isMetricsSupported() {
+    return METRICS_SUPPORTED.get();
+  }
+
   /**
    * Set the {@link MetricsContainer} for the current thread.
    *

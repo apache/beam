@@ -31,6 +31,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -102,6 +103,8 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
+
+    MetricsEnvironment.setMetricsSupported(true);
 
     LOG.info("Executing pipeline using FlinkRunner.");
 

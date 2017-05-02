@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.TreeNode;
@@ -41,6 +43,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
@@ -186,8 +192,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
             final boolean hasDanglingPAssert =
                 FluentIterable.from(pipelineNodes)
-                              .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                              .anyMatch(isPAssertNode);
+                    .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                    .anyMatch(isPAssertNode);
             if (hasDanglingPAssert) {
               throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
             } else {
@@ -319,12 +325,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-        + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+            + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
       pipelineResult = super.run();
+      verifyPAssertsSucceeded(pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -385,8 +392,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
-                      MAPPER.readValue(beamTestPipelineOptions, String[].class))
-                  .as(TestPipelineOptions.class);
+              MAPPER.readValue(beamTestPipelineOptions, String[].class))
+              .as(TestPipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, set some reasonable defaults
@@ -486,6 +493,35 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
     return firstInstanceAfterTestPipeline;
+  }
+
+  /**
+   * Verifies all {{@link PAssert PAsserts}} in the pipeline have been executed and were successful.
+   *
+   * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
+   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
+   */
+  private void verifyPAssertsSucceeded(PipelineResult pipelineResult) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      long expectedNumberOfAssertions = (long) PAssert.countAsserts(this);
+
+      long successfulAssertions = 0;
+      Iterable<MetricResult<Long>> successCounterResults =
+          pipelineResult.metrics().queryMetrics(
+              MetricsFilter.builder()
+                  .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+                  .build())
+              .counters();
+      for (MetricResult<Long> counter : successCounterResults) {
+        if (counter.attempted() > 0) {
+          successfulAssertions++;
+        }
+      }
+
+      assertThat(String
+          .format("Expected %d successful assertions, but found %d.", expectedNumberOfAssertions,
+              successfulAssertions), successfulAssertions, is(expectedNumberOfAssertions));
+    }
   }
 
   private static class IsEmptyVisitor extends PipelineVisitor.Defaults {
