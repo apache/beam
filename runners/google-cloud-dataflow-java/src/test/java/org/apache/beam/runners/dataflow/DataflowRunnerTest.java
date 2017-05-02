@@ -68,6 +68,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -173,6 +174,9 @@ public class DataflowRunnerTest {
 
     p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
         .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultConfigInWorkers(options);
 
     return p;
   }
