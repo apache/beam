@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Factory that produces {@link StateContext} based on different inputs.
+ * For internal use only; no backwards-compatibility guarantees.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
+@Internal
 public class StateContexts {
   private static final StateContext<BoundedWindow> NULL_CONTEXT =
       new StateContext<BoundedWindow>() {

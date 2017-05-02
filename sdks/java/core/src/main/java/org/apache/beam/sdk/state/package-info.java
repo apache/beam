@@ -17,6 +17,6 @@
  */
 
 /**
- * Defines internal utilities for interacting with pipeline state.
+ * Classes and interfaces for interacting with state.
  */
 package org.apache.beam.sdk.state;

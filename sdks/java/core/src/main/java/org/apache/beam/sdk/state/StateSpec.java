@@ -20,6 +20,7 @@ package org.apache.beam.sdk.state;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
@@ -32,22 +33,31 @@ import org.apache.beam.sdk.coders.Coder;
 public interface StateSpec<StateT extends State> extends Serializable {
 
   /**
-   * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
    */
+  @Internal
   StateT bind(String id, StateBinder binder);
 
   /**
-   * Given {code coders} are inferred from type arguments defined for this class. Coders which are
-   * already set should take precedence over offered coders.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Given {code coders} are inferred from type arguments defined for this class. Coders which
+   * are already set should take precedence over offered coders.
    *
    * @param coders Array of coders indexed by the type arguments order. Entries might be null if the
    *     coder could not be inferred.
    */
+  @Internal
   void offerCoders(Coder[] coders);
 
   /**
-   * Validates that this {@link StateSpec} has been specified correctly and finalizes it.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Validates that this {@link StateSpec} has been specified correctly and finalizes it.
    * Automatically invoked when the pipeline is built.
    */
+  @Internal
   void finishSpecifying();
 }

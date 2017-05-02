@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -26,6 +28,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <InputT> the type of values added to the state
  * @param <OutputT> the type of value extracted from the state
  */
+@Experimental(Kind.STATE)
 public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
   /**
    * Add a value to the buffer.
