@@ -23,6 +23,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -95,42 +96,6 @@ public class StateSpecs {
   }
 
   /**
-   * Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
-   * {@code InputT}s into a single {@code OutputT}.
-   *
-   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and should
-   * only be used to initialize static values.
-   */
-  public static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>>
-  combiningFromInputInternal(
-              Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    try {
-      Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
-      return combiningInternal(accumCoder, combineFn);
-    } catch (CannotProvideCoderException e) {
-      throw new IllegalArgumentException(
-          "Unable to determine accumulator coder for "
-              + combineFn.getClass().getSimpleName()
-              + " from "
-              + inputCoder,
-          e);
-    }
-  }
-
-  private static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
-          Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
-  }
-
-  private static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
-      Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
-  }
-
-  /**
    * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
    * all the values that have been added.
    */
@@ -172,13 +137,62 @@ public class StateSpecs {
     return new MapStateSpec<>(keyCoder, valueCoder);
   }
 
-  /** Create a state spec for holding the watermark. */
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
+   * {@code InputT}s into a single {@code OutputT}.
+   *
+   * <p>This determines the {@code Coder<AccumT>} from the given {@code Coder<InputT>}, and should
+   * only be used to initialize static values.
+   */
+  @Internal
+  public static <InputT, AccumT, OutputT>
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningFromInputInternal(
+          Coder<InputT> inputCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    try {
+      Coder<AccumT> accumCoder = combineFn.getAccumulatorCoder(STANDARD_REGISTRY, inputCoder);
+      return combiningInternal(accumCoder, combineFn);
+    } catch (CannotProvideCoderException e) {
+      throw new IllegalArgumentException(
+          "Unable to determine accumulator coder for "
+              + combineFn.getClass().getSimpleName()
+              + " from "
+              + inputCoder,
+          e);
+    }
+  }
+
+  private static <InputT, AccumT, OutputT>
+  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
+          Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
+    return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+  }
+
+  private static <InputT, AccumT, OutputT>
+  StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
+      Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Create a state spec for a watermark hold.
+   */
+  @Internal
   public static
       StateSpec<WatermarkHoldState> watermarkStateInternal(
           TimestampCombiner timestampCombiner) {
     return new WatermarkStateSpecInternal(timestampCombiner);
   }
 
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a combining state spec to a bag of accumulators.
+   */
+  @Internal
   public static <InputT, AccumT, OutputT>
       StateSpec<BagState<AccumT>> convertToBagSpecInternal(
           StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningSpec) {

@@ -17,18 +17,17 @@
  */
 package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
 
 /**
- * A {@link State} accepting and aggregating output timestamps, which determines the time to which
- * the output watermark must be held.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * <p><b><i>For internal use only. This API may change at any time.</i></b>
+ * <p>A {@link State} accepting and aggregating output timestamps, which determines the time to
+ * which the output watermark must be held.
  */
-@Experimental(Kind.STATE)
+@Internal
 public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
   /**
    * Return the {@link TimestampCombiner} which will be used to determine a watermark hold time
