@@ -23,7 +23,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -33,7 +32,6 @@ import org.junit.runners.JUnit4;
 public class SdkCoreApiSurfaceTest {
 
   @Test
-  @Ignore
   public void testSdkApiSurface() throws Exception {
 
     @SuppressWarnings("unchecked")

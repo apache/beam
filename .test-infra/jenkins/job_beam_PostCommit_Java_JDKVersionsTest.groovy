@@ -19,7 +19,7 @@
 import common_job_properties
 
 // This job runs the Java multi-JDK tests in postcommit, including WordCountIT.
-matrixJob('beam_PostCommit_Java_Version_Test') {
+matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
   // Execute concurrent builds if necessary.
@@ -44,7 +44,7 @@ matrixJob('beam_PostCommit_Java_Version_Test') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
       'Java JDK Versions Test',
-      'Run Java Versions Test')
+      'Run Java JDK Versions Test')
 
   // Maven build for this job.
   steps {
