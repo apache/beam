@@ -256,15 +256,6 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static class BeamJobUuidToBigQueryJobUuid
-      implements SerializableFunction<String, String> {
-    @Override
-    public String apply(String from) {
-      return "beam_job_" + from;
-    }
-  }
-
   static class TableSchemaToJsonSchema
       implements SerializableFunction<TableSchema, String> {
     @Override
@@ -297,14 +288,6 @@ public class BigQueryHelpers {
     }
   }
 
-  static class TableRefToProjectId
-      implements SerializableFunction<TableReference, String> {
-    @Override
-    public String apply(TableReference from) {
-      return from.getProjectId();
-    }
-  }
-
   @VisibleForTesting
   static class TableSpecToTableRef
       implements SerializableFunction<String, TableReference> {
@@ -314,39 +297,21 @@ public class BigQueryHelpers {
     }
   }
 
-  @VisibleForTesting
-  static class CreatePerBeamJobUuid
-      implements SerializableFunction<String, String> {
-    private final String stepUuid;
-
-    CreatePerBeamJobUuid(String stepUuid) {
-      this.stepUuid = stepUuid;
-    }
-
-    @Override
-    public String apply(String jobUuid) {
-      return stepUuid + "_" + jobUuid.replaceAll("-", "");
-    }
+  static String createJobIdToken(String jobName, String stepUuid) {
+    return String.format("beam_job_%s_%s", stepUuid, jobName.replaceAll("-", ""));
   }
 
-  @VisibleForTesting
-  static class CreateJsonTableRefFromUuid
-      implements SerializableFunction<String, TableReference> {
-    private final String executingProject;
+  static String getExtractJobId(String jobIdToken) {
+    return String.format("%s-extract", jobIdToken);
+  }
 
-    CreateJsonTableRefFromUuid(String executingProject) {
-      this.executingProject = executingProject;
-    }
-
-    @Override
-    public TableReference apply(String jobUuid) {
-      String queryTempDatasetId = "temp_dataset_" + jobUuid;
-      String queryTempTableId = "temp_table_" + jobUuid;
-      TableReference queryTempTableRef = new TableReference()
-          .setProjectId(executingProject)
-          .setDatasetId(queryTempDatasetId)
-          .setTableId(queryTempTableId);
-      return queryTempTableRef;
-    }
+  static TableReference createTempTableReference(String projectId, String jobUuid) {
+    String queryTempDatasetId = "temp_dataset_" + jobUuid;
+    String queryTempTableId = "temp_table_" + jobUuid;
+    TableReference queryTempTableRef = new TableReference()
+        .setProjectId(projectId)
+        .setDatasetId(queryTempDatasetId)
+        .setTableId(queryTempTableId);
+    return queryTempTableRef;
   }
 }
