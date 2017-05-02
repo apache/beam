@@ -210,6 +210,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
+  # TODO(mariagh): Make this method take pipepline_options
   def run(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
@@ -220,7 +221,7 @@ class DataflowRunner(PipelineRunner):
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
-    self.job = apiclient.Job(pipeline.options)
+    self.job = apiclient.Job(pipeline._options)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -233,7 +234,7 @@ class DataflowRunner(PipelineRunner):
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowRunner, self).run(pipeline)
 
-    standard_options = pipeline.options.view_as(StandardOptions)
+    standard_options = pipeline._options.view_as(StandardOptions)
     if standard_options.streaming:
       job_version = DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
     else:
@@ -241,7 +242,7 @@ class DataflowRunner(PipelineRunner):
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
-        pipeline.options, job_version)
+        pipeline._options, job_version)
 
     # Create the job
     result = DataflowPipelineResult(

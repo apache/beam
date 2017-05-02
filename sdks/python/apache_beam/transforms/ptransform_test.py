@@ -882,7 +882,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_do_fn_pipeline_runtime_type_check_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_input_types(int, int)
     @with_output_types(int)
@@ -898,7 +898,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_do_fn_pipeline_runtime_type_check_violated(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_input_types(int, int)
     @with_output_types(typehints.List[int])
@@ -1132,7 +1132,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_checking_pardo_insufficient_type_information(self):
-    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
+    self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     # Type checking is enabled, but 'Create' doesn't pass on any relevant type
     # information to the ParDo.
@@ -1146,7 +1146,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_pipeline_checking_gbk_insufficient_type_information(self):
-    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
+    self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
     # Type checking is enabled, but 'Map' doesn't pass on any relevant type
     # information to GBK-only.
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -1161,7 +1161,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_disable_pipeline_type_check(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     # The pipeline below should raise a TypeError, however pipeline type
     # checking was disabled above.
@@ -1171,8 +1171,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
      .with_input_types(str).with_output_types(str))
 
   def test_run_time_type_checking_enabled_type_violation(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(str)
     @with_input_types(x=int)
@@ -1195,8 +1195,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found some_string, an instance of <type 'str'>.")
 
   def test_run_time_type_checking_enabled_types_satisfied(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(typehints.KV[int, str])
     @with_input_types(x=str)
@@ -1217,8 +1217,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(typehints.KV[bool, int])
     @with_input_types(a=int)
@@ -1247,7 +1247,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead received an instance of type int.")
 
   def test_pipeline_checking_satisfied_run_time_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     @with_output_types(typehints.KV[bool, int])
     @with_input_types(a=int)
@@ -1265,8 +1265,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_pipeline_runtime_checking_violation_simple_type_input(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'with_input_types()' method indicates the
     # ParDo should receive an instance of type 'str', however an 'int' will be
@@ -1286,8 +1286,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found 1, an instance of <type 'int'>.")
 
   def test_pipeline_runtime_checking_violation_composite_type_input(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1305,8 +1305,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found 3.0, an instance of <type 'float'>.")
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should output an instance of type 'int', however a 'float' will be
@@ -1331,8 +1331,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "an instance of type <type 'float'>.")
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
@@ -1354,8 +1354,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "an instance of 'float' was received.")
 
   def test_pipline_runtime_checking_violation_with_side_inputs_decorator(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     @with_output_types(int)
     @with_input_types(a=int, b=int)
@@ -1374,8 +1374,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found 1.0, an instance of <type 'float'>.")
 
   def test_pipline_runtime_checking_violation_with_side_inputs_via_method(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1444,7 +1444,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_combine_runtime_type_check_satisfied_using_decorators(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
     @with_output_types(int)
     @with_input_types(ints=typehints.Iterable[int])
@@ -1459,8 +1459,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_combine_runtime_type_check_violation_using_decorators(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     # Combine fn is returning the incorrect type
     @with_output_types(int)
@@ -1497,8 +1497,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_combine_runtime_type_check_using_methods(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(range(5)).with_output_types(int)
@@ -1520,8 +1520,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_combine_runtime_type_check_violation_using_methods(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1539,7 +1539,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "instead found 0, an instance of <type 'int'>.")
 
   def test_combine_insufficient_type_hint_information(self):
-    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
+    self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1576,7 +1576,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.message)
 
   def test_mean_globally_runtime_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | 'C' >> beam.Create(range(5)).with_output_types(int)
@@ -1587,8 +1587,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_mean_globally_runtime_checking_violated(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1633,7 +1633,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.message)
 
   def test_mean_per_key_runtime_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(range(5)).with_output_types(int)
@@ -1646,8 +1646,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_mean_per_key_runtime_checking_violated(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1680,7 +1680,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_count_globally_runtime_type_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | 'P' >> beam.Create(range(5)).with_output_types(int)
@@ -1714,7 +1714,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         e.exception.message)
 
   def test_count_perkey_runtime_type_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(['t', 'e', 's', 't']).with_output_types(str)
@@ -1736,7 +1736,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_count_perelement_pipeline_type_checking_violated(self):
-    self.p.options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
+    self.p._options.view_as(TypeOptions).type_check_strictness = 'ALL_REQUIRED'
 
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
@@ -1749,7 +1749,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_count_perelement_runtime_type_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create([True, True, False, True, True])
@@ -1771,7 +1771,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_top_of_runtime_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(list('testing')).with_output_types(str)
@@ -1807,7 +1807,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_per_key_runtime_checking_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(range(21))
@@ -1835,7 +1835,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_sample_globally_runtime_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create([2, 2, 3, 3]).with_output_types(int)
@@ -1868,7 +1868,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_sample_per_key_runtime_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | (beam.Create([(1, 2), (1, 2), (2, 3), (2, 3)])
@@ -1901,7 +1901,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_to_list_runtime_check_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | beam.Create(list('test')).with_output_types(str)
@@ -1940,7 +1940,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_to_dict_runtime_check_satisfied(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     d = (self.p
          | (beam.Create([('1', 2), ('3', 4)])
@@ -1952,7 +1952,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p.run()
 
   def test_runtime_type_check_python_type_error(self):
-    self.p.options.view_as(TypeOptions).runtime_type_check = True
+    self.p._options.view_as(TypeOptions).runtime_type_check = True
 
     with self.assertRaises(TypeError) as e:
       (self.p
@@ -2000,11 +2000,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
                      e.exception.message)
 
   def test_type_inference_command_line_flag_toggle(self):
-    self.p.options.view_as(TypeOptions).pipeline_type_check = False
+    self.p._options.view_as(TypeOptions).pipeline_type_check = False
     x = self.p | 'C1' >> beam.Create([1, 2, 3, 4])
     self.assertIsNone(x.element_type)
 
-    self.p.options.view_as(TypeOptions).pipeline_type_check = True
+    self.p._options.view_as(TypeOptions).pipeline_type_check = True
     x = self.p | 'C2' >> beam.Create([1, 2, 3, 4])
     self.assertEqual(int, x.element_type)
 
