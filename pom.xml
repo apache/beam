@@ -1508,6 +1508,8 @@
                 <includes>
                   <include>**/*.pyc</include>
                   <include>**/*.egg-info/</include>
+                  <include>**/sdks/python/LICENSE</include>
+                  <include>**/sdks/python/NOTICE</include>
                 </includes>
                 <followSymlinks>false</followSymlinks>
               </fileset>
@@ -1612,6 +1614,33 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.0.2</version>
+        <inherited>false</inherited>
+        <executions>
+          <execution>
+            <id>python-copy-resources</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${basedir}/sdks/python</outputDirectory>
+              <resources>          
+                <resource>
+                  <directory>${basedir}</directory>
+                  <includes>
+                    <include>LICENSE</include>
+                    <include>NOTICE</include>
+                  </includes>
+                </resource>
+              </resources>              
+            </configuration>            
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
