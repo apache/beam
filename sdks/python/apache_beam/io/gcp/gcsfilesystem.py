@@ -32,6 +32,7 @@ class GCSFileSystem(FileSystem):
   """
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
+  GCS_PREFIX = 'gs://'
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem
@@ -42,12 +43,41 @@ class GCSFileSystem(FileSystem):
 
     Returns: full path after combining all the passed components
     """
-    if not basepath.startswith('gs://'):
+    if not basepath.startswith(GCSFileSystem.GCS_PREFIX):
       raise ValueError('Basepath %r must be GCS path.', basepath)
     path = basepath
     for p in paths:
       path = path.rstrip('/') + '/' + p.lstrip('/')
     return path
+
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    Head will include the GCS prefix ('gs://').
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    path = path.strip()
+    if not path.startswith(GCSFileSystem.GCS_PREFIX):
+      raise ValueError('Path %r must be GCS path.', path)
+
+    prefix_len = len(GCSFileSystem.GCS_PREFIX)
+    last_sep = path[prefix_len:].rfind('/')
+    if last_sep >= 0:
+      last_sep += prefix_len
+
+    if last_sep > 0:
+      return (path[:last_sep], path[last_sep + 1:])
+    elif last_sep < 0:
+      return (path, '')
+    else:
+      raise ValueError('Invalid path: %s', path)
 
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
@@ -154,7 +184,7 @@ class GCSFileSystem(FileSystem):
     def _copy_path(source, destination):
       """Recursively copy the file tree from the source to the destination
       """
-      if not destination.startswith('gs://'):
+      if not destination.startswith(GCSFileSystem.GCS_PREFIX):
         raise ValueError('Destination %r must be GCS path.', destination)
       # Use copy_tree if the path ends with / as it is a directory
       if source.endswith('/'):
