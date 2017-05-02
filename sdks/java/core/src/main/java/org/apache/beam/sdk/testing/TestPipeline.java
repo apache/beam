@@ -422,7 +422,9 @@ public class TestPipeline extends Pipeline implements TestRule {
       Iterator<Entry<String, JsonNode>> entries = optsNode.fields();
       while (entries.hasNext()) {
         Entry<String, JsonNode> entry = entries.next();
-        if (entry.getValue().isTextual()) {
+        if (entry.getValue().isNull()) {
+          continue;
+        } else if (entry.getValue().isTextual()) {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
         } else {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
