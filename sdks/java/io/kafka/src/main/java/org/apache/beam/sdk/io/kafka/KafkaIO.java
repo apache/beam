@@ -214,12 +214,12 @@ import org.slf4j.LoggerFactory;
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
  * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through
  * {@link Read#updateConsumerProperties(Map)}.
- * In this case, you can also enable offset auto_commit in Kafka to resume from last commited,
- * see {@link Read#withOffsetAutoCommit(boolean)} for more details.
+ * In this case, you can also enable offset auto_commit in Kafka to resume from last committed.
  *
  * <p>In summary, KafkaIO.read follows below sequence to set initial offset:<br>
  * 1. {@link KafkaCheckpointMark} provided by runner;<br>
- * 2. Consumer offset stored in Kafka when {@code withOffsetAutoCommit(true)};<br>
+ * 2. Consumer offset stored in Kafka when
+ * {@code ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG = true};<br>
  * 3. Start from <em>latest</em> offset by default;
  *
  * <h3>Writing to Kafka</h3>
@@ -567,20 +567,6 @@ public class KafkaIO {
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config = updateKafkaProperties(getConsumerConfig(),
           IGNORED_CONSUMER_PROPERTIES, configUpdates);
-      return toBuilder().setConsumerConfig(config).build();
-    }
-
-    /**
-     * Set configuration {@link ConsumerConfig#ENABLE_AUTO_COMMIT_CONFIG}.
-     *
-     * <p>When set to {@code TRUE}, {@code Consumer}'s offset will be periodically
-     * committed in the background. This information can be used by external monitoring system,
-     * also set the initial offset of next run as last committed when checkpoint is not
-     * provided by runners.
-     */
-    public Read<K, V> withOffsetAutoCommit(boolean autoCommit) {
-      Map<String, Object> config = getConsumerConfig();
-      config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit);
       return toBuilder().setConsumerConfig(config).build();
     }
 
