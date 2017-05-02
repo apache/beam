@@ -40,6 +40,9 @@ import com.google.common.collect.Iterables;
 import java.util.List;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -143,6 +146,7 @@ public class ReduceFnRunnerTest {
   @Test
   public void testOnElementBufferingDiscarding() throws Exception {
     // Test basic execution of a trigger using a non-combining window set and discarding mode.
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
             AccumulationMode.DISCARDING_FIRED_PANES, Duration.millis(100),
@@ -167,7 +171,11 @@ public class ReduceFnRunnerTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4);
 
-    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(1, droppedElements);
   }
 
   @Test
@@ -416,6 +424,7 @@ public class ReduceFnRunnerTest {
 
   @Test
   public void testWatermarkHoldAndLateData() throws Exception {
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
     // Test handling of late data. Specifically, ensure the watermark hold is correct.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
         ReduceFnTester.nonCombining(FixedWindows.of(Duration.millis(10)), mockTriggerStateMachine,
@@ -444,7 +453,11 @@ public class ReduceFnRunnerTest {
     // Holding for the end-of-window transition.
     assertEquals(new Instant(9), tester.getWatermarkHold());
     // Nothing dropped.
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     // Input watermark -> 4, output watermark should advance that far as well
     tester.advanceInputWatermark(new Instant(4));
@@ -502,7 +515,11 @@ public class ReduceFnRunnerTest {
     // Because we're about to expire the window, we output it.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     injectElement(tester, 8);
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     // Exceed the GC limit, triggering the last pane to be fired
     tester.advanceInputWatermark(new Instant(50));
@@ -1067,13 +1084,13 @@ public class ReduceFnRunnerTest {
    */
   @Test
   public void testDropDataMultipleWindowsFinishedTrigger() throws Exception {
-    ReduceFnTester<Integer, Integer, IntervalWindow> tester =
-        ReduceFnTester.combining(
-            WindowingStrategy.of(SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
-                .withTrigger(AfterWatermark.pastEndOfWindow())
-                .withAllowedLateness(Duration.millis(1000)),
-            Sum.ofIntegers(),
-            VarIntCoder.of());
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    ReduceFnTester<Integer, Integer, IntervalWindow> tester = ReduceFnTester.combining(
+        WindowingStrategy.of(
+            SlidingWindows.of(Duration.millis(100)).every(Duration.millis(30)))
+        .withTrigger(AfterWatermark.pastEndOfWindow())
+        .withAllowedLateness(Duration.millis(1000)),
+        Sum.ofIntegers(), VarIntCoder.of());
 
     tester.injectElements(
         // assigned to [-60, 40), [-30, 70), [0, 100)
@@ -1081,7 +1098,11 @@ public class ReduceFnRunnerTest {
         // assigned to [-30, 70), [0, 100), [30, 130)
         TimestampedValue.of(12, new Instant(40)));
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
 
     tester.advanceInputWatermark(new Instant(70));
     tester.injectElements(
@@ -1089,18 +1110,27 @@ public class ReduceFnRunnerTest {
         // but [-30, 70) is closed by the trigger
         TimestampedValue.of(14, new Instant(60)));
 
-    assertEquals(1, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(1, droppedElements);
 
     tester.advanceInputWatermark(new Instant(130));
     // assigned to [-30, 70), [0, 100), [30, 130)
     // but they are all closed
     tester.injectElements(TimestampedValue.of(16, new Instant(40)));
 
-    assertEquals(4, tester.getElementsDroppedDueToClosedWindow());
+    droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(4, droppedElements);
   }
 
   @Test
   public void testIdempotentEmptyPanesDiscarding() throws Exception {
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1141,11 +1171,16 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
   }
 
   @Test
   public void testIdempotentEmptyPanesAccumulating() throws Exception {
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
     // Test uninteresting (empty) panes don't increment the index or otherwise
     // modify PaneInfo.
     ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
@@ -1188,7 +1223,11 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    assertEquals(0, tester.getElementsDroppedDueToClosedWindow());
+    long droppedElements = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(ReduceFnRunner.class,
+            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+        .getCumulative().longValue();
+    assertEquals(0, droppedElements);
   }
 
   /**

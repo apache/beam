@@ -220,7 +220,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       initializeState();
     }
     TestContext context = new TestContext();
-    context.setupDelegateAggregators();
     try {
       fnInvoker.invokeStartBundle(context);
     } catch (UserCodeException e) {
@@ -503,13 +502,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  /**
-   * Returns the value of the provided {@link Aggregator}.
-   */
-  public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
-    return extractAggregatorValue(agg.getName(), agg.getCombineFn());
-  }
-
   private <AccumT, AggregateT> AggregateT extractAggregatorValue(
       String name, CombineFn<?, AccumT, AggregateT> combiner) {
     @SuppressWarnings("unchecked")
@@ -574,53 +566,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     private void throwUnsupportedOutputFromBundleMethods() {
       throw new UnsupportedOperationException(
           "DoFnTester doesn't support output from bundle methods");
-    }
-
-    @Override
-    protected <AggInT, AggOutT> Aggregator<AggInT, AggOutT> createAggregator(
-        final String name, final CombineFn<AggInT, ?, AggOutT> combiner) {
-      return aggregator(name, combiner);
-    }
-
-    private <AinT, AccT, AoutT> Aggregator<AinT, AoutT> aggregator(
-        final String name,
-        final CombineFn<AinT, AccT, AoutT> combiner) {
-
-      Aggregator<AinT, AoutT> aggregator = new Aggregator<AinT, AoutT>() {
-        @Override
-        public void addValue(AinT value) {
-          AccT accum = (AccT) accumulators.get(name);
-          AccT newAccum = combiner.addInput(accum, value);
-          accumulators.put(name, newAccum);
-        }
-
-        @Override
-        public String getName() {
-          return name;
-        }
-
-        @Override
-        public CombineFn<AinT, ?, AoutT> getCombineFn() {
-          return combiner;
-        }
-      };
-
-      // Aggregator instantiation is idempotent
-      if (accumulators.containsKey(name)) {
-        Class<?> currentAccumClass = accumulators.get(name).getClass();
-        Class<?> createAccumClass = combiner.createAccumulator().getClass();
-        checkState(
-            currentAccumClass.isAssignableFrom(createAccumClass),
-            "Aggregator %s already initialized with accumulator type %s "
-                + "but was re-initialized with accumulator type %s",
-            name,
-            currentAccumClass,
-            createAccumClass);
-
-      } else {
-        accumulators.put(name, combiner.createAccumulator());
-      }
-      return aggregator;
     }
   }
 
@@ -699,15 +644,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at DoFn construction time with"
-          + " createAggregator, and ensure they are set up by the time startBundle is"
-          + " called with setupDelegateAggregators.");
     }
   }
 

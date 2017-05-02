@@ -26,6 +26,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import org.apache.beam.runners.core.LateDataDroppingDoFnRunner.LateDataFilter;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -58,12 +61,11 @@ public class LateDataDroppingDoFnRunnerTest {
 
   @Test
   public void testLateDataFilter() throws Exception {
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
 
-    InMemoryLongSumAggregator droppedDueToLateness =
-        new InMemoryLongSumAggregator("droppedDueToLateness");
     LateDataFilter lateDataFilter = new LateDataFilter(
-        WindowingStrategy.of(WINDOW_FN), mockTimerInternals, droppedDueToLateness);
+        WindowingStrategy.of(WINDOW_FN), mockTimerInternals);
 
     Iterable<WindowedValue<Integer>> actual = lateDataFilter.filter(
         "a",
@@ -78,10 +80,18 @@ public class LateDataDroppingDoFnRunnerTest {
         createDatum(16, 16L),
         createDatum(18, 18L));
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    assertEquals(1, droppedDueToLateness.sum);
+    long droppedValues = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(LateDataDroppingDoFnRunner.class,
+            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+        .getCumulative().longValue();
+    assertEquals(1, droppedValues);
     // Ensure that reiterating returns the same results and doesn't increment the counter again.
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    assertEquals(1, droppedDueToLateness.sum);
+    droppedValues = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(LateDataDroppingDoFnRunner.class,
+            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+        .getCumulative().longValue();
+    assertEquals(1, droppedValues);
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {
