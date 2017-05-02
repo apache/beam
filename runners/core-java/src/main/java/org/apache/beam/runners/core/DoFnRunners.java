@@ -48,6 +48,27 @@ public class DoFnRunners {
     <T> void output(TupleTag<T> tag, WindowedValue<T> output);
   }
 
+  @Deprecated
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
+      PipelineOptions options,
+      DoFn<InputT, OutputT> fn,
+      SideInputReader sideInputReader,
+      OutputManager outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      StepContext stepContext,
+      Object aggregatorFactory,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return simpleRunner(options,
+        fn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy);
+  }
+
   /**
    * Returns an implementation of {@link DoFnRunner} that for a {@link DoFn}.
    *
@@ -63,7 +84,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleDoFnRunner<>(
         options,
@@ -73,7 +93,6 @@ public class DoFnRunners {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorFactory,
         windowingStrategy);
   }
 
@@ -90,7 +109,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new SimpleOldDoFnRunner<>(
         options,
@@ -100,7 +118,6 @@ public class DoFnRunners {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorFactory,
         windowingStrategy);
   }
 
@@ -151,7 +168,6 @@ public class DoFnRunners {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new ProcessFnRunner<>(
         simpleRunner(
@@ -162,7 +178,6 @@ public class DoFnRunners {
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorFactory,
             windowingStrategy),
         views,
         sideInputReader);

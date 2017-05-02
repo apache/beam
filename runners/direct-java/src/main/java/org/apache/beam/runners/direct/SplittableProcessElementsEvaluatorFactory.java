@@ -197,7 +197,6 @@ class SplittableProcessElementsEvaluatorFactory<
           TupleTag<OutputT> mainOutputTag,
           List<TupleTag<?>> additionalOutputTags,
           DirectExecutionContext.DirectStepContext stepContext,
-          AggregatorContainer.Mutator aggregatorChanges,
           WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
         ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
             (ProcessFn) fn;
@@ -210,7 +209,6 @@ class SplittableProcessElementsEvaluatorFactory<
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorChanges,
             windowingStrategy);
       }
     };

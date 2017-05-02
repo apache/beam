@@ -26,21 +26,9 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  * @param <InputT> the type of input values
  * @param <OutputT> the type of output values
  */
+@Deprecated
 public interface Aggregator<InputT, OutputT> {
-
-  /**
-   * Adds a new value into the Aggregator.
-   */
   void addValue(InputT value);
-
-  /**
-   * Returns the name of the Aggregator.
-   */
   String getName();
-
-  /**
-   * Returns the {@link CombineFn}, which combines input elements in the
-   * aggregator.
-   */
   CombineFn<InputT, ?, OutputT> getCombineFn();
 }

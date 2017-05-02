@@ -45,10 +45,6 @@ import org.apache.beam.sdk.values.PCollection;
  * list of play names in which that word appears, and saves this information
  * to a bigquery table.
  *
- * <p>Concepts: the Combine.perKey transform, which lets you combine the values in a
- * key-grouped Collection, and how to use an Aggregator to track information in the
- * Monitoring UI.
- *
  * <p>Note: Before running this example, you must create a BigQuery dataset to contain your output
  * table.
  *

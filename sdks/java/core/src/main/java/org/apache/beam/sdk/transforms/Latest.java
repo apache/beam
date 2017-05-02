@@ -47,8 +47,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
  * <p>Example 2: track a latest computed value in an aggregator:
  * <pre>{@code
  * class MyDoFn extends DoFn<String, String> {
- *  private Aggregator<TimestampedValue<Double>, Double> latestValue =
- *    createAggregator("latestValue", new Latest.LatestFn<Double>());
  *
  *  {@literal @}ProcessElement
  *  public void processElement(ProcessContext c) {

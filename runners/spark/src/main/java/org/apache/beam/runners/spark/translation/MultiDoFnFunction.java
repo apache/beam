@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
@@ -104,7 +103,6 @@ public class MultiDoFnFunction<InputT, OutputT>
             mainOutputTag,
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
-            new SparkAggregators.Factory(runtimeContext, aggAccum),
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
