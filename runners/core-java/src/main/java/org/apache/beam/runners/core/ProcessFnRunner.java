@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -117,7 +118,14 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
 
   private boolean isReady(BoundedWindow mainInputWindow) {
     for (PCollectionView<?> view : views) {
-      BoundedWindow sideInputWindow = view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+      checkArgument(
+          view instanceof SimplePCollectionView,
+          "Unknown %s type: %s",
+          PCollectionView.class.getSimpleName(),
+          view.getClass().getName());
+      SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view;
+      BoundedWindow sideInputWindow =
+          simpleView.getWindowMappingFn().getSideInputWindow(mainInputWindow);
       if (!sideInputReader.isReady(view, sideInputWindow)) {
         return false;
       }

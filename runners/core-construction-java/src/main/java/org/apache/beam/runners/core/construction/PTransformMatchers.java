@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.MoreObjects;
 import java.util.HashSet;
 import java.util.Set;
@@ -34,8 +36,10 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -212,7 +216,14 @@ public class PTransformMatchers {
         }
         CreatePCollectionView<?, ?> createView =
             (CreatePCollectionView<?, ?>) application.getTransform();
-        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        PCollectionView<?> view = createView.getView();
+        checkState(
+            view instanceof SimplePCollectionView,
+            "Unknown %s type: %s",
+            PCollectionView.class.getSimpleName(),
+            view.getClass().getName());
+        SimplePCollectionView<?, ?, ?> simpleView = (SimplePCollectionView<?, ?, ?>) view;
+        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = simpleView.getViewFn();
         return viewFn.getClass().equals(viewFnType);
       }
     };

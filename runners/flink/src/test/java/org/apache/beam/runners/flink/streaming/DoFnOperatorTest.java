@@ -40,6 +40,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -67,6 +70,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -81,11 +85,15 @@ public class DoFnOperatorTest {
   private static final long WINDOW_MSECS_1 = 100;
   private static final long WINDOW_MSECS_2 = 500;
 
+  @Rule public TestPipeline pipeline = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  private PCollection<String> pcollection = pipeline.apply(Create.of("foo", "bar"));
+
   private WindowingStrategy<Object, IntervalWindow> windowingStrategy1 =
       WindowingStrategy.of(FixedWindows.of(new Duration(WINDOW_MSECS_1)));
 
   private PCollectionView<Iterable<String>> view1 =
       PCollectionViewTesting.testingView(
+          pcollection,
           new TupleTag<Iterable<WindowedValue<String>>>() {},
           new PCollectionViewTesting.IdentityViewFn<String>(),
           StringUtf8Coder.of(),
@@ -96,6 +104,7 @@ public class DoFnOperatorTest {
 
   private PCollectionView<Iterable<String>> view2 =
       PCollectionViewTesting.testingView(
+          pcollection,
           new TupleTag<Iterable<WindowedValue<String>>>() {},
           new PCollectionViewTesting.IdentityViewFn<String>(),
           StringUtf8Coder.of(),

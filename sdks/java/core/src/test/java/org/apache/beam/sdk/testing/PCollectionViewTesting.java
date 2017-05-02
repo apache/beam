@@ -19,13 +19,10 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.Function;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.List;
-import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -34,11 +31,11 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -145,27 +142,6 @@ public final class PCollectionViewTesting {
   }
 
   /**
-   * A {@link PCollectionView} explicitly built from a {@link TupleTag}
-   * and conversion {@link ViewFn}, and an element coder, using the
-   * {@link #DEFAULT_WINDOWING_STRATEGY}.
-   *
-   * <p>This method is only recommended for use by runner implementors to test their
-   * implementations. It is very easy to construct a {@link PCollectionView} that does
-   * not respect the invariants required for proper functioning.
-   *
-   * <p>Note that if the provided {@code WindowingStrategy} does not match that of the windowed
-   * values provided to the view during execution, results are unpredictable. It is recommended
-   * that the values be prepared via {@link #contentsInDefaultWindow}.
-   */
-  public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
-      TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-      ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
-      Coder<ElemT> elemCoder,
-      WindowingStrategy<?, ?> windowingStrategy) {
-    return testingView(null, tag, viewFn, elemCoder, windowingStrategy);
-  }
-
-  /**
    * The default {@link Coder} used for windowed values, given an element {@link Coder}.
    */
   public static <T> Coder<WindowedValue<T>> defaultWindowedValueCoder(Coder<T> elemCoder) {
@@ -217,14 +193,13 @@ public final class PCollectionViewTesting {
       WindowMappingFn<?> windowMappingFn,
       Coder<ElemT> elemCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new PCollectionViewFromParts<>(
+    return new SimplePCollectionView<ElemT, ViewT, BoundedWindow>(
         pCollection,
         tag,
         viewFn,
-        windowMappingFn,
-        windowingStrategy,
-        IterableCoder.of(
-            WindowedValue.getFullCoder(elemCoder, windowingStrategy.getWindowFn().windowCoder())));
+        (WindowMappingFn<BoundedWindow>) windowMappingFn,
+        (WindowingStrategy<?, BoundedWindow>) windowingStrategy,
+        elemCoder) {};
   }
 
   /**
@@ -257,97 +232,5 @@ public final class PCollectionViewTesting {
       windowedValues.add(valueInDefaultWindow(value));
     }
     return windowedValues;
-  }
-
-  // Internal details below here
-
-  /**
-   * A {@link PCollectionView} explicitly built from its {@link TupleTag},
-   * {@link WindowingStrategy}, and conversion function.
-   *
-   * <p>Instantiate via {@link #testingView}.
-   */
-  private static class PCollectionViewFromParts<ElemT, ViewT>
-      extends PValueBase
-      implements PCollectionView<ViewT> {
-    private PCollection<ElemT> pCollection;
-    private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
-    private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
-    private WindowMappingFn<?> windowMappingFn;
-    private WindowingStrategy<?, ?> windowingStrategy;
-    private Coder<Iterable<WindowedValue<ElemT>>> coder;
-
-    public PCollectionViewFromParts(
-        PCollection<ElemT> pCollection,
-        TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-        ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
-        WindowMappingFn<?> windowMappingFn,
-        WindowingStrategy<?, ?> windowingStrategy,
-        Coder<Iterable<WindowedValue<ElemT>>> coder) {
-      this.pCollection = pCollection;
-      this.tag = tag;
-      this.viewFn = viewFn;
-      this.windowMappingFn = windowMappingFn;
-      this.windowingStrategy = windowingStrategy;
-      this.coder = coder;
-    }
-
-    @Override
-    public PCollection<?> getPCollection() {
-      return pCollection;
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    @Override
-    public TupleTag<Iterable<WindowedValue<?>>> getTagInternal() {
-      return (TupleTag) tag;
-    }
-
-    @Override
-    public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
-      // Safe cast; runners must maintain type safety
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
-      return untypedViewFn;
-    }
-
-    @Override
-    public WindowMappingFn<?> getWindowMappingFn() {
-      return windowMappingFn;
-    }
-
-    @Override
-    public WindowingStrategy<?, ?> getWindowingStrategyInternal() {
-      return windowingStrategy;
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    @Override
-    public Coder<Iterable<WindowedValue<?>>> getCoderInternal() {
-      return (Coder) coder;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(tag);
-    }
-
-    @Override
-    public boolean equals(Object other) {
-      if (!(other instanceof PCollectionView)) {
-        return false;
-      }
-      @SuppressWarnings("unchecked")
-      PCollectionView<?> otherView = (PCollectionView<?>) other;
-      return tag.equals(otherView.getTagInternal());
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("tag", tag)
-          .add("viewFn", viewFn)
-          .toString();
-    }
   }
 }

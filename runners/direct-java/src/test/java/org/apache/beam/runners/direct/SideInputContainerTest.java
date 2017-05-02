@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.PCollectionViews.SimplePCollectionView;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -108,11 +109,11 @@ public class SideInputContainerTest {
 
   private SideInputContainer container;
 
-  private PCollectionView<Map<String, Integer>> mapView;
-  private PCollectionView<Double> singletonView;
+  private SimplePCollectionView<?, Map<String, Integer>, ?> mapView;
+  private SimplePCollectionView<?, Double, ?> singletonView;
 
   // Not present in container.
-  private PCollectionView<Iterable<Integer>> iterableView;
+  private SimplePCollectionView<?, Iterable<Integer>, ?> iterableView;
 
   @Before
   public void setup() {
@@ -122,14 +123,21 @@ public class SideInputContainerTest {
         pipeline.apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4));
 
     mapView =
-        create.apply("forKeyTypes", WithKeys.<String, Integer>of("foo"))
-            .apply("asMapView", View.<String, Integer>asMap());
+        (SimplePCollectionView<?, Map<String, Integer>, ?>)
+            create
+                .apply("forKeyTypes", WithKeys.<String, Integer>of("foo"))
+                .apply("asMapView", View.<String, Integer>asMap());
 
-    singletonView = create.apply("forCombinedTypes", Mean.<Integer>globally().asSingletonView());
-    iterableView = create.apply("asIterableView", View.<Integer>asIterable());
+    singletonView =
+        (SimplePCollectionView<?, Double, ?>)
+            create.apply("forCombinedTypes", Mean.<Integer>globally().asSingletonView());
+    iterableView =
+        (SimplePCollectionView<?, Iterable<Integer>, ?>)
+            create.apply("asIterableView", View.<Integer>asIterable());
 
-    container = SideInputContainer.create(
-        context, ImmutableList.of(iterableView, mapView, singletonView));
+    container =
+        SideInputContainer.create(
+            context, ImmutableList.<PCollectionView<?>>of(iterableView, mapView, singletonView));
   }
 
   @Test
@@ -372,7 +380,8 @@ public class SideInputContainerTest {
                 PaneInfo.ON_TIME_AND_ONLY_FIRING)));
 
     ReadyCheckingSideInputReader reader =
-        container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+        container.createReaderForViews(
+            ImmutableList.<PCollectionView<?>>of(mapView, singletonView));
     assertThat(reader.isReady(mapView, FIRST_WINDOW), is(false));
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
 
@@ -403,7 +412,9 @@ public class SideInputContainerTest {
     assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(false));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
 
-    reader = container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+    reader =
+        container.createReaderForViews(
+            ImmutableList.<PCollectionView<?>>of(mapView, singletonView));
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
     assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(true));
     assertThat(reader.isReady(mapView, FIRST_WINDOW), is(true));
@@ -416,7 +427,8 @@ public class SideInputContainerTest {
     CountDownLatch latch = invokeLatchedCallback(singletonView, GlobalWindow.INSTANCE, onComplete);
 
     ReadyCheckingSideInputReader reader =
-        container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+        container.createReaderForViews(
+            ImmutableList.<PCollectionView<?>>of(mapView, singletonView));
     assertThat(reader.isReady(mapView, GlobalWindow.INSTANCE), is(true));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
 
@@ -428,7 +440,9 @@ public class SideInputContainerTest {
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(false));
 
     // A new reader for the same container gets a fresh look
-    reader = container.createReaderForViews(ImmutableList.of(mapView, singletonView));
+    reader =
+        container.createReaderForViews(
+            ImmutableList.<PCollectionView<?>>of(mapView, singletonView));
     assertThat(reader.isReady(singletonView, GlobalWindow.INSTANCE), is(true));
   }
 
@@ -436,7 +450,8 @@ public class SideInputContainerTest {
    * When a callAfterWindowCloses with the specified view's producing transform, window, and
    * windowing strategy is invoked, immediately execute the callback.
    */
-  private void immediatelyInvokeCallback(PCollectionView<?> view, BoundedWindow window) {
+  private void immediatelyInvokeCallback(
+      SimplePCollectionView<?, ?, ?> view, BoundedWindow window) {
     doAnswer(
             new Answer<Void>() {
               @Override
@@ -461,7 +476,7 @@ public class SideInputContainerTest {
    * {@link CountDownLatch} is counted down once.
    */
   private CountDownLatch invokeLatchedCallback(
-      PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
+      SimplePCollectionView<?, ?, ?> view, BoundedWindow window, final CountDownLatch onComplete) {
     final CountDownLatch runLatch = new CountDownLatch(1);
     doAnswer(
         new Answer<Void>() {
