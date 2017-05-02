@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobIdToken;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.Job;
@@ -44,9 +46,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.BeamJobUuidToBigQueryJobUuid;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.CreateJsonTableRefFromUuid;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.CreatePerBeamJobUuid;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
@@ -468,15 +467,9 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
-      String stepUuid = BigQueryHelpers.randomUUIDString();
+      final String stepUuid = BigQueryHelpers.randomUUIDString();
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-      ValueProvider<String> jobUuid = NestedValueProvider.of(
-         StaticValueProvider.of(bqOptions.getJobName()), new CreatePerBeamJobUuid(stepUuid));
-      final ValueProvider<String> jobIdToken = NestedValueProvider.of(
-          jobUuid, new BeamJobUuidToBigQueryJobUuid());
-
       BoundedSource<TableRow> source;
-
       final String extractDestinationDir;
       String tempLocation = bqOptions.getTempLocation();
       try {
@@ -487,15 +480,12 @@ public class BigQueryIO {
             String.format("Failed to resolve extract destination directory in %s", tempLocation));
       }
 
-      final String executingProject = bqOptions.getProject();
       if (getQuery() != null
           && (!getQuery().isAccessible() || !Strings.isNullOrEmpty(getQuery().get()))) {
         source =
             BigQueryQuerySource.create(
-                jobIdToken,
+                stepUuid,
                 getQuery(),
-                NestedValueProvider.of(
-                    jobUuid, new CreateJsonTableRefFromUuid(executingProject)),
                 getFlattenResults(),
                 getUseLegacySql(),
                 extractDestinationDir,
@@ -503,11 +493,10 @@ public class BigQueryIO {
       } else {
         source =
             BigQueryTableSource.create(
-                jobIdToken,
+                stepUuid,
                 getTableProvider(),
                 extractDestinationDir,
-                getBigQueryServices(),
-                StaticValueProvider.of(executingProject));
+                getBigQueryServices());
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -517,8 +506,8 @@ public class BigQueryIO {
 
               JobReference jobRef =
                   new JobReference()
-                      .setProjectId(executingProject)
-                      .setJobId(getExtractJobId(jobIdToken));
+                      .setProjectId(bqOptions.getProject())
+                      .setJobId(getExtractJobId(getJobIdToken(bqOptions.getJobName(), stepUuid)));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
@@ -581,10 +570,6 @@ public class BigQueryIO {
       ValueProvider<TableReference> provider = getTableProvider();
       return provider == null ? null : provider.get();
     }
-  }
-
-  static String getExtractJobId(ValueProvider<String> jobIdToken) {
-    return jobIdToken.get() + "-extract";
   }
 
   static String getExtractDestinationUri(String extractDestinationDir) {

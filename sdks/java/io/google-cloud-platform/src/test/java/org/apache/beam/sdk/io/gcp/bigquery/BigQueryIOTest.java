@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobUuid;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -1213,11 +1215,9 @@ public class BigQueryIOTest implements Serializable {
     datasetService.insertAll(table, expected, null);
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
-    String jobIdToken = "testJobIdToken";
+    String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        baseDir.toString(), fakeBqServices,
-        StaticValueProvider.of("project"));
+        stepUuid, StaticValueProvider.of(table), baseDir.toString(), fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Assert.assertThat(
@@ -1255,12 +1255,10 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceInitSplit");
 
-    String jobIdToken = "testJobIdToken";
+    String stepUuid = "testStepUuid";
     String extractDestinationDir = baseDir.toString();
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
-
+        stepUuid, StaticValueProvider.of(table), extractDestinationDir, fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
@@ -1316,10 +1314,17 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
 
-    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
-    fakeDatasetService.createDataset("project", "data_set", "", "");
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    String stepUuid = "testStepUuid";
+
+    TableReference tempTableReference = createTempTableReference(
+        bqOptions.getProject(), getJobUuid(bqOptions.getJobName(), stepUuid));
+    fakeDatasetService.createDataset(
+        bqOptions.getProject(), tempTableReference.getDatasetId(), "", "");
     fakeDatasetService.createTable(new Table()
-        .setTableReference(destinationTable)
+        .setTableReference(tempTableReference)
         .setSchema(new TableSchema()
             .setFields(
                 ImmutableList.of(
@@ -1327,24 +1332,21 @@ public class BigQueryIOTest implements Serializable {
                     new TableFieldSchema().setName("number").setType("INTEGER")))));
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryQuerySourceInitSplit");
 
-    String jobIdToken = "testJobIdToken";
+
     String query = FakeBigQueryServices.encodeQuery(expected);
     String extractDestinationDir = baseDir.toString();
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
+        stepUuid, StaticValueProvider.of(query),
         true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(extractDestinationDir);
 
     TableReference queryTable = new TableReference()
-        .setProjectId("project")
-        .setDatasetId("data_set")
-        .setTableId("table_name");
+        .setProjectId(bqOptions.getProject())
+        .setDatasetId(tempTableReference.getDatasetId())
+        .setTableId(tempTableReference.getTableId());
 
-    fakeJobService.expectDryRunQuery("project", query,
+    fakeJobService.expectDryRunQuery(bqOptions.getProject(), query,
         new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
@@ -1387,7 +1389,13 @@ public class BigQueryIOTest implements Serializable {
         .withJobService(jobService)
         .withDatasetService(datasetService);
 
-    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    String stepUuid = "testStepUuid";
+
+    TableReference tempTableReference = createTempTableReference(
+        bqOptions.getProject(), getJobUuid(bqOptions.getJobName(), stepUuid));
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -1395,10 +1403,10 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4L),
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
-    datasetService.createDataset(destinationTable.getProjectId(), destinationTable.getDatasetId(),
-        "", "");
+    datasetService.createDataset(
+        tempTableReference.getProjectId(), tempTableReference.getDatasetId(), "", "");
     Table table = new Table()
-        .setTableReference(destinationTable)
+        .setTableReference(tempTableReference)
         .setSchema(new TableSchema()
                 .setFields(
                     ImmutableList.of(
@@ -1413,18 +1421,15 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(table.getTableReference()))));
 
-    Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryNoTableQuerySourceInitSplit");
-    String jobIdToken = "testJobIdToken";
+    Path baseDir = Files.createTempDirectory(
+        tempFolder, "testBigQueryNoTableQuerySourceInitSplit");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken),
+        stepUuid,
         StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
         true /* flattenResults */, true /* useLegacySql */, baseDir.toString(), fakeBqServices);
 
-
-
-    PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
+
     List<TableRow> read = convertBigDecimaslToLong(
         SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
