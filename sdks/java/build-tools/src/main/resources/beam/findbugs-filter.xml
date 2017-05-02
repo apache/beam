@@ -203,7 +203,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Class name="org.apache.beam.sdk.extensions.gcp.storage.GcsResourceId"/>
     <Method name="getCurrentDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     <!--
