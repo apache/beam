@@ -354,7 +354,8 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if self._stop_position is None or position < self._stop_position:
         self._last_claim = position
         return True
-      return False
+      else:
+        return False
 
   def position_at_fraction(self, fraction):
     return self.fraction_to_position(
@@ -372,13 +373,15 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
             position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
-      return None
+      else:
+        return None
 
   def fraction_consumed(self):
     if self._last_claim is self.UNSTARTED:
       return 0
-    return self.position_to_fraction(
-        self._last_claim, self._start_position, self._stop_position)
+    else:
+      return self.position_to_fraction(
+          self._last_claim, self._start_position, self._stop_position)
 
   def position_to_fraction(self, pos, start, end):
     """
