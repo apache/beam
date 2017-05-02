@@ -31,8 +31,8 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
