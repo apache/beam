@@ -28,7 +28,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public class TimerSpecs {
 
   public static TimerSpec timer(TimeDomain timeDomain) {
-    return new org.apache.beam.sdk.util.AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
+    return new AutoValue_TimerSpecs_SimpleTimerSpec(timeDomain);
   }
 
   /**
