@@ -62,7 +62,9 @@ import org.apache.commons.compress.utils.CountingInputStream;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
- * A {@link FileBasedSource} for reading Avro files.
+ * Do not use in pipelines directly: most users should use {@link AvroIO.Read}.
+ *
+ * <p>A {@link FileBasedSource} for reading Avro files.
  *
  * <p>To read a {@link PCollection} of objects from one or more Avro files, use
  * {@link AvroSource#from} to specify the path(s) of the files to read. The {@link AvroSource} that

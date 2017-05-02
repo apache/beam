@@ -72,9 +72,8 @@ import org.slf4j.LoggerFactory;
  *   as a heavy-weight stress test including concurrency. We strongly recommend to
  *   use both.
  * </ul>
- * For example usages, see the unit tests of classes such as
- * {@link org.apache.beam.sdk.io.AvroSource} or
- * {@link org.apache.beam.sdk.io.TextIO TextIO.TextSource}.
+ * For example usages, see the unit tests of classes such as {@code AvroSource} or
+ * {@code TextSource}.
  *
  * <p>Like {@link PAssert}, requires JUnit and Hamcrest to be present in the classpath.
  */
