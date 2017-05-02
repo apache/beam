@@ -6,6 +6,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
+	"github.com/apache/beam/sdks/go/pkg/beam/transforms/count"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"log"
 	"os"
@@ -14,18 +15,22 @@ import (
 
 var (
 	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
-	count = flag.Int("count", 2, "Number of trees")
+	n     = flag.Int("count", 2, "Number of trees")
 	depth = flag.Int("depth", 3, "Depth of each tree")
 )
 
 // Forest builds a forest of processing nodes with flatten "branches".
 func Forest(p *beam.Pipeline) error {
-	for i := 0; i < *count; i++ {
+	for i := 0; i < *n; i++ {
 		t, err := tree(p, *depth)
 		if err != nil {
 			return err
 		}
-		if err := debug.Print0(p, t); err != nil {
+		deduped, err := count.Dedup(p, t)
+		if err != nil {
+			return err
+		}
+		if err := debug.Print0(p, deduped); err != nil {
 			return err
 		}
 	}
@@ -64,7 +69,7 @@ func main() {
 	ctx := context.Background()
 	beamexec.Init(ctx)
 
-	log.Print("Running wordcap")
+	log.Print("Running forest")
 
 	p := beam.NewPipeline()
 	if err := Forest(p); err != nil {
