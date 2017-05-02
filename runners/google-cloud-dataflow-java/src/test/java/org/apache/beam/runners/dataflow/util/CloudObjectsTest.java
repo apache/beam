@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -70,7 +73,7 @@ public class CloudObjectsTest {
           new DefaultCoderCloudObjectTranslatorRegistrar().classesToTranslators().keySet();
       Set<Class<? extends Coder>> testedClasses = new HashSet<>();
       for (Coder<?> tested : DefaultCoders.data()) {
-        if (tested instanceof ObjectCoder) {
+        if (tested instanceof ObjectCoder || tested instanceof ArbitraryCoder) {
           testedClasses.add(CustomCoder.class);
           assertThat(defaultCoderTranslators, hasItem(CustomCoder.class));
         } else {
@@ -103,6 +106,7 @@ public class CloudObjectsTest {
     public static Iterable<Coder<?>> data() {
       Builder<Coder<?>> dataBuilder =
           ImmutableList.<Coder<?>>builder()
+              .add(new ArbitraryCoder())
               .add(new ObjectCoder())
               .add(GlobalWindow.Coder.INSTANCE)
               .add(IntervalWindow.getCoder())
@@ -160,5 +164,27 @@ public class CloudObjectsTest {
     public int hashCode() {
       return getClass().hashCode();
     }
+  }
+
+  /**
+   * A non-custom coder with no registered translator.
+   */
+  private static class ArbitraryCoder extends StructuredCoder<Record> {
+    @Override
+    public void encode(Record value, OutputStream outStream, Context context)
+        throws CoderException, IOException {}
+
+    @Override
+    public Record decode(InputStream inStream, Context context) throws CoderException, IOException {
+      return new Record();
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 }
