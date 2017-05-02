@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.state;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * An object that maps keys to values.
@@ -27,6 +29,7 @@ import java.util.Map;
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
  */
+@Experimental(Kind.STATE)
 public interface MapState<K, V> extends State {
 
   /**
