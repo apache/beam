@@ -25,10 +25,8 @@ import com.google.common.cache.LoadingCache;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.KeyGroupCheckpointedOperator;
@@ -60,19 +58,34 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
   private static final long MAX_RETENTION_SINCE_ACCESS = Duration.standardMinutes(10L).getMillis();
   private static final long MAX_CACHE_SIZE = 100_000L;
 
-  private transient Map<Integer, LoadingCache<ByteBuffer, AtomicBoolean>> dedupingCache;
+  private transient LoadingCache<Integer, LoadingCache<ByteBuffer, AtomicBoolean>> dedupingCache;
   private transient KeyedStateBackend<ByteBuffer> keyedStateBackend;
 
   @Override
   public void open() throws Exception {
     super.open();
-    dedupingCache = new HashMap<>();
+    checkInitCache();
     keyedStateBackend = getKeyedStateBackend();
+  }
+
+  private void checkInitCache() {
+    if (dedupingCache == null) {
+      dedupingCache = CacheBuilder.newBuilder().build(new KeyGroupLoader());
+    }
+  }
+
+  private static class KeyGroupLoader extends CacheLoader<Integer, LoadingCache<ByteBuffer, AtomicBoolean>> {
+    @Override
+    public LoadingCache<ByteBuffer, AtomicBoolean> load(Integer ignore) throws Exception {
+      return CacheBuilder.newBuilder()
+          .expireAfterAccess(MAX_RETENTION_SINCE_ACCESS, TimeUnit.MILLISECONDS)
+          .maximumSize(MAX_CACHE_SIZE).build(new TrueBooleanLoader());
+    }
   }
 
   private static class TrueBooleanLoader extends CacheLoader<ByteBuffer, AtomicBoolean> {
     @Override
-    public AtomicBoolean load(ByteBuffer key) throws Exception {
+    public AtomicBoolean load(ByteBuffer ignore) throws Exception {
       return new AtomicBoolean(true);
     }
   }
@@ -88,35 +101,24 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
     }
   }
 
-  private boolean shouldOutput(int groupIndex, ByteBuffer id) {
-    LoadingCache<ByteBuffer, AtomicBoolean> keyGroupCache = dedupingCache.get(groupIndex);
-    if (keyGroupCache == null) {
-      keyGroupCache = CacheBuilder.newBuilder()
-          .expireAfterAccess(MAX_RETENTION_SINCE_ACCESS, TimeUnit.MILLISECONDS)
-          .maximumSize(MAX_CACHE_SIZE).build(new TrueBooleanLoader());
-      dedupingCache.put(groupIndex, keyGroupCache);
-    }
-    return keyGroupCache.getUnchecked(id).getAndSet(false);
+  private boolean shouldOutput(int groupIndex, ByteBuffer id) throws ExecutionException {
+    return dedupingCache.get(groupIndex).getUnchecked(id).getAndSet(false);
   }
 
   @Override
   public void restoreKeyGroupState(int keyGroupIndex, DataInputStream in) throws Exception {
+    checkInitCache();
     Integer size = VarIntCoder.of().decode(in, Context.NESTED);
     for (int i = 0; i < size; i++) {
       byte[] idBytes = ByteArrayCoder.of().decode(in, Context.NESTED);
+      // restore the ids which not expired.
       shouldOutput(keyGroupIndex, ByteBuffer.wrap(idBytes));
     }
   }
 
   @Override
   public void snapshotKeyGroupState(int keyGroupIndex, DataOutputStream out) throws Exception {
-    Set<ByteBuffer> ids;
-    LoadingCache<ByteBuffer, AtomicBoolean> keyGroupCache = dedupingCache.get(keyGroupIndex);
-    if (keyGroupCache == null) {
-      ids = new HashSet<>();
-    } else {
-      ids = keyGroupCache.asMap().keySet();
-    }
+    Set<ByteBuffer> ids = dedupingCache.get(keyGroupIndex).asMap().keySet();
     VarIntCoder.of().encode(ids.size(), out, Context.NESTED);
     for (ByteBuffer id : ids) {
       ByteArrayCoder.of().encode(id.array(), out, Context.NESTED);

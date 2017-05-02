@@ -154,7 +154,7 @@ class FlinkStreamingTransformTranslators {
       PCollection<T> output = context.getOutput(transform);
 
       DataStream<WindowedValue<T>> source;
-      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDebugSource;
+      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
       TypeInformation<WindowedValue<T>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
@@ -172,16 +172,16 @@ class FlinkStreamingTransformTranslators {
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
-        nonDebugSource = context
+        nonDedupSource = context
             .getExecutionEnvironment()
             .addSource(sourceWrapper).name(transform.getName()).returns(withIdTypeInfo);
 
         if (transform.getSource().requiresDeduping()) {
-          source = nonDebugSource.keyBy(
+          source = nonDedupSource.keyBy(
               new ValueWithRecordIdKeySelector<T>())
               .transform("debuping", outputTypeInfo, new DedupingOperator<T>());
         } else {
-          source = nonDebugSource.flatMap(new StripIdsMap<T>());
+          source = nonDedupSource.flatMap(new StripIdsMap<T>());
         }
       } catch (Exception e) {
         throw new RuntimeException(
