@@ -73,7 +73,7 @@ public class CloudObjectsTest {
           new DefaultCoderCloudObjectTranslatorRegistrar().classesToTranslators().keySet();
       Set<Class<? extends Coder>> testedClasses = new HashSet<>();
       for (Coder<?> tested : DefaultCoders.data()) {
-        if (tested instanceof ObjectCoder) {
+        if (tested instanceof ObjectCoder || tested instanceof ArbitraryCoder) {
           testedClasses.add(CustomCoder.class);
           assertThat(defaultCoderTranslators, hasItem(CustomCoder.class));
         } else {
