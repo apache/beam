@@ -30,9 +30,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
 
-/**
- * A {@link FileBasedSink} for Avro files.
- */
+/** A {@link FileBasedSink} for Avro files. */
 class AvroSink<T> extends FileBasedSink<T> {
   private final AvroCoder<T> coder;
   private final SerializableAvroCodecFactory codec;
@@ -67,10 +65,7 @@ class AvroSink<T> extends FileBasedSink<T> {
     return new AvroWriteOperation<>(this, coder, codec, metadata);
   }
 
-  /**
-   * A {@link FileBasedWriteOperation
-   * FileBasedWriteOperation} for Avro files.
-   */
+  /** A {@link FileBasedWriteOperation FileBasedWriteOperation} for Avro files. */
   private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
     private final AvroCoder<T> coder;
     private final SerializableAvroCodecFactory codec;
@@ -92,10 +87,7 @@ class AvroSink<T> extends FileBasedSink<T> {
     }
   }
 
-  /**
-   * A {@link FileBasedWriter FileBasedWriter}
-   * for Avro files.
-   */
+  /** A {@link FileBasedWriter FileBasedWriter} for Avro files. */
   private static class AvroWriter<T> extends FileBasedWriter<T> {
     private final AvroCoder<T> coder;
     private DataFileWriter<T> dataFileWriter;

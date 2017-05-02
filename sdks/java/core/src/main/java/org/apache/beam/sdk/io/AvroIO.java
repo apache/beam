@@ -33,6 +33,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,11 +46,9 @@ import org.apache.beam.sdk.values.PDone;
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
- * <p>To read a {@link PCollection} from one or more Avro files, use
- * {@code AvroIO.read()}, specifying {@link AvroIO.Read#from} to specify
- * the path of the file(s) to read from (e.g., a local filename or
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or filename pattern of the form {@code "gs://<bucket>/<filepath>"}).
+ * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()},
+ * specifying {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
+ * See {@link FileSystems} for information on supported file systems and filepatterns.
  *
  * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
  * To read {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes
@@ -72,13 +71,12 @@ import org.apache.beam.sdk.values.PDone;
  *                .from("gs://my_bucket/path/to/records-*.avro"));
  * } </pre>
  *
- * <p>To write a {@link PCollection} to one or more Avro files, use
- * {@link AvroIO.Write}, specifying {@code AvroIO.write().to(String)} to specify
- * the path of the file to write to (e.g., a local filename or sharded
- * filename pattern if running locally, or a Google Cloud Storage
- * filename or sharded filename pattern of the form
- * {@code "gs://<bucket>/<filepath>"}). {@code AvroIO.write().to(FileBasedSink.FilenamePolicy)}
- * can also be used to specify a custom file naming policy.
+ * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, specifying
+ * {@code AvroIO.write().to(String)} to specify the filename or sharded filepattern to write to.
+ * See {@link FileSystems} for information on supported file systems and {@link ShardNameTemplate}
+ * for information on naming of output files. You can also use {@code AvroIO.write()} with
+ * {@link Write#to(FileBasedSink.FilenamePolicy)} to
+ * specify a custom file naming policy.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
@@ -140,7 +138,8 @@ public class AvroIO {
   }
 
   /**
-   * Like {@link #readGenericRecords(Schema)} but the schema is specified as a JSON-encoded string.
+   * Reads Avro file(s) containing records of the specified schema. The schema is specified as a
+   * JSON-encoded string.
    */
   public static Read<GenericRecord> readGenericRecords(String schema) {
     return readGenericRecords(new Schema.Parser().parse(schema));
@@ -165,6 +164,13 @@ public class AvroIO {
         .build();
   }
 
+  /**
+   * Writes Avro records of the specified schema. The schema is specified as a JSON-encoded string.
+   */
+  public static Write<GenericRecord> writeGenericRecords(String schema) {
+    return writeGenericRecords(new Schema.Parser().parse(schema));
+  }
+
   private static <T> Write.Builder<T> defaultWriteBuilder() {
     return new AutoValue_AvroIO_Write.Builder<T>()
         .setFilenameSuffix("")
@@ -173,13 +179,6 @@ public class AvroIO {
         .setCodec(Write.DEFAULT_CODEC)
         .setMetadata(ImmutableMap.<String, Object>of())
         .setWindowedWrites(false);
-  }
-
-  /**
-   * Like {@link #writeGenericRecords(Schema)} but the schema is specified as a JSON-encoded string.
-   */
-  public static Write<GenericRecord> writeGenericRecords(String schema) {
-    return writeGenericRecords(new Schema.Parser().parse(schema));
   }
 
   /** Implementation of {@link #read}. */
@@ -200,15 +199,7 @@ public class AvroIO {
       abstract Read<T> build();
     }
 
-    /**
-     * Reads from the file(s) with the given name or pattern. This can be a local filename
-     * or filename pattern (if running locally), or a Google Cloud
-     * Storage filename or filename pattern of the form
-     * {@code "gs://<bucket>/<filepath>"} (if running locally or
-     * using remote execution). Standard
-     * <a href="http://docs.oracle.com/javase/tutorial/essential/io/find.html">Java
-     * Filesystem glob patterns</a> ("*", "?", "[..]") are supported.
-     */
+    /** Reads from the given filename or filepattern. */
     public Read<T> from(String filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
     }
@@ -275,7 +266,7 @@ public class AvroIO {
     abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
     abstract boolean getWindowedWrites();
-    @Nullable abstract FileBasedSink.FilenamePolicy getFilenamePolicy();
+    @Nullable abstract FilenamePolicy getFilenamePolicy();
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
@@ -295,7 +286,7 @@ public class AvroIO {
       abstract Builder<T> setRecordClass(Class<T> recordClass);
       abstract Builder<T> setSchema(Schema schema);
       abstract Builder<T> setWindowedWrites(boolean windowedWrites);
-      abstract Builder<T> setFilenamePolicy(FileBasedSink.FilenamePolicy filenamePolicy);
+      abstract Builder<T> setFilenamePolicy(FilenamePolicy filenamePolicy);
       abstract Builder<T> setCodec(SerializableAvroCodecFactory codec);
       abstract Builder<T> setMetadata(ImmutableMap<String, Object> metadata);
 
@@ -303,10 +294,8 @@ public class AvroIO {
     }
 
     /**
-     * Writes to the file(s) with the given prefix. This can be a local filename
-     * (if running locally), or a Google Cloud Storage filename of
-     * the form {@code "gs://<bucket>/<filepath>"}
-     * (if running locally or using remote execution).
+     * Writes to the file(s) with the given prefix. See {@link FileSystems} for information on
+     * supported file systems.
      *
      * <p>The files written will begin with this prefix, followed by
      * a shard identifier (see {@link #withNumShards}, and end
@@ -318,7 +307,7 @@ public class AvroIO {
     }
 
     /** Writes to the file(s) specified by the provided {@link FileBasedSink.FilenamePolicy}. */
-    public Write<T> to(FileBasedSink.FilenamePolicy filenamePolicy) {
+    public Write<T> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
@@ -333,7 +322,8 @@ public class AvroIO {
     }
 
     /**
-     * Uses the provided shard count.
+     * Uses the provided shard count. See {@link ShardNameTemplate} for a description of shard
+     * templates.
      *
      * <p>Constraining the number of shards is likely to reduce
      * the performance of a pipeline. Setting this value is not recommended
@@ -341,19 +331,13 @@ public class AvroIO {
      *
      * @param numShards the number of shards to use, or 0 to let the system
      *                  decide.
-     * @see ShardNameTemplate
      */
     public Write<T> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
       return toBuilder().setNumShards(numShards).build();
     }
 
-    /**
-     * Returns a new {@link PTransform} that's like this one but
-     * that uses the given shard name template.
-     *
-     * @see ShardNameTemplate
-     */
+    /** Uses the given {@link ShardNameTemplate} for naming output files. */
     public Write<T> withShardNameTemplate(String shardTemplate) {
       return toBuilder().setShardTemplate(shardTemplate).build();
     }
@@ -361,12 +345,19 @@ public class AvroIO {
     /**
      * Forces a single file as output.
      *
-     * <p>This is a shortcut for {@code .withNumShards(1).withShardNameTemplate("")}
+     * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
     public Write<T> withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
     }
 
+    /**
+     * Preserves windowing of input elements and writes them to files based on the element's window.
+     *
+     * <p>Requires use of {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated
+     * using {@link FilenamePolicy#windowedFilename(FileBasedSink.FilenamePolicy.WindowedContext)}.
+     * See also {@link WriteFiles#withWindowedWrites()}.
+     */
     public Write<T> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
     }
