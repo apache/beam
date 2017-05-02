@@ -418,7 +418,7 @@ class DataflowApplicationClient(object):
     logging.info('Completed GCS upload to %s', gcs_location)
     return response
 
-  @retry.with_exponential_backoff(num_retries=3)
+  @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
     """Creates job description. May stage and/or submit for remote execution."""
     self.create_job_description(job)
@@ -464,6 +464,7 @@ class DataflowApplicationClient(object):
       raise
     return response
 
+  @retry.with_exponential_backoff(num_retries=3)
   def submit_job_description(self, job):
     """Creates and excutes a job request."""
     request = dataflow.DataflowProjectsLocationsJobsCreateRequest()
