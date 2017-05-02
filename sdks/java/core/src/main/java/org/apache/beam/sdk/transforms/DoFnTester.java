@@ -33,7 +33,6 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -502,16 +501,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  private <AccumT, AggregateT> AggregateT extractAggregatorValue(
-      String name, CombineFn<?, AccumT, AggregateT> combiner) {
-    @SuppressWarnings("unchecked")
-    AccumT accumulator = (AccumT) accumulators.get(name);
-    if (accumulator == null) {
-      accumulator = combiner.createAccumulator();
-    }
-    return combiner.extractOutput(accumulator);
-  }
-
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
@@ -686,8 +675,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs =
       new HashMap<>();
 
-  private Map<String, Object> accumulators;
-
   /** The output tags used by the {@link DoFn} under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
@@ -743,6 +730,5 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     fnInvoker = DoFnInvokers.invokerFor(fn);
     fnInvoker.invokeSetup();
     outputs = new HashMap<>();
-    accumulators = new HashMap<>();
   }
 }

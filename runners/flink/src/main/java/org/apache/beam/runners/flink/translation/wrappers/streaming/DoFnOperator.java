@@ -319,8 +319,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
           doFn,
           doFnRunner,
-          stepContext,
-          aggregatorFactory,
           windowingStrategy,
           cleanupTimer,
           stateCleaner);
