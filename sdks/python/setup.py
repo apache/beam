@@ -121,12 +121,16 @@ setuptools.setup(
     author=PACKAGE_AUTHOR,
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
-    package_data={'apache_beam': ['**/*.pyx', '**/*.pxd', 'tests/data/*']},
+    package_data={'apache_beam': [
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'tests/data/*']},
     ext_modules=cythonize([
         '**/*.pyx',
         'apache_beam/coders/coder_impl.py',
-        'apache_beam/runners/common.py',
         'apache_beam/metrics/execution.py',
+        'apache_beam/runners/common.py',
+        'apache_beam/runners/worker/logger.py',
+        'apache_beam/runners/worker/opcounters.py',
+        'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
