@@ -552,7 +552,7 @@ public class AvroIOTest {
   @Test
   public void testWriteDisplayData() {
     AvroIO.Write<GenericClass> write = AvroIO.write(GenericClass.class)
-        .to("foo")
+        .to("/foo")
         .withShardNameTemplate("-SS-of-NN-")
         .withSuffix("bar")
         .withNumShards(100)
@@ -560,7 +560,7 @@ public class AvroIOTest {
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("filePrefix", "foo"));
+    assertThat(displayData, hasDisplayItem("filePrefix", "/foo"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("fileSuffix", "bar"));
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
