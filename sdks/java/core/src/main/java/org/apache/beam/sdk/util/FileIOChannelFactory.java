@@ -46,7 +46,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

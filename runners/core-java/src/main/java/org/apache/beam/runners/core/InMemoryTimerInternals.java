@@ -27,8 +27,8 @@ import com.google.common.collect.Table;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.joda.time.Instant;
 
