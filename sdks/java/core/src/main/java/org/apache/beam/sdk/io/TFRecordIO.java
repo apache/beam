@@ -30,7 +30,6 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -268,7 +267,6 @@ public class TFRecordIO {
      * in a common extension, if given by {@link #withSuffix(String)}.
      */
     public Write to(String filenamePrefix) {
-      validateOutputComponent(filenamePrefix);
       return to(StaticValueProvider.of(filenamePrefix));
     }
 
@@ -285,7 +283,6 @@ public class TFRecordIO {
      * @see ShardNameTemplate
      */
     public Write withSuffix(String nameExtension) {
-      validateOutputComponent(nameExtension);
       return toBuilder().setFilenameSuffix(nameExtension).build();
     }
 
@@ -420,17 +417,6 @@ public class TFRecordIO {
     public boolean matches(String filename) {
       return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
     }
-  }
-
-  // Pattern which matches old-style shard output patterns, which are now
-  // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-            + partialFilePattern);
   }
 
   //////////////////////////////////////////////////////////////////////////////

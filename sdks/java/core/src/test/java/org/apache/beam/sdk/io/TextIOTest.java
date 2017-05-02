@@ -540,21 +540,6 @@ public class TextIOTest {
         displayData, hasItem(hasDisplayItem(hasValue(startsWith(outputPath)))));
   }
 
-  @Test
-  public void testUnsupportedFilePattern() throws IOException {
-    p.enableAbandonedNodeEnforcement(false);
-    // Windows doesn't like resolving paths with * in them.
-    String filename = tempFolder.resolve("output@5").toString();
-
-    PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(LINES_ARRAY))
-            .withCoder(StringUtf8Coder.of()));
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Output name components are not allowed to contain");
-    input.apply(TextIO.write().to(filename));
-  }
-
   /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
