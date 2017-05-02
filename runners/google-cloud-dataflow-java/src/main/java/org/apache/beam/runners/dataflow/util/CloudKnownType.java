@@ -15,19 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.dataflow.util;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * A utility for manipulating well-known cloud types.
- *
- * @deprecated replaced by {@code org.apache.beam.runners.dataflow.CloudKnownType}
- */
-@Deprecated
+/** A utility for manipulating well-known cloud types. */
 enum CloudKnownType {
   TEXT("http://schema.org/Text", String.class) {
     @Override
