@@ -43,9 +43,9 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.metrics.CounterCell;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -207,10 +207,13 @@ public class SparkGroupAlsoByWindowViaWindowSet {
             new OutputWindowedValueHolder<>();
         // use in memory Aggregators since Spark Accumulators are not resilient
         // in stateful operators, once done with this partition.
-        final InMemoryLongSumAggregator droppedDueToClosedWindow = new InMemoryLongSumAggregator(
-            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
-        final InMemoryLongSumAggregator droppedDueToLateness = new InMemoryLongSumAggregator(
-            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER);
+        final MetricsContainer cellProvider = new MetricsContainer("cellProvider");
+        final CounterCell droppedDueToClosedWindow = cellProvider.getCounter(
+            MetricName.named(SparkGroupAlsoByWindowViaWindowSet.class,
+            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER));
+        final CounterCell droppedDueToLateness = cellProvider.getCounter(
+            MetricName.named(SparkGroupAlsoByWindowViaWindowSet.class,
+                GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER));
 
         AbstractIterator<
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
@@ -315,15 +318,15 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         };
 
         // log if there's something to log.
-        long lateDropped = droppedDueToLateness.getSum();
+        long lateDropped = droppedDueToLateness.getCumulative();
         if (lateDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to lateness.", lateDropped));
-          droppedDueToLateness.zero();
+          droppedDueToLateness.inc(-droppedDueToLateness.getCumulative());
         }
-        long closedWindowDropped = droppedDueToClosedWindow.getSum();
+        long closedWindowDropped = droppedDueToClosedWindow.getCumulative();
         if (closedWindowDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to closed window.", closedWindowDropped));
-          droppedDueToClosedWindow.zero();
+          droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
         }
 
         return scala.collection.JavaConversions.asScalaIterator(outIter);
@@ -419,38 +422,6 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         PaneInfo pane) {
       throw new UnsupportedOperationException(
           "Tagged outputs are not allowed in GroupAlsoByWindow.");
-    }
-  }
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
-    private final String name;
-    private long sum = 0;
-
-    public void zero() {
-      sum = 0;
-    }
-
-    public long getSum() {
-      return sum;
-    }
-
-    InMemoryLongSumAggregator(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(Long value) {
-      sum += value;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public Combine.CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
     }
   }
 }
