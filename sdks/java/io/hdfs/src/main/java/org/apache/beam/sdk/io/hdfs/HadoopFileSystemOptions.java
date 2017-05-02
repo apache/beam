@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import java.io.File;
 import java.util.List;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration}
@@ -39,11 +45,37 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
   void setHdfsConfiguration(List<Configuration> value);
 
   /** A {@link DefaultValueFactory} which locates a Hadoop {@link Configuration}. */
-  class ConfigurationLocator implements DefaultValueFactory<Configuration> {
+  class ConfigurationLocator implements DefaultValueFactory<List<Configuration>> {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationLocator.class);
     @Override
-    public Configuration create(PipelineOptions options) {
-      // TODO: Find default configuration to use
-      return null;
+    public List<Configuration> create(PipelineOptions options) {
+      // Find default configuration when HADOOP_CONF_DIR or YARN_CONF_DIR is set.
+      Configuration conf = new Configuration(false);
+      List<String> hadoopEnvList = Lists.newArrayList("HADOOP_CONF_DIR", "YARN_CONF_DIR");
+      for (String env : hadoopEnvList) {
+        String hadoopConfPath = System.getenv(env);
+        if (!Strings.isNullOrEmpty(hadoopConfPath) && new File(hadoopConfPath).exists()) {
+
+          // We just need to load both core-site.xml and hdfs-site.xml to determine the
+          // default fs path and the hdfs configuration
+          if (new File(hadoopConfPath + "/core-site.xml").exists()) {
+            conf.addResource(new Path(hadoopConfPath + "/core-site.xml"));
+
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Adding " + hadoopConfPath + "/core-site.xml to hadoop configuration");
+            }
+          }
+
+          if (new File(hadoopConfPath + "/hdfs-site.xml").exists()) {
+            conf.addResource(new Path(hadoopConfPath + "/hdfs-site.xml"));
+
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Adding " + hadoopConfPath + "/hdfs-site.xml to hadoop configuration");
+            }
+          }
+        }
+      }
+      return Lists.<Configuration>newArrayList(conf);
     }
   }
 }
