@@ -74,7 +74,8 @@ public class DedupingOperator<T> extends AbstractStreamOperator<WindowedValue<T>
     }
   }
 
-  private static class KeyGroupLoader extends CacheLoader<Integer, LoadingCache<ByteBuffer, AtomicBoolean>> {
+  private static class KeyGroupLoader extends
+      CacheLoader<Integer, LoadingCache<ByteBuffer, AtomicBoolean>> {
     @Override
     public LoadingCache<ByteBuffer, AtomicBoolean> load(Integer ignore) throws Exception {
       return CacheBuilder.newBuilder()
