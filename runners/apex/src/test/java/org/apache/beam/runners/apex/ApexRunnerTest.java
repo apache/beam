@@ -58,7 +58,7 @@ public class ApexRunnerTest {
     File tmp = File.createTempFile("beam-runners-apex-", ".properties");
     tmp.deleteOnExit();
     Properties props = new Properties();
-    props.setProperty("dt.operator." + operName + ".attr.MEMORY_MB", "64");
+    props.setProperty("apex.operator." + operName + ".attr.MEMORY_MB", "64");
     try (FileOutputStream fos = new FileOutputStream(tmp)) {
       props.store(fos, "");
     }
