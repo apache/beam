@@ -202,8 +202,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public void open() throws Exception {
     super.open();
 
-    currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = Long.MIN_VALUE;
+    setCurrentInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     AggregatorFactory aggregatorFactory = new AggregatorFactory() {
       @Override
@@ -458,18 +458,18 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
     if (keyCoder == null) {
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
       long potentialOutputWatermark =
           Math.min(getPushbackWatermarkHold(), currentInputWatermark);
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
     } else {
       // fireTimers, so we need startBundle.
       pushbackDoFnRunner.startBundle();
 
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
 
       // hold back by the pushed back values waiting for side inputs
       long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
@@ -483,7 +483,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
 
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
       pushbackDoFnRunner.finishBundle();
@@ -610,6 +610,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     pushbackDoFnRunner.onTimer(timerData.getTimerId(), window,
         timerData.getTimestamp(), timerData.getDomain());
+  }
+
+  private void setCurrentInputWatermark(long currentInputWatermark) {
+    this.currentInputWatermark = currentInputWatermark;
+  }
+
+  private void setCurrentOutputWatermark(long currentOutputWatermark) {
+    this.currentOutputWatermark = currentOutputWatermark;
   }
 
   /**
