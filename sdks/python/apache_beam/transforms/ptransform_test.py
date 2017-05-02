@@ -22,7 +22,6 @@ from __future__ import absolute_import
 import operator
 import re
 import unittest
-import mock
 
 import hamcrest as hc
 from nose.plugins.attrib import attr
@@ -46,16 +45,6 @@ from apache_beam.utils.pipeline_options import TypeOptions
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
-
-class MyDoFn(beam.DoFn):
-  def start_bundle(self):
-    pass
-
-  def process(self, element):
-    pass
-
-  def finish_bundle(self):
-    yield 'finish'
 
 
 class PTransformTest(unittest.TestCase):
@@ -286,6 +275,13 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_do_fn_with_finish(self):
+    class MyDoFn(beam.DoFn):
+      def process(self, element):
+        pass
+
+      def finish_bundle(self):
+        yield 'finish'
+
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
     result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
@@ -300,22 +296,46 @@ class PTransformTest(unittest.TestCase):
     assert_that(result, matcher())
     pipeline.run()
 
-  @mock.patch.object(MyDoFn, 'start_bundle')
-  def test_do_fn_with_start(self, mock_method):
-    mock_method.return_value = None
-    pipeline = TestPipeline()
-    pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
-    pipeline.run()
-    self.assertTrue(mock_method.called)
+  def test_do_fn_with_start(self):
+    class MyDoFn(beam.DoFn):
+      def __init__(self):
+        self.state = 'init'
 
-  @mock.patch.object(MyDoFn, 'start_bundle')
-  def test_do_fn_with_start_error(self, mock_method):
-    mock_method.return_value = [1]
+      def start_bundle(self):
+        self.state = 'started'
+        return None
+
+      def process(self, element):
+        if self.state == 'started':
+          yield 'started'
+        self.state = 'process'
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
+    result = pcoll | 'Do' >> beam.ParDo(MyDoFn())
+
+    # May have many bundles, but each has a start and finish.
+    def  matcher():
+      def match(actual):
+        equal_to(['started'])(list(set(actual)))
+        equal_to([1])([actual.count('started')])
+      return match
+
+    assert_that(result, matcher())
+    pipeline.run()
+
+  def test_do_fn_with_start_error(self):
+    class MyDoFn(beam.DoFn):
+      def start_bundle(self):
+        return [1]
+
+      def process(self, element):
+        pass
+
     pipeline = TestPipeline()
     pipeline | 'Start' >> beam.Create([1, 2, 3]) | 'Do' >> beam.ParDo(MyDoFn())
     with self.assertRaises(RuntimeError):
       pipeline.run()
-    self.assertTrue(mock_method.called)
 
   def test_filter(self):
     pipeline = TestPipeline()
