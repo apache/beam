@@ -79,11 +79,11 @@ import org.slf4j.LoggerFactory;
  * // A root PTransform, like TextIO.Read or Create, gets added
  * // to the Pipeline by being applied:
  * PCollection<String> lines =
- *     p.apply(TextIO.Read.from("gs://bucket/dir/file*.txt"));
+ *     p.apply(TextIO.read().from("gs://bucket/dir/file*.txt"));
  *
  * // A Pipeline can have multiple root transforms:
  * PCollection<String> moreLines =
- *     p.apply(TextIO.Read.from("gs://bucket/other/dir/file*.txt"));
+ *     p.apply(TextIO.read().from("gs://bucket/other/dir/file*.txt"));
  * PCollection<String> yetMoreLines =
  *     p.apply(Create.of("yet", "more", "lines").withCoder(StringUtf8Coder.of()));
  *
@@ -99,7 +99,7 @@ import org.slf4j.LoggerFactory;
  *     .apply(new Count<String>());
  * PCollection<String> formattedWordCounts =
  *     wordCounts.apply(ParDo.of(new FormatCounts()));
- * formattedWordCounts.apply(TextIO.Write.to("gs://bucket/dir/counts.txt"));
+ * formattedWordCounts.apply(TextIO.write().to("gs://bucket/dir/counts.txt"));
  *
  * // PTransforms aren't executed when they're applied, rather they're
  * // just added to the Pipeline.  Once the whole Pipeline of PTransforms

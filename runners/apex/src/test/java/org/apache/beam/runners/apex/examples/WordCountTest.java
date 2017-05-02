@@ -106,11 +106,11 @@ public class WordCountTest {
     WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
       .as(WordCountOptions.class);
     Pipeline p = Pipeline.create(options);
-    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+    p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
       .apply(ParDo.of(new ExtractWordsFn()))
       .apply(Count.<String>perElement())
       .apply(ParDo.of(new FormatAsStringFn()))
-      .apply("WriteCounts", TextIO.Write.to(options.getOutput()))
+      .apply("WriteCounts", TextIO.write().to(options.getOutput()))
       ;
     p.run().waitUntilFinish();
   }

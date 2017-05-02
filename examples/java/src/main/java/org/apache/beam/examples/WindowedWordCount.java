@@ -178,7 +178,7 @@ public class WindowedWordCount {
      */
     PCollection<String> input = pipeline
       /** Read from the GCS file. */
-      .apply(TextIO.Read.from(options.getInputFile()))
+      .apply(TextIO.read().from(options.getInputFile()))
       // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
       // See AddTimestampFn for more detail on this.
       .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));

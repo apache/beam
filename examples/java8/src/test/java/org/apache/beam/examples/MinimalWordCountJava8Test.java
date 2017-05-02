@@ -62,7 +62,7 @@ public class MinimalWordCountJava8Test implements Serializable {
   public void testMinimalWordCountJava8() throws Exception {
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());
 
-    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
+    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
      .apply(FlatMapElements
          .into(TypeDescriptors.strings())
          .via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+"))))
@@ -71,7 +71,7 @@ public class MinimalWordCountJava8Test implements Serializable {
      .apply(MapElements
          .into(TypeDescriptors.strings())
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
-     .apply(TextIO.Write.to("gs://your-output-bucket/and-output-prefix"));
+     .apply(TextIO.write().to("gs://your-output-bucket/and-output-prefix"));
   }
 
   private GcsUtil buildMockGcsUtil() throws IOException {

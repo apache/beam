@@ -121,10 +121,10 @@ public class TransformTreeTest {
 
     final PTransform<PCollection<String>, PCollection<Iterable<String>>> sample =
         Sample.fixedSizeGlobally(10);
-    p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
+    p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
         .apply(sample)
         .apply(Flatten.<String>iterables())
-        .apply("WriteMyFile", TextIO.Write.to(outputFile.getPath()));
+        .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =
         EnumSet.noneOf(TransformsSeen.class);
@@ -167,7 +167,7 @@ public class TransformTreeTest {
             assertThat(transform, not(instanceOf(Combine.Globally.class)));
             assertThat(transform, not(instanceOf(WriteFiles.class)));
             if (transform instanceof Read.Bounded
-                && node.getEnclosingNode().getTransform() instanceof TextIO.Read.Bound) {
+                && node.getEnclosingNode().getTransform() instanceof TextIO.Read) {
               assertTrue(visited.add(TransformsSeen.READ));
             }
           }

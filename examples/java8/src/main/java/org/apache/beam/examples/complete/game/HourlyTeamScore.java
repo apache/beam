@@ -155,7 +155,7 @@ public class HourlyTeamScore extends UserScore {
     final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
 
     // Read 'gaming' events from a text file.
-    pipeline.apply(TextIO.Read.from(options.getInput()))
+    pipeline.apply(TextIO.read().from(options.getInput()))
       // Parse the incoming data.
       .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 

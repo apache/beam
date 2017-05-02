@@ -136,7 +136,7 @@ public class DebuggingWordCount {
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> filteredWords =
-        p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
+        p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
          .apply(new WordCount.CountWords())
          .apply(ParDo.of(new FilterTextFn(options.getFilterPattern())));
 

@@ -65,7 +65,7 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
             c.output(c.element().toString());
           }
         }))
-      .apply(TextIO.Write.to(resultPath));
+      .apply(TextIO.write().to(resultPath));
 
     p.run();
   }
