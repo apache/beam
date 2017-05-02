@@ -30,7 +30,7 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.sdk.coders.BitSetCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Timers;
+import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.state.ValueState;
 import org.joda.time.Instant;
 

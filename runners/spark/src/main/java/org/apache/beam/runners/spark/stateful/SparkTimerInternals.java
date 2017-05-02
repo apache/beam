@@ -33,7 +33,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
 
