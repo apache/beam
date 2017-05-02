@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+    <appender name="A1" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%p %d{yyyy-MM-dd HH:mm:ss} %c{1}:%L %t] %m%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.apache.zookeeper" level="ERROR" />
+    <logger name="org.apache.curator" level="ERROR" />
+    <logger name="com.netflix.curator" level="ERROR" />
+    <logger name="com.alibaba.jstorm.common.metric" level="INFO" />
+    <logger name="com.alibaba.jstorm.daemon.nimbus.metric" level="INFO" />
+    <logger name="com.alibaba.jstorm.metric" level="INFO" />
+    <logger name="shade.storm.org.apache.zookeeper" level="ERROR"/>
+    <logger name="shade.storm.org.apache.curator" level="ERROR"/>
+    <logger name="com.alibaba.jstorm.beam" level="DEBUG"/>
+
+    <!-- sync client logback with jstorm.logback.xml  -->
+    <logger name="com.alibaba.jstorm.daemon.worker.hearbeat" level="WARN"/>
+    <logger name="com.alibaba.jstorm.task.heartbeat" level="WARN"/>
+    <logger name="com.alibaba.jstorm.common.metric" level="WARN"/>
+    <logger name="com.alibaba.jstorm.task.master.metrics" level="WARN"/>
+    <logger name="com.alibaba.jstorm.daemon.nimbus.metric" level="WARN"/>
+    <logger name="com.alibaba.jstorm.metric" level="WARN"/>
+
+    <root level="INFO">
+    <appender-ref ref="A1" />
+    </root>
+</configuration>
