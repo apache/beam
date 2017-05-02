@@ -102,7 +102,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
     def tee(elem, *tags):
       for tag in tags:
         if tag in elem:
-          yield beam.pvalue.OutputValue(tag, elem)
+          yield beam.pvalue.TaggedOutput(tag, elem)
     with self.create_pipeline() as p:
       xy = (p
             | 'Create' >> beam.Create(['x', 'y', 'xy'])
@@ -113,7 +113,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
   def test_pardo_side_and_main_outputs(self):
     def even_odd(elem):
       yield elem
-      yield beam.pvalue.OutputValue('odd' if elem % 2 else 'even', elem)
+      yield beam.pvalue.TaggedOutput('odd' if elem % 2 else 'even', elem)
     with self.create_pipeline() as p:
       ints = p | beam.Create([1, 2, 3])
       named = ints | 'named' >> beam.FlatMap(
