@@ -27,19 +27,18 @@ import org.joda.time.Duration;
 
 /**
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
- * has methods to query to job runtime and the final values of
- * {@link org.apache.beam.sdk.transforms.Aggregator}s.
+ * has methods to query to job runtime and the final values of the accumulators.
  */
 public class FlinkRunnerResult implements PipelineResult {
 
-  private final Map<String, Object> aggregators;
+  private final Map<String, Object> accumulators;
 
   private final long runtime;
 
-  FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
-    this.aggregators = (aggregators == null || aggregators.isEmpty())
+  FlinkRunnerResult(Map<String, Object> accumulators, long runtime) {
+    this.accumulators = (accumulators == null || accumulators.isEmpty())
         ? Collections.<String, Object>emptyMap()
-        : Collections.unmodifiableMap(aggregators);
+        : Collections.unmodifiableMap(accumulators);
     this.runtime = runtime;
   }
 
@@ -51,7 +50,7 @@ public class FlinkRunnerResult implements PipelineResult {
   @Override
   public String toString() {
     return "FlinkRunnerResult{"
-        + "aggregators=" + aggregators
+        + "accumulators=" + accumulators
         + ", runtime=" + runtime
         + '}';
   }
@@ -73,6 +72,6 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return new FlinkMetricResults(aggregators);
+    return new FlinkMetricResults(accumulators);
   }
 }
