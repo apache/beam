@@ -230,6 +230,14 @@ public class CoGbkResult {
       return ImmutableList.of(unionCoder);
     }
 
+    public CoGbkResultSchema getSchema() {
+      return schema;
+    }
+
+    public UnionCoder getUnionCoder() {
+      return unionCoder;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public void encode(
