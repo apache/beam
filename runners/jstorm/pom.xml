@@ -31,9 +31,9 @@
   <packaging>jar</packaging>
 
   <properties>
-    <jstorm.core.version>2.2.1</jstorm.core.version>
+    <jstorm.core.version>2.3.1-SNAPSHOT</jstorm.core.version>
   </properties>
-  
+
   <profiles>
     <profile>
       <!-- This profile adds execution of ValidatesRunner integration tests
@@ -85,7 +85,7 @@
       <version>${jstorm.core.version}</version>
       <scope>provided</scope>
     </dependency>
-    
+
     <!-- Beam dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -123,7 +123,7 @@
       </exclusions>
     </dependency>
 
-    <!-- Module dependencies -->    
+    <!-- Module dependencies -->
     <dependency>
         <groupId>com.google.auto.service</groupId>
         <artifactId>auto-service</artifactId>
