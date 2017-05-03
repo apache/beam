@@ -105,7 +105,6 @@ public class FlinkDoFnFunction<InputT, OutputT>
         // see SimpleDoFnRunner, just use it to limit number of additional outputs
         Collections.<TupleTag<?>>emptyList(),
         new FlinkNoOpStepContext(),
-        null,
         windowingStrategy);
 
     if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))

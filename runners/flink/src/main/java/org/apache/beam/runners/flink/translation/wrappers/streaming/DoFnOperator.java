@@ -260,7 +260,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        null,
         windowingStrategy);
 
     if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
