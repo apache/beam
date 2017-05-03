@@ -34,10 +34,10 @@ Beam currently supports Runners that work with the following distributed process
          alt="Apache Apex">
 * Apache Flink <img src="{{ site.baseurl }}/images/logos/runners/flink.png"
          alt="Apache Flink">
+* Apache Gearpump (incubating) <img src="{{ site.baseurl }}/images/logos/runners/gearpump.png"
+         alt="Apache Gearpump">
 * Apache Spark <img src="{{ site.baseurl }}/images/logos/runners/spark.png"
          alt="Apache Spark">
-* Apache Gearpump(incubating) <img src="{{ site.baseurl }}/images/logos/runners/gearpump.png"
-         alt="Apache Gearpump">
 * Google Cloud Dataflow <img src="{{ site.baseurl }}/images/logos/runners/dataflow.png"
          alt="Google Cloud Dataflow">
     
