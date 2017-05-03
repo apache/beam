@@ -55,7 +55,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypedPValue;
 import org.joda.time.Instant;
 
 /**
@@ -273,7 +272,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public <T> Coder<T> getDefaultOutputCoder(
         PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
             input,
-        TypedPValue<T> output)
+        PCollection<T> output)
         throws CannotProvideCoderException {
       // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
       @SuppressWarnings("unchecked")

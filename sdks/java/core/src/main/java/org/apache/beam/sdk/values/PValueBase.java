@@ -130,7 +130,7 @@ public abstract class PValueBase implements PValue {
    *
    * <p>For internal use only.
    */
-  public boolean isFinishedSpecifyingInternal() {
+  boolean isFinishedSpecifying() {
     return finishedSpecifying;
   }
 

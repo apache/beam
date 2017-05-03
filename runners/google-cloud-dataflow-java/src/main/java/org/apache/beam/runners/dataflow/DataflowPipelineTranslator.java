@@ -97,7 +97,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypedPValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -599,8 +598,8 @@ public class DataflowPipelineTranslator {
     @Override
     public long addOutput(PValue value) {
       Coder<?> coder;
-      if (value instanceof TypedPValue) {
-        coder = ((TypedPValue<?>) value).getCoder();
+      if (value instanceof PCollection) {
+        coder = ((PCollection<?>) value).getCoder();
         if (value instanceof PCollection) {
           // Wrap the PCollection element Coder inside a WindowedValueCoder.
           coder = WindowedValue.getFullCoder(
