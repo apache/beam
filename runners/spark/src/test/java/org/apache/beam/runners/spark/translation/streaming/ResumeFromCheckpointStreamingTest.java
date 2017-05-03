@@ -28,15 +28,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
+import org.apache.beam.runners.spark.TestSparkRunner;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
@@ -53,6 +54,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -81,11 +83,12 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Tests DStream recovery from checkpoint.
@@ -96,22 +99,32 @@ import org.junit.experimental.categories.Category;
  * {@link Metrics} values that are expected to resume from previous count and a side-input that is
  * expected to recover as well.
  */
-public class ResumeFromCheckpointStreamingTest {
+public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
       new EmbeddedKafkaCluster.EmbeddedZookeeper();
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
       new EmbeddedKafkaCluster(EMBEDDED_ZOOKEEPER.getConnection(), new Properties());
   private static final String TOPIC = "kafka_beam_test_topic";
 
+  private transient TemporaryFolder temporaryFolder;
+
   @Rule
   public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
-  @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
 
   @BeforeClass
-  public static void init() throws IOException {
+  public static void setup() throws IOException {
     EMBEDDED_ZOOKEEPER.startup();
     EMBEDDED_KAFKA_CLUSTER.startup();
+  }
+
+  @Before
+  public void init() {
+    temporaryFolder = new TemporaryFolder();
+    try {
+      temporaryFolder.create();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static void produce(Map<String, Instant> messages) {
@@ -148,7 +161,7 @@ public class ResumeFromCheckpointStreamingTest {
             .build();
 
     // first run should expect EOT matching the last injected element.
-    SparkPipelineResult res = run(pipelineRule, Optional.of(new Instant(400)), 0);
+    SparkPipelineResult res = run(Optional.of(new Instant(400)), 0);
 
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
@@ -169,7 +182,7 @@ public class ResumeFromCheckpointStreamingTest {
     ));
 
     // recovery should resume from last read offset, and read the second batch of input.
-    res = runAgain(pipelineRule, 1);
+    res = runAgain(1);
     // assertions 2:
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
@@ -209,18 +222,18 @@ public class ResumeFromCheckpointStreamingTest {
         String.format("Found %d failed assertions.", failedAssertions),
         failedAssertions,
         is(0L));
-
   }
 
-  private SparkPipelineResult runAgain(PipelineRule pipelineRule, int expectedAssertions) {
+  private SparkPipelineResult runAgain(int expectedAssertions) {
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-    return run(pipelineRule, Optional.<Instant>absent(), expectedAssertions);
+    return run(Optional.<Instant>absent(), expectedAssertions);
   }
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-  private static SparkPipelineResult run(
-      PipelineRule pipelineRule, Optional<Instant> stopWatermarkOption, int expectedAssertions) {
+  private SparkPipelineResult run(
+      Optional<Instant> stopWatermarkOption,
+      int expectedAssertions) {
     KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
@@ -242,15 +255,21 @@ public class ResumeFromCheckpointStreamingTest {
           }
         });
 
-    TestSparkPipelineOptions options = pipelineRule.getOptions();
+    TestSparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
     options.setSparkMaster("local[*]");
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
     options.setExpectedAssertions(expectedAssertions);
+    options.setRunner(TestSparkRunner.class);
+    options.setEnableSparkMetricSinks(false);
+    options.setForceStreaming(true);
+    options.setCheckpointDir(temporaryFolder.getRoot().getPath());
     // timeout is per execution so it can be injected by the caller.
     if (stopWatermarkOption.isPresent()) {
       options.setStopPipelineWatermark(stopWatermarkOption.get().getMillis());
     }
-    Pipeline p = pipelineRule.createPipeline();
+
+    Pipeline p = Pipeline.create(options);
 
     PCollection<String> expectedCol =
         p.apply(Create.of(ImmutableList.of("side1", "side2")).withCoder(StringUtf8Coder.of()));
@@ -354,5 +373,4 @@ public class ResumeFromCheckpointStreamingTest {
       }
     }
   }
-
 }

@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -244,8 +245,11 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+  /** System property used to set {@link TestPipelineOptions}. */
+  public static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
+
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
@@ -331,7 +335,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     try {
       enforcement.get().beforePipelineExecution();
       pipelineResult = super.run();
-      verifyPAssertsSucceeded(pipelineResult);
+      verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -375,6 +379,15 @@ public class TestPipeline extends Pipeline implements TestRule {
   public TestPipeline enableAutoRunIfMissing(final boolean enable) {
     enforcement.get().enableAutoRunIfMissing(enable);
     return this;
+  }
+
+  @VisibleForTesting
+  @Override
+  /**
+   * Get this pipeline's options.
+   */
+  public PipelineOptions getOptions() {
+    return defaultOptions;
   }
 
   @Override
@@ -501,9 +514,9 @@ public class TestPipeline extends Pipeline implements TestRule {
    * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
    * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
    */
-  private void verifyPAssertsSucceeded(PipelineResult pipelineResult) {
+  public static void verifyPAssertsSucceeded(Pipeline pipeline, PipelineResult pipelineResult) {
     if (MetricsEnvironment.isMetricsSupported()) {
-      long expectedNumberOfAssertions = (long) PAssert.countAsserts(this);
+      long expectedNumberOfAssertions = (long) PAssert.countAsserts(pipeline);
 
       long successfulAssertions = 0;
       Iterable<MetricResult<Long>> successCounterResults =

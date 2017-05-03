@@ -333,9 +333,6 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
-            <excludedGroups>
-              org.apache.beam.runners.spark.UsesCheckpointRecovery
-            </excludedGroups>
             <forkCount>1</forkCount>
             <reuseForks>false</reuseForks>
             <systemPropertyVariables>
@@ -344,6 +341,50 @@
               <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
             </systemPropertyVariables>
           </configuration>
+          <executions>
+            <execution>
+              <id>default-test</id>
+              <goals>
+                <goal>test</goal>
+              </goals>
+              <configuration>
+                <excludedGroups>
+                  org.apache.beam.runners.spark.UsesCheckpointRecovery,
+                  org.apache.beam.runners.spark.StreamingTest
+                </excludedGroups>
+                <systemPropertyVariables>
+                  <beamTestPipelineOptions>
+                    [
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                    ]
+                  </beamTestPipelineOptions>
+                </systemPropertyVariables>
+              </configuration>
+            </execution>
+            <execution>
+              <id>streaming-tests</id>
+              <phase>test</phase>
+              <goals>
+                <goal>test</goal>
+              </goals>
+              <configuration>
+                <groups>
+                  org.apache.beam.runners.spark.StreamingTest
+                </groups>
+                <systemPropertyVariables>
+                  <beamTestPipelineOptions>
+                    [
+                    "--runner=TestSparkRunner",
+                    "--forceStreaming=true",
+                    "--enableSparkMetricSinks=true"
+                    ]
+                  </beamTestPipelineOptions>
+                </systemPropertyVariables>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>

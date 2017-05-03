@@ -460,7 +460,7 @@ public class Pipeline {
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
   private final List<String> unstableNames = new ArrayList<>();
-  private final PipelineOptions defaultOptions;
+  protected final PipelineOptions defaultOptions;
 
   protected Pipeline(PipelineOptions options) {
     this.defaultOptions = options;
