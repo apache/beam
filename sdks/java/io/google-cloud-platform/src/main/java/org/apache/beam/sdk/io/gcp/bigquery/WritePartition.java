@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
@@ -27,7 +26,6 @@ import java.util.UUID;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -37,12 +35,12 @@ import org.apache.beam.sdk.values.TupleTag;
  * Partitions temporary files based on number of files and file sizes. Output key is a pair of
  * tablespec and the list of files corresponding to each partition of that table.
  */
-class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<String>>> {
-  private final ValueProvider<String> singletonOutputJsonTableRef;
-  private final String singletonOutputTableDescription;
-  private final PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView;
-  private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag;
-  private TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag;
+class WritePartition<DestinationT>
+    extends DoFn<String, KV<ShardedKey<DestinationT>, List<String>>> {
+  private final boolean singletonTable;
+  private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView;
+  private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
+  private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
   private static class PartitionData {
     private int numFiles = 0;
@@ -66,7 +64,7 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
     }
 
     List<String> getFilenames() {
-      return  filenames;
+      return filenames;
     }
 
     void addFilename(String filename) {
@@ -98,18 +96,16 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
     }
 
     void addPartition(PartitionData partition) {
-       partitions.add(partition);
+      partitions.add(partition);
     }
   }
 
   WritePartition(
-      ValueProvider<String> singletonOutputJsonTableRef,
-      String singletonOutputTableDescription,
-      PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView,
-      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag,
-      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag) {
-    this.singletonOutputJsonTableRef = singletonOutputJsonTableRef;
-    this.singletonOutputTableDescription = singletonOutputTableDescription;
+      boolean singletonTable,
+      PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> resultsView,
+      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
+      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
+    this.singletonTable = singletonTable;
     this.resultsView = resultsView;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
@@ -117,30 +113,31 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<WriteBundlesToFiles.Result> results = Lists.newArrayList(c.sideInput(resultsView));
+    List<WriteBundlesToFiles.Result<DestinationT>> results =
+        Lists.newArrayList(c.sideInput(resultsView));
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
-    if (results.isEmpty() && singletonOutputJsonTableRef != null) {
-      TableReference singletonTable = BigQueryHelpers.fromJsonString(
-          singletonOutputJsonTableRef.get(), TableReference.class);
-      if (singletonTable != null) {
+    if (results.isEmpty() && singletonTable) {
         TableRowWriter writer = new TableRowWriter(c.element());
         writer.open(UUID.randomUUID().toString());
         TableRowWriter.Result writerResult = writer.close();
-        results.add(new Result(writerResult.resourceId.toString(), writerResult.byteSize,
-            new TableDestination(singletonTable, singletonOutputTableDescription)));
-      }
+        // Return a null destination in this case - the constant DynamicDestinations class will
+        // resolve it to the singleton output table.
+        results.add(
+            new Result<DestinationT>(
+                writerResult.resourceId.toString(),
+                writerResult.byteSize,
+                null));
     }
 
-
-    Map<TableDestination, DestinationData> currentResults = Maps.newHashMap();
-    for (WriteBundlesToFiles.Result fileResult : results) {
-      TableDestination tableDestination = fileResult.tableDestination;
-      DestinationData destinationData = currentResults.get(tableDestination);
+    Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();
+    for (WriteBundlesToFiles.Result<DestinationT> fileResult : results) {
+      DestinationT destination = fileResult.destination;
+      DestinationData destinationData = currentResults.get(destination);
       if (destinationData == null) {
         destinationData = new DestinationData();
-        currentResults.put(tableDestination, destinationData);
+        currentResults.put(destination, destinationData);
       }
 
       PartitionData latestPartition = destinationData.getLatestPartition();
@@ -156,18 +153,18 @@ class WritePartition extends DoFn<String, KV<ShardedKey<TableDestination>, List<
 
     // Now that we've figured out which tables and partitions to write out, emit this information
     // to the next stage.
-    for (Map.Entry<TableDestination, DestinationData> entry : currentResults.entrySet()) {
-      TableDestination tableDestination = entry.getKey();
+    for (Map.Entry<DestinationT, DestinationData> entry : currentResults.entrySet()) {
+      DestinationT destination = entry.getKey();
       DestinationData destinationData = entry.getValue();
       // In the fast-path case where we only output one table, the transform loads it directly
       // to the final table. In this case, we output on a special TupleTag so the enclosing
       // transform knows to skip the rename step.
-      TupleTag<KV<ShardedKey<TableDestination>, List<String>>> outputTag =
+      TupleTag<KV<ShardedKey<DestinationT>, List<String>>> outputTag =
           (destinationData.getPartitions().size() == 1) ? singlePartitionTag : multiPartitionsTag;
       for (int i = 0; i < destinationData.getPartitions().size(); ++i) {
         PartitionData partitionData = destinationData.getPartitions().get(i);
-        c.output(outputTag, KV.of(ShardedKey.of(tableDestination, i + 1),
-            partitionData.getFilenames()));
+        c.output(
+            outputTag, KV.of(ShardedKey.of(destination, i + 1), partitionData.getFilenames()));
       }
     }
   }
