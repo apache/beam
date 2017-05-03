@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.WriteFiles;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -56,13 +55,8 @@ public class PDone implements POutput {
     return Collections.emptyMap();
   }
 
-  /** Does nothing; there are no concrete outputs to record. */
+  /** Does nothing; there is nothing to finish specifying. */
   @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {}
-
-  /**
-   * Does nothing; there is nothing to finish specifying.
-   */
-  @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }
