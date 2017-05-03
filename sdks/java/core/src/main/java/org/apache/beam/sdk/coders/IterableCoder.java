@@ -17,12 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
@@ -44,14 +39,6 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
   @Override
   protected final Iterable<T> decodeToIterable(List<T> decodedElements) {
     return decodedElements;
-  }
-
-  @JsonCreator
-  public static IterableCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of(components.get(0));
   }
 
   /**

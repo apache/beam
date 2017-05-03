@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.CloudObject;
 
 /** Utilities for converting an object to a {@link CloudObject}. */
 public class CloudObjects {

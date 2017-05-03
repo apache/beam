@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -610,17 +607,6 @@ public abstract class WindowedValue<T> {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
     }
 
-    @JsonCreator
-    public static FullWindowedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 2,
-                    "Expecting 2 components, got " + components.size());
-      @SuppressWarnings("unchecked")
-      Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
-      return of(components.get(0), window);
-    }
-
     FullWindowedValueCoder(Coder<T> valueCoder,
                            Coder<? extends BoundedWindow> windowCoder) {
       super(valueCoder);
@@ -715,14 +701,6 @@ public abstract class WindowedValue<T> {
     public static <T> ValueOnlyWindowedValueCoder<T> of(
         Coder<T> valueCoder) {
       return new ValueOnlyWindowedValueCoder<>(valueCoder);
-    }
-
-    @JsonCreator
-    public static ValueOnlyWindowedValueCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1, "Expecting 1 component, got " + components.size());
-      return of(components.get(0));
     }
 
     ValueOnlyWindowedValueCoder(Coder<T> valueCoder) {
