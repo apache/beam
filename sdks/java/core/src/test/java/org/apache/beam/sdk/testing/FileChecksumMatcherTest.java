@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -111,7 +110,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
             "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "result-*"));
+            tmpFolder.getRoot().toPath().resolve("result-*").toString());
 
     assertThat(pResult, matcher);
   }
@@ -123,7 +122,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher =
         new FileChecksumMatcher(
             "da39a3ee5e6b4b0d3255bfef95601890afd80709",
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+            tmpFolder.getRoot().toPath().resolve("*").toString());
 
     assertThat(pResult, matcher);
   }
@@ -140,7 +139,7 @@ public class FileChecksumMatcherTest {
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
     FileChecksumMatcher matcher = new FileChecksumMatcher(
         "90552392c28396935fe4f123bd0b5c2d0f6260c8",
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
+        tmpFolder.getRoot().toPath().resolve("*").toString(),
         customizedTemplate);
 
     assertThat(pResult, matcher);
