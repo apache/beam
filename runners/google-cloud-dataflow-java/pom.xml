@@ -79,6 +79,49 @@
         </pluginManagement>
       </build>
     </profile>
+
+    <!-- A profile that runs the integration tests in the DataflowRunner. -->
+    <profile>
+      <id>dataflow-runner</id>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-failsafe-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>integration-test</id>
+                  <goals>
+                    <goal>integration-test</goal>
+                    <goal>verify</goal>
+                  </goals>
+                  <configuration>
+                    <useManifestOnlyJar>false</useManifestOnlyJar>
+                    <failIfNoTests>true</failIfNoTests>
+                    <parallel>all</parallel>
+                    <threadCount>4</threadCount>
+                    <dependenciesToScan>
+                      <dependency>org.apache.beam:beam-sdks-java-io-google-cloud-platform</dependency>
+                    </dependenciesToScan>
+                    <systemPropertyVariables>
+                      <beamTestPipelineOptions>${integrationTestPipelineOptions}</beamTestPipelineOptions>
+                    </systemPropertyVariables>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
   </profiles>
 
   <build>
@@ -214,6 +257,13 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
