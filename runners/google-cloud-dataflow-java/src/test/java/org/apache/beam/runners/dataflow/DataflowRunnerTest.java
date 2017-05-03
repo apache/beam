@@ -33,6 +33,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
@@ -46,6 +48,7 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -449,8 +452,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testRunWithFiles() throws IOException {
-    // Test that the function DataflowRunner.stageFiles works as
-    // expected.
+    // Test that the function DataflowRunner.stageFiles works as expected.
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
@@ -460,6 +462,10 @@ public class DataflowRunnerTest {
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(ImmutableList.of(GcsUtil.StorageObjectOrIOException.create(
+            new FileNotFoundException("some/path"))));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setFilesToStage(ImmutableList.of(
@@ -474,6 +480,16 @@ public class DataflowRunnerTest {
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(new Answer<SeekableByteChannel>() {
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
 
     Pipeline p = buildDataflowPipeline(options);
 

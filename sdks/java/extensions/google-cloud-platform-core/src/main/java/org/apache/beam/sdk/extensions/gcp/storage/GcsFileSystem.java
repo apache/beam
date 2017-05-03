@@ -102,7 +102,12 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   @Override
   protected WritableByteChannel create(GcsResourceId resourceId, CreateOptions createOptions)
       throws IOException {
-    return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
+    if (createOptions instanceof GcsCreateOptions) {
+      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType(),
+          ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
+    } else {
+      return options.getGcsUtil().create(resourceId.getGcsPath(), createOptions.mimeType());
+    }
   }
 
   @Override
