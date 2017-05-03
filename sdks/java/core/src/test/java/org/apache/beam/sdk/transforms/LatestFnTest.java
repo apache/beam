@@ -166,7 +166,7 @@ public class LatestFnTest {
   }
 
   @Test
-  public void testExtractOutputDefaultAggregator() {
+  public void testExtractOutputDefaultAccumulator() {
     TimestampedValue<Long> accum = fn.createAccumulator();
     assertThat(fn.extractOutput(accum), nullValue());
   }

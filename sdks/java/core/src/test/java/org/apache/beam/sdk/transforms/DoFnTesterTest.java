@@ -374,7 +374,7 @@ public class DoFnTesterTest {
   }
 
   /**
-   * A {@link DoFn} that adds values to an aggregator and converts input to String in
+   * A {@link DoFn} that adds values to a user metric and converts input to String in
    * {@link DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {

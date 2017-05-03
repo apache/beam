@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using a selected runner; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns; 
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
