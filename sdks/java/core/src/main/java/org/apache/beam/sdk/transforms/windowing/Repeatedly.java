@@ -66,7 +66,7 @@ public class Repeatedly extends Trigger {
   }
 
   @Override
-  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new Repeatedly(continuationTriggers.get(REPEATED));
   }
 

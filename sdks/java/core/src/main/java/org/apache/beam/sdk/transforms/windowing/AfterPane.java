@@ -61,7 +61,7 @@ public class AfterPane extends OnceTrigger {
   }
 
   @Override
-  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return AfterPane.elementCountAtLeast(1);
   }
 

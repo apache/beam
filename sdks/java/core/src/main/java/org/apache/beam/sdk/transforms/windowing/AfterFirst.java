@@ -66,7 +66,7 @@ public class AfterFirst extends OnceTrigger {
   }
 
   @Override
-  public OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected OnceTrigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return new AfterFirst(continuationTriggers);
   }
 

@@ -43,7 +43,7 @@ public final class Never {
    * The actual trigger class for {@link Never} triggers.
    */
   public static class NeverTrigger extends OnceTrigger {
-    protected NeverTrigger() {
+    private NeverTrigger() {
       super(null);
     }
 

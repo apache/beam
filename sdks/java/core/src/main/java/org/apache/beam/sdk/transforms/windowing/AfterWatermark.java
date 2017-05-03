@@ -88,7 +88,7 @@ public class AfterWatermark {
     }
 
     @SuppressWarnings("unchecked")
-    public AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
+    private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
           ? ImmutableList.<Trigger>of(earlyTrigger)
           : ImmutableList.<Trigger>of(earlyTrigger, lateTrigger));
@@ -178,7 +178,7 @@ public class AfterWatermark {
     }
 
     @Override
-    public FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
+    protected FromEndOfWindow getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
 
