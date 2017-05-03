@@ -113,6 +113,7 @@ public class FileSystems {
    *
    * @param spec a resource specification that matches exactly one result.
    * @return the {@link Metadata} for the specified resource.
+   * @throws FileNotFoundException if the file resource is not found.
    * @throws IOException in the event of an error in the inner call to {@link #match},
    * or if the given spec does not match exactly 1 result.
    */
