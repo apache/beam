@@ -69,6 +69,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,9 @@ import org.slf4j.LoggerFactory;
 class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
+
+  // How frequently to log while polling.
+  private static final Duration POLLING_LOG_GAP = Duration.standardMinutes(10);
 
   // The maximum number of retries to execute a BigQuery RPC.
   private static final int MAX_RPC_RETRIES = 9;
@@ -257,6 +261,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         JobReference jobRef,
         Sleeper sleeper,
         BackOff backoff) throws InterruptedException {
+      Instant nextLog = Instant.now().plus(POLLING_LOG_GAP);
       do {
         try {
           Job job = client.jobs().get(jobRef.getProjectId(), jobRef.getJobId()).execute();
@@ -265,6 +270,10 @@ class BigQueryServicesImpl implements BigQueryServices {
             return job;
           }
           // The job is not DONE, wait longer and retry.
+          if (Instant.now().isAfter(nextLog)) {
+            LOG.info("Still waiting for BigQuery job {}", jobRef.getJobId());
+            nextLog = Instant.now().plus(POLLING_LOG_GAP);
+          }
         } catch (IOException e) {
           // ignore and retry
           LOG.info("Ignore the error and retry polling job status.", e);
