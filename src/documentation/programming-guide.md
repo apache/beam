@@ -983,8 +983,8 @@ Your composite transform's parameters and return value must match the initial in
 ```
 
 ```py
-  Python code snippet coming soon (BEAM-1926)
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipeline_monitoring_composite
+%}```
 
 ### Creating a composite transform
 
@@ -1003,8 +1003,8 @@ The following code sample shows how to declare a `PTransform` that accepts a `PC
 ```
 
 ```py
-  Python code snippet coming soon (BEAM-1926)
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_composite_transform
+%}```
 
 #### Overriding the expand method
 
@@ -1024,8 +1024,8 @@ The following code sample shows how to override `expand` for the `ComputeWordLen
 ```
 
 ```py
-  Python code snippet coming soon (BEAM-1926)
-```
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_composite_transform
+%}```
 
 As long as you override the `expand` method in your `PTransform` subclass to accept the appropriate input `PCollection`(s) and return the corresponding output `PCollection`(s), you can include as many transforms as you want. These transforms can include core transforms, composite transforms, or the transforms included in the Beam SDK libraries.
 
@@ -1620,7 +1620,7 @@ The following example shows a billing scenario, and uses both early and late fir
 ```
 
 ```py
-  The Beam SDK for Python does not support triggers.
+  # The Beam SDK for Python does not support triggers.
 ```
 
 ##### <a name="default-trigger"></a>**Default Trigger**
@@ -1653,6 +1653,10 @@ You set the trigger(s) for a `PCollection` by invoking the method `.triggering()
                                .triggering(AfterProcessingTime.pastFirstElementInPane()
                                                               .plusDelayOf(Duration.standardMinutes(1)))
                                .discardingFiredPanes());
+```
+
+```py
+  # The Beam SDK for Python does not support triggers.
 ```
 
 This code sample sets a time-based trigger for a `PCollection`, which emits results one minute after the first element in that window has been processed. The last line in the code sample, `.discardingFiredPanes()`, is the window's **accumulation mode**.
@@ -1707,6 +1711,10 @@ You set the allowed lateness by using `.withAllowedLateness()` when you set your
                               .withAllowedLateness(Duration.standardMinutes(30));
 ```
 
+```py
+  # The Beam SDK for Python does not support triggers.
+```
+
 This allowed lateness propagates to all `PCollection`s derived as a result of applying transforms to the original `PCollection`. If you want to change the allowed lateness later in your pipeline, you can apply `Window.withAllowedLateness()` again, explicitly.
 
 
@@ -1748,6 +1756,10 @@ You can express this pattern using `AfterWatermark.pastEndOfWindow`. For example
       .withAllowedLateness(Duration.standardDays(2)));
 ```
 
+```py
+  # The Beam SDK for Python does not support triggers.
+```
+
 #### Other Composite Triggers
 
 You can also build other sorts of composite triggers. The following example code shows a simple composite trigger that fires whenever the pane has at least 100 elements, or after a minute.
@@ -1756,5 +1768,9 @@ You can also build other sorts of composite triggers. The following example code
   Repeatedly.forever(AfterFirst.of(
       AfterPane.elementCountAtLeast(100),
       AfterProcessingTime.pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
+```
+
+```py
+  # The Beam SDK for Python does not support triggers.
 ```
 
