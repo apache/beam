@@ -43,15 +43,18 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
+  private Runnable beforeFinish;
 
   SparkProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
       DoFnRunner<FnInputT, FnOutputT> doFnRunner,
-      SparkOutputManager<OutputT> outputManager) {
+      SparkOutputManager<OutputT> outputManager,
+      Runnable beforeFinish) {
 
     this.doFn = doFn;
     this.doFnRunner = doFnRunner;
     this.outputManager = outputManager;
+    this.beforeFinish = beforeFinish;
   }
 
   Iterable<OutputT> processPartition(
@@ -140,6 +143,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
     private Iterator<OutputT> outputIterator;
     private boolean calledFinish;
+    private boolean calledBeforeFinish;
 
     ProcCtxtIterator(
         Iterator<WindowedValue<FnInputT>> iterator,
@@ -163,6 +167,11 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
           clearOutput();
           // grab the next element and process it.
           doFnRunner.processElement(inputIterator.next());
+          outputIterator = getOutputIterator();
+        } else if (!calledBeforeFinish) {
+          clearOutput();
+          beforeFinish.run();
+          calledBeforeFinish = true;
           outputIterator = getOutputIterator();
         } else {
           // no more input to consume, but finishBundle can produce more output

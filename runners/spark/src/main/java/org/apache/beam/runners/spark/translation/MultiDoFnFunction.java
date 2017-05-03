@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedListMultimap;
@@ -27,11 +29,20 @@ import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -59,6 +70,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final TupleTag<OutputT> mainOutputTag;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
+  private final boolean stateful;
 
   /**
    * @param aggAccum       The Spark {@link Accumulator} that backs the Beam Aggregators.
@@ -86,6 +98,8 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.mainOutputTag = mainOutputTag;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+    stateful = signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
   }
 
   @Override
@@ -94,7 +108,35 @@ public class MultiDoFnFunction<InputT, OutputT>
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
 
-    DoFnRunner<InputT, OutputT> doFnRunner =
+    SparkProcessContext.NoOpStepContext context;
+    InMemoryTimerInternals timerInternals = null;
+    // Now only implements the StatefulParDo in Batch mode.
+    if (stateful) {
+      Object key = null;
+      if (iter.hasNext()) {
+        WindowedValue<InputT> currentValue = iter.next();
+        key = ((KV) currentValue.getValue()).getKey();
+        iter = Iterators.concat(Iterators.singletonIterator(currentValue), iter);
+      }
+      final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
+      timerInternals = new InMemoryTimerInternals();
+      final InMemoryTimerInternals finalTimerInternals = timerInternals;
+      context = new SparkProcessContext.NoOpStepContext(){
+        @Override
+        public StateInternals stateInternals() {
+          return stateInternals;
+        }
+
+        @Override
+        public TimerInternals timerInternals() {
+          return finalTimerInternals;
+        }
+      };
+    } else {
+      context = new SparkProcessContext.NoOpStepContext();
+    }
+
+    final DoFnRunner<InputT, OutputT> doFnRunner =
         DoFnRunners.simpleRunner(
             runtimeContext.getPipelineOptions(),
             doFn,
@@ -102,14 +144,68 @@ public class MultiDoFnFunction<InputT, OutputT>
             outputManager,
             mainOutputTag,
             Collections.<TupleTag<?>>emptyList(),
-            new SparkProcessContext.NoOpStepContext(),
+            context,
             windowingStrategy);
 
     DoFnRunnerWithMetrics<InputT, OutputT> doFnRunnerWithMetrics =
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
-    return new SparkProcessContext<>(doFn, doFnRunnerWithMetrics, outputManager)
-        .processPartition(iter);
+    final InMemoryTimerInternals finalTimerInternals = timerInternals;
+    return new SparkProcessContext<>(
+        doFn, doFnRunnerWithMetrics, outputManager, new Runnable() {
+      @Override
+      public void run() {
+        if (stateful) {
+          try {
+            // Finish any pending windows by advancing the input watermark to infinity.
+            finalTimerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+            // Finally, advance the processing time to infinity to fire any timers.
+            finalTimerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+            finalTimerInternals.advanceSynchronizedProcessingTime(
+                BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+            fireEligibleTimers(finalTimerInternals, doFnRunner);
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
+    }).processPartition(iter);
+  }
+
+  private void fireEligibleTimers(
+      InMemoryTimerInternals timerInternals, DoFnRunner<InputT, OutputT> runner)
+      throws Exception {
+
+    while (true) {
+
+      TimerInternals.TimerData timer;
+      boolean hasFired = false;
+
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        hasFired = true;
+        fireTimer(timer, runner);
+      }
+      if (!hasFired) {
+        break;
+      }
+    }
+  }
+
+  private void fireTimer(
+      TimerInternals.TimerData timer, DoFnRunner<InputT, OutputT> doFnRunner) {
+    StateNamespace namespace = timer.getNamespace();
+    checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+    doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
   }
 
   private class DoFnOutputManager
