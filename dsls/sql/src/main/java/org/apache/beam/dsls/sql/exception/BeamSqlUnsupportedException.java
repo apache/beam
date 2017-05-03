@@ -22,10 +22,6 @@ package org.apache.beam.dsls.sql.exception;
  *
  */
 public class BeamSqlUnsupportedException extends RuntimeException {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 3445015747629217342L;
 
   public BeamSqlUnsupportedException(String string) {
     super(string);

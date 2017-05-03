@@ -36,10 +36,6 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class BeamSqlRunner implements Serializable {
-  /**
-   *
-   */
-  private static final long serialVersionUID = -4708693435115005182L;
   private static final Logger LOG = LoggerFactory.getLogger(BeamSqlRunner.class);
 
   private SchemaPlus schema = Frameworks.createRootSchema(true);

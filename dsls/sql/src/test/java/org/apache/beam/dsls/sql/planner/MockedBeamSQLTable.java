@@ -38,11 +38,6 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
 
-  /**
-   *
-   */
-  private static final long serialVersionUID = 1373168368414036932L;
-
   public static final List<String> CONTENT = new ArrayList<>();
 
   public MockedBeamSQLTable(RelProtoDataType protoRowType) {

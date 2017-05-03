@@ -37,11 +37,6 @@ import org.apache.calcite.schema.Statistics;
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
 public abstract class BaseBeamTable implements ScannableTable, Serializable {
-
-  /**
-   *
-   */
-  private static final long serialVersionUID = -1262988061830914193L;
   private RelDataType relDataType;
 
   protected BeamSQLRecordType beamSqlRecordType;

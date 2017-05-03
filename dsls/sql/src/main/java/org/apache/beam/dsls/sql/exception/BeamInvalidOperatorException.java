@@ -22,10 +22,6 @@ package org.apache.beam.dsls.sql.exception;
  *
  */
 public class BeamInvalidOperatorException extends RuntimeException {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 3445015747629217342L;
 
   public BeamInvalidOperatorException(String string) {
     super(string);

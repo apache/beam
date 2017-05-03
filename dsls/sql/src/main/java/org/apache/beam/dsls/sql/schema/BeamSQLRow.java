@@ -29,10 +29,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  */
 public class BeamSQLRow implements Serializable {
-  /**
-   *
-   */
-  private static final long serialVersionUID = 4569220242480160895L;
 
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;

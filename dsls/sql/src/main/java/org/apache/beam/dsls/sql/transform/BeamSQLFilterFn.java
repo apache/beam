@@ -28,10 +28,6 @@ import org.apache.beam.sdk.transforms.DoFn;
  *
  */
 public class BeamSQLFilterFn extends DoFn<BeamSQLRow, BeamSQLRow> {
-  /**
-   *
-   */
-  private static final long serialVersionUID = -1256111753670606705L;
 
   private String stepName;
   private BeamSQLExpressionExecutor executor;
