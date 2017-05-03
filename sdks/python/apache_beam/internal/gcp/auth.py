@@ -26,7 +26,6 @@ import urllib2
 from oauth2client.client import GoogleCredentials
 from oauth2client.client import OAuth2Credentials
 
-from apache_beam.utils import processes
 from apache_beam.utils import retry
 
 
@@ -94,27 +93,6 @@ class GCEMetadataCredentials(OAuth2Credentials):
                          datetime.timedelta(seconds=token_data['expires_in']))
 
 
-class _GCloudWrapperCredentials(OAuth2Credentials):
-  """Credentials class wrapping gcloud credentials via shell."""
-
-  def __init__(self, user_agent, **kwds):
-    super(_GCloudWrapperCredentials, self).__init__(
-        None, None, None, None, None, None, user_agent, **kwds)
-
-  def _refresh(self, http_request):
-    """Gets an access token using the gcloud client."""
-    try:
-      gcloud_process = processes.Popen(
-          ['gcloud', 'auth', 'print-access-token'], stdout=processes.PIPE)
-    except OSError:
-      message = 'gcloud tool not found so falling back to using ' +\
-                'application default credentials'
-      logging.warning(message)
-      raise AuthenticationException(message)
-    output, _ = gcloud_process.communicate()
-    self.access_token = output.strip()
-
-
 def get_service_credentials():
   """Get credentials to access Google services."""
   user_agent = 'beam-python-sdk/1.0'
@@ -134,16 +112,6 @@ def get_service_credentials():
         'https://www.googleapis.com/auth/datastore'
     ]
 
-    try:
-      credentials = _GCloudWrapperCredentials(user_agent)
-      # Check if we are able to get an access token. If not fallback to
-      # application default credentials.
-      credentials.get_access_token()
-      return credentials
-    except AuthenticationException:
-      logging.warning('Unable to find credentials from gcloud.')
-
-    # Falling back to application default credentials.
     try:
       credentials = GoogleCredentials.get_application_default()
       credentials = credentials.create_scoped(client_scopes)

@@ -411,8 +411,7 @@ class DataflowApplicationClient(object):
       if e.status_code in reportable_errors:
         raise IOError(('Could not upload to GCS path %s: %s. Please verify '
                        'that credentials are valid and that you have write '
-                       'access to the specified path. Stale credentials can be '
-                       'refreshed by executing "gcloud auth login".') %
+                       'access to the specified path.') %
                       (gcs_or_local_path, reportable_errors[e.status_code]))
       raise
     logging.info('Completed GCS upload to %s', gcs_location)
