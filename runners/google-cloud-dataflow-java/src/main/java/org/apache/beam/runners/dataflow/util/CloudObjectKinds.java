@@ -18,8 +18,6 @@
 
 package org.apache.beam.runners.dataflow.util;
 
-import org.apache.beam.sdk.util.CloudObject;
-
 /**
  * Known kinds of {@link CloudObject}.
  */

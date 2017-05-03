@@ -17,16 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -42,14 +37,6 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
-  }
-
-  @JsonCreator
-  public static KvCoder<?, ?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
-    return of(components.get(0), components.get(1));
   }
 
   public static <K, V> List<Object> getInstanceComponents(

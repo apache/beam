@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.client.util.Data;
 import java.util.ArrayList;
@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.StringUtils;
 
 /**
  * A collection of static methods for manipulating datastructure representations transferred via the

@@ -24,7 +24,6 @@ import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * A representation of an arbitrary Java object to be instantiated by Dataflow
