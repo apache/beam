@@ -61,6 +61,8 @@ class BatchLoads<DestinationT>
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
+  // Indicates that we are writing to a constant single table. If this is the case, we will create
+  // the table, even if there is no data in it.
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final Coder<DestinationT> destinationCoder;
@@ -77,9 +79,8 @@ class BatchLoads<DestinationT>
     this.destinationCoder = destinationCoder;
   }
 
-  BatchLoads<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
+  void setTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
-    return this;
   }
 
   @Override
@@ -147,18 +148,11 @@ class BatchLoads<DestinationT>
     PCollectionView<Map<DestinationT, String>> schemasView =
         inputInGlobalWindow.apply(new CalculateSchemas<>(dynamicDestinations));
 
-    List<PCollectionView<?>> writeBundlesToFilesSideInputs = Lists.newArrayList();
-    if (dynamicDestinations.getSideInput() != null) {
-      writeBundlesToFilesSideInputs.add(dynamicDestinations.getSideInput());
-    }
-
     // PCollection of filename, file byte size, and table destination.
-
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
         inputInGlobalWindow
             .apply("WriteBundlesToFiles", ParDo.of(
-                new WriteBundlesToFiles<DestinationT>(tempFilePrefix))
-                .withSideInputs(writeBundlesToFilesSideInputs))
+                new WriteBundlesToFiles<DestinationT>(tempFilePrefix)))
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag =
@@ -188,9 +182,7 @@ class BatchLoads<DestinationT>
 
     List<PCollectionView<?>> writeTablesSideInputs =
         Lists.newArrayList(jobIdTokenView, schemasView);
-    if (dynamicDestinations.getSideInput() != null) {
-      writeTablesSideInputs.add(dynamicDestinations.getSideInput());
-    }
+    writeTablesSideInputs.addAll(dynamicDestinations.getSideInputs());
 
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
           KvCoder.of(

@@ -44,9 +44,8 @@ public class StreamingInserts<DestinationT>
     this.bigQueryServices = new BigQueryServicesImpl();
   }
 
-  StreamingInserts<DestinationT> setTestServices(BigQueryServices bigQueryServices) {
+  void setTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
-    return this;
   }
 
   @Override

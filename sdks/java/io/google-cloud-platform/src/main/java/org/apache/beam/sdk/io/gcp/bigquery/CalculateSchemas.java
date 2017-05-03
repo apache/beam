@@ -52,9 +52,8 @@ class CalculateSchemas<DestinationT>
   public PCollectionView<Map<DestinationT, String>> expand(
       PCollection<KV<DestinationT, TableRow>> input) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
-    if (dynamicDestinations.getSideInput() != null) {
-      sideInputs.add(dynamicDestinations.getSideInput());
-    }
+    sideInputs.addAll(dynamicDestinations.getSideInputs());
+
     return input
         .apply("Keys", Keys.<DestinationT>create())
         .apply("Distinct Keys", Distinct.<DestinationT>create())
@@ -64,11 +63,8 @@ class CalculateSchemas<DestinationT>
                     new DoFn<DestinationT, KV<DestinationT, String>>() {
                       @ProcessElement
                       public void processElement(ProcessContext c) throws Exception {
-                        // If the DynamicDestinations class wants to read a side input, give it the
-                        // value.
                         DynamicDestinations.SideInputAccessor sideInputAccessor =
-                            new DynamicDestinations.SideInputAccessor(
-                                c, dynamicDestinations.getSideInput());
+                            new DynamicDestinations.SideInputAccessor(c);
                         TableSchema tableSchema = dynamicDestinations.getSchema(
                             c.element(), sideInputAccessor);
                         if (tableSchema != null) {

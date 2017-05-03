@@ -99,10 +99,8 @@ class WriteTables<DestinationT>
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    // If the DynamicDestinations class wants to read a side input, give it the value.
     DynamicDestinations.SideInputAccessor sideInputAccessor =
-        new DynamicDestinations.SideInputAccessor(
-            c, dynamicDestinations.getSideInput());
+        new DynamicDestinations.SideInputAccessor(c);
 
     DestinationT destination = c.element().getKey().getKey();
     TableSchema tableSchema =

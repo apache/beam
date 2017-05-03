@@ -81,19 +81,16 @@ public class CreateTables<DestinationT>
   public PCollection<KV<TableDestination, TableRow>> expand(
       PCollection<KV<DestinationT, TableRow>> input) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
-    if (dynamicDestinations.getSideInput() != null) {
-      sideInputs.add(dynamicDestinations.getSideInput());
-    }
+    sideInputs.addAll(dynamicDestinations.getSideInputs());
+
     return input.apply(
         ParDo.of(
                 new DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>>() {
                   @ProcessElement
                   public void processElement(ProcessContext context)
                       throws InterruptedException, IOException {
-                    // If a side input is needed to produce the table name, set it.
                     DynamicDestinations.SideInputAccessor sideInputAccessor =
-                        new DynamicDestinations.SideInputAccessor(
-                            context, dynamicDestinations.getSideInput());
+                        new DynamicDestinations.SideInputAccessor(context);
 
                     TableDestination tableDestination =
                         dynamicDestinations.getTable(context.element().getKey(), sideInputAccessor);

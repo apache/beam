@@ -19,16 +19,17 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /**
@@ -61,33 +62,28 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * }</pre>
  *
  * <p>An instance of {@link DynamicDestinations} can also request a side input value that can be
- *  examined from inside {@link #getTable} and {@link #getSchema}. The side input is requested by
- *  calling {@link #setSideInputRequired} on the base class. The value can be examined via the
- *  {@link DynamicDestinations.SideInputAccessor} class.
+ *  examined from inside {@link #getTable} and {@link #getSchema}. It must return a list of the
+ *  side inputs it needs access to in {@link #getSideInputs()}. The value can be examined via the
+ *  {@link DynamicDestinations.SideInputAccessor} parameter passed into {@link #getTable}
+ *  and {@link #getSchema}.
  *
  * <p>{@code DestinationT} is expected to provide proper hash and equality members. Ideally it will
  * be a compact type with an efficient coder, as these objects may be used as a key in a
  * {@link org.apache.beam.sdk.transforms.GroupByKey}.
  */
 public abstract class DynamicDestinations<T, DestinationT> implements Serializable {
-  private PCollectionView<?> sideInput;
-
   /**
    * Returns the materialized value of the side input. Can be used by concrete
    * {@link DynamicDestinations} instances in {@link #getSchema} or {@link #getTable}.
    */
   public static class SideInputAccessor {
     private ProcessContext processContext;
-    private PCollectionView<?> sideInput;
-    SideInputAccessor(ProcessContext processContext, PCollectionView<?> sideInput) {
+    SideInputAccessor(ProcessContext processContext) {
       this.processContext = processContext;
-      this.sideInput = sideInput;
     }
 
-    public <SideInputT> SideInputT getSideInputValue() throws IllegalStateException {
-      if (sideInput == null) {
-        return null;
-      }
+    public <SideInputT> SideInputT getSideInputValue(PCollectionView<SideInputT> sideInput)
+        throws IllegalStateException {
       @SuppressWarnings("unchecked")
       SideInputT materialized = (SideInputT)  processContext.sideInput(sideInput);
       return materialized;
@@ -95,16 +91,16 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   /**
-   * Specifies that this object needs access to a side input. This side input must be globally
-   * windowed, as it will be accessed from the global window.
+   * Specifies that this object needs access to one or more side inputs. This side input must be
+   * globally windowed, as it will be accessed from the global window.
    */
-  public DynamicDestinations setSideInputRequired(PCollectionView<?> sideInput) {
-    this.sideInput = sideInput;
-    return this;
+  public List<PCollectionView<?>> getSideInputs() {
+    return Lists.newArrayList();
   }
 
   /**
-   * Returns an object that represents at a high level which table is being written to.
+   * Returns an object that represents at a high level which table is being written to. May not
+   * return null.
    */
   public abstract DestinationT getDestination(ValueInSingleWindow<T> element);
 
@@ -120,25 +116,17 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   /**
-   * Returns a {@link TableDestination} object for the destination.
+   * Returns a {@link TableDestination} object for the destination. May not return null.
    */
   public abstract TableDestination getTable(DestinationT destination,
                                             SideInputAccessor sideInputAccessor);
 
   /**
-   * Returns the table schema for the destination.
+   * Returns the table schema for the destination. May not return null.
    */
   public abstract TableSchema getSchema(DestinationT destination,
                                         SideInputAccessor sideInputAccessor);
 
-  /**
-   * This returns the unmaterialized side input used by this transform.
-   */
-  <SideInputT> PCollectionView<SideInputT> getSideInput() {
-    @SuppressWarnings("unchecked")
-    PCollectionView<SideInputT> sideInputTyped = (PCollectionView<SideInputT>) sideInput;
-    return sideInputTyped;
-  }
 
   // Gets the destination coder. If the user does not provide one, try to find one in the coder
   // registry. If no coder can be found, throws CannotProvideCoderException.
@@ -157,6 +145,10 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
           @SuppressWarnings("unchecked")
           Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
           destinationCoder = registry.getDefaultCoder(parameterClass);
+          if (destinationCoder == null) {
+            throw new CannotProvideCoderException("Could not find a coder for destination type "
+                + parameterClass);
+          }
           break;
         }
       }

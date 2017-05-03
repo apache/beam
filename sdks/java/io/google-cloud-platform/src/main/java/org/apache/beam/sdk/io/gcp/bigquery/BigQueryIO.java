@@ -930,18 +930,14 @@ public class BigQueryIO {
 
       List<?> allToArgs = Lists.newArrayList(getJsonTableRef(), getTableFunction(),
           getDynamicDestinations());
-      checkArgument(
-          1
-              == Iterables.size(
-                  Iterables.filter(allToArgs, Predicates.notNull())),
+      checkArgument(1
+              == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
           "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
 
       List<?> allSchemaArgs = Lists.newArrayList(getJsonSchema(), getSchemaFromView(),
           getDynamicDestinations());
-      checkArgument(
-          2
-              > Iterables.size(
-                  Iterables.filter(allSchemaArgs, Predicates.notNull())),
+      checkArgument(2
+              > Iterables.size(Iterables.filter(allSchemaArgs, Predicates.notNull())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
           + "be set");
 
@@ -1012,18 +1008,19 @@ public class BigQueryIO {
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
-        return rowsWithDestination.apply(
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
-                .setTestServices(getBigQueryServices()));
+        StreamingInserts<DestinationT> streamingInserts =
+            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations);
+        streamingInserts.setTestServices(getBigQueryServices());
+        return rowsWithDestination.apply(streamingInserts);
       } else {
-        return rowsWithDestination.apply(
-            new BatchLoads<>(
-                getWriteDisposition(),
-                getCreateDisposition(),
-                getJsonTableRef() != null,
-                dynamicDestinations,
-                destinationCoder)
-                .withTestServices(getBigQueryServices()));
+        BatchLoads<DestinationT> batchLoads = new BatchLoads<>(
+            getWriteDisposition(),
+            getCreateDisposition(),
+            getJsonTableRef() != null,
+            dynamicDestinations,
+            destinationCoder);
+        batchLoads.setTestServices(getBigQueryServices());
+        return rowsWithDestination.apply(batchLoads);
       }
     }
 

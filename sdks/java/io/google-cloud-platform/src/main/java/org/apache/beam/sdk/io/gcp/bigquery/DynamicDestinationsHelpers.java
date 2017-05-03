@@ -19,6 +19,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -151,8 +153,8 @@ class DynamicDestinationsHelpers {
    */
   static class ConstantSchemaDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
-    private final @Nullable
-    ValueProvider<String> jsonSchema;
+    @Nullable
+    private final ValueProvider<String> jsonSchema;
 
     ConstantSchemaDestinations(DynamicDestinations<T, TableDestination> inner,
                                ValueProvider<String> jsonSchema) {
@@ -173,16 +175,23 @@ class DynamicDestinationsHelpers {
    */
   static class SchemaFromViewDestinations<T>
       extends DelegatingDynamicDestinations<T, TableDestination> {
+    PCollectionView<Map<String, String>> schemaView;
     SchemaFromViewDestinations(DynamicDestinations<T, TableDestination> inner,
                                PCollectionView<Map<String, String>> schemaView) {
       super(inner);
-      setSideInputRequired(schemaView);
+      this.schemaView = schemaView;
+    }
+
+
+    @Override
+    public List<PCollectionView<?>> getSideInputs() {
+      return ImmutableList.<PCollectionView<?>>builder().add(schemaView).build();
     }
 
     @Override
     public TableSchema getSchema(TableDestination destination,
                                  SideInputAccessor sideInputAccessor) {
-      Map<String, String> mapValue = sideInputAccessor.getSideInputValue();
+      Map<String, String> mapValue = sideInputAccessor.getSideInputValue(schemaView);
       return BigQueryHelpers.fromJsonString(mapValue.get(destination.getTableSpec()),
           TableSchema.class);
     }

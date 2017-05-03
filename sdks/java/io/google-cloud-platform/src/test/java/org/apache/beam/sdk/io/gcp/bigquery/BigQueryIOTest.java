@@ -1845,19 +1845,20 @@ public class BigQueryIOTest implements Serializable {
         .apply("CreateJobId", Create.of("jobId"))
         .apply(View.<String>asSingleton());
 
-    PCollectionView<Map<String, String>> schemaMapView = p.apply("CreateEmptySchema", Create
-        .empty(
-        new TypeDescriptor<KV<String, String>>() {}))
-        .apply(View.<String, String>asMap());
-    WriteTables<String> writeTables = new WriteTables<>(
-        false,
-        fakeBqServices,
-        jobIdTokenView,
-        schemaMapView,
-        tempFilePrefix,
-        WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED,
-        new IdentityDynamicTables());
+    PCollectionView<Map<String, String>> schemaMapView =
+        p.apply("CreateEmptySchema",
+            Create.empty(new TypeDescriptor<KV<String, String>>() {}))
+            .apply(View.<String, String>asMap());
+    WriteTables<String> writeTables =
+        new WriteTables<>(
+            false,
+            fakeBqServices,
+            jobIdTokenView,
+            schemaMapView,
+            tempFilePrefix,
+            WriteDisposition.WRITE_EMPTY,
+            CreateDisposition.CREATE_IF_NEEDED,
+            new IdentityDynamicTables());
 
     DoFnTester<KV<ShardedKey<String>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
@@ -1868,7 +1869,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     Map<TableDestination, List<String>> tempTablesResult = Maps.newHashMap();
-      for (KV<TableDestination, String> element : tester.takeOutputElements()) {
+    for (KV<TableDestination, String> element : tester.takeOutputElements()) {
       List<String> tables = tempTablesResult.get(element.getKey());
       if (tables == null) {
         tables = Lists.newArrayList();
