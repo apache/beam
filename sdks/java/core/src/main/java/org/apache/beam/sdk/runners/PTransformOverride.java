@@ -19,12 +19,16 @@
 package org.apache.beam.sdk.runners;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * A {@link PTransformMatcher} and associated {@link PTransformOverrideFactory} to replace all
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>A {@link PTransformMatcher} and associated {@link PTransformOverrideFactory} to replace all
  * matching {@link PTransform PTransforms}.
  */
+@Internal
 @AutoValue
 public abstract class PTransformOverride {
   public static PTransformOverride of(
