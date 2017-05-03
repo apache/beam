@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A function to adapt a primitive "view" of a {@link PCollection} - some materialization
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>A function to adapt a primitive "view" of a {@link PCollection} - some materialization
  * specified in the Beam model and implemented by the runner - to a user-facing view type
  * for side input.
  *
@@ -36,6 +39,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * @param <PrimitiveViewT> the type of the underlying primitive view, provided by the runner
  *        {@code <ViewT>} the type of the value(s) accessible via this {@link PCollectionView}
  */
+@Internal
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /**
    * Gets the materialization of this {@link ViewFn}.
