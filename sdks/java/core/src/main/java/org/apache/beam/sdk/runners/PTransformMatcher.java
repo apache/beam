@@ -20,12 +20,16 @@ package org.apache.beam.sdk.runners;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * Matches applications of {@link PTransform PTransforms}.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Matches applications of {@link PTransform PTransforms}.
  */
+@Internal
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformMatcher {
   boolean matches(AppliedPTransform<?, ?, ?> application);
