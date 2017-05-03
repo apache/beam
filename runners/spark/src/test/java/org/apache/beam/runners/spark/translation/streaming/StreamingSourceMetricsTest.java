@@ -23,9 +23,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.PipelineRule;
-import org.apache.beam.runners.spark.TestSparkPipelineOptions;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Source;
@@ -34,10 +32,11 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
-
+import org.junit.experimental.categories.Category;
 
 /**
  * Verify metrics support for {@link Source Sources} in streaming pipelines.
@@ -47,14 +46,11 @@ public class StreamingSourceMetricsTest implements Serializable {
 
   // Force streaming pipeline using pipeline rule.
   @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
+  @Category(StreamingTest.class)
   public void testUnboundedSourceMetrics() {
-    TestSparkPipelineOptions options = pipelineRule.getOptions();
-
-    Pipeline pipeline = Pipeline.create(options);
-
     final long numElements = 1000;
 
     pipeline.apply(
