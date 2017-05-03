@@ -72,8 +72,8 @@ class DirectRunner(PipelineRunner):
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline.options,
-        BundleFactory(stacked=pipeline.options.view_as(DirectOptions)
+        pipeline._options,
+        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,
