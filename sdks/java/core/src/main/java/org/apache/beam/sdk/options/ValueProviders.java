@@ -28,8 +28,8 @@ import java.util.Map;
 /**
  * Utilities for working with the {@link ValueProvider} interface.
  */
-public class ValueProviderUtils {
-  private ValueProviderUtils() {}
+class ValueProviders {
+  private ValueProviders() {}
 
   /**
    * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates

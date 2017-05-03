@@ -199,7 +199,7 @@ public class ValueProviderTest {
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
 
-    String runnerString = ValueProviderUtils.updateSerializedOptions(
+    String runnerString = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("foo", "quux"));
     TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
@@ -218,7 +218,7 @@ public class ValueProviderTest {
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
 
-    String runnerString = ValueProviderUtils.updateSerializedOptions(
+    String runnerString = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("foo", "quux"));
     TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
