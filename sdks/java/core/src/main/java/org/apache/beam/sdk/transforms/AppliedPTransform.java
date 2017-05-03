@@ -20,16 +20,14 @@ package org.apache.beam.sdk.transforms;
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Represents the application of a {@link PTransform} to a specific input to produce
- * a specific output.
- *
- * <p>For internal use.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
  * <p>Inputs and outputs are stored in their expanded forms, as the condensed form of a composite
  * {@link PInput} or {@link POutput} is a language-specific concept, and {@link AppliedPTransform}
@@ -40,6 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * @param <OutputT>    transform output type
  * @param <TransformT> transform type
  */
+@Internal
 @AutoValue
 public abstract class AppliedPTransform<
     InputT extends PInput, OutputT extends POutput,
