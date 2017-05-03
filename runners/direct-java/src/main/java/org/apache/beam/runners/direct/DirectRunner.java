@@ -163,6 +163,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
+    DisplayDataValidator.validateOptions(getPipelineOptions());
 
     DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =

@@ -35,8 +35,8 @@ public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(Pipeline pipeline) {
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+  SparkRuntimeContext(Pipeline pipeline, PipelineOptions options) {
+    this.serializedPipelineOptions = serializePipelineOptions(options);
   }
 
   private String serializePipelineOptions(PipelineOptions pipelineOptions) {

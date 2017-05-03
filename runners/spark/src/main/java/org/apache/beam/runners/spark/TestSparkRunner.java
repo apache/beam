@@ -83,6 +83,7 @@ import org.slf4j.LoggerFactory;
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
+  private final TestSparkPipelineOptions testSparkPipelineOptions;
 
   private SparkRunner delegate;
   private boolean isForceStreaming;
@@ -90,6 +91,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   private TestSparkRunner(TestSparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
     this.isForceStreaming = options.isForceStreaming();
+    this.testSparkPipelineOptions = options;
   }
 
   public static TestSparkRunner fromOptions(PipelineOptions options) {
@@ -101,9 +103,6 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
-    TestSparkPipelineOptions testSparkPipelineOptions =
-        pipeline.getOptions().as(TestSparkPipelineOptions.class);
-    //
     // if the pipeline forces execution as a streaming pipeline,
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.

@@ -460,7 +460,7 @@ public class Pipeline {
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
   private final List<String> unstableNames = new ArrayList<>();
-  protected final PipelineOptions defaultOptions;
+  private final PipelineOptions defaultOptions;
 
   protected Pipeline(PipelineOptions options) {
     this.defaultOptions = options;
@@ -470,18 +470,6 @@ public class Pipeline {
   public String toString() {
     return "Pipeline#" + hashCode();
   }
-
-  /**
-   * Returns the default {@link PipelineOptions} provided to {@link #create(PipelineOptions)}.
-   *
-   * @deprecated see BEAM-818 Remove Pipeline.getPipelineOptions. Configuration should be explicitly
-   *     provided to a transform if it is required.
-   */
-  @Deprecated
-  public PipelineOptions getOptions() {
-    return defaultOptions;
-  }
-
 
   /**
    * Applies a {@link PTransform} to the given {@link PInput}.

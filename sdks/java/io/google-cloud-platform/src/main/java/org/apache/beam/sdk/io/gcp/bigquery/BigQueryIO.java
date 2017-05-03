@@ -888,6 +888,26 @@ public class BigQueryIO {
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
 
+      // The user specified a table.
+      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
+        TableReference table = getTableWithDefaultProject(options).get();
+        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
+        // Check for destination table presence and emptiness for early failure notification.
+        // Note that a presence check can fail when the table or dataset is created by an earlier
+        // stage of the pipeline. For these cases the #withoutValidation method can be used to
+        // disable the check.
+        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
+        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+          BigQueryHelpers.verifyTablePresence(datasetService, table);
+        }
+        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
+          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
+        }
+      }
+    }
+
+    @Override
+    public WriteResult expand(PCollection<T> input) {
       // We must have a destination to write to!
       checkState(
           getTableFunction() != null || getJsonTableRef() != null
@@ -916,29 +936,7 @@ public class BigQueryIO {
       checkArgument(2
               > Iterables.size(Iterables.filter(allSchemaArgs, Predicates.notNull())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
-          + "be set");
-
-      // The user specified a table.
-      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
-        TableReference table = getTableWithDefaultProject(options).get();
-        DatasetService datasetService = getBigQueryServices().getDatasetService(options);
-        // Check for destination table presence and emptiness for early failure notification.
-        // Note that a presence check can fail when the table or dataset is created by an earlier
-        // stage of the pipeline. For these cases the #withoutValidation method can be used to
-        // disable the check.
-        BigQueryHelpers.verifyDatasetPresence(datasetService, table);
-        if (getCreateDisposition() == BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
-          BigQueryHelpers.verifyTablePresence(datasetService, table);
-        }
-        if (getWriteDisposition() == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          BigQueryHelpers.verifyTableNotExistOrEmpty(datasetService, table);
-        }
-      }
-    }
-
-    @Override
-    public WriteResult expand(PCollection<T> input) {
-      validate(input.getPipeline().getOptions());
+              + "be set");
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {

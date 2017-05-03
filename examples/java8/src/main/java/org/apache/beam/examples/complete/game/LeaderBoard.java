@@ -27,6 +27,7 @@ import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -194,14 +195,20 @@ public class LeaderBoard extends HourlyTeamScore {
             .withTimestampAttribute(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
-    gameEvents.apply("CalculateTeamScores",
-        new CalculateTeamScores(
-            Duration.standardMinutes(options.getTeamWindowDuration()),
-            Duration.standardMinutes(options.getAllowedLateness())))
+    gameEvents
+        .apply(
+            "CalculateTeamScores",
+            new CalculateTeamScores(
+                Duration.standardMinutes(options.getTeamWindowDuration()),
+                Duration.standardMinutes(options.getAllowedLateness())))
         // Write the results to BigQuery.
-        .apply("WriteTeamScoreSums",
-               new WriteWindowedToBigQuery<KV<String, Integer>>(
-                  options.getLeaderBoardTableName() + "_team", configureWindowedTableWrite()));
+        .apply(
+            "WriteTeamScoreSums",
+            new WriteWindowedToBigQuery<KV<String, Integer>>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getLeaderBoardTableName() + "_team",
+                configureWindowedTableWrite()));
     gameEvents
         .apply(
             "CalculateUserScores",
@@ -210,7 +217,10 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply(
             "WriteUserScoreSums",
             new WriteToBigQuery<KV<String, Integer>>(
-                options.getLeaderBoardTableName() + "_user", configureGlobalWindowBigQueryWrite()));
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getLeaderBoardTableName() + "_user",
+                configureGlobalWindowBigQueryWrite()));
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.

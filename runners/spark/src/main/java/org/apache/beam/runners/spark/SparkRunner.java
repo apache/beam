@@ -193,7 +193,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     } else {
       // create the evaluation context
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
+      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline, mOptions);
       translator = new TransformTranslator.Translator();
 
       // update the cache candidates
@@ -383,7 +383,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         LOG.info(
             "Deferring combine transformation {} for job {}",
             transform,
-            ctxt.getPipeline().getOptions().getJobName());
+            ctxt.getOptions().getJobName());
         return true;
       }
       // default.
