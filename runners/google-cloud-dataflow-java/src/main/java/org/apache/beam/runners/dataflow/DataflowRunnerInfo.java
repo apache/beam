@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Populates versioning and other information for {@link DataflowRunner}.
  */
-public final class DataflowRunnerInfo {
+final class DataflowRunnerInfo {
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunnerInfo.class);
 
   private static final String PROPERTIES_PATH =

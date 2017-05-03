@@ -19,13 +19,16 @@ package org.apache.beam.runners.dataflow;
 
 import com.google.api.services.dataflow.model.Environment;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * An instance of this class can be passed to the
- * {@link DataflowRunner} to add user defined hooks to be
- * invoked at various times during pipeline execution.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>An instance of this class can be passed to the {@link DataflowRunner} to add user defined
+ * hooks to be invoked at various times during pipeline execution.
  */
 @Experimental
+@Internal
 public class DataflowRunnerHooks {
   /**
    * Allows the user to modify the environment of their job before their job is submitted

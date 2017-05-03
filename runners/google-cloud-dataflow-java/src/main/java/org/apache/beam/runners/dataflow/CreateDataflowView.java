@@ -18,11 +18,17 @@
 
 package org.apache.beam.runners.dataflow;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
+/**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>A {@link DataflowRunner} marker class for creating a {@link PCollectionView}.
+ */
+@Internal
 public class CreateDataflowView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
   public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> of(PCollectionView<ViewT> view) {

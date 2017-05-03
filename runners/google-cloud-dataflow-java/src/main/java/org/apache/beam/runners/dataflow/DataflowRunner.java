@@ -68,16 +68,11 @@ import org.apache.beam.runners.core.construction.UnconsumedReads;
 import org.apache.beam.runners.dataflow.BatchViewOverrides.BatchCombineGloballyAsSingletonViewFactory;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.StreamingViewOverrides.StreamingCreatePCollectionViewFactory;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
-import org.apache.beam.runners.dataflow.util.DataflowTransport;
-import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -715,14 +710,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /**
    * Returns the DataflowPipelineTranslator associated with this object.
    */
-  public DataflowPipelineTranslator getTranslator() {
+  @VisibleForTesting
+  DataflowPipelineTranslator getTranslator() {
     return translator;
   }
 
   /**
-   * Sets callbacks to invoke during execution see {@code DataflowRunnerHooks}.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Sets callbacks to invoke during execution see {@link DataflowRunnerHooks}.
    */
   @Experimental
+  @Internal
   public void setHooks(DataflowRunnerHooks hooks) {
     this.hooks = hooks;
   }
