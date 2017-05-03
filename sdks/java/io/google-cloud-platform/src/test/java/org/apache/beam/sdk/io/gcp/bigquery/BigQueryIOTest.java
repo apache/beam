@@ -22,8 +22,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -479,12 +481,29 @@ public class BigQueryIOTest implements Serializable {
 
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
     Pipeline p = TestPipeline.create(bqOptions);
-    PCollection<String> users = p.apply(Create.of("bill1", "sam2", "laurence3")
-            .withCoder(StringUtf8Coder.of()));
+
+    final PCollectionView<List<String>> sideInput1 =
+        p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
+            .apply("asList", View.<String>asList());
+    final PCollectionView<Map<String, String>> sideInput2 =
+    p.apply("Create SideInput2", Create.of(KV.of("a", "a"), KV.of("b", "b"), KV.of("c", "c")))
+        .apply("AsMap", View.<String, String>asMap());
+
+    PCollection<String> users = p.apply("CreateUsers",
+        Create.of("bill1", "sam2", "laurence3")
+            .withCoder(StringUtf8Coder.of()))
+        .apply(Window.into(new PartitionedGlobalWindows<>(
+            new SerializableFunction<String, String>() {
+              @Override
+              public String apply(String arg) {
+                return arg;
+              }
+        })));
+
     if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
-    users.apply(BigQueryIO.<String>write()
+    users.apply("WriteBigQuery", BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withFormatFunction(new SerializableFunction<String, TableRow>() {
@@ -501,6 +520,7 @@ public class BigQueryIOTest implements Serializable {
             .to(new StringIntegerDestinations() {
               @Override
               public Integer getDestination(ValueInSingleWindow<String> element) {
+                assertThat(element.getWindow(), Matchers.instanceOf(PartitionedGlobalWindow.class));
                 Matcher matcher = userPattern.matcher(element.getValue());
                 if (matcher.matches()) {
                   // Since we name tables by userid, we can simply store an Integer to represent
@@ -512,6 +532,7 @@ public class BigQueryIOTest implements Serializable {
 
               @Override
               public TableDestination getTable(Integer userId, SideInputAccessor sideInput) {
+                verifySideInputs(sideInput);
                 // Each user in it's own table.
                 return new TableDestination("dataset-id.userid-" + userId,
                     "table for userid " + userId);
@@ -519,10 +540,25 @@ public class BigQueryIOTest implements Serializable {
 
               @Override
               public TableSchema getSchema(Integer userId, SideInputAccessor sideInput) {
+                verifySideInputs(sideInput);
                 return new TableSchema().setFields(
                     ImmutableList.of(
                         new TableFieldSchema().setName("name").setType("STRING"),
                         new TableFieldSchema().setName("id").setType("INTEGER")));
+              }
+
+              @Override
+              public List<PCollectionView<?>> getSideInputs() {
+                return ImmutableList.of(sideInput1, sideInput2);
+              }
+
+              void verifySideInputs(SideInputAccessor sideInputAccessor) {
+                assertThat(sideInputAccessor.getSideInputValue(sideInput1),
+                    containsInAnyOrder("a", "b", "c"));
+                Map<String, String> mapSideInput = sideInputAccessor.getSideInputValue(sideInput2);
+                assertEquals(3, mapSideInput.size());
+                assertThat(mapSideInput,
+                    allOf(hasEntry("a", "a"), hasEntry("b", "b"), hasEntry("c", "c")));
               }
             })
             .withoutValidation());

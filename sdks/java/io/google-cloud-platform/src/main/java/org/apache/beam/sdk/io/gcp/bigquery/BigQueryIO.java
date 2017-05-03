@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A fully-qualified BigQuery table name consists of three components:
  * <ul>
- * <  li>{@code projectId}: the Cloud project id (defaults to
+ *   <li>{@code projectId}: the Cloud project id (defaults to
  *       {@link GcpOptions#getProject()}).
  *   <li>{@code datasetId}: the BigQuery dataset id, unique within a project.
  *   <li>{@code tableId}: a table id, unique within a dataset.
