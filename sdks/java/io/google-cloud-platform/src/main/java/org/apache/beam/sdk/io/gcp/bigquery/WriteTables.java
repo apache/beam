@@ -23,12 +23,14 @@ import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
@@ -39,7 +41,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
@@ -52,72 +53,86 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Writes partitions to BigQuery tables.
  *
- * <p>The input is a list of files corresponding to each partition of a table. These files are
- * load into a temporary table (or into the final table if there is only one partition). The output
- * is a {@link KV} mapping each final table to a list of the temporary tables containing its data.
+ * <p>The input is a list of files corresponding to each partition of a table. loadThese files are
+ * loaded into a temporary table (or into the final table if there is only one partition). The
+ * output is a {@link KV} mapping each final table to a list of the temporary tables containing its
+ * data.
  *
  * <p>In the case where all the data in the files fit into a single load job, this transform loads
  * the data directly into the final table, skipping temporary tables. In this case, the output
  * {@link KV} maps the final table to itself.
  */
-class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
-    KV<TableDestination, String>> {
+class WriteTables<DestinationT>
+    extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
+  private final PCollectionView<Map<DestinationT, String>> schemasView;
   private final String tempFilePrefix;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
-  private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
+      PCollectionView<Map<DestinationT, String>> schemasView,
       String tempFilePrefix,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
+    this.schemasView = schemasView;
     this.tempFilePrefix = tempFilePrefix;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
-    this.schemaFunction = schemaFunction;
+    this.dynamicDestinations = dynamicDestinations;
   }
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    TableDestination tableDestination = c.element().getKey().getKey();
-    Integer partition = c.element().getKey().getShardNumber();
-    List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-    String jobIdPrefix = BigQueryHelpers.createJobId(
-        c.sideInput(jobIdToken), tableDestination, partition);
-
-    TableReference ref = tableDestination.getTableReference();
-    if (!singlePartition) {
-      ref.setTableId(jobIdPrefix);
+    dynamicDestinations.setSideInputAccessorFromProcessContext(c);
+    DestinationT destination = c.element().getKey().getKey();
+    TableSchema tableSchema =
+        BigQueryHelpers.fromJsonString(
+            c.sideInput(schemasView).get(destination), TableSchema.class);
+    TableDestination tableDestination = dynamicDestinations.getTable(destination);
+    TableReference tableReference = tableDestination.getTableReference();
+    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+      tableReference.setProjectId(
+          c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+      tableDestination = new TableDestination(
+          tableReference, tableDestination.getTableDescription());
     }
 
-    TableSchema schema = (schemaFunction != null) ? schemaFunction.apply(tableDestination) : null;
+    Integer partition = c.element().getKey().getShardNumber();
+    List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
+    String jobIdPrefix =
+        BigQueryHelpers.createJobId(c.sideInput(jobIdToken), tableDestination, partition);
+
+    if (!singlePartition) {
+      tableReference.setTableId(jobIdPrefix);
+    }
+
     load(
         bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
         bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
         jobIdPrefix,
-        ref,
-        schema,
+        tableReference,
+        tableSchema,
         partitionFiles,
         writeDisposition,
         createDisposition,
         tableDestination.getTableDescription());
-    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(ref)));
+    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
 
     removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partitionFiles);
   }
@@ -131,22 +146,22 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      @Nullable String tableDescription) throws InterruptedException, IOException {
-    JobConfigurationLoad loadConfig = new JobConfigurationLoad()
-        .setDestinationTable(ref)
-        .setSchema(schema)
-        .setSourceUris(gcsUris)
-        .setWriteDisposition(writeDisposition.name())
-        .setCreateDisposition(createDisposition.name())
-        .setSourceFormat("NEWLINE_DELIMITED_JSON");
+      @Nullable String tableDescription)
+      throws InterruptedException, IOException {
+    JobConfigurationLoad loadConfig =
+        new JobConfigurationLoad()
+            .setDestinationTable(ref)
+            .setSchema(schema)
+            .setSourceUris(gcsUris)
+            .setWriteDisposition(writeDisposition.name())
+            .setCreateDisposition(createDisposition.name())
+            .setSourceFormat("NEWLINE_DELIMITED_JSON");
 
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
     for (int i = 0; i < Write.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
-      JobReference jobRef = new JobReference()
-          .setProjectId(projectId)
-          .setJobId(jobId);
+      JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
       jobService.startLoadJob(jobRef, loadConfig);
       Job loadJob = jobService.pollJob(jobRef, Write.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
@@ -157,31 +172,31 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
           }
           return;
         case UNKNOWN:
-          throw new RuntimeException(String.format(
-              "UNKNOWN status of load job [%s]: %s.", jobId,
-              BigQueryHelpers.jobToPrettyString(loadJob)));
+          throw new RuntimeException(
+              String.format(
+                  "UNKNOWN status of load job [%s]: %s.",
+                  jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
         case FAILED:
           lastFailedLoadJob = loadJob;
           continue;
         default:
-          throw new IllegalStateException(String.format(
-              "Unexpected status [%s] of load job: %s.",
-              jobStatus, BigQueryHelpers.jobToPrettyString(loadJob)));
+          throw new IllegalStateException(
+              String.format(
+                  "Unexpected status [%s] of load job: %s.",
+                  jobStatus, BigQueryHelpers.jobToPrettyString(loadJob)));
       }
     }
-    throw new RuntimeException(String.format(
-        "Failed to create load job with id prefix %s, "
-            + "reached max retries: %d, last failed load job: %s.",
-        jobIdPrefix,
-        Write.MAX_RETRY_JOBS,
-        BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
+    throw new RuntimeException(
+        String.format(
+            "Failed to create load job with id prefix %s, "
+                + "reached max retries: %d, last failed load job: %s.",
+            jobIdPrefix,
+            Write.MAX_RETRY_JOBS,
+            BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
   }
 
   static void removeTemporaryFiles(
-      PipelineOptions options,
-      String tempFilePrefix,
-      Collection<String> files)
-      throws IOException {
+      PipelineOptions options, String tempFilePrefix, Collection<String> files) throws IOException {
     IOChannelFactory factory = IOChannelUtils.getFactory(tempFilePrefix);
     if (factory instanceof GcsIOChannelFactory) {
       GcsUtil gcsUtil = new GcsUtilFactory().create(options);
@@ -203,8 +218,7 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
 
-    builder
-        .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
-            .withLabel("Temporary File Prefix"));
+    builder.addIfNotNull(
+        DisplayData.item("tempFilePrefix", tempFilePrefix).withLabel("Temporary File Prefix"));
   }
 }
