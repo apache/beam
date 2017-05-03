@@ -22,8 +22,8 @@ import common_job_properties
 matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
   description('Runs postcommit tests on the Java SDK in multiple Jdk versions.')
 
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+  // Disable concurrent build since backend crash frequently happens.
+  // concurrentBuild()
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate)
