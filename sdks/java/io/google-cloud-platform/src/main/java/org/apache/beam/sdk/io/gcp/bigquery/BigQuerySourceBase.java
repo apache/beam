@@ -141,6 +141,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           BigQueryHelpers.statusToPrettyString(extractJob.getStatus())));
     }
 
+    LOG.info("BigQuery extract job completed: {}", jobId);
+
     List<String> tempFiles = BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
     return ImmutableList.copyOf(tempFiles);
   }
