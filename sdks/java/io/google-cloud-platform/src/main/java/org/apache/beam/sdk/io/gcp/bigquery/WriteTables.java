@@ -41,7 +41,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FileIOChannelFactory;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -73,7 +72,7 @@ class WriteTables<DestinationT>
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
   private final PCollectionView<Map<DestinationT, String>> schemasView;
-  private final String tempFilePrefix;
+  private final String stepUuid;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -83,7 +82,7 @@ class WriteTables<DestinationT>
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       PCollectionView<Map<DestinationT, String>> schemasView,
-      String tempFilePrefix,
+      String stepUuid,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
@@ -91,7 +90,7 @@ class WriteTables<DestinationT>
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.schemasView = schemasView;
-    this.tempFilePrefix = tempFilePrefix;
+    this.stepUuid = stepUuid;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
@@ -111,6 +110,18 @@ class WriteTables<DestinationT>
           c.getPipelineOptions().as(BigQueryOptions.class).getProject());
       tableDestination = new TableDestination(
           tableReference, tableDestination.getTableDescription());
+    }
+
+    String tempLocation = c.getPipelineOptions().getTempLocation();
+    String tempFilePrefix;
+    try {
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+      tempFilePrefix =
+          factory.resolve(
+              factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
     }
 
     Integer partition = c.element().getKey().getShardNumber();
@@ -212,13 +223,5 @@ class WriteTables<DestinationT>
     } else {
       throw new IOException("Unrecognized file system.");
     }
-  }
-
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-
-    builder.addIfNotNull(
-        DisplayData.item("tempFilePrefix", tempFilePrefix).withLabel("Temporary File Prefix"));
   }
 }

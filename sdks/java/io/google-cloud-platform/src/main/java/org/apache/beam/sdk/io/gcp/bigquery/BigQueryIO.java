@@ -482,17 +482,7 @@ public class BigQueryIO {
     @Override
     public PCollection<TableRow> expand(PBegin input) {
       final String stepUuid = BigQueryHelpers.randomUUIDString();
-      BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       BoundedSource<TableRow> source;
-      final String extractDestinationDir;
-      String tempLocation = bqOptions.getTempLocation();
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-        extractDestinationDir = factory.resolve(tempLocation, stepUuid);
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format("Failed to resolve extract destination directory in %s", tempLocation));
-      }
 
       if (getQuery() != null
           && (!getQuery().isAccessible() || !Strings.isNullOrEmpty(getQuery().get()))) {
@@ -502,14 +492,12 @@ public class BigQueryIO {
                 getQuery(),
                 getFlattenResults(),
                 getUseLegacySql(),
-                extractDestinationDir,
                 getBigQueryServices());
       } else {
         source =
             BigQueryTableSource.create(
                 stepUuid,
                 getTableProvider(),
-                extractDestinationDir,
                 getBigQueryServices());
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
@@ -517,6 +505,16 @@ public class BigQueryIO {
             @Override
             void cleanup(PipelineOptions options) throws Exception {
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+              final String extractDestinationDir;
+              String tempLocation = bqOptions.getTempLocation();
+              try {
+                IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+                extractDestinationDir = factory.resolve(tempLocation, stepUuid);
+              } catch (IOException e) {
+                throw new RuntimeException(
+                    String.format("Failed to resolve extract destination directory in %s",
+                        tempLocation));
+              }
 
               JobReference jobRef =
                   new JobReference()

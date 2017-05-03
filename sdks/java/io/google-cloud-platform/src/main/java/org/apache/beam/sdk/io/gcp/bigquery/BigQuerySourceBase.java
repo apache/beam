@@ -41,6 +41,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,14 +66,12 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected static final int JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
   protected final String stepUuid;
-  protected final String extractDestinationDir;
   protected final BigQueryServices bqServices;
 
   private transient List<BoundedSource<TableRow>> cachedSplitResult;
 
-  BigQuerySourceBase(String stepUuid, String extractDestinationDir, BigQueryServices bqServices) {
+  BigQuerySourceBase(String stepUuid, BigQueryServices bqServices) {
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.extractDestinationDir = checkNotNull(extractDestinationDir, "extractDestinationDir");
     this.bqServices = checkNotNull(bqServices, "bqServices");
   }
 
@@ -86,9 +86,20 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
+
+      final String extractDestinationDir;
+      String tempLocation = bqOptions.getTempLocation();
+      try {
+        IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+        extractDestinationDir = factory.resolve(tempLocation, stepUuid);
+      } catch (IOException e) {
+        throw new RuntimeException(
+            String.format("Failed to resolve extract destination directory in %s", tempLocation));
+      }
+
       String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
       List<String> tempFiles = executeExtract(
-          extractJobId, tableToExtract, jobService, bqOptions.getProject());
+          extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
           .getTable(tableToExtract).getSchema();
@@ -114,7 +125,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   private List<String> executeExtract(
-      String jobId, TableReference table, JobService jobService, String executingProject)
+      String jobId, TableReference table, JobService jobService, String executingProject,
+      String extractDestinationDir)
           throws InterruptedException, IOException {
     JobReference jobRef = new JobReference()
         .setProjectId(executingProject)

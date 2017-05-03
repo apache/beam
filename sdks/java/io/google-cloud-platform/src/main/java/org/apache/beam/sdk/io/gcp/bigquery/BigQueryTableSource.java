@@ -45,9 +45,8 @@ class BigQueryTableSource extends BigQuerySourceBase {
   static BigQueryTableSource create(
       String stepUuid,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
       BigQueryServices bqServices) {
-    return new BigQueryTableSource(stepUuid, table, extractDestinationDir, bqServices);
+    return new BigQueryTableSource(stepUuid, table, bqServices);
   }
 
   private final ValueProvider<String> jsonTable;
@@ -56,9 +55,8 @@ class BigQueryTableSource extends BigQuerySourceBase {
   private BigQueryTableSource(
       String stepUuid,
       ValueProvider<TableReference> table,
-      String extractDestinationDir,
       BigQueryServices bqServices) {
-    super(stepUuid, extractDestinationDir, bqServices);
+    super(stepUuid, bqServices);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
   }
