@@ -36,6 +36,8 @@ message Type {
         CHAN = 23; // TODO: remove?
         PTR = 24;
         SPECIAL = 25;
+
+        EXTERNAL = 26;
     }
     // (Required) Type kind.
     Kind kind = 1;
@@ -82,10 +84,12 @@ message Type {
 
         // Beam
         EVENTTIME = 10;
+
         KV = 11;
         GBK = 12;
         COGBK = 13;
         WINDOWEDVALUE = 14;
+
         T = 15;
         U = 16;
         V = 17;
@@ -93,12 +97,14 @@ message Type {
         X = 19;
         Y = 20;
         Z = 21;
-
-        // TODO: kill or make registration for such types extensible?
-        FNVALUE = 30;
     }
     // (Optional) Special type (if SPECIAL)
     Special special = 8;
+
+    // (Optional) Key for external struct types. Resolution of external types
+    // is done via a type registry. The main purpose of external serialization
+    // is preservation of methods.
+    string external_key = 9;
 }
 
 // FullType represents a serialized typex.FullType
@@ -150,8 +156,9 @@ message MultiEdge {
             SINGLETON = 2;
             SLICE = 3;
             MAP = 4;
-            ITER = 5;
-            REITER = 6;
+            MULTIMAP = 5;
+            ITER = 6;
+            REITER = 7;
         }
 
         InputKind kind = 1;

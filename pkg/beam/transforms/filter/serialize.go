@@ -1,23 +1,21 @@
-package graphx
+package filter
 
 import (
 	"encoding/json"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	"reflect"
 )
 
-// TODO(herohde) 4/24/2017: do this capabiltiy even add enough value?
+func init() {
+	graphx.Register(reflect.TypeOf(DataFnValue{}))
+}
 
-var (
-	DataFnValueType = reflect.TypeOf((*DataFnValue)(nil)).Elem()
-)
-
-// FnValue is a serialization-wrapper of a function reference. Given that the
-// receiving end is only isomorphic, but has no methods, we cannot handle
-// custom serialization in the data segment. We can, however, special-case a
-// few convenient types.
+// DataFnValue is a serialization-wrapper of a function reference. Given that the
+// receiving end is only isomorphic and has no methods unless we register it. One
+// benefit is that custom json serialization is possible.
 type DataFnValue struct {
 	Fn interface{}
 }
@@ -27,7 +25,7 @@ func (f DataFnValue) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	ref, err := EncodeUserFn(u)
+	ref, err := graphx.EncodeUserFn(u)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +45,7 @@ func (f *DataFnValue) UnmarshalJSON(buf []byte) error {
 	if err := protox.DecodeBase64(s, &ref); err != nil {
 		return err
 	}
-	fn, err := DecodeUserFn(&ref)
+	fn, err := graphx.DecodeUserFn(&ref)
 	if err != nil {
 		return err
 	}

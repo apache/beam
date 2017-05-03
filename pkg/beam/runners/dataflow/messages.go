@@ -54,6 +54,8 @@ type properties struct {
 	// Element []string  `json:"element,omitempty"`
 	// UserFn string  `json:"user_fn,omitempty"`
 
+	DisallowCombinerLifting bool `json:"disallow_combiner_lifting,omitempty"` // GBK.
+
 	CustomSourceInputStep *customSourceInputStep      `json:"custom_source_step_input,omitempty"`
 	Inputs                []*outputReference          `json:"inputs,omitempty"` // Flatten.
 	ParallelInput         *outputReference            `json:"parallel_input,omitempty"`

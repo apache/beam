@@ -146,7 +146,8 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 	case graph.GBK:
 		return "GroupByKey", properties{
-			UserName: buildName(edge.Scope(), "group"), // TODO: user-defined
+			UserName:                buildName(edge.Scope(), "group"), // TODO: user-defined
+			DisallowCombinerLifting: true,
 		}, nil
 
 	case graph.Sink:

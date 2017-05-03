@@ -14,11 +14,8 @@ func Print(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
 
 // Print prints out all data and then discards it. Use with care.
 func Print0(p *beam.Pipeline, col beam.PCollection) error {
-	ret, err := Print(p, col)
-	if err != nil {
-		return err
-	}
-	return Discard(p, ret)
+	_, err := Print(p, col)
+	return err
 }
 
 func printFn(t typex.T) typex.T {
