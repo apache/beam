@@ -37,18 +37,27 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
+import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
+import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -84,7 +93,7 @@ public class CloudObjectsTest {
       Set<Class<? extends Coder>> missing = new HashSet<>();
       missing.addAll(defaultCoderTranslators);
       missing.removeAll(testedClasses);
-      assertThat(missing, emptyIterable());
+      assertThat("Coders with custom serializers should all be tested", missing, emptyIterable());
     }
 
     @Test
@@ -117,10 +126,28 @@ public class CloudObjectsTest {
                   WindowedValue.getFullCoder(
                       KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()),
                       IntervalWindow.getCoder()))
-              .add(VarLongCoder.of())
               .add(ByteArrayCoder.of())
+              .add(VarLongCoder.of())
               .add(SerializableCoder.of(Record.class))
-              .add(AvroCoder.of(Record.class));
+              .add(AvroCoder.of(Record.class))
+              .add(CollectionCoder.of(VarLongCoder.of()))
+              .add(ListCoder.of(VarLongCoder.of()))
+              .add(SetCoder.of(VarLongCoder.of()))
+              .add(MapCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
+              .add(NullableCoder.of(IntervalWindow.getCoder()))
+              .add(
+                  UnionCoder.of(
+                      ImmutableList.<Coder<?>>of(
+                          VarLongCoder.of(),
+                          ByteArrayCoder.of(),
+                          KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))))
+              .add(
+                  CoGbkResultCoder.of(
+                      CoGbkResultSchema.of(
+                          ImmutableList.<TupleTag<?>>of(
+                              new TupleTag<Long>(), new TupleTag<byte[]>())),
+                      UnionCoder.of(
+                          ImmutableList.<Coder<?>>of(VarLongCoder.of(), ByteArrayCoder.of()))));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());
