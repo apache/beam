@@ -36,7 +36,7 @@ class SimpleSink extends FileBasedSink<String> {
                     WritableByteChannelFactory writableByteChannelFactory) {
     super(
         StaticValueProvider.of(baseOutputDirectory),
-        new DefaultFilenamePolicy(prefix, template, suffix),
+        new DefaultFilenamePolicy(StaticValueProvider.of(prefix), template, suffix),
         writableByteChannelFactory);
   }
 

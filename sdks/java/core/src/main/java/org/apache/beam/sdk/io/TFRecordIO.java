@@ -266,11 +266,7 @@ public class TFRecordIO {
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
     public Write to(String outputPrefix) {
-      try {
-        return to(FileSystems.matchNewResource(outputPrefix, false /* isDirectory */));
-      } catch (Exception e) {
-        return to(FileSystems.matchNewResource(outputPrefix, true /* isDirectory */));
-      }
+      return to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
     }
 
     /**
@@ -283,19 +279,13 @@ public class TFRecordIO {
      * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
      */
     public Write to(ResourceId outputResource) {
-      return to(StaticValueProvider.of(outputResource));
+      return toResource(StaticValueProvider.of(outputResource));
     }
 
     /**
-     * Writes TFRecord file(s) with a prefix given by the specified resource.
-     *
-     * <p>In addition to their prefix, created files will have a shard identifier (see
-     * {@link #withNumShards(int)}), and end in a common suffix, if given by
-     * {@link #withSuffix(String)}.
-     *
-     * <p>For more information on filenames, see {@link DefaultFilenamePolicy}.
+     * Like {@link #to(ResourceId)}.
      */
-    public Write to(ValueProvider<ResourceId> outputResource) {
+    public Write toResource(ValueProvider<ResourceId> outputResource) {
       return toBuilder().setOutputPrefix(outputResource).build();
     }
 
@@ -362,8 +352,7 @@ public class TFRecordIO {
     public PDone expand(PCollection<byte[]> input) {
       checkState(getOutputPrefix() != null,
           "need to set the output prefix of a TFRecordIO.Write transform");
-      org.apache.beam.sdk.io.WriteFiles<byte[]> write =
-          org.apache.beam.sdk.io.WriteFiles.to(
+      WriteFiles<byte[]> write = WriteFiles.to(
               new TFRecordSink(
                   getOutputPrefix(),
                   getShardTemplate(),

@@ -290,22 +290,22 @@ public class AvroIOTest {
     @Override
     public ResourceId windowedFilename(
         ResourceId outputDirectory, WindowedContext input, String extension) {
-      String filename = outputFilePrefix + "-" + input.getWindow().toString() +  "-"
-          + input.getShardNumber() + "-of-" + (input.getNumShards() - 1) + "-pane-"
-          + input.getPaneInfo().getIndex();
-      if (input.getPaneInfo().isLast()) {
-        filename += "-final";
-      }
-      filename += extension;
+      String filename = String.format(
+          "%s-%s-%s-of-%s-pane-%s%s%s",
+          outputFilePrefix,
+          input.getWindow(),
+          input.getShardNumber(),
+          input.getNumShards() - 1,
+          input.getPaneInfo().getIndex(),
+          input.getPaneInfo().isLast() ? "-final" : "",
+          extension);
       return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
     public ResourceId unwindowedFilename(
         ResourceId outputDirectory, Context input, String extension) {
-      String filename = outputFilePrefix + input.getShardNumber() + "-of-"
-          + (input.getNumShards() - 1) + extension;
-      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+      throw new UnsupportedOperationException("Expecting windowed outputs only");
     }
 
     @Override

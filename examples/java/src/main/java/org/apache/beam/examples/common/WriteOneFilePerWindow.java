@@ -17,8 +17,10 @@
  */
 package org.apache.beam.examples.common;
 
+import static com.google.common.base.Verify.verifyNotNull;
+
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -48,10 +50,21 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
   @Override
   public PDone expand(PCollection<String> input) {
+    // filenamePrefix may contain a directory and a filename component. Pull out only the filename
+    // component from that path for the PerWindowFiles.
+    String prefix = "";
+    ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
+    if (!resource.isDirectory()) {
+      prefix = verifyNotNull(
+          resource.getFilename(),
+          "A non-directory resource should have a non-null filename: %s",
+          resource);
+    }
+
     return input.apply(
         TextIO.write()
-            .to(filenamePrefix)
-            .withFilenamePolicy(new PerWindowFiles(filenamePrefix))
+            .to(resource.getCurrentDirectory())
+            .withFilenamePolicy(new PerWindowFiles(prefix))
             .withWindowedWrites()
             .withNumShards(3));
   }
@@ -64,22 +77,15 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
    */
   public static class PerWindowFiles extends FilenamePolicy {
 
-    private final String filenamePrefix;
+    private final String prefix;
 
-    public PerWindowFiles(String filenamePrefix) {
-      String filePrefixOnly;
-      try {
-        ResourceId file = FileSystems.matchNewResource(filenamePrefix, false /* isDirectory */);
-        filePrefixOnly = file.getFilename();
-      } catch (Exception e) {
-        filePrefixOnly = "";
-      }
-      this.filenamePrefix = filePrefixOnly;
+    public PerWindowFiles(String prefix) {
+      this.prefix = prefix;
     }
 
     public String filenamePrefixForWindow(IntervalWindow window) {
       return String.format("%s-%s-%s",
-          filenamePrefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
+          prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override

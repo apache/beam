@@ -31,8 +31,10 @@ import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -287,15 +289,7 @@ public class TextIO {
      * not be set.
      */
     public Write to(String filenamePrefix) {
-      try {
-        ResourceId fileResource =
-            FileSystems.matchNewResource(filenamePrefix, false /* isDirectory */);
-        return to(fileResource);
-      } catch (Exception e) {
-        ResourceId directoryResource =
-            FileSystems.matchNewResource(filenamePrefix, true /* isDirectory */);
-        return to(directoryResource);
-      }
+      return to(FileBasedSink.convertToFileResourceIfPossible(filenamePrefix));
     }
 
     /**
@@ -313,24 +307,26 @@ public class TextIO {
      * not be set.
      */
     public Write to(ResourceId filenamePrefix) {
-      return to(StaticValueProvider.of(filenamePrefix));
+      return toResource(StaticValueProvider.of(filenamePrefix));
     }
 
     /**
-     * Writes to text files with prefix from the given resource.
-     *
-     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
-     *
-     * <p>By default, a {@link DefaultFilenamePolicy} will be used built using the specified prefix
-     * to define the base output directory and file prefix, a shard identifier (see
-     * {@link #withNumShards(int)}), and a common suffix (if supplied using
-     * {@link #withSuffix(String)}).
-     *
-     * <p>This default policy can be overridden using {@link #withFilenamePolicy(FilenamePolicy)},
-     * in which case {@link #withShardNameTemplate(String)} and {@link #withSuffix(String)} should
-     * not be set.
+     * Like {@link #to(String)}.
      */
-    public Write to(ValueProvider<ResourceId> filenamePrefix) {
+    public Write to(ValueProvider<String> outputPrefix) {
+      return toResource(NestedValueProvider.of(outputPrefix,
+          new SerializableFunction<String, ResourceId>() {
+            @Override
+            public ResourceId apply(String input) {
+              return FileBasedSink.convertToFileResourceIfPossible(input);
+            }
+          }));
+    }
+
+    /**
+     * Like {@link #to(ResourceId)}.
+     */
+    public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 

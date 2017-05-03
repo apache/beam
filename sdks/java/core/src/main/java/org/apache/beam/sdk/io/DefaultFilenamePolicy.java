@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.regex.Matcher;
@@ -29,21 +30,13 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /**
- * A default {@link FilenamePolicy} for unwindowed files. This policy takes four parameters:
- *
- * <ul>
- *   <li>{@code baseOutputDirectory}, a {@link ResourceId} representing where the output files will
- *        be written.
- *   <li>{@code prefix}, {@code shardTemplate}, and {@code suffix}, which will together will be
- *        passed to {@link #constructName} to form the name of files written to the the output
- *        directory.
- *   <li>For more information on the output filename, see {@link #constructName}.
- * </ul>
+ * A default {@link FilenamePolicy} for unwindowed files. This policy is constructed using three
+ * parameters that together define the output name of a sharded file, in conjunction with the number
+ * of shards and index of the particular file, using {@link #constructName}.
  *
  * <p>Most users of unwindowed files will use this {@link DefaultFilenamePolicy}. For more advanced
  * uses in generating different files for each window and other sharding controls, see the
@@ -61,16 +54,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    *
    * @see DefaultFilenamePolicy for more information on the arguments to this function.
    */
-  public DefaultFilenamePolicy(String prefix, String shardTemplate, String suffix) {
-    this(StaticValueProvider.of(prefix), shardTemplate, suffix);
-  }
-
-  /**
-   * Constructs a new {@link DefaultFilenamePolicy}.
-   *
-   * @see DefaultFilenamePolicy for more information on the arguments to this function.
-   */
-  public DefaultFilenamePolicy(ValueProvider<String> prefix, String shardTemplate, String suffix) {
+  @VisibleForTesting
+  DefaultFilenamePolicy(ValueProvider<String> prefix, String shardTemplate, String suffix) {
     this.prefix = prefix;
     this.shardTemplate = shardTemplate;
     this.suffix = suffix;
@@ -144,10 +129,6 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   @Nullable
   public ResourceId unwindowedFilename(ResourceId outputDirectory, Context context,
       String extension) {
-    if (context.getNumShards() <= 0) {
-      return null;
-    }
-
     String filename =
         constructName(
             prefix.get(), shardTemplate, suffix, context.getShardNumber(), context.getNumShards())

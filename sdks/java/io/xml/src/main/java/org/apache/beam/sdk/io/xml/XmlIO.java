@@ -29,7 +29,6 @@ import javax.xml.bind.ValidationEventHandler;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -484,12 +483,7 @@ public class XmlIO {
      * the number of output bundles.
      */
     public Write<T> to(String filenamePrefix) {
-      ResourceId resourceId;
-      try {
-        resourceId = FileSystems.matchNewResource(filenamePrefix, false /* isDirectory */);
-      } catch (Exception e) {
-        resourceId = FileSystems.matchNewResource(filenamePrefix, true /* isDirectory */);
-      }
+      ResourceId resourceId = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
       return toBuilder().setFilenamePrefix(StaticValueProvider.of(resourceId)).build();
     }
 

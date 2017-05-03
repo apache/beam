@@ -76,7 +76,6 @@ import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.TextIO.CompressionType;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -529,8 +528,8 @@ public class TextIOTest {
     ValueProvider<String> getInput();
     void setInput(ValueProvider<String> value);
 
-    ValueProvider<ResourceId> getOutput();
-    void setOutput(ValueProvider<ResourceId> value);
+    ValueProvider<String> getOutput();
+    void setOutput(ValueProvider<String> value);
   }
 
   @Test
