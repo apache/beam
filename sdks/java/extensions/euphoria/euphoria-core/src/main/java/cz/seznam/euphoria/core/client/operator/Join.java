@@ -400,6 +400,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
    *   <li>This implementation cannot be used together with early triggering
    *        on any windowing strategy as it will emit each identified pair
    *        only once during the whole course of the state's life cycle.</li>
+   *   <li>This implementation will also break time-sliding windowing, as
+   *        it will raise the watermark too quickly in downstream operators,
+   *        thus, marking earlier - but actually still not too late time-sliding
+   *        windows as late comers.</li>
    * </ul>
    *
    */
