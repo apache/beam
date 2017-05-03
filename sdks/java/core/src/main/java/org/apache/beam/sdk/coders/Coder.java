@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public interface Coder<T> extends Serializable {
   /** The context in which encoding or decoding is being done. */
+  @Deprecated
   class Context {
     /**
      * The outer context: the value being encoded or decoded takes
@@ -111,6 +112,28 @@ public interface Coder<T> extends Serializable {
   }
 
   /**
+   * Encodes the given value of type {@code T} onto the given output stream.
+   *
+   * @throws IOException if writing to the {@code OutputStream} fails
+   * for some reason
+   * @throws CoderException if the value could not be encoded for some reason
+   */
+  void encode(T value, OutputStream outStream)
+      throws CoderException, IOException;
+
+  /**
+   * Encodes the given value of type {@code T} onto the given output stream
+   * in the outer context.
+   *
+   * @throws IOException if writing to the {@code OutputStream} fails
+   * for some reason
+   * @throws CoderException if the value could not be encoded for some reason
+   */
+  @Deprecated
+  void encodeOuter(T value, OutputStream outStream)
+      throws CoderException, IOException;
+
+  /**
    * Encodes the given value of type {@code T} onto the given output stream
    * in the given context.
    *
@@ -118,6 +141,7 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be encoded for some reason
    */
+  @Deprecated
   void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException;
 
@@ -129,6 +153,28 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
+  T decode(InputStream inStream) throws CoderException, IOException;
+
+  /**
+   * Decodes a value of type {@code T} from the given input stream in
+   * the outer context.  Returns the decoded value.
+   *
+   * @throws IOException if reading from the {@code InputStream} fails
+   * for some reason
+   * @throws CoderException if the value could not be decoded for some reason
+   */
+  @Deprecated
+  T decodeOuter(InputStream inStream) throws CoderException, IOException;
+
+  /**
+   * Decodes a value of type {@code T} from the given input stream in
+   * the given context.  Returns the decoded value.
+   *
+   * @throws IOException if reading from the {@code InputStream} fails
+   * for some reason
+   * @throws CoderException if the value could not be decoded for some reason
+   */
+  @Deprecated
   T decode(InputStream inStream, Context context)
       throws CoderException, IOException;
 
@@ -200,6 +246,19 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
+  boolean isRegisterByteSizeObserverCheap(T value);
+
+  /**
+   * Returns whether {@link #registerByteSizeObserver} cheap enough to
+   * call for every element, that is, if this {@code Coder} can
+   * calculate the byte size of the element to be coded in roughly
+   * constant time (or lazily).
+   *
+   * <p>Not intended to be called by user code, but instead by
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * implementations.
+   */
+  @Deprecated
   boolean isRegisterByteSizeObserverCheap(T value, Context context);
 
   /**
@@ -210,6 +269,19 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
+  void registerByteSizeObserver(
+      T value, ElementByteSizeObserver observer)
+      throws Exception;
+
+  /**
+   * Notifies the {@code ElementByteSizeObserver} about the byte size
+   * of the encoded value using this {@code Coder}.
+   *
+   * <p>Not intended to be called by user code, but instead by
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * implementations.
+   */
+  @Deprecated
   void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
