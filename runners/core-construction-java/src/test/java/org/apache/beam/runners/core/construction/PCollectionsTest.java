@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -71,7 +71,7 @@ public class PCollectionsTest {
   public static Iterable<PCollection<?>> data() {
     Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> ints = pipeline.apply("ints", Create.of(1, 2, 3));
-    PCollection<Long> longs = pipeline.apply("unbounded longs", CountingInput.unbounded());
+    PCollection<Long> longs = pipeline.apply("unbounded longs", GenerateSequence.from(0));
     PCollection<Long> windowedLongs =
         longs.apply(
             "into fixed windows",
@@ -83,7 +83,7 @@ public class PCollectionsTest {
             .apply("group", GroupByKey.<String, String>create());
     PCollection<Long> coderLongs =
         pipeline
-            .apply("counts with alternative coder", CountingInput.upTo(10L))
+            .apply("counts with alternative coder", GenerateSequence.from(0).to(10))
             .setCoder(BigEndianLongCoder.of());
     PCollection<Integer> allCustomInts =
         pipeline

@@ -92,7 +92,7 @@ public interface ExecutionContext {
         Coder<W> windowCoder)
             throws IOException;
 
-    StateInternals<?> stateInternals();
+    StateInternals stateInternals();
 
     TimerInternals timerInternals();
   }

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -39,7 +38,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -576,7 +575,7 @@ public abstract class WindowedValue<T> {
    * Abstract class for {@code WindowedValue} coder.
    */
   public abstract static class WindowedValueCoder<T>
-      extends StandardCoder<WindowedValue<T>> {
+      extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
@@ -696,13 +695,6 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClassName("kind:windowed_value");
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
-    }
-
-    @Override
     public List<? extends Coder<?>> getCoderArguments() {
       return null;
     }
@@ -767,13 +759,6 @@ public abstract class WindowedValue<T> {
         WindowedValue<T> value, ElementByteSizeObserver observer, Context context)
         throws Exception {
       valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
-    }
-
-    @Override
-    public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addBoolean(result, PropertyNames.IS_WRAPPER, true);
-      return result;
     }
 
     @Override

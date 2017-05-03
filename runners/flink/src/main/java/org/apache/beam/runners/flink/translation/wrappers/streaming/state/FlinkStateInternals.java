@@ -32,7 +32,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.sdk.util.state.BagState;
@@ -57,7 +57,7 @@ import org.joda.time.Instant;
  * <p>Note: In the Flink streaming runner the key is always encoded
  * using an {@link Coder} and stored in a {@link ByteBuffer}.
  */
-public class FlinkStateInternals<K> implements StateInternals<K> {
+public class FlinkStateInternals<K> implements StateInternals {
 
   private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
   private Coder<K> keyCoder;
@@ -95,7 +95,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   @Override
   public <T extends State> T state(
       final StateNamespace namespace,
-      StateTag<? super K, T> address) {
+      StateTag<T> address) {
 
     return state(namespace, address, StateContexts.nullContext());
   }
@@ -103,108 +103,90 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   @Override
   public <T extends State> T state(
       final StateNamespace namespace,
-      StateTag<? super K, T> address,
+      StateTag<T> address,
       final StateContext<?> context) {
 
-    return address.bind(new StateTag.StateBinder<K>() {
+    return address.bind(
+        new StateTag.StateBinder() {
 
-      @Override
-      public <T> ValueState<T> bindValue(
-          StateTag<? super K, ValueState<T>> address,
-          Coder<T> coder) {
+          @Override
+          public <T> ValueState<T> bindValue(
+              StateTag<ValueState<T>> address, Coder<T> coder) {
 
-        return new FlinkValueState<>(flinkStateBackend, address, namespace, coder);
-      }
+            return new FlinkValueState<>(flinkStateBackend, address, namespace, coder);
+          }
 
-      @Override
-      public <T> BagState<T> bindBag(
-          StateTag<? super K, BagState<T>> address,
-          Coder<T> elemCoder) {
+          @Override
+          public <T> BagState<T> bindBag(
+              StateTag<BagState<T>> address, Coder<T> elemCoder) {
 
-        return new FlinkBagState<>(flinkStateBackend, address, namespace, elemCoder);
-      }
+            return new FlinkBagState<>(flinkStateBackend, address, namespace, elemCoder);
+          }
 
-      @Override
-      public <T> SetState<T> bindSet(
-          StateTag<? super K, SetState<T>> address,
-          Coder<T> elemCoder) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", SetState.class.getSimpleName()));
-      }
+          @Override
+          public <T> SetState<T> bindSet(
+              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", SetState.class.getSimpleName()));
+          }
 
-      @Override
-      public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-          StateTag<? super K, MapState<KeyT, ValueT>> spec,
-          Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", MapState.class.getSimpleName()));
-      }
+          @Override
+          public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+              StateTag<MapState<KeyT, ValueT>> spec,
+              Coder<KeyT> mapKeyCoder,
+              Coder<ValueT> mapValueCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", MapState.class.getSimpleName()));
+          }
 
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT>
-      bindCombiningValue(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+          @Override
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+                  StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+                  Coder<AccumT> accumCoder,
+                  Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
 
-        return new FlinkCombiningState<>(
-            flinkStateBackend, address, combineFn, namespace, accumCoder);
-      }
+            return new FlinkCombiningState<>(
+                flinkStateBackend, address, combineFn, namespace, accumCoder);
+          }
 
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-        return new FlinkKeyedCombiningState<>(
-            flinkStateBackend,
-            address,
-            combineFn,
-            namespace,
-            accumCoder,
-            FlinkStateInternals.this);
-      }
+          @Override
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
+                  StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+                  Coder<AccumT> accumCoder,
+                  CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+            return new FlinkCombiningStateWithContext<>(
+                flinkStateBackend,
+                address,
+                combineFn,
+                namespace,
+                accumCoder,
+                FlinkStateInternals.this,
+                CombineContextFactory.createFromStateContext(context));
+          }
 
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          CombineWithContext.KeyedCombineFnWithContext<
-              ? super K, InputT, AccumT, OutputT> combineFn) {
-        return new FlinkCombiningStateWithContext<>(
-            flinkStateBackend,
-            address,
-            combineFn,
-            namespace,
-            accumCoder,
-            FlinkStateInternals.this,
-            CombineContextFactory.createFromStateContext(context));
-      }
+          @Override
+          public WatermarkHoldState bindWatermark(
+              StateTag<WatermarkHoldState> address,
+              TimestampCombiner timestampCombiner) {
 
-      @Override
-      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-          StateTag<? super K, WatermarkHoldState<W>> address,
-          OutputTimeFn<? super W> outputTimeFn) {
-
-        return new FlinkWatermarkHoldState<>(
-            flinkStateBackend, FlinkStateInternals.this, address, namespace, outputTimeFn);
-      }
-    });
+            return new FlinkWatermarkHoldState<>(
+                flinkStateBackend, FlinkStateInternals.this, address, namespace, timestampCombiner);
+          }
+        });
   }
 
   private static class FlinkValueState<K, T> implements ValueState<T> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, ValueState<T>> address;
+    private final StateTag<ValueState<T>> address;
     private final ValueStateDescriptor<T> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkValueState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, ValueState<T>> address,
+        StateTag<ValueState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
 
@@ -284,13 +266,13 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   private static class FlinkBagState<K, T> implements BagState<T> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, BagState<T>> address;
+    private final StateTag<BagState<T>> address;
     private final ListStateDescriptor<T> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkBagState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, BagState<T>> address,
+        StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
 
@@ -397,14 +379,14 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
+    private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
 
     FlinkCombiningState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder) {
@@ -565,16 +547,16 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
-    private final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn;
+    private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
+    private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
 
     FlinkKeyedCombiningState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-        Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn,
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
         FlinkStateInternals<K> flinkStateInternals) {
@@ -606,9 +588,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
         AccumT current = state.value();
         if (current == null) {
-          current = combineFn.createAccumulator(flinkStateInternals.getKey());
+          current = combineFn.createAccumulator();
         }
-        current = combineFn.addInput(flinkStateInternals.getKey(), current, value);
+        current = combineFn.addInput(current, value);
         state.update(current);
       } catch (Exception e) {
         throw new RuntimeException("Error adding to state." , e);
@@ -628,9 +610,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         if (current == null) {
           state.update(accum);
         } else {
-          current = combineFn.mergeAccumulators(
-              flinkStateInternals.getKey(),
-              Lists.newArrayList(current, accum));
+          current = combineFn.mergeAccumulators(Lists.newArrayList(current, accum));
           state.update(current);
         }
       } catch (Exception e) {
@@ -652,7 +632,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-      return combineFn.mergeAccumulators(flinkStateInternals.getKey(), accumulators);
+      return combineFn.mergeAccumulators(accumulators);
     }
 
     @Override
@@ -666,11 +646,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
         AccumT accum = state.value();
         if (accum != null) {
-          return combineFn.extractOutput(flinkStateInternals.getKey(), accum);
+          return combineFn.extractOutput(accum);
         } else {
-          return combineFn.extractOutput(
-              flinkStateInternals.getKey(),
-              combineFn.createAccumulator(flinkStateInternals.getKey()));
+          return combineFn.extractOutput(combineFn.createAccumulator());
         }
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
@@ -740,9 +718,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       implements CombiningState<InputT, AccumT, OutputT> {
 
     private final StateNamespace namespace;
-    private final StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address;
-    private final CombineWithContext.KeyedCombineFnWithContext<
-        ? super K, InputT, AccumT, OutputT> combineFn;
+    private final StateTag<CombiningState<InputT, AccumT, OutputT>> address;
+    private final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn;
     private final ValueStateDescriptor<AccumT> flinkStateDescriptor;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
@@ -750,9 +727,8 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     FlinkCombiningStateWithContext(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
-        StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-        CombineWithContext.KeyedCombineFnWithContext<
-            ? super K, InputT, AccumT, OutputT> combineFn,
+        StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+        CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
         Coder<AccumT> accumCoder,
         FlinkStateInternals<K> flinkStateInternals,
@@ -786,9 +762,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
         AccumT current = state.value();
         if (current == null) {
-          current = combineFn.createAccumulator(flinkStateInternals.getKey(), context);
+          current = combineFn.createAccumulator(context);
         }
-        current = combineFn.addInput(flinkStateInternals.getKey(), current, value, context);
+        current = combineFn.addInput(current, value, context);
         state.update(current);
       } catch (Exception e) {
         throw new RuntimeException("Error adding to state." , e);
@@ -808,10 +784,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
         if (current == null) {
           state.update(accum);
         } else {
-          current = combineFn.mergeAccumulators(
-              flinkStateInternals.getKey(),
-              Lists.newArrayList(current, accum),
-              context);
+          current = combineFn.mergeAccumulators(Lists.newArrayList(current, accum), context);
           state.update(current);
         }
       } catch (Exception e) {
@@ -833,7 +806,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> accumulators) {
-      return combineFn.mergeAccumulators(flinkStateInternals.getKey(), accumulators, context);
+      return combineFn.mergeAccumulators(accumulators, context);
     }
 
     @Override
@@ -846,7 +819,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
                 flinkStateDescriptor);
 
         AccumT accum = state.value();
-        return combineFn.extractOutput(flinkStateInternals.getKey(), accum, context);
+        return combineFn.extractOutput(accum, context);
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -912,9 +885,9 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
   }
 
   private static class FlinkWatermarkHoldState<K, W extends BoundedWindow>
-      implements WatermarkHoldState<W> {
-    private final StateTag<? super K, WatermarkHoldState<W>> address;
-    private final OutputTimeFn<? super W> outputTimeFn;
+      implements WatermarkHoldState {
+    private final StateTag<WatermarkHoldState> address;
+    private final TimestampCombiner timestampCombiner;
     private final StateNamespace namespace;
     private final KeyedStateBackend<ByteBuffer> flinkStateBackend;
     private final FlinkStateInternals<K> flinkStateInternals;
@@ -923,11 +896,11 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     public FlinkWatermarkHoldState(
         KeyedStateBackend<ByteBuffer> flinkStateBackend,
         FlinkStateInternals<K> flinkStateInternals,
-        StateTag<? super K, WatermarkHoldState<W>> address,
+        StateTag<WatermarkHoldState> address,
         StateNamespace namespace,
-        OutputTimeFn<? super W> outputTimeFn) {
+        TimestampCombiner timestampCombiner) {
       this.address = address;
-      this.outputTimeFn = outputTimeFn;
+      this.timestampCombiner = timestampCombiner;
       this.namespace = namespace;
       this.flinkStateBackend = flinkStateBackend;
       this.flinkStateInternals = flinkStateInternals;
@@ -937,12 +910,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public OutputTimeFn<? super W> getOutputTimeFn() {
-      return outputTimeFn;
+    public TimestampCombiner getTimestampCombiner() {
+      return timestampCombiner;
     }
 
     @Override
-    public WatermarkHoldState<W> readLater() {
+    public WatermarkHoldState readLater() {
       return this;
     }
 
@@ -983,7 +956,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
           state.update(value);
           flinkStateInternals.watermarkHolds.put(namespace.stringKey(), value);
         } else {
-          Instant combined = outputTimeFn.combine(current, value);
+          Instant combined = timestampCombiner.combine(current, value);
           state.update(combined);
           flinkStateInternals.watermarkHolds.put(namespace.stringKey(), combined);
         }
@@ -1035,7 +1008,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
       if (!address.equals(that.address)) {
         return false;
       }
-      if (!outputTimeFn.equals(that.outputTimeFn)) {
+      if (!timestampCombiner.equals(that.timestampCombiner)) {
         return false;
       }
       return namespace.equals(that.namespace);
@@ -1045,7 +1018,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     @Override
     public int hashCode() {
       int result = address.hashCode();
-      result = 31 * result + outputTimeFn.hashCode();
+      result = 31 * result + timestampCombiner.hashCode();
       result = 31 * result + namespace.hashCode();
       return result;
     }

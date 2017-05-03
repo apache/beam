@@ -25,12 +25,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -125,8 +126,7 @@ public class UserScore {
 
     // Log and count parse errors.
     private static final Logger LOG = LoggerFactory.getLogger(ParseEventFn.class);
-    private final Aggregator<Long, Long> numParseErrors =
-        createAggregator("ParseErrors", Sum.ofLongs());
+    private final Counter numParseErrors = Metrics.counter("main", "ParseErrors");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -139,7 +139,7 @@ public class UserScore {
         GameActionInfo gInfo = new GameActionInfo(user, team, score, timestamp);
         c.output(gInfo);
       } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
-        numParseErrors.addValue(1L);
+        numParseErrors.inc();
         LOG.info("Parse error on " + c.element() + ", " + e.getMessage());
       }
     }
@@ -226,7 +226,7 @@ public class UserScore {
     Pipeline pipeline = Pipeline.create(options);
 
     // Read events from a text file and parse them.
-    pipeline.apply(TextIO.Read.from(options.getInput()))
+    pipeline.apply(TextIO.read().from(options.getInput()))
       .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))

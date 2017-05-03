@@ -25,6 +25,7 @@ import unittest
 # from nose.plugins.attrib import attr
 
 import apache_beam as beam
+from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
@@ -39,7 +40,6 @@ from apache_beam.transforms import Map
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import Read
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
@@ -298,16 +298,6 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to([11, 12]))
     pipeline.run()
 
-  def test_context_param(self):
-    class TestDoFn(DoFn):
-      def process(self, element, context=DoFn.ContextParam):
-        yield context.element + 10
-
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Create' >> Create([1, 2])| 'Do' >> ParDo(TestDoFn())
-    assert_that(pcoll, equal_to([11, 12]))
-    pipeline.run()
-
   def test_side_input_no_tag(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
@@ -452,7 +442,7 @@ class RunnerApiTest(unittest.TestCase):
     p | beam.Create([None]) | beam.Map(lambda x: x)  # pylint: disable=expression-not-assigned
     proto = p.to_runner_api()
 
-    p2 = Pipeline.from_runner_api(proto, p.runner, p.options)
+    p2 = Pipeline.from_runner_api(proto, p.runner, p._options)
     p2.run()
 
 

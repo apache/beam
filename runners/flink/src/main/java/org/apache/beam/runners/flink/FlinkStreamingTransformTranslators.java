@@ -50,7 +50,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -80,10 +79,8 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -92,8 +89,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.util.Collector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class contains all the mappings between Beam and Flink
@@ -116,7 +111,6 @@ class FlinkStreamingTransformTranslators {
   static {
     TRANSLATORS.put(Read.Bounded.class, new BoundedReadSourceTranslator());
     TRANSLATORS.put(Read.Unbounded.class, new UnboundedReadSourceTranslator());
-    TRANSLATORS.put(TextIO.Write.Bound.class, new TextIOWriteBoundStreamingTranslator());
 
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoStreamingTranslator());
     TRANSLATORS.put(
@@ -145,55 +139,6 @@ class FlinkStreamingTransformTranslators {
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
 
-  private static class TextIOWriteBoundStreamingTranslator
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<TextIO.Write.Bound> {
-
-    private static final Logger LOG =
-        LoggerFactory.getLogger(TextIOWriteBoundStreamingTranslator.class);
-
-    @Override
-    public void translateNode(
-        TextIO.Write.Bound transform,
-        FlinkStreamingTranslationContext context) {
-      PValue input = context.getInput(transform);
-      DataStream<WindowedValue<String>> inputDataStream = context.getInputDataStream(input);
-
-      String filenamePrefix = transform.getFilenamePrefix();
-      String filenameSuffix = transform.getFilenameSuffix();
-      boolean needsValidation = transform.needsValidation();
-      int numShards = transform.getNumShards();
-      String shardNameTemplate = transform.getShardNameTemplate();
-
-      // TODO: Implement these. We need Flink support for this.
-      LOG.warn(
-          "Translation of TextIO.Write.needsValidation not yet supported. Is: {}.",
-          needsValidation);
-      LOG.warn(
-          "Translation of TextIO.Write.filenameSuffix not yet supported. Is: {}.",
-          filenameSuffix);
-      LOG.warn(
-          "Translation of TextIO.Write.shardNameTemplate not yet supported. Is: {}.",
-          shardNameTemplate);
-
-      DataStream<String> dataSink = inputDataStream
-          .flatMap(new FlatMapFunction<WindowedValue<String>, String>() {
-            @Override
-            public void flatMap(
-                WindowedValue<String> value,
-                Collector<String> out)
-                throws Exception {
-              out.collect(value.getValue());
-            }
-          });
-      DataStreamSink<String> output =
-          dataSink.writeAsText(filenamePrefix, FileSystem.WriteMode.OVERWRITE);
-
-      if (numShards > 0) {
-        output.setParallelism(numShards);
-      }
-    }
-  }
-
   private static class UnboundedReadSourceTranslator<T>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
 
@@ -210,6 +155,7 @@ class FlinkStreamingTransformTranslators {
       try {
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
+                context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
@@ -242,6 +188,7 @@ class FlinkStreamingTransformTranslators {
       try {
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
+                context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
@@ -341,6 +288,7 @@ class FlinkStreamingTransformTranslators {
     interface DoFnOperatorFactory<InputT, OutputT> {
       DoFnOperator<InputT, OutputT, RawUnionValue> createDoFnOperator(
           DoFn<InputT, OutputT> doFn,
+          String stepName,
           List<PCollectionView<?>> sideInputs,
           TupleTag<OutputT> mainOutputTag,
           List<TupleTag<?>> additionalOutputTags,
@@ -355,6 +303,7 @@ class FlinkStreamingTransformTranslators {
     static <InputT, OutputT> void translateParDo(
         String transformName,
         DoFn<InputT, OutputT> doFn,
+        String stepName,
         PCollection<InputT> input,
         List<PCollectionView<?>> sideInputs,
         Map<TupleTag<?>, PValue> outputs,
@@ -395,6 +344,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
+                context.getCurrentTransform().getFullName(),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -420,6 +370,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
+                context.getCurrentTransform().getFullName(),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -538,6 +489,7 @@ class FlinkStreamingTransformTranslators {
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.getFn(),
+          context.getCurrentTransform().getFullName(),
           (PCollection<InputT>) context.getInput(transform),
           transform.getSideInputs(),
           context.getOutputs(transform),
@@ -548,6 +500,7 @@ class FlinkStreamingTransformTranslators {
             @Override
             public DoFnOperator<InputT, OutputT, RawUnionValue> createDoFnOperator(
                 DoFn<InputT, OutputT> doFn,
+                String stepName,
                 List<PCollectionView<?>> sideInputs,
                 TupleTag<OutputT> mainOutputTag,
                 List<TupleTag<?>> additionalOutputTags,
@@ -559,6 +512,7 @@ class FlinkStreamingTransformTranslators {
                 Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new DoFnOperator<>(
                   doFn,
+                  stepName,
                   inputCoder,
                   mainOutputTag,
                   additionalOutputTags,
@@ -586,6 +540,7 @@ class FlinkStreamingTransformTranslators {
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.newProcessFn(transform.getFn()),
+          context.getCurrentTransform().getFullName(),
           (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
               context.getInput(transform),
           transform.getSideInputs(),
@@ -603,6 +558,7 @@ class FlinkStreamingTransformTranslators {
                     DoFn<
                         KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>,
                         OutputT> doFn,
+                    String stepName,
                     List<PCollectionView<?>> sideInputs,
                     TupleTag<OutputT> mainOutputTag,
                     List<TupleTag<?>> additionalOutputTags,
@@ -618,6 +574,7 @@ class FlinkStreamingTransformTranslators {
                     Map<Integer, PCollectionView<?>> transformedSideInputs) {
               return new SplittableDoFnOperator<>(
                   doFn,
+                  stepName,
                   inputCoder,
                   mainOutputTag,
                   additionalOutputTags,
@@ -755,6 +712,7 @@ class FlinkStreamingTransformTranslators {
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
+              context.getCurrentTransform().getFullName(),
               (Coder) windowedWorkItemCoder,
               new TupleTag<KV<K, Iterable<InputT>>>("main output"),
               Collections.<TupleTag<?>>emptyList(),
@@ -855,6 +813,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -880,6 +839,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
+                context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 new TupleTag<KV<K, OutputT>>("main output"),
                 Collections.<TupleTag<?>>emptyList(),

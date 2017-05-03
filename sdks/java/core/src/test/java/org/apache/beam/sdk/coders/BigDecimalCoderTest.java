@@ -61,14 +61,6 @@ public class BigDecimalCoderTest {
     }
   }
 
-  // This should never change. The definition of big endian encoding is fixed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
-  }
-
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
@@ -121,15 +113,5 @@ public class BigDecimalCoderTest {
     thrown.expectMessage("cannot encode a null BigDecimal");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
-  }
-
-  /**
-   * This is a change-detector test. If this test fails, then the encoding id of
-   * {@link BigDecimalCoder} must change.
-   */
-  @Test
-  public void testCoderIdDependencies() {
-    assertThat(VarIntCoder.of().getEncodingId(), equalTo(""));
-    assertThat(BigIntegerCoder.of().getEncodingId(), equalTo(""));
   }
 }

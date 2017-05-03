@@ -112,14 +112,14 @@ public class GroupIntoBatches<K, InputT>
     private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
     @StateId(BATCH_ID)
-    private final StateSpec<Object, BagState<InputT>> batchSpec;
+    private final StateSpec<BagState<InputT>> batchSpec;
 
     @StateId(NUM_ELEMENTS_IN_BATCH_ID)
-    private final StateSpec<Object, CombiningState<Long, Long, Long>>
+    private final StateSpec<CombiningState<Long, Long, Long>>
         numElementsInBatchSpec;
 
     @StateId(KEY_ID)
-    private final StateSpec<Object, ValueState<K>> keySpec;
+    private final StateSpec<ValueState<K>> keySpec;
 
     private final long prefetchFrequency;
 
@@ -218,7 +218,7 @@ public class GroupIntoBatches<K, InputT>
         CombiningState<Long, Long, Long> numElementsInBatch) {
       Iterable<InputT> values = batch.read();
       // when the timer fires, batch state might be empty
-      if (Iterables.size(values) > 0) {
+      if (!Iterables.isEmpty(values)) {
         c.output(KV.of(key.read(), values));
       }
       batch.clear();

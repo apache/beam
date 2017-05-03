@@ -117,8 +117,8 @@ class BigtableServiceImpl implements BigtableService {
     public boolean start() throws IOException {
       RowRange range =
           RowRange.newBuilder()
-              .setStartKeyClosed(source.getRange().getStartKey().getValue())
-              .setEndKeyOpen(source.getRange().getEndKey().getValue())
+              .setStartKeyClosed(ByteString.copyFrom(source.getRange().getStartKey().getValue()))
+              .setEndKeyOpen(ByteString.copyFrom(source.getRange().getEndKey().getValue()))
               .build();
       RowSet rowSet = RowSet.newBuilder()
           .addRowRanges(range)

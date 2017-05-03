@@ -18,18 +18,14 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
@@ -97,25 +93,9 @@ public class KvCoderTest {
         KvCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
-  // If this changes, it implies the binary format has changed!
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(
-        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), EXPECTED_ENCODING_ID);
-  }
-
   /** Homogeneously typed test value for ease of use with the wire format test utility. */
   private static final Coder<KV<String, Integer>> TEST_CODER =
       KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
-
-  @Test
-  public void testCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = TEST_CODER.asCloudObject();
-    assertEquals("kind:pair", cloudObject.getClassName());
-    assertTrue(Structs.getBoolean(cloudObject, "is_pair_like"));
-  }
 
   private static final List<KV<String, Integer>> TEST_VALUES =
       Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE));

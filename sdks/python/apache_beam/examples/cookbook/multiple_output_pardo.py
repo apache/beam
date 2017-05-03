@@ -97,15 +97,15 @@ class SplitLinesToWordsFn(beam.DoFn):
     """
     # yield a count (integer) to the OUTPUT_TAG_CHARACTER_COUNT tagged
     # collection.
-    yield pvalue.OutputValue(self.OUTPUT_TAG_CHARACTER_COUNT,
-                             len(element))
+    yield pvalue.TaggedOutput(
+        self.OUTPUT_TAG_CHARACTER_COUNT, len(element))
 
     words = re.findall(r'[A-Za-z\']+', element)
     for word in words:
       if len(word) <= 3:
         # yield word as an output to the OUTPUT_TAG_SHORT_WORDS tagged
         # collection.
-        yield pvalue.OutputValue(self.OUTPUT_TAG_SHORT_WORDS, word)
+        yield pvalue.TaggedOutput(self.OUTPUT_TAG_SHORT_WORDS, word)
       else:
         # yield word to add it to the main collection.
         yield word

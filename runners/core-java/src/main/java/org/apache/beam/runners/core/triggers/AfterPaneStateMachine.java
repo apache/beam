@@ -35,7 +35,7 @@ import org.apache.beam.sdk.util.state.CombiningState;
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterPaneStateMachine extends OnceTriggerStateMachine {
 
-private static final StateTag<Object, CombiningState<Long, long[], Long>>
+private static final StateTag<CombiningState<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
           "count", VarLongCoder.of(), Sum.ofLongs()));

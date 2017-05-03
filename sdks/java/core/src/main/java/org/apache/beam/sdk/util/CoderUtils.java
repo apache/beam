@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.apache.beam.sdk.util.Structs.addList;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -217,20 +215,13 @@ public final class CoderUtils {
     return codedType;
   }
 
-  public static CloudObject makeCloudEncoding(
-      String type,
-      CloudObject... componentSpecs) {
-    CloudObject encoding = CloudObject.forClassName(type);
-    if (componentSpecs.length > 0) {
-      addList(encoding, PropertyNames.COMPONENT_ENCODINGS, componentSpecs);
-    }
-    return encoding;
-  }
-
   /**
    * A {@link com.fasterxml.jackson.databind.Module} that adds the type
    * resolver needed for Coder definitions.
+   *
+   * <p>Used only in {@link Serializer}, which will move modules
    */
+  @Deprecated
   static final class Jackson2Module extends SimpleModule {
     /**
      * The Coder custom type resolver.

@@ -805,7 +805,8 @@ class Read(ptransform.PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     if isinstance(self.source, BoundedSource):
       return self.source.default_output_coder()
-    return self.source.coder
+    else:
+      return self.source.coder
 
   def display_data(self):
     return {'source': DisplayDataItem(self.source.__class__,
@@ -903,7 +904,7 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
-    return do_once | 'finalize_write' >> core.FlatMap(
+    return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),

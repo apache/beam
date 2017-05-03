@@ -31,5 +31,5 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public interface StateInternalsFactory<K> {
 
   /** Returns {@link StateInternals} for the provided key. */
-  StateInternals<K> stateInternalsForKey(K key);
+  StateInternals stateInternalsForKey(K key);
 }

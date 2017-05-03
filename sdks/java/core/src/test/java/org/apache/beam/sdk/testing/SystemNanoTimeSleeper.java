@@ -54,7 +54,6 @@ public class SystemNanoTimeSleeper implements Sleeper {
     if (Thread.interrupted()) {
       throw new InterruptedException();
     }
-    return;
   }
 
   /**

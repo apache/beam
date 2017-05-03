@@ -68,12 +68,6 @@ public class StringDelegateCoderTest {
   }
 
   @Test
-  public void testEncodingId() throws Exception {
-    StringDelegateCoder<URI> coder = StringDelegateCoder.of(URI.class);
-    CoderProperties.coderHasEncodingId(coder, URI.class.getName());
-  }
-
-  @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(
         StringDelegateCoder.of(URI.class).getEncodedTypeDescriptor(),

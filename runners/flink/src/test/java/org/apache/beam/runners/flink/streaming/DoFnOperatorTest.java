@@ -112,6 +112,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -154,6 +155,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
         new MultiOutputDoFn(additionalOutput1, additionalOutput2),
+        "stepName",
         windowedValueCoder,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
@@ -194,7 +196,7 @@ public class DoFnOperatorTest {
     DoFn<Integer, String> fn = new DoFn<Integer, String>() {
 
       @StateId("state")
-      private final StateSpec<Object, ValueState<String>> stateSpec =
+      private final StateSpec<ValueState<String>> stateSpec =
           StateSpecs.value(StringUtf8Coder.of());
 
       @ProcessElement
@@ -212,6 +214,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<Integer, String, WindowedValue<String>> doFnOperator = new DoFnOperator<>(
         fn,
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -293,7 +296,7 @@ public class DoFnOperatorTest {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @StateId(stateId)
-          private final StateSpec<Object, ValueState<String>> stateSpec =
+          private final StateSpec<ValueState<String>> stateSpec =
               StateSpecs.value(StringUtf8Coder.of());
 
           @ProcessElement
@@ -325,6 +328,7 @@ public class DoFnOperatorTest {
         KV<String, Integer>, KV<String, Integer>, WindowedValue<KV<String, Integer>>> doFnOperator =
         new DoFnOperator<>(
             fn,
+            "stepName",
             windowedValueCoder,
             outputTag,
             Collections.<TupleTag<?>>emptyList(),
@@ -420,6 +424,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new IdentityDoFn<String>(),
+        "stepName",
         windowedValueCoder,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),

@@ -67,7 +67,7 @@ public class SimpleOldDoFnRunnerTest {
     List<TupleTag<?>> additionalOutputTags = Arrays.asList();
     StepContext context = mock(StepContext.class);
     return new SimpleOldDoFnRunner<>(
-        null, fn, null, null, null, additionalOutputTags, context, null, null);
+        null, fn, null, null, null, additionalOutputTags, context, null);
   }
 
   static class ThrowingDoFn extends OldDoFn<String, String> {

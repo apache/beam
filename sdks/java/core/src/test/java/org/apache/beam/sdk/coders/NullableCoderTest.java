@@ -73,14 +73,6 @@ public class NullableCoderTest {
     CoderProperties.coderSerializable(NullableCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
-  // If this changes, it implies the binary format has changed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
-  }
-
   /**
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@code PrintBase64Encodings}.
@@ -177,7 +169,7 @@ public class NullableCoderTest {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
-  private static class EntireStreamExpectingCoder extends DeterministicStandardCoder<String> {
+  private static class EntireStreamExpectingCoder extends CustomCoder<String> {
     @Override
     public void encode(
         String value, OutputStream outStream, Context context) throws IOException {
@@ -196,5 +188,8 @@ public class NullableCoderTest {
     public List<? extends Coder<?>> getCoderArguments() {
       return Collections.emptyList();
     }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 }

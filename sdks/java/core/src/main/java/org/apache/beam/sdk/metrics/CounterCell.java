@@ -30,7 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * indirection.
  */
 @Experimental(Kind.METRICS)
-public class CounterCell implements MetricCell<Counter, Long>, Counter {
+public class CounterCell implements MetricCell<Long> {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
@@ -57,28 +57,11 @@ public class CounterCell implements MetricCell<Counter, Long>, Counter {
     return value.get();
   }
 
-  @Override
-  public Counter getInterface() {
-    return this;
-  }
-
-  @Override
   public void inc() {
     add(1);
   }
 
-  @Override
   public void inc(long n) {
     add(n);
-  }
-
-  @Override
-  public void dec() {
-    add(-1);
-  }
-
-  @Override
-  public void dec(long n) {
-    add(-n);
   }
 }

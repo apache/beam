@@ -46,6 +46,8 @@ def _default_crc32c_fn(value):
                       'be.')
       _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
+
+
 _default_crc32c_fn.fn = None
 
 

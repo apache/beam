@@ -80,11 +80,11 @@ public class KinesisReaderIT {
             throws InterruptedException {
 
         PCollection<String> result = p.
-                apply(KinesisIO.Read.
-                        from(options.getAwsKinesisStream(), Instant.now()).
-                        using(options.getAwsAccessKey(), options.getAwsSecretKey(),
-                                Regions.fromName(options.getAwsKinesisRegion())).
-                        withMaxReadTime(Duration.standardMinutes(3))
+                apply(KinesisIO.read()
+                        .from(options.getAwsKinesisStream(), Instant.now())
+                        .withClientProvider(options.getAwsAccessKey(), options.getAwsSecretKey(),
+                                Regions.fromName(options.getAwsKinesisRegion()))
+                        .withMaxReadTime(Duration.standardMinutes(3))
                 ).
                 apply(ParDo.of(new RecordDataToString()));
         PAssert.that(result).containsInAnyOrder(testData);

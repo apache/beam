@@ -65,7 +65,7 @@ public final class TranslationUtils {
    */
   static class InMemoryStateInternalsFactory<K> implements StateInternalsFactory<K>, Serializable {
     @Override
-    public StateInternals<K> stateInternalsForKey(K key) {
+    public StateInternals stateInternalsForKey(K key) {
       return InMemoryStateInternals.forKey(key);
     }
   }

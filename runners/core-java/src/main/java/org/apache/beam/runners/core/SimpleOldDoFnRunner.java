@@ -29,8 +29,6 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.runners.core.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -68,7 +66,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.context = new DoFnContext<>(
@@ -79,7 +76,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorFactory,
         windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
@@ -168,7 +164,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -184,7 +179,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
                        TupleTag<OutputT> mainOutputTag,
                        List<TupleTag<?>> additionalOutputTags,
                        StepContext stepContext,
-                       AggregatorFactory aggregatorFactory,
                        WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
@@ -200,9 +194,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
       }
 
       this.stepContext = stepContext;
-      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
-      super.setupDelegateAggregators();
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -328,13 +320,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
       outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    public <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner, "Combiner passed to createAggregatorInternal cannot be null");
-      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
   }
 
@@ -501,7 +486,7 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         }
 
         @Override
-        public StateInternals<?> stateInternals() {
+        public StateInternals stateInternals() {
           return context.stepContext.stateInternals();
         }
 
@@ -510,13 +495,6 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
           return context.sideInput(view, sideInputWindow);
         }
       };
-    }
-
-    @Override
-    public <AggregatorInputT, AggregatorOutputT> Aggregator<AggregatorInputT, AggregatorOutputT>
-        createAggregatorInternal(
-            String name, CombineFn<AggregatorInputT, ?, AggregatorOutputT> combiner) {
-      return context.createAggregatorInternal(name, combiner);
     }
   }
 }

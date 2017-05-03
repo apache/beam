@@ -27,7 +27,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-
 import java.io.Writer;
 import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
@@ -35,12 +34,10 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
@@ -77,21 +74,12 @@ public class FileSystemsTest {
   @Test
   public void testVerifySchemesAreUnique() throws Exception {
     thrown.expect(RuntimeException.class);
-    thrown.expectMessage("Scheme: [file] has conflicting registrars");
+    thrown.expectMessage("Scheme: [file] has conflicting filesystems");
     FileSystems.verifySchemesAreUnique(
+        PipelineOptionsFactory.create(),
         Sets.<FileSystemRegistrar>newHashSet(
             new LocalFileSystemRegistrar(),
-            new FileSystemRegistrar() {
-              @Override
-              public FileSystem fromOptions(@Nullable PipelineOptions options) {
-                return null;
-              }
-
-              @Override
-              public String getScheme() {
-                return "FILE";
-              }
-            }));
+            new LocalFileSystemRegistrar()));
   }
 
   @Test

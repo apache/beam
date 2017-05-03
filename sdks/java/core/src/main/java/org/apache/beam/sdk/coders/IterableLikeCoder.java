@@ -58,7 +58,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
  * @param <IterableT> the type of the Iterables being transcoded
  */
 public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
-    extends StandardCoder<IterableT> {
+    extends StructuredCoder<IterableT> {
   public Coder<T> getElemCoder() {
     return elementCoder;
   }

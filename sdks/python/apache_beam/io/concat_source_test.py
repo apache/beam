@@ -214,7 +214,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(100, 1000),
                           ])
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(source)
+    pcoll = pipeline | beam.io.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 
     pipeline.run()
@@ -225,6 +225,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(1000, 1010),
                           ])
     source_test_utils.assert_split_at_fraction_exhaustive(source)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

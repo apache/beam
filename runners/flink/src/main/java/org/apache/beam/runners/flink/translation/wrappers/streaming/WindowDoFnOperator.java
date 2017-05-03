@@ -52,6 +52,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   public WindowDoFnOperator(
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn,
+      String stepName,
       Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -63,6 +64,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       Coder<K> keyCoder) {
     super(
         null,
+        stepName,
         inputCoder,
         mainOutputTag,
         additionalOutputTags,
@@ -81,10 +83,10 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
     StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
       @Override
-      public StateInternals<K> stateInternalsForKey(K key) {
+      public StateInternals stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals<K>) stateInternals;
+        return (StateInternals) stateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {

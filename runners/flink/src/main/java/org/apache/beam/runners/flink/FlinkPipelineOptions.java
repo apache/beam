@@ -98,4 +98,22 @@ public interface FlinkPipelineOptions
   AbstractStateBackend getStateBackend();
   void setStateBackend(AbstractStateBackend stateBackend);
 
+  @Description("Enable/disable Beam metrics in Flink Runner")
+  @Default.Boolean(true)
+  Boolean getEnableMetrics();
+  void setEnableMetrics(Boolean enableMetrics);
+
+  /**
+   * Enables or disables externalized checkpoints.
+   */
+  @Description("Enables or disables externalized checkpoints. "
+      + "Works in conjunction with CheckpointingInterval")
+  @Default.Boolean(false)
+  Boolean isExternalizedCheckpointsEnabled();
+  void setExternalizedCheckpointsEnabled(Boolean externalCheckpoints);
+
+  @Description("Sets the behavior of externalized checkpoints on cancellation.")
+  @Default.Boolean(false)
+  Boolean getRetainExternalizedCheckpointsOnCancellation();
+  void setRetainExternalizedCheckpointsOnCancellation(Boolean retainOnCancellation);
 }

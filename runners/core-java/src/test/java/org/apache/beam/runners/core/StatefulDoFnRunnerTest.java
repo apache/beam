@@ -27,10 +27,10 @@ import java.util.Collections;
 import org.apache.beam.runners.core.BaseExecutionContext.StepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -72,8 +72,6 @@ public class StatefulDoFnRunnerTest {
 
   @Mock StepContext mockStepContext;
 
-  private InMemoryLongSumAggregator droppedDueToLateness;
-  private AggregatorFactory aggregatorFactory;
   private InMemoryStateInternals<String> stateInternals;
   private InMemoryTimerInternals timerInternals;
 
@@ -86,16 +84,6 @@ public class StatefulDoFnRunnerTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     when(mockStepContext.timerInternals()).thenReturn(timerInternals);
-    droppedDueToLateness = new InMemoryLongSumAggregator("droppedDueToLateness");
-
-    aggregatorFactory = new AggregatorFactory() {
-      @Override
-      public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
-          Class<?> fnClass, ExecutionContext.StepContext stepContext, String aggregatorName,
-          Combine.CombineFn<InputT, AccumT, OutputT> combine) {
-        return (Aggregator<InputT, OutputT>) droppedDueToLateness;
-      }
-    };
 
     stateInternals = new InMemoryStateInternals<>("hello");
     timerInternals = new InMemoryTimerInternals();
@@ -106,6 +94,7 @@ public class StatefulDoFnRunnerTest {
 
   @Test
   public void testLateDropping() throws Exception {
+    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
 
     timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
     timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -115,8 +104,6 @@ public class StatefulDoFnRunnerTest {
     DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
         fn,
         getDoFnRunner(fn),
-        mockStepContext,
-        aggregatorFactory,
         WINDOWING_STRATEGY,
         new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
         new StatefulDoFnRunner.StateInternalsStateCleaner<>(
@@ -129,7 +116,12 @@ public class StatefulDoFnRunnerTest {
 
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
-    assertEquals(1L, droppedDueToLateness.sum);
+
+
+    long droppedValues = MetricsEnvironment.getCurrentContainer().getCounter(
+        MetricName.named(StatefulDoFnRunner.class,
+            StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER)).getCumulative().longValue();
+    assertEquals(1L, droppedValues);
 
     runner.finishBundle();
   }
@@ -139,13 +131,11 @@ public class StatefulDoFnRunnerTest {
     timerInternals.advanceInputWatermark(new Instant(1L));
 
     MyDoFn fn = new MyDoFn();
-    StateTag<Object, ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
+    StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
 
     DoFnRunner<KV<String, Integer>, Integer> runner = DoFnRunners.defaultStatefulDoFnRunner(
         fn,
         getDoFnRunner(fn),
-        mockStepContext,
-        aggregatorFactory,
         WINDOWING_STRATEGY,
         new StatefulDoFnRunner.TimeInternalsCleanupTimer(timerInternals, WINDOWING_STRATEGY),
         new StatefulDoFnRunner.StateInternalsStateCleaner<>(
@@ -214,7 +204,6 @@ public class StatefulDoFnRunnerTest {
         null,
         Collections.<TupleTag<?>>emptyList(),
         mockStepContext,
-        null,
         WINDOWING_STRATEGY);
   }
 
@@ -237,7 +226,7 @@ public class StatefulDoFnRunnerTest {
     public final String stateId = "foo";
 
     @StateId(stateId)
-    public final StateSpec<Object, ValueState<Integer>> intState =
+    public final StateSpec<ValueState<Integer>> intState =
         StateSpecs.value(VarIntCoder.of());
 
     @ProcessElement
@@ -247,28 +236,4 @@ public class StatefulDoFnRunnerTest {
       state.write(currentValue + 1);
     }
   };
-
-  private static class InMemoryLongSumAggregator implements Aggregator<Long, Long> {
-    private final String name;
-    private long sum = 0;
-
-    public InMemoryLongSumAggregator(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public void addValue(Long value) {
-      sum += value;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public Combine.CombineFn<Long, ?, Long> getCombineFn() {
-      return Sum.ofLongs();
-    }
-  }
 }

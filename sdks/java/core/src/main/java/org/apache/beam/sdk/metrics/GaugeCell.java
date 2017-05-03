@@ -29,12 +29,11 @@ import org.apache.beam.sdk.annotations.Experimental;
  * of indirection.
  */
 @Experimental(Experimental.Kind.METRICS)
-public class GaugeCell implements MetricCell<Gauge, GaugeData>, Gauge {
+public class GaugeCell implements MetricCell<GaugeData> {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicReference<GaugeData> gaugeValue = new AtomicReference<>(GaugeData.empty());
 
-  @Override
   public void set(long value) {
     GaugeData original;
     do {
@@ -51,10 +50,5 @@ public class GaugeCell implements MetricCell<Gauge, GaugeData>, Gauge {
   @Override
   public GaugeData getCumulative() {
     return gaugeValue.get();
-  }
-
-  @Override
-  public Gauge getInterface() {
-    return this;
   }
 }

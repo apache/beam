@@ -61,7 +61,7 @@ public class FlinkNoOpStepContext implements StepContext {
   }
 
   @Override
-  public StateInternals<?> stateInternals() {
+  public StateInternals stateInternals() {
     return null;
   }
 

@@ -205,7 +205,7 @@ public class View {
    * PCollection<KV<K, V>> input = ...
    * CombineFn<V, OutputT> yourCombineFn = ...
    * PCollectionView<Map<K, OutputT>> output = input
-   *     .apply(Combine.perKey(yourCombineFn.<K>asKeyedFn()))
+   *     .apply(Combine.perKey(yourCombineFn))
    *     .apply(View.<K, OutputT>asMap());
    * }</pre>
    *
@@ -246,16 +246,13 @@ public class View {
     private AsList() { }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<List<T>> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<List<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, List<T>>of(PCollectionViews.listView(
           input, input.getWindowingStrategy(), input.getCoder())));
     }
@@ -272,16 +269,13 @@ public class View {
     private AsIterable() { }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       return input.apply(CreatePCollectionView.<T, Iterable<T>>of(PCollectionViews.iterableView(
           input, input.getWindowingStrategy(), input.getCoder())));
     }
@@ -329,16 +323,13 @@ public class View {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<T> expand(PCollection<T> input) {
       Combine.Globally<T, T> singletonCombine =
           Combine.globally(new SingletonCombineFn<>(hasDefault, input.getCoder(), defaultValue));
       if (!hasDefault) {
@@ -415,16 +406,13 @@ public class View {
     private AsMultimap() { }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(
           PCollectionViews.multimapView(
               input,
@@ -452,16 +440,13 @@ public class View {
     }
 
     @Override
-    public void validate(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       try {
         GroupByKey.applicableTo(input);
       } catch (IllegalStateException e) {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
-    }
 
-    @Override
-    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       return input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(
           PCollectionViews.mapView(
               input,

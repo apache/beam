@@ -24,12 +24,12 @@ import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -42,8 +42,8 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -126,8 +126,7 @@ public class GameStats extends LeaderBoard {
           .apply("ProcessAndFilter", ParDo
               // use the derived mean total score as a side input
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
-                private final Aggregator<Long, Long> numSpammerUsers =
-                  createAggregator("SpammerUsers", Sum.ofLongs());
+                private final Counter numSpammerUsers = Metrics.counter("main", "SpammerUsers");
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Integer score = c.element().getValue();
@@ -135,7 +134,7 @@ public class GameStats extends LeaderBoard {
                   if (score > (gmc * SCORE_WEIGHT)) {
                     LOG.info("user " + c.element().getKey() + " spammer score " + score
                         + " with mean " + gmc);
-                    numSpammerUsers.addValue(1L);
+                    numSpammerUsers.inc();
                     c.output(c.element());
                   }
                 }
@@ -252,9 +251,8 @@ public class GameStats extends LeaderBoard {
 
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
-        .apply(PubsubIO.<String>read()
-            .timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic())
-            .withCoder(StringUtf8Coder.of()))
+        .apply(PubsubIO.readStrings()
+            .withTimestampAttribute(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
@@ -313,7 +311,7 @@ public class GameStats extends LeaderBoard {
     userEvents
       .apply("WindowIntoSessions", Window.<KV<String, Integer>>into(
           Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-          .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow()))
+          .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
       // For this use, we care only about the existence of the session, not any particular
       // information aggregated over it, so the following is an efficient way to do that.
       .apply(Combine.perKey(x -> 0))

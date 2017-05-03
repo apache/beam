@@ -30,12 +30,12 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -267,7 +267,6 @@ public class TFRecordIO {
      * in a common extension, if given by {@link #withSuffix(String)}.
      */
     public Write to(String filenamePrefix) {
-      validateOutputComponent(filenamePrefix);
       return to(StaticValueProvider.of(filenamePrefix));
     }
 
@@ -284,7 +283,6 @@ public class TFRecordIO {
      * @see ShardNameTemplate
      */
     public Write withSuffix(String nameExtension) {
-      validateOutputComponent(nameExtension);
       return toBuilder().setFilenameSuffix(nameExtension).build();
     }
 
@@ -343,9 +341,9 @@ public class TFRecordIO {
       if (getFilenamePrefix() == null) {
         throw new IllegalStateException(
             "need to set the filename prefix of a TFRecordIO.Write transform");
-      }
-      org.apache.beam.sdk.io.Write<byte[]> write =
-          org.apache.beam.sdk.io.Write.to(
+     }
+      org.apache.beam.sdk.io.WriteFiles<byte[]> write =
+          org.apache.beam.sdk.io.WriteFiles.to(
               new TFRecordSink(
                   getFilenamePrefix(),
                   getFilenameSuffix(),
@@ -421,17 +419,6 @@ public class TFRecordIO {
     }
   }
 
-  // Pattern which matches old-style shard output patterns, which are now
-  // disallowed.
-  private static final Pattern SHARD_OUTPUT_PATTERN = Pattern.compile("@([0-9]+|\\*)");
-
-  private static void validateOutputComponent(String partialFilePattern) {
-    checkArgument(
-        !SHARD_OUTPUT_PATTERN.matcher(partialFilePattern).find(),
-        "Output name components are not allowed to contain @* or @N patterns: "
-            + partialFilePattern);
-  }
-
   //////////////////////////////////////////////////////////////////////////////
 
   /** Disable construction of utility class. */
@@ -444,7 +431,7 @@ public class TFRecordIO {
   static class TFRecordSource extends FileBasedSource<byte[]> {
     @VisibleForTesting
     TFRecordSource(String fileSpec) {
-      super(fileSpec, 1L);
+      super(StaticValueProvider.of(fileSpec), 1L);
     }
 
     @VisibleForTesting
@@ -452,17 +439,17 @@ public class TFRecordIO {
       super(fileSpec, Long.MAX_VALUE);
     }
 
-    private TFRecordSource(String fileName, long start, long end) {
-      super(fileName, Long.MAX_VALUE, start, end);
+    private TFRecordSource(Metadata metadata, long start, long end) {
+      super(metadata, Long.MAX_VALUE, start, end);
     }
 
     @Override
     protected FileBasedSource<byte[]> createForSubrangeOfFile(
-        String fileName,
+        Metadata metadata,
         long start,
         long end) {
       checkArgument(start == 0, "TFRecordSource is not splittable");
-      return new TFRecordSource(fileName, start, end);
+      return new TFRecordSource(metadata, start, end);
     }
 
     @Override
@@ -498,6 +485,12 @@ public class TFRecordIO {
 
       private TFRecordReader(TFRecordSource source) {
         super(source);
+      }
+
+      @Override
+      public boolean allowsDynamicSplitting() {
+        /* TFRecords cannot be dynamically split. */
+        return false;
       }
 
       @Override
@@ -553,7 +546,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public FileBasedWriteOperation<byte[]> createWriteOperation(PipelineOptions options) {
+    public FileBasedWriteOperation<byte[]> createWriteOperation() {
       return new TFRecordWriteOperation(this);
     }
 
@@ -596,8 +589,7 @@ public class TFRecordIO {
       private TFRecordCodec codec;
 
       private TFRecordWriter(FileBasedWriteOperation<byte[]> writeOperation) {
-        super(writeOperation);
-        this.mimeType = MimeTypes.BINARY;
+        super(writeOperation, MimeTypes.BINARY);
       }
 
       @Override

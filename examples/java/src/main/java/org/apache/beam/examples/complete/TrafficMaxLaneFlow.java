@@ -291,7 +291,7 @@ public class TrafficMaxLaneFlow {
     @Override
     public PCollection<String> expand(PBegin begin) {
       return begin
-          .apply(TextIO.Read.from(inputFile))
+          .apply(TextIO.read().from(inputFile))
           .apply(ParDo.of(new ExtractTimestamps()));
     }
   }

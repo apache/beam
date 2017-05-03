@@ -75,9 +75,6 @@ public class AfterWatermark {
    */
   public static class AfterWatermarkEarlyAndLate extends Trigger {
 
-    private static final int EARLY_INDEX = 0;
-    private static final int LATE_INDEX = 1;
-
     private final OnceTrigger earlyTrigger;
     @Nullable
     private final OnceTrigger lateTrigger;

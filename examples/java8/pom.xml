@@ -187,11 +187,6 @@
         </executions>
       </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -208,7 +203,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-extensions-gcp-core</artifactId>
+      <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
     </dependency>
 
     <dependency>
@@ -293,7 +288,6 @@
     </dependency>
 
     <!-- Test dependencies -->
-
     <!--
       For testing the example itself, use the direct runner. This is separate from
       the use of ValidatesRunner tests for testing a particular runner.

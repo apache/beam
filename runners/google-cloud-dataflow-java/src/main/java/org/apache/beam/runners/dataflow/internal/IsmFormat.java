@@ -20,10 +20,7 @@ package org.apache.beam.runners.dataflow.internal;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.Structs.addLong;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashFunction;
@@ -37,17 +34,14 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.RandomAccessData;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -170,20 +164,20 @@ public class IsmFormat {
   /**
    * A {@link Coder} for {@link IsmRecord}s.
    *
-   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used
-   * to materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder
-   * is combined with an {@code IsmSink} will one produce an Ism file.
+   * <p>Note that this coder standalone will not produce an Ism file. This coder can be used to
+   * materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder is combined with
+   * an {@code IsmSink} will one produce an Ism file.
    *
    * <p>The {@link IsmRecord} encoded format is:
+   *
    * <ul>
-   *   <li>encoded key component 1 using key component coder 1</li>
-   *   <li>...</li>
-   *   <li>encoded key component N using key component coder N</li>
-   *   <li>encoded value using value coder</li>
+   *   <li>encoded key component 1 using key component coder 1
+   *   <li>...
+   *   <li>encoded key component N using key component coder N
+   *   <li>encoded value using value coder
    * </ul>
    */
-  public static class IsmRecordCoder<V>
-      extends StandardCoder<IsmRecord<V>> {
+  public static class IsmRecordCoder<V> extends CustomCoder<IsmRecord<V>> {
     /** Returns an IsmRecordCoder with the specified key component coders, value coder. */
     public static <V> IsmRecordCoder<V> of(
         int numberOfShardKeyCoders,
@@ -200,24 +194,6 @@ public class IsmFormat {
           numberOfMetadataShardKeyCoders,
           keyComponentCoders,
           valueCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static IsmRecordCoder<?> of(
-        @JsonProperty(PropertyNames.NUM_SHARD_CODERS) int numberOfShardCoders,
-        @JsonProperty(PropertyNames.NUM_METADATA_SHARD_CODERS) int numberOfMetadataShardCoders,
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() >= 2,
-          "Expecting at least 2 components, got " + components.size());
-      return of(
-          numberOfShardCoders,
-          numberOfMetadataShardCoders,
-          components.subList(0, components.size() - 1),
-          components.get(components.size() - 1));
     }
 
     private final int numberOfShardKeyCoders;
@@ -379,14 +355,6 @@ public class IsmFormat {
     }
 
     @Override
-    protected CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
-      addLong(result, PropertyNames.NUM_SHARD_CODERS, numberOfShardKeyCoders);
-      addLong(result, PropertyNames.NUM_METADATA_SHARD_CODERS, numberOfMetadataShardKeyCoders);
-      return result;
-    }
-
-    @Override
     public void verifyDeterministic() throws Coder.NonDeterministicException {
       verifyDeterministic("Key component coders expected to be deterministic.", keyComponentCoders);
       verifyDeterministic("Value coder expected to be deterministic.", valueCoder);
@@ -403,7 +371,7 @@ public class IsmFormat {
     }
 
     @Override
-    public Object structuralValue(IsmRecord<V> record) throws Exception {
+    public Object structuralValue(IsmRecord<V> record) {
       checkNotNull(record);
       checkState(record.getKeyComponents().size() == keyComponentCoders.size(),
           "Expected the number of key component coders %s "
@@ -482,22 +450,10 @@ public class IsmFormat {
    * A coder for metadata key component. Can be used to wrap key component coder allowing for
    * the metadata key component to be used as a place holder instead of an actual key.
    */
-  public static class MetadataKeyCoder<K> extends StandardCoder<K> {
+  public static class MetadataKeyCoder<K> extends CustomCoder<K> {
     public static <K> MetadataKeyCoder<K> of(Coder<K> keyCoder) {
       checkNotNull(keyCoder);
       return new MetadataKeyCoder<>(keyCoder);
-    }
-
-    /**
-     * Returns an IsmRecordCoder with the specified coders. Note that this method is not meant
-     * to be called by users but used by Jackson when decoding this coder.
-     */
-    @JsonCreator
-    public static MetadataKeyCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-      checkArgument(components.size() == 1,
-          "Expecting one component, got " + components.size());
-      return of(components.get(0));
     }
 
     private final Coder<K> keyCoder;
@@ -628,17 +584,15 @@ public class IsmFormat {
    *   <li>indexOffset (variable length long encoding)</li>
    * </ul>
    */
-  public static class IsmShardCoder extends AtomicCoder<IsmShard> {
+  public static class IsmShardCoder extends CustomCoder<IsmShard> {
     private static final IsmShardCoder INSTANCE = new IsmShardCoder();
 
     /** Returns an IsmShardCoder. */
-    @JsonCreator
     public static IsmShardCoder of() {
       return INSTANCE;
     }
 
-    private IsmShardCoder() {
-    }
+    private IsmShardCoder() {}
 
     @Override
     public void encode(IsmShard value, OutputStream outStream, Coder.Context context)
@@ -658,6 +612,12 @@ public class IsmFormat {
           VarIntCoder.of().decode(inStream, context.nested()),
           VarLongCoder.of().decode(inStream, context.nested()),
           VarLongCoder.of().decode(inStream, context));
+    }
+
+    @Override
+    public void verifyDeterministic() {
+      VarIntCoder.of().verifyDeterministic();
+      VarLongCoder.of().verifyDeterministic();
     }
 
     @Override
@@ -689,10 +649,9 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link KeyPrefix}. */
-  public static final class KeyPrefixCoder extends AtomicCoder<KeyPrefix> {
+  public static final class KeyPrefixCoder extends CustomCoder<KeyPrefix> {
     private static final KeyPrefixCoder INSTANCE = new KeyPrefixCoder();
 
-    @JsonCreator
     public static KeyPrefixCoder of() {
       return INSTANCE;
     }
@@ -709,6 +668,9 @@ public class IsmFormat {
         throws CoderException, IOException {
       return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
     }
+
+    @Override
+    public void verifyDeterministic() {}
 
     @Override
     public boolean consistentWithEquals() {
@@ -759,10 +721,9 @@ public class IsmFormat {
   }
 
   /** A {@link Coder} for {@link Footer}. */
-  public static final class FooterCoder extends AtomicCoder<Footer> {
+  public static final class FooterCoder extends CustomCoder<Footer> {
     private static final FooterCoder INSTANCE = new FooterCoder();
 
-    @JsonCreator
     public static FooterCoder of() {
       return INSTANCE;
     }
@@ -789,6 +750,9 @@ public class IsmFormat {
       }
       return footer;
     }
+
+    @Override
+    public void verifyDeterministic() {}
 
     @Override
     public boolean consistentWithEquals() {

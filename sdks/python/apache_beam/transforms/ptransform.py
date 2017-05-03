@@ -42,6 +42,8 @@ import operator
 import os
 import sys
 
+from google.protobuf import wrappers_pb2
+
 from apache_beam import error
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -54,6 +56,8 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import validate_composite_type_param
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 
 class _PValueishTransform(object):
@@ -412,6 +416,42 @@ class PTransform(WithTypeHints, HasDisplayData):
         yield pvalueish
     return pvalueish, tuple(_dict_tuple_leaves(pvalueish))
 
+  _known_urns = {}
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, constructor):
+    cls._known_urns[urn] = parameter_type, constructor
+
+  def to_runner_api(self, context):
+    from apache_beam.runners.api import beam_runner_api_pb2
+    urn, typed_param = self.to_runner_api_parameter(context)
+    return beam_runner_api_pb2.FunctionSpec(
+        urn=urn,
+        parameter=proto_utils.pack_Any(typed_param))
+
+  @classmethod
+  def from_runner_api(cls, proto, context):
+    if proto is None or not proto.urn:
+      return None
+    parameter_type, constructor = cls._known_urns[proto.urn]
+    return constructor(
+        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        context)
+
+  def to_runner_api_parameter(self, context):
+    return (urns.PICKLED_TRANSFORM,
+            wrappers_pb2.BytesValue(value=pickler.dumps(self)))
+
+  @staticmethod
+  def from_runner_api_parameter(spec_parameter, unused_context):
+    return pickler.loads(spec_parameter.value)
+
+
+PTransform.register_urn(
+    urns.PICKLED_TRANSFORM,
+    wrappers_pb2.BytesValue,
+    PTransform.from_runner_api_parameter)
+
 
 class ChainedPTransform(PTransform):
 
@@ -629,7 +669,7 @@ def ptransform_fn(fn):
   With either method the custom PTransform can be used in pipelines as if
   it were one of the "native" PTransforms::
 
-    result_pcoll = input_pcoll | 'label' >> CustomMapper(somefn)
+    result_pcoll = input_pcoll | 'Label' >> CustomMapper(somefn)
 
   Note that for both solutions the underlying implementation of the pipe
   operator (i.e., `|`) will inject the pcoll argument in its proper place

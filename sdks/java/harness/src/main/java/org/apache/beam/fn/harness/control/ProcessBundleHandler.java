@@ -43,7 +43,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fake.FakeAggregatorFactory;
 import org.apache.beam.fn.harness.fake.FakeStepContext;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
@@ -316,7 +315,6 @@ public class ProcessBundleHandler {
             (TupleTag) doFnInfo.getOutputMap().get(doFnInfo.getMainOutput()),
             new ArrayList<>(doFnInfo.getOutputMap().values()),
             new FakeStepContext(),
-            new FakeAggregatorFactory(),
             (WindowingStrategy) doFnInfo.getWindowingStrategy());
     return runner;
   }

@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -28,7 +24,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -40,20 +35,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends StandardCoder<T> {
+public class NullableCoder<T> extends CustomCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
     }
     return new NullableCoder<>(valueCoder);
-  }
-
-  @JsonCreator
-  public static NullableCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 components, got %s", components.size());
-    return of(components.get(0));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -124,7 +111,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public Object structuralValue(@Nullable T value) throws Exception {
+  public Object structuralValue(@Nullable T value) {
     if (value == null) {
       return Optional.absent();
     }
@@ -132,7 +119,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
@@ -148,7 +135,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known (1 byte) when {@code value} is {@code null}, otherwise
    * the size is 1 byte plus the size of nested {@code Coder}'s encoding of {@code value}.
    *
@@ -160,14 +147,14 @@ public class NullableCoder<T> extends StandardCoder<T> {
       return 1;
     }
 
-    if (valueCoder instanceof StandardCoder) {
-      // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
+    if (valueCoder instanceof StructuredCoder) {
+      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
-      return 1  + ((StandardCoder<T>) valueCoder)
+      return 1  + ((StructuredCoder<T>) valueCoder)
           .getEncodedElementByteSize(value, context);
     }
 
-    // If value is not a StandardCoder then fall back to the default StandardCoder behavior
+    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the null indicator byte.
     return super.getEncodedElementByteSize(value, context);
   }

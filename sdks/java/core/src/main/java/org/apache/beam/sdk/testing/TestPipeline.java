@@ -45,7 +45,6 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.experimental.categories.Category;
@@ -257,12 +256,11 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   public static TestPipeline fromOptions(PipelineOptions options) {
-    return new TestPipeline(PipelineRunner.fromOptions(options), options);
+    return new TestPipeline(options);
   }
 
-  private TestPipeline(
-      final PipelineRunner<? extends PipelineResult> runner, final PipelineOptions options) {
-    super(runner, options);
+  private TestPipeline(final PipelineOptions options) {
+    super(options);
   }
 
   @Override
@@ -316,7 +314,6 @@ public class TestPipeline extends Pipeline implements TestRule {
    * Runs this {@link TestPipeline}, unwrapping any {@code AssertionError} that is raised during
    * testing.
    */
-  @Override
   public PipelineResult run() {
     checkState(
         enforcement.isPresent(),
@@ -425,7 +422,9 @@ public class TestPipeline extends Pipeline implements TestRule {
       Iterator<Entry<String, JsonNode>> entries = optsNode.fields();
       while (entries.hasNext()) {
         Entry<String, JsonNode> entry = entries.next();
-        if (entry.getValue().isTextual()) {
+        if (entry.getValue().isNull()) {
+          continue;
+        } else if (entry.getValue().isTextual()) {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
         } else {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());

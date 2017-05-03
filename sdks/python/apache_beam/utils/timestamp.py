@@ -167,10 +167,6 @@ class Duration(object):
     # Note that the returned value may have lost precision.
     return float(self.micros) / 1000000
 
-  def __int__(self):
-    # Note that the returned value may have lost precision.
-    return self.micros / 1000000
-
   def __cmp__(self, other):
     # Allow comparisons between Duration and Timestamp values.
     if not isinstance(other, Timestamp):

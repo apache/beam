@@ -18,20 +18,13 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,166 +38,11 @@ public class DoFnTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private class NoOpDoFn extends DoFn<Void, Void> {
-
-    /**
-     * @param c context
-     */
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-    }
-  }
-
-  @Test
-  public void testCreateAggregatorWithCombinerSucceeds() {
-    String name = "testAggregator";
-    Combine.BinaryCombineLongFn combiner = Sum.ofLongs();
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    Aggregator<Long, Long> aggregator = doFn.createAggregator(name, combiner);
-
-    assertEquals(name, aggregator.getName());
-    assertEquals(combiner, aggregator.getCombineFn());
-  }
-
-  @Test
-  public void testCreateAggregatorWithNullNameThrowsException() {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("name cannot be null");
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    doFn.createAggregator(null, Sum.ofLongs());
-  }
-
-  @Test
-  public void testCreateAggregatorWithNullCombineFnThrowsException() {
-    CombineFn<Object, Object, Object> combiner = null;
-
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("combiner cannot be null");
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    doFn.createAggregator("testAggregator", combiner);
-  }
-
-  @Test
-  public void testCreateAggregatorWithNullSerializableFnThrowsException() {
-    SerializableFunction<Iterable<Object>, Object> combiner = null;
-
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("combiner cannot be null");
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    doFn.createAggregator("testAggregator", combiner);
-  }
-
-  @Test
-  public void testCreateAggregatorWithSameNameThrowsException() {
-    String name = "testAggregator";
-    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    doFn.createAggregator(name, combiner);
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Cannot create");
-    thrown.expectMessage(name);
-    thrown.expectMessage("already exists");
-
-    doFn.createAggregator(name, combiner);
-  }
-
-  @Test
-  public void testCreateAggregatorsWithDifferentNamesSucceeds() {
-    String nameOne = "testAggregator";
-    String nameTwo = "aggregatorPrime";
-    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
-
-    DoFn<Void, Void> doFn = new NoOpDoFn();
-
-    Aggregator<Double, Double> aggregatorOne =
-
-        doFn.createAggregator(nameOne, combiner);
-    Aggregator<Double, Double> aggregatorTwo =
-        doFn.createAggregator(nameTwo, combiner);
-
-    assertNotEquals(aggregatorOne, aggregatorTwo);
-  }
-
   @Test
   public void testDefaultPopulateDisplayDataImplementation() {
     DoFn<String, String> fn = new DoFn<String, String>() {
     };
     DisplayData displayData = DisplayData.from(fn);
     assertThat(displayData.items(), empty());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInStartBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @StartBundle
-      public void startBundle(Context c) {
-        createAggregator("anyAggregate", Max.ofIntegers());
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c) {}
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInProcessElementThrows() {
-    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        createAggregator("anyAggregate", Max.ofIntegers());
-      }
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInFinishBundleThrows() {
-    TestPipeline p = createTestPipeline(new DoFn<String, String>() {
-      @FinishBundle
-      public void finishBundle(Context c) {
-        createAggregator("anyAggregate", Max.ofIntegers());
-      }
-
-      @ProcessElement
-      public void processElement(ProcessContext c) {}
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  /**
-   * Initialize a test pipeline with the specified {@link DoFn}.
-   */
-  private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
-    pipeline.apply(Create.of((InputT) null))
-     .apply(ParDo.of(fn));
-
-    return pipeline;
   }
 }

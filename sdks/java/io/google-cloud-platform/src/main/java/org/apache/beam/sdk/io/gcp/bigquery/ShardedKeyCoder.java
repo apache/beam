@@ -18,10 +18,6 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,9 +25,8 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.util.PropertyNames;
 
 
 /**
@@ -39,17 +34,9 @@ import org.apache.beam.sdk.util.PropertyNames;
  */
 @VisibleForTesting
 class ShardedKeyCoder<KeyT>
-    extends StandardCoder<ShardedKey<KeyT>> {
+    extends CustomCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
-  }
-
-  @JsonCreator
-  public static <KeyT> ShardedKeyCoder<KeyT> of(
-       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-           List<Coder<KeyT>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of(components.get(0));
   }
 
   protected ShardedKeyCoder(Coder<KeyT> keyCoder) {

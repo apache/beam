@@ -124,7 +124,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
         Coder<W> windowCoder) throws IOException { }
 
     @Override
-    public StateInternals<?> stateInternals() {
+    public StateInternals stateInternals() {
       return null;
     }
 

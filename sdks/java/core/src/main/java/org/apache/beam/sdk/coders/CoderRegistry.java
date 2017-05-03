@@ -19,29 +19,36 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
-import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -63,16 +70,13 @@ import org.slf4j.LoggerFactory;
  *       <li>A {@link Coder} class with the static methods to satisfy
  *           {@link CoderFactories#fromStaticMethods} can be registered via
  *           {@link #registerCoder(Class, Class)}.</li>
- *       <li>Built-in types are registered via
- *           {@link #registerStandardCoders()}.</li>
+ *       <li>Types can be automatically registered via {@link CoderRegistrar coder registrars}.</li>
  *     </ul>
  *   <li>Annotations: {@link DefaultCoder} can be used to annotate a type with
  *       the default {@code Coder} type. The {@link Coder} class must satisfy the requirements
  *       of {@link CoderProviders#fromStaticMethods}.
  *   <li>Fallback: A fallback {@link CoderProvider} is used to attempt to provide a {@link Coder}
- *       for any type. By default, there are two chained fallback coders:
- *       {@link ProtoCoder#coderProvider}, which can provide a coder to efficiently serialize any
- *       Protocol Buffers message, and then {@link SerializableCoder#PROVIDER}, which can provide a
+ *       for any type. By default, there is {@link SerializableCoder#PROVIDER}, which can provide a
  *       {@link Coder} for any type that is serializable via Java serialization. The fallback
  *       {@link CoderProvider} can be get and set respectively using
  *       {@link #getFallbackCoderProvider()} and {@link #setFallbackCoderProvider}. Multiple
@@ -82,33 +86,83 @@ import org.slf4j.LoggerFactory;
 public class CoderRegistry implements CoderProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
+  private static final Map<Class<?>, CoderFactory> REGISTERED_CODER_FACTORIES_PER_CLASS;
 
-  public CoderRegistry() {
-    setFallbackCoderProvider(
-        CoderProviders.firstOf(ProtoCoder.coderProvider(), SerializableCoder.PROVIDER));
+  static {
+    // Register the standard coders first so they are chosen as the default
+    Multimap<Class<?>, CoderFactory> codersToRegister = HashMultimap.create();
+    codersToRegister.put(Byte.class, CoderFactories.fromStaticMethods(ByteCoder.class));
+    codersToRegister.put(BitSet.class, CoderFactories.fromStaticMethods(BitSetCoder.class));
+    codersToRegister.put(Double.class, CoderFactories.fromStaticMethods(DoubleCoder.class));
+    codersToRegister.put(Instant.class, CoderFactories.fromStaticMethods(InstantCoder.class));
+    codersToRegister.put(Integer.class, CoderFactories.fromStaticMethods(VarIntCoder.class));
+    codersToRegister.put(Iterable.class, CoderFactories.fromStaticMethods(IterableCoder.class));
+    codersToRegister.put(KV.class, CoderFactories.fromStaticMethods(KvCoder.class));
+    codersToRegister.put(List.class, CoderFactories.fromStaticMethods(ListCoder.class));
+    codersToRegister.put(Long.class, CoderFactories.fromStaticMethods(VarLongCoder.class));
+    codersToRegister.put(Map.class, CoderFactories.fromStaticMethods(MapCoder.class));
+    codersToRegister.put(Set.class, CoderFactories.fromStaticMethods(SetCoder.class));
+    codersToRegister.put(String.class, CoderFactories.fromStaticMethods(StringUtf8Coder.class));
+    codersToRegister.put(TimestampedValue.class,
+        CoderFactories.fromStaticMethods(TimestampedValue.TimestampedValueCoder.class));
+    codersToRegister.put(Void.class, CoderFactories.fromStaticMethods(VoidCoder.class));
+    codersToRegister.put(byte[].class, CoderFactories.fromStaticMethods(ByteArrayCoder.class));
+    codersToRegister.put(IntervalWindow.class, CoderFactories.forCoder(IntervalWindow.getCoder()));
+
+    // Enumerate all the CoderRegistrars in a deterministic order, adding all coders to register
+    Set<CoderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(CoderRegistrar.class, ReflectHelpers.findClassLoader())));
+    for (CoderRegistrar registrar : registrars) {
+      for (Map.Entry<Class<?>, CoderFactory> entry
+          : registrar.getCoderFactoriesToUseForClasses().entrySet()) {
+        codersToRegister.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    // Warn the user if multiple coders want to be registered for the same class
+    Map<Class<?>, Collection<CoderFactory>> multipleRegistrations =
+        Maps.filterValues(codersToRegister.asMap(), new Predicate<Collection<CoderFactory>>() {
+      @Override
+      public boolean apply(@Nonnull Collection<CoderFactory> input) {
+        return input.size() > 1;
+      }
+    });
+    for (Map.Entry<Class<?>, Collection<CoderFactory>> entry : multipleRegistrations.entrySet()) {
+      LOG.warn("Multiple CoderFactory registrations {} found for class {}, using {}.",
+          entry.getKey(), entry.getValue(), entry.getValue().iterator().next());
+    }
+
+    // Build a map choosing the first coder within the multimap as the default
+    ImmutableMap.Builder<Class<?>, CoderFactory> registeredCoderFactoriesPerClassBuilder =
+        ImmutableMap.builder();
+    for (Map.Entry<Class<?>, Collection<CoderFactory>> entry
+        : codersToRegister.asMap().entrySet()) {
+      registeredCoderFactoriesPerClassBuilder.put(
+          entry.getKey(), entry.getValue().iterator().next());
+    }
+    REGISTERED_CODER_FACTORIES_PER_CLASS = registeredCoderFactoriesPerClassBuilder.build();
   }
 
   /**
-   * Registers standard Coders with this CoderRegistry.
+   * Creates a CoderRegistry containing registrations for all standard coders part of the core Java
+   * Apache Beam SDK and also any registrations provided by {@link CoderRegistrar coder registrars}.
+   *
+   * <p>Multiple registrations for the same class result in the (in order of precedence):
+   * <ul>
+   *   <li>Standard coder part of the core Apache Beam Java SDK being used.</li>
+   *   <li>The coder from the {@link CoderRegistrar} with the lexicographically smallest
+   *   {@link Class#getName() class name} being used.</li>
+   * </ul>
    */
-  public void registerStandardCoders() {
-    registerCoder(Byte.class, ByteCoder.class);
-    registerCoder(ByteString.class, ByteStringCoder.class);
-    registerCoder(Double.class, DoubleCoder.class);
-    registerCoder(Instant.class, InstantCoder.class);
-    registerCoder(Integer.class, VarIntCoder.class);
-    registerCoder(Iterable.class, IterableCoder.class);
-    registerCoder(KV.class, KvCoder.class);
-    registerCoder(List.class, ListCoder.class);
-    registerCoder(Long.class, VarLongCoder.class);
-    registerCoder(Map.class, MapCoder.class);
-    registerCoder(Set.class, SetCoder.class);
-    registerCoder(String.class, StringUtf8Coder.class);
-    registerCoder(TableRow.class, TableRowJsonCoder.class);
-    registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
-    registerCoder(Void.class, VoidCoder.class);
-    registerCoder(byte[].class, ByteArrayCoder.class);
-    registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
+  public static CoderRegistry createDefault() {
+    return new CoderRegistry();
+  }
+
+  private CoderRegistry() {
+    coderFactoryMap = new HashMap<>(REGISTERED_CODER_FACTORIES_PER_CLASS);
+    setFallbackCoderProvider(
+        CoderProviders.firstOf(SerializableCoder.PROVIDER));
   }
 
   /**
@@ -201,6 +255,9 @@ public class CoderRegistry implements CoderProvider {
       TypeDescriptor<InputT> inputTypeDescriptor,
       Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
+    checkArgument(typeDescriptor != null);
+    checkArgument(inputTypeDescriptor != null);
+    checkArgument(inputCoder != null);
     return getDefaultCoder(
         typeDescriptor, getTypeToCoderBindings(inputTypeDescriptor.getType(), inputCoder));
   }
@@ -366,8 +423,7 @@ public class CoderRegistry implements CoderProvider {
    * providing a {@code Coder<T>} for a type {@code T}, then the registry will attempt to create
    * a {@link Coder} using this {@link CoderProvider}.
    *
-   * <p>By default, this is set to the chain of {@link ProtoCoder#coderProvider()} and
-   * {@link SerializableCoder#PROVIDER}.
+   * <p>By default, this is set to {@link SerializableCoder#PROVIDER}.
    *
    * <p>See {@link #getFallbackCoderProvider}.
    */
@@ -642,7 +698,7 @@ public class CoderRegistry implements CoderProvider {
    * The map of classes to the CoderFactories to use to create their
    * default Coders.
    */
-  private Map<Class<?>, CoderFactory> coderFactoryMap = new HashMap<>();
+  private Map<Class<?>, CoderFactory> coderFactoryMap;
 
   /**
    * A provider of coders for types where no coder is registered.
@@ -806,6 +862,8 @@ public class CoderRegistry implements CoderProvider {
    * in the given {@link Coder}.
    */
   private Map<Type, Coder<?>> getTypeToCoderBindings(Type type, Coder<?> coder) {
+    checkArgument(type != null);
+    checkArgument(coder != null);
     if (type instanceof TypeVariable || type instanceof Class) {
       return ImmutableMap.<Type, Coder<?>>of(type, coder);
     } else if (type instanceof ParameterizedType) {
@@ -836,7 +894,9 @@ public class CoderRegistry implements CoderProvider {
       for (int i = 0; i < typeArguments.size(); i++) {
         Type typeArgument = typeArguments.get(i);
         Coder<?> coderArgument = coderArguments.get(i);
-        typeToCoder.putAll(getTypeToCoderBindings(typeArgument, coderArgument));
+        if (coderArgument != null) {
+          typeToCoder.putAll(getTypeToCoderBindings(typeArgument, coderArgument));
+        }
       }
 
       return ImmutableMap.<Type, Coder<?>>builder().putAll(typeToCoder).build();
