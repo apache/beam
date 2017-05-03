@@ -167,7 +167,9 @@
 
 <p>Consider the following example, in which <code class="highlighter-rouge">numbers</code> is a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">str</code> values:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>numbers = p | beam.Create(['1', '2', '3'])
+<div class="highlighter-rouge"><pre class="highlight"><code>p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+
+numbers = p | beam.Create(['1', '2', '3'])
 </code></pre>
 </div>
 
@@ -189,8 +191,7 @@
 
 <p>To specify type hints inline, use the methods <code class="highlighter-rouge">with_input_types</code> and <code class="highlighter-rouge">with_output_types</code>. The following example code declares an input type hint inline:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p.options.view_as(TypeOptions).pipeline_type_check = True
-evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
+<div class="highlighter-rouge"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
 </code></pre>
 </div>
 
@@ -284,8 +285,7 @@ p.run()
 
 <p>However, if you enable runtime type checking, the code passes at pipeline construction and fails at runtime. To enable runtime type checking, set the pipeline option <code class="highlighter-rouge">runtime_type_check</code> to <code class="highlighter-rouge">True</code>.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>p.options.view_as(TypeOptions).runtime_type_check = True
-p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+<div class="highlighter-rouge"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
 p.run()
 </code></pre>
 </div>

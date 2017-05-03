@@ -1200,18 +1200,18 @@ guest, [[], [order4]]
       <span class="k">yield</span> <span class="n">element</span>
     <span class="k">else</span><span class="p">:</span>
       <span class="c"># Emit this word's long length to the 'above_cutoff_lengths' output.</span>
-      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">OutputValue</span><span class="p">(</span>
+      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span>
           <span class="s">'above_cutoff_lengths'</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">))</span>
     <span class="k">if</span> <span class="n">element</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">marker</span><span class="p">):</span>
       <span class="c"># Emit this word to a different output with the 'marked strings' tag.</span>
-      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">OutputValue</span><span class="p">(</span><span class="s">'marked strings'</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span><span class="s">'marked strings'</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
 
 
 <span class="c"># Producing multiple outputs is also available in Map and FlatMap.</span>
 <span class="c"># Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.</span>
 
 <span class="k">def</span> <span class="nf">even_odd</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-  <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">OutputValue</span><span class="p">(</span><span class="s">'odd'</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="k">else</span> <span class="s">'even'</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+  <span class="k">yield</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">TaggedOutput</span><span class="p">(</span><span class="s">'odd'</span> <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="k">else</span> <span class="s">'even'</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
   <span class="k">if</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">10</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
     <span class="k">yield</span> <span class="n">x</span>
 
@@ -1267,7 +1267,17 @@ guest, [[], [order4]]
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The CountWords Composite Transform inside the WordCount pipeline.</span>
+<span class="k">class</span> <span class="nc">CountWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+            <span class="c"># Convert lines of text into individual words.</span>
+            <span class="o">|</span> <span class="s">'ExtractWords'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ExtractWordsFn</span><span class="p">())</span>
+            <span class="c"># Count the number of times each word occurs.</span>
+            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">Count</span><span class="o">.</span><span class="n">PerElement</span><span class="p">()</span>
+            <span class="c"># Format each word and count into a printable string.</span>
+            <span class="o">|</span> <span class="s">'FormatCounts'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FormatCountsFn</span><span class="p">()))</span>
 </code></pre>
 </div>
 
@@ -1286,7 +1296,10 @@ guest, [[], [order4]]
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c"># transform logic goes here</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1307,7 +1320,10 @@ guest, [[], [order4]]
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">Python</span> <span class="n">code</span> <span class="n">snippet</span> <span class="n">coming</span> <span class="n">soon</span> <span class="p">(</span><span class="n">BEAM</span><span class="o">-</span><span class="mi">1926</span><span class="p">)</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c"># transform logic goes here</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -1920,7 +1936,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="n">The</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">support</span> <span class="n">triggers</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
 </code></pre>
 </div>
 
@@ -1953,6 +1969,10 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
                                <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()</span>
                                                               <span class="o">.</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
                                <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
 </code></pre>
 </div>
 
@@ -2009,6 +2029,10 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+</code></pre>
+</div>
+
 <p>This allowed lateness propagates to all <code class="highlighter-rouge">PCollection</code>s derived as a result of applying transforms to the original <code class="highlighter-rouge">PCollection</code>. If you want to change the allowed lateness later in your pipeline, you can apply <code class="highlighter-rouge">Window.withAllowedLateness()</code> again, explicitly.</p>
 
 <h3 id="a-namecomposite-triggersacomposite-triggers"><a name="composite-triggers"></a>Composite Triggers</h3>
@@ -2055,6 +2079,10 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
+</code></pre>
+</div>
+
 <h4 id="other-composite-triggers">Other Composite Triggers</h4>
 
 <p>You can also build other sorts of composite triggers. The following example code shows a simple composite trigger that fires whenever the pane has at least 100 elements, or after a minute.</p>
@@ -2062,6 +2090,10 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterFirst</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
       <span class="n">AfterPane</span><span class="o">.</span><span class="na">elementCountAtLeast</span><span class="o">(</span><span class="mi">100</span><span class="o">),</span>
       <span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">().</span><span class="na">plusDelayOf</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
 </code></pre>
 </div>
 
