@@ -581,7 +581,7 @@
   </dependencyManagement>
 
   <properties>
-    <flink.version>1.2.0</flink.version>
+    <flink.version>1.2.1</flink.version>
     <spark.version>2.1.0</spark.version>
     <license-maven-plugin.version>3.0</license-maven-plugin.version>
   </properties>

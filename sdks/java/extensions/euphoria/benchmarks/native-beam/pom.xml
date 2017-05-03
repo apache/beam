@@ -40,7 +40,7 @@
 
   <properties>
     <beam.version>0.6.0</beam.version>
-    <flink.version>1.2.0</flink.version>
+    <flink.version>1.2.1</flink.version>
     <spark.version>1.6.3</spark.version>
   </properties>
 

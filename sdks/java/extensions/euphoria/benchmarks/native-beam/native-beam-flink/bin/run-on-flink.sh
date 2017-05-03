@@ -16,7 +16,7 @@
 #
 
 
-FLINK=${FLINK:-/tmp/flink-1.2.0/bin/flink}
+FLINK=${FLINK:-/tmp/flink-1.2.1/bin/flink}
 JAR=${1:-native-beam.jar}
 CLASS=${2:-cz.seznam.euphoria.benchmarks.beam.BeamTrendsFlink}
 CONF=benchmarks.conf
