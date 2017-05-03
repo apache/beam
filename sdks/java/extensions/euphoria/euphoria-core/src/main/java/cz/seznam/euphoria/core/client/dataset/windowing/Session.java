@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
@@ -59,6 +60,7 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
    *
    * @return this instance (for method chaining purposes)
    */
+  @Experimental("https://github.com/seznam/euphoria/issues/43")
   @SuppressWarnings("unchecked")
   public <T> Session<T> earlyTriggering(Duration timeout) {
     this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);
