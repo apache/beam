@@ -27,7 +27,8 @@ const (
 	Main      InputKind = "Main"
 	Singleton InputKind = "Singleton"
 	Slice     InputKind = "Slice"
-	Map       InputKind = "Map" // TODO: allow?
+	Map       InputKind = "Map"      // TODO: allow?
+	MultiMap  InputKind = "MultiMap" // TODO: allow?
 	Iter      InputKind = "Iter"
 	ReIter    InputKind = "ReIter"
 )

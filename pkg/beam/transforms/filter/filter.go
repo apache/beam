@@ -3,7 +3,6 @@ package filter
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"reflect"
 )
 
@@ -16,11 +15,11 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) (beam.PColle
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
-	return beam.ParDo(p, filterFn, col, beam.Data{graphx.DataFnValue{fn}})
+	return beam.ParDo(p, filterFn, col, beam.Data{DataFnValue{fn}})
 }
 
 type filterOpt struct {
-	Fn graphx.DataFnValue `beam:"opt"`
+	Fn DataFnValue `beam:"opt"`
 }
 
 func filterFn(opt filterOpt, elm typex.T, emit func(typex.T)) {

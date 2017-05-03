@@ -13,7 +13,7 @@ import (
 type CustomCoder struct {
 	// Name is the coder name. Informational only.
 	Name string
-	// FullType is the underlying concrete type that is being coded. It is
+	// Type is the underlying concrete type that is being coded. It is
 	// available to Enc and Dec. It must be a concrete type.
 	Type reflect.Type
 

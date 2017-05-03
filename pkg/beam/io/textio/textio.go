@@ -79,6 +79,8 @@ func writeFn(opt fileOpt, _ string, lines func(*string) bool) error {
 // Immediate reads a local file at pipeline construction-time and embeds the
 // data into a I/O-free pipeline source. Should be used for small files only.
 func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
+	p = p.Composite("textio.Immediate")
+
 	var data []string
 
 	file, err := os.Open(filename)

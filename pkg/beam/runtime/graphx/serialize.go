@@ -22,7 +22,7 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	if edge.DoFn != nil {
 		ref, err := EncodeUserFn(edge.DoFn)
 		if err != nil {
-			return nil, fmt.Errorf("Bad userfn: %v", err)
+			return nil, fmt.Errorf("bad userfn: %v", err)
 		}
 		ret.Dofn = ref
 	}
@@ -30,14 +30,14 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 		kind := encodeInputKind(in.Kind)
 		t, err := EncodeFullType(in.Type)
 		if err != nil {
-			return nil, fmt.Errorf("Bad input type: %v", err)
+			return nil, fmt.Errorf("bad input type: %v", err)
 		}
 		ret.Inbound = append(ret.Inbound, &v1.MultiEdge_Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Output {
 		t, err := EncodeFullType(out.Type)
 		if err != nil {
-			return nil, fmt.Errorf("Bad output type: %v", err)
+			return nil, fmt.Errorf("bad output type: %v", err)
 		}
 		ret.Outbound = append(ret.Outbound, &v1.MultiEdge_Outbound{Type: t})
 	}
@@ -55,25 +55,25 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (*userfn.UserFn, []*graph.Inbound, []*g
 	if edge.Dofn != nil {
 		ref, err := DecodeUserFn(edge.Dofn)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("Bad userfn: %v", err)
+			return nil, nil, nil, fmt.Errorf("bad userfn: %v", err)
 		}
 		u = ref
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("Bad input kind: %v", err)
+			return nil, nil, nil, fmt.Errorf("bad input kind: %v", err)
 		}
 		t, err := DecodeFullType(in.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("Bad input type: %v", err)
+			return nil, nil, nil, fmt.Errorf("bad input type: %v", err)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
 		t, err := DecodeFullType(out.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("Bad output type: %v", err)
+			return nil, nil, nil, fmt.Errorf("bad output type: %v", err)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
@@ -83,15 +83,15 @@ func DecodeMultiEdge(edge *v1.MultiEdge) (*userfn.UserFn, []*graph.Inbound, []*g
 func EncodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 	t, err := EncodeType(c.Type)
 	if err != nil {
-		return nil, fmt.Errorf("Bad underlying type: %v", err)
+		return nil, fmt.Errorf("bad underlying type: %v", err)
 	}
 	enc, err := EncodeUserFn(c.Enc)
 	if err != nil {
-		return nil, fmt.Errorf("Bad enc: %v", err)
+		return nil, fmt.Errorf("bad enc: %v", err)
 	}
 	dec, err := EncodeUserFn(c.Dec)
 	if err != nil {
-		return nil, fmt.Errorf("Bad dec: %v", err)
+		return nil, fmt.Errorf("bad dec: %v", err)
 	}
 
 	ret := &v1.CustomCoder{
@@ -106,15 +106,15 @@ func EncodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 func DecodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 	t, err := DecodeType(c.Type)
 	if err != nil {
-		return nil, fmt.Errorf("Bad type: %v", err)
+		return nil, fmt.Errorf("bad type: %v", err)
 	}
 	enc, err := DecodeUserFn(c.Enc)
 	if err != nil {
-		return nil, fmt.Errorf("Bad dec: %v", err)
+		return nil, fmt.Errorf("bad dec: %v", err)
 	}
 	dec, err := DecodeUserFn(c.Dec)
 	if err != nil {
-		return nil, fmt.Errorf("Bad dec: %v", err)
+		return nil, fmt.Errorf("bad dec: %v", err)
 	}
 
 	ret := &coder.CustomCoder{
@@ -130,7 +130,7 @@ func EncodeUserFn(u *userfn.UserFn) (*v1.UserFn, error) {
 	symbol := runtime.FuncForPC(uintptr(u.Fn.Pointer())).Name()
 	t, err := EncodeType(u.Fn.Type())
 	if err != nil {
-		return nil, fmt.Errorf("Bad function type: %v", err)
+		return nil, fmt.Errorf("bad function type: %v", err)
 	}
 
 	var opts []string
@@ -211,7 +211,7 @@ func EncodeFullType(t typex.FullType) (*v1.FullType, error) {
 
 	prim, err := EncodeType(t.Type())
 	if err != nil {
-		return nil, fmt.Errorf("Bad type: %v", err)
+		return nil, fmt.Errorf("bad type: %v", err)
 	}
 	return &v1.FullType{Type: prim, Components: components}, nil
 }
@@ -228,7 +228,7 @@ func DecodeFullType(t *v1.FullType) (typex.FullType, error) {
 
 	prim, err := DecodeType(t.Type)
 	if err != nil {
-		return nil, fmt.Errorf("Bad type: %v", err)
+		return nil, fmt.Errorf("bad type: %v", err)
 	}
 	return typex.New(prim, components...), nil
 }
@@ -267,18 +267,27 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Slice:
 		elm, err := EncodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
 	case reflect.Struct:
+		if key, ok := Key(t); ok {
+			if _, present := Lookup(key); present {
+				// External type. Serialize by key and lookup in registry
+				// on decoding side.
+
+				return &v1.Type{Kind: v1.Type_EXTERNAL, ExternalKey: key}, nil
+			}
+		}
+
 		var fields []*v1.Type_StructField
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
 
 			fType, err := EncodeType(f.Type)
 			if err != nil {
-				return nil, fmt.Errorf("Bad field type: %v", err)
+				return nil, fmt.Errorf("bad field type: %v", err)
 			}
 
 			field := &v1.Type_StructField{
@@ -299,7 +308,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		for i := 0; i < t.NumIn(); i++ {
 			param, err := EncodeType(t.In(i))
 			if err != nil {
-				return nil, fmt.Errorf("Bad parameter type: %v", err)
+				return nil, fmt.Errorf("bad parameter type: %v", err)
 			}
 			in = append(in, param)
 		}
@@ -307,7 +316,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		for i := 0; i < t.NumOut(); i++ {
 			ret, err := EncodeType(t.Out(i))
 			if err != nil {
-				return nil, fmt.Errorf("Bad return type: %v", err)
+				return nil, fmt.Errorf("bad return type: %v", err)
 			}
 			out = append(out, ret)
 		}
@@ -316,7 +325,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Chan:
 		elm, err := EncodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		dir := encodeChanDir(t.ChanDir())
 		return &v1.Type{Kind: v1.Type_CHAN, Element: elm, ChanDir: dir}, nil
@@ -324,7 +333,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Ptr:
 		elm, err := EncodeType(t.Elem())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return &v1.Type{Kind: v1.Type_PTR, Element: elm}, nil
 
@@ -368,9 +377,6 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 	case typex.ZType:
 		return v1.Type_Z, true
 
-	case DataFnValueType:
-		return v1.Type_FNVALUE, true
-
 	default:
 		return v1.Type_ILLEGAL, false
 	}
@@ -410,7 +416,7 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_SLICE:
 		elm, err := DecodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return reflect.SliceOf(elm), nil
 
@@ -419,7 +425,7 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 		for _, f := range t.Fields {
 			fType, err := DecodeType(f.Type)
 			if err != nil {
-				return nil, fmt.Errorf("Bad field type: %v", err)
+				return nil, fmt.Errorf("bad field type: %v", err)
 			}
 
 			field := reflect.StructField{
@@ -438,37 +444,44 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_FUNC:
 		in, err := DecodeTypes(t.GetParameterTypes())
 		if err != nil {
-			return nil, fmt.Errorf("Bad parameter type: %v", err)
+			return nil, fmt.Errorf("bad parameter type: %v", err)
 		}
 		out, err := DecodeTypes(t.GetReturnTypes())
 		if err != nil {
-			return nil, fmt.Errorf("Bad return type: %v", err)
+			return nil, fmt.Errorf("bad return type: %v", err)
 		}
 		return reflect.FuncOf(in, out, t.GetIsVariadic()), nil
 
 	case v1.Type_CHAN:
 		elm, err := DecodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		dir, err := decodeChanDir(t.GetChanDir())
 		if err != nil {
-			return nil, fmt.Errorf("Bad ChanDir: %v", err)
+			return nil, fmt.Errorf("bad ChanDir: %v", err)
 		}
 		return reflect.ChanOf(dir, elm), nil
 
 	case v1.Type_PTR:
 		elm, err := DecodeType(t.GetElement())
 		if err != nil {
-			return nil, fmt.Errorf("Bad element: %v", err)
+			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return reflect.PtrTo(elm), nil
 
 	case v1.Type_SPECIAL:
 		return decodeSpecial(t.Special), nil
 
+	case v1.Type_EXTERNAL:
+		ret, ok := Lookup(t.ExternalKey)
+		if !ok {
+			return nil, fmt.Errorf("external key not found: %v", t.ExternalKey)
+		}
+		return ret, nil
+
 	default:
-		return nil, fmt.Errorf("Unexpected type kind: %v", t.Kind)
+		return nil, fmt.Errorf("unexpected type kind: %v", t.Kind)
 	}
 }
 
@@ -506,9 +519,6 @@ func decodeSpecial(s v1.Type_Special) reflect.Type {
 		return typex.YType
 	case v1.Type_Z:
 		return typex.ZType
-
-	case v1.Type_FNVALUE:
-		return DataFnValueType
 
 	default:
 		return nil
@@ -579,6 +589,8 @@ func encodeInputKind(k graph.InputKind) v1.MultiEdge_Inbound_InputKind {
 		return v1.MultiEdge_Inbound_SLICE
 	case graph.Map:
 		return v1.MultiEdge_Inbound_MAP
+	case graph.MultiMap:
+		return v1.MultiEdge_Inbound_MULTIMAP
 	case graph.Iter:
 		return v1.MultiEdge_Inbound_ITER
 	case graph.ReIter:
@@ -598,6 +610,8 @@ func decodeInputKind(k v1.MultiEdge_Inbound_InputKind) (graph.InputKind, error) 
 		return graph.Slice, nil
 	case v1.MultiEdge_Inbound_MAP:
 		return graph.Map, nil
+	case v1.MultiEdge_Inbound_MULTIMAP:
+		return graph.MultiMap, nil
 	case v1.MultiEdge_Inbound_ITER:
 		return graph.Iter, nil
 	case v1.MultiEdge_Inbound_REITER:
