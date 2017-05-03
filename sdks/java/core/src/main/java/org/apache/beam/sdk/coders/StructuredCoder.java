@@ -20,6 +20,9 @@ package org.apache.beam.sdk.coders;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -96,6 +99,34 @@ public abstract class StructuredCoder<T> implements Coder<T> {
       builder.append(')');
     }
     return builder.toString();
+  }
+
+  public void encode(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Coder.Context.NESTED);
+  }
+
+  @Deprecated
+  public void encodeOuter(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Coder.Context.OUTER);
+  }
+
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Coder.Context.NESTED);
+  }
+
+  /**
+   * Decodes a value of type {@code T} from the given input stream in
+   * the outer context.  Returns the decoded value.
+   *
+   * @throws IOException if reading from the {@code InputStream} fails
+   * for some reason
+   * @throws CoderException if the value could not be decoded for some reason
+   */
+  @Deprecated
+  public T decodeOuter(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Coder.Context.OUTER);
   }
 
   /**
