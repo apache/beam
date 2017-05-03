@@ -15,8 +15,10 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.io.Context;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
@@ -25,6 +27,17 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
 
-  STATE createState(Context<OUT> context, StorageProvider storageProvider);
+  /**
+   * Factory method to create new state instances.
+   *
+   * @param storageProvider the provider for physical storage accessors
+   * @param context a context allowing the newly created state for the
+   *                duration of its existence to emit output elements
+   *
+   * @return a newly created state
+   */
+  STATE createState(StorageProvider storageProvider,
+                    @Experimental("may break merging windowing and downstream watermarking")
+                    @Nullable Context<OUT> context);
 
 }

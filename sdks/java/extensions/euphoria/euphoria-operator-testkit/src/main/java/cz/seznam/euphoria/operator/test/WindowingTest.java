@@ -213,12 +213,11 @@ public class WindowingTest extends AbstractOperatorTest {
     });
   }
 
-  private static class DistinctState extends State<Object, Object> {
+  private static class DistinctState implements State<Object, Object> {
 
     private final ValueStorage<Object> storage;
 
-    public DistinctState(Context<Object> context, StorageProvider storageProvider) {
-      super(context);
+    DistinctState(StorageProvider storageProvider, Context<Object> context) {
       this.storage = storageProvider.getValueStorage(
               ValueStorageDescriptor.of("element", Object.class, null));
     }
@@ -229,8 +228,13 @@ public class WindowingTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush() {
-      getContext().collect(storage.get());
+    public void flush(Context<Object> context) {
+      context.collect(storage.get());
+    }
+
+    @Override
+    public void close() {
+      storage.clear();
     }
   }
 

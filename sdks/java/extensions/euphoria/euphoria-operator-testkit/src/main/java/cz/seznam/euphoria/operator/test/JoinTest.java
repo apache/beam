@@ -125,7 +125,9 @@ public class JoinTest extends AbstractOperatorTest {
           Dataset<Integer> left, Dataset<Long> right) {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
-            .using((Integer l, Long r, Context<String> c) -> c.collect(l + "+" + r))
+            .using((Integer l, Long r, Context<String> c) -> {
+                c.collect(l + "+" + r);
+            })
             .setPartitioner(e -> e % 2)
             .output();
       }
