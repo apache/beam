@@ -232,7 +232,7 @@
 
   <properties>
     <euphoria.version>0.5.1-SNAPSHOT</euphoria.version>
-    <flink.version>1.2.0</flink.version>
+    <flink.version>1.2.1</flink.version>
     <spark.version>2.1.0</spark.version>
     <kafka.version>0.10.1.0</kafka.version>
     <typesafe-config.version>1.2.1</typesafe-config.version>
