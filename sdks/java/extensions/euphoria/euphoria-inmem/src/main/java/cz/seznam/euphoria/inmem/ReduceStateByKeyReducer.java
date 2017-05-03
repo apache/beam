@@ -391,6 +391,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
   final class ProcessingState {
 
+    final boolean allowEarlyEmitting;
+
     final ScopedStorage triggerStorage;
     final StorageProvider storageProvider;
     final WindowRegistry wRegistry = new WindowRegistry();
@@ -411,7 +413,8 @@ class ReduceStateByKeyReducer implements Runnable {
             TriggerScheduler<Window, Object> triggering,
             StateFactory stateFactory,
             StateMerger stateMerger,
-            StorageProvider storageProvider) {
+            StorageProvider storageProvider,
+            boolean allowEarlyEmitting) {
 
       this.triggerStorage = new ScopedStorage(storageProvider);
       this.storageProvider = storageProvider;
@@ -420,6 +423,7 @@ class ReduceStateByKeyReducer implements Runnable {
       this.triggering = requireNonNull(triggering);
       this.stateFactory = requireNonNull(stateFactory);
       this.stateMerger = requireNonNull(stateMerger);
+      this.allowEarlyEmitting = allowEarlyEmitting;
     }
 
     Map<Window, Long> takeFlushedWindows() {
@@ -443,12 +447,13 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Flushes (emits result) the specified window.
      */
+    @SuppressWarnings("unchecked")
     void flushWindow(KeyedWindow<?, ?> kw) {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
         return;
       }
-      state.flush();
+      state.flush(newCollector(kw));
       // ~ remember we flushed the window such that we can emit one
       // notification to downstream operators for all keys in this window
       flushedWindows.put(kw.window(), getCurrentWatermark());
@@ -469,12 +474,13 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Flushes and closes all window storages and clear the window registry.
      */
+    @SuppressWarnings("unchecked")
     void flushAndCloseAllWindows() {
       for (Map.Entry<Window, Map<Object, State>> windowState : wRegistry.windows.entrySet()) {
         for (Map.Entry<Object, State> itemState : windowState.getValue().entrySet()) {
-          try (State state = itemState.getValue()) {
-            state.flush();
-          }
+          State state = itemState.getValue();
+          state.flush(newCollector(new KeyedWindow(windowState.getKey(), itemState.getKey())));
+          state.close();
         }
       }
       wRegistry.windows.clear();
@@ -486,13 +492,17 @@ class ReduceStateByKeyReducer implements Runnable {
       if (state == null) {
         // ~ if no such window yet ... set it up
         state = stateFactory.createState(
-                new KeyedElementCollector(
-                    stateOutput, kw.window(), kw.key(),
-                    processing.triggering::getCurrentTimestamp),
-                storageProvider);
+            storageProvider,
+            allowEarlyEmitting ? newCollector(kw) : null);
         wRegistry.setWindowState(kw, state);
       }
       return state;
+    }
+
+    private KeyedElementCollector newCollector(KeyedWindow kw) {
+      return new KeyedElementCollector(
+          stateOutput, kw.window(), kw.key(),
+          processing.triggering::getCurrentTimestamp);
     }
 
     // ~ returns a freely modifable collection of windows actively
@@ -526,9 +536,7 @@ class ReduceStateByKeyReducer implements Runnable {
       // ~ if any of the states emits any data during the merge, we'll make
       // sure it happens in the scope of the merge target window
       for (Pair<Window, State> m : merge) {
-        State s = m.getSecond();
-        statesToMerge.add(s);
-        ((KeyedElementCollector) s.getContext()).setWindow(target.window());
+        statesToMerge.add(m.getSecond());
       }
       // ~ now merge the state and re-assign it to the merge-window
       if (!statesToMerge.isEmpty()) {
@@ -557,6 +565,7 @@ class ReduceStateByKeyReducer implements Runnable {
       }
 
       for (Map.Entry<Object, State> e : ws.entrySet()) {
+        @SuppressWarnings("unchecked")
         KeyedWindow<Window, Object> kw = new KeyedWindow<>(window, e.getKey());
 
         Triggerable<Window, Object> t = guardTriggerable((tstamp, tkw) -> {
@@ -608,7 +617,8 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction valueExtractor,
                           TriggerScheduler scheduler,
                           WatermarkEmitStrategy watermarkStrategy,
-                          StorageProvider storageProvider) {
+                          StorageProvider storageProvider,
+                          boolean allowEarlyEmitting) {
 
     this.name = requireNonNull(name);
     this.input = requireNonNull(input);
@@ -625,7 +635,8 @@ class ReduceStateByKeyReducer implements Runnable {
         output, scheduler,
         requireNonNull(operator.getStateFactory()),
         requireNonNull(operator.getStateMerger()),
-        storageProvider);
+        storageProvider,
+        allowEarlyEmitting);
   }
 
   <W extends Window, K> Triggerable<W, K> guardTriggerable(Triggerable<W, K> t) {

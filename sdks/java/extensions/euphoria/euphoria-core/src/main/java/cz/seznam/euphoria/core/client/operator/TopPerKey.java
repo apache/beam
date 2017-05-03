@@ -26,12 +26,12 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
+
 import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
@@ -67,8 +67,7 @@ public class TopPerKey<
     TopPerKey<IN, KEY, VALUE, SCORE, W>> {
   
   private static final class MaxScored<V, C extends Comparable<C>>
-      extends State<Pair<V, C>, Pair<V, C>>
-      implements StateSupport.MergeFrom<MaxScored<V, C>> {
+      implements State<Pair<V, C>, Pair<V, C>>, StateSupport.MergeFrom<MaxScored<V, C>> {
 
     static final ValueStorageDescriptor<Pair> MAX_STATE_DESCR =
             ValueStorageDescriptor.of("max", Pair.class, Pair.of(null, null));
@@ -76,8 +75,7 @@ public class TopPerKey<
     final ValueStorage<Pair<V, C>> curr;
 
     @SuppressWarnings("unchecked")
-    MaxScored(Context<Pair<V, C>> context, StorageProvider storageProvider) {
-      super(context);
+    MaxScored(StorageProvider storageProvider) {
       curr = (ValueStorage) storageProvider.getValueStorage(MAX_STATE_DESCR);
     }
 
@@ -90,10 +88,10 @@ public class TopPerKey<
     }
 
     @Override
-    public void flush() {
+    public void flush(Context<Pair<V, C>> context) {
       Pair<V, C> c = curr.get();
       if (c.getFirst() != null) {
-        getContext().collect(c);
+        context.collect(c);
       }
     }
 
@@ -342,7 +340,7 @@ public class TopPerKey<
                 e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
                 windowing,
                 eventTimeAssigner,
-                (StateFactory<Pair<VALUE, SCORE>, Pair<VALUE, SCORE>, MaxScored<VALUE, SCORE>>) MaxScored::new,
+                (StorageProvider storageProvider, Context<Pair<VALUE, SCORE>> ctx) -> new MaxScored<>(storageProvider),
                 stateCombiner,
                 partitioning);
 

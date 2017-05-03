@@ -68,6 +68,16 @@ public class GroupReducer<WID extends Window, KEY, I> {
     WindowedElement<W, T> create(W window, long timestamp, T element);
   }
 
+  /**
+   * Determines whether the group-reduce should allow early emitting
+   * of output values through states, by supplying them with the output
+   * context upon their creation;
+   * note: early emitting may break watermarking in downstream consumers
+   * (e.g. for time-sliding) and may produce elements with the wrong
+   * window when used together with a merging windowing strategy.
+   */
+  private final boolean allowEarlyEmitting;
+
   private final StateFactory<I, ?, State<I, ?>> stateFactory;
   private final StateMerger<I, ?, State<I, ?>> stateCombiner;
   private final WindowedElementFactory<WID, Object> elementFactory;
@@ -88,7 +98,8 @@ public class GroupReducer<WID extends Window, KEY, I> {
                       WindowedElementFactory<WID, Object> elementFactory,
                       Windowing windowing,
                       Trigger trigger,
-                      Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
+                      Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
+                      boolean allowEarlyEmitting) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
@@ -96,6 +107,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = Objects.requireNonNull(trigger);
     this.collector = Objects.requireNonNull(collector);
+    this.allowEarlyEmitting = allowEarlyEmitting;
 
     this.triggerStorage = new TriggerStorage(stateStorageProvider);
   }
@@ -134,8 +146,10 @@ public class GroupReducer<WID extends Window, KEY, I> {
   @SuppressWarnings("unchecked")
   private State getStateForUpdate(WID window) {
     return states.computeIfAbsent(window, w -> {
-      ElementCollectContext col = new ElementCollectContext(collector, w);
-      return stateFactory.createState(col, stateStorageProvider);
+      ElementCollectContext col = allowEarlyEmitting
+          ? new ElementCollectContext(collector, w)
+          : null;
+      return stateFactory.createState(stateStorageProvider, col);
     });
   }
 
@@ -198,12 +212,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
       // ~ merge the (window) states
       {
-        // ~ first make sure that if any state emits data, it does so for target window
         List<State> sourceStates = removeStatesForMerging(sources);
-        for (State state : sourceStates) {
-          ((ElementCollectContext) state.getContext()).window = target;
-        }
-        // ~ now merge the state
         stateCombiner.merge(targetState, (List) sourceStates);
       }
 
@@ -254,7 +263,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       // ~ close the window
       State state = states.remove(window);
       if (state != null) {
-        state.flush();
+        state.flush(new ElementCollectContext(collector, window));
         state.close();
       }
       // ~ clean up trigger states

@@ -17,44 +17,31 @@ package cz.seznam.euphoria.core.client.operator.state;
 
 import cz.seznam.euphoria.core.client.io.Context;
 
-import java.io.Closeable;
-
 /**
  * A state for stateful operations.
  */
-public abstract class State<IN, OUT> implements Closeable {
-
-  /** Collector of output of this state. */
-  private final Context<OUT> context;
+public interface State<IN, OUT> {
 
   /**
    * Add element to this state.
    *
    * @param element the element to add/accumulate to this state
    */
-  public abstract void add(IN element);
+  void add(IN element);
 
   /**
    * Flush the state to output. Invoked when window this
    * state is part of gets disposed/triggered.
+   *
+   * @param context the context to utilize for emitting output elements;
+   *                 never {@code null}
    */
-  public abstract void flush();
-
-  protected State(Context<OUT> context) {
-    
-    this.context = context;
-  }
-
-  public Context<OUT> getContext() {
-    return context;
-  }
+  void flush(Context<OUT> context);
 
   /**
-   * Closes this state. Invoked after {@link #flush()} and before
-   * this state gets disposed.
+   * Closes this state. Invoked after {@link #flush(Context)} and before
+   * this state gets disposed to allow clean-up of temporary state storage.
    */
-  public void close() {
-    // ~ no-op by default
-  }
+  void close();
 
 }
