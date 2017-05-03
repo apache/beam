@@ -1175,6 +1175,7 @@ public class BigQueryIOTest implements Serializable {
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema())
                 .withTestServices(fakeBqServices));
+    p.run();
   }
 
   @Test

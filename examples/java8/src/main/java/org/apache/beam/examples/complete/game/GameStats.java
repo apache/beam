@@ -24,6 +24,7 @@ import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -300,6 +301,8 @@ public class GameStats extends LeaderBoard {
       // Write the result to BigQuery
       .apply("WriteTeamSums",
           new WriteWindowedToBigQuery<KV<String, Integer>>(
+              options.as(GcpOptions.class).getProject(),
+              options.getDataset(),
               options.getGameStatsTablePrefix() + "_team", configureWindowedWrite()));
 
 
@@ -327,7 +330,9 @@ public class GameStats extends LeaderBoard {
       // Write this info to a BigQuery table.
       .apply("WriteAvgSessionLength",
              new WriteWindowedToBigQuery<Double>(
-                options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));
+                 options.as(GcpOptions.class).getProject(),
+                 options.getDataset(),
+                 options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
 
