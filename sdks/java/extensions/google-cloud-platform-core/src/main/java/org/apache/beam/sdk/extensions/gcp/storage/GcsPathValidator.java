@@ -23,7 +23,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
@@ -47,8 +46,7 @@ public class GcsPathValidator implements PathValidator {
    */
   @Override
   public void validateInputFilePatternSupported(String filepattern) {
-    GcsPath gcsPath = getGcsPath(filepattern);
-    checkArgument(GcsUtil.isGcsPatternSupported(gcsPath.getObject()));
+    getGcsPath(filepattern);
     verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
   }
