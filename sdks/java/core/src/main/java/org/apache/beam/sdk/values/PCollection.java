@@ -83,9 +83,9 @@ public class PCollection<T> extends PValueBase implements PValue {
 
   @Override
   public void finishSpecifyingOutput(
-      PInput input, PTransform<?, ?> transform) {
+      String transformName, PInput input, PTransform<?, ?> transform) {
     this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
-    super.finishSpecifyingOutput(input, transform);
+    super.finishSpecifyingOutput(transformName, input, transform);
   }
 
   /**

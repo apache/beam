@@ -19,7 +19,6 @@ package org.apache.beam.sdk.values;
 
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -48,31 +47,15 @@ public interface POutput {
   Map<TupleTag<?>, PValue> expand();
 
   /**
-   * Records that this {@code POutput} is an output of the given
-   * {@code PTransform}.
-   *
-   * <p>For a compound {@code POutput}, it is advised to call
-   * this method on each component {@code POutput}.
-   *
-   * <p>This is not intended to be invoked by user code, but
-   * is automatically invoked as part of applying the
-   * producing {@link PTransform}.
-   */
-  void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
-
-  /**
    * As part of applying the producing {@link PTransform}, finalizes this output to make it ready
    * for being used as an input and for running.
    *
    * <p>This includes ensuring that all {@link PCollection PCollections} have {@link
    * org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
    *
-   * <p>Automatically invoked whenever this {@link POutput} is output, after {@link
-   * PValue#finishSpecifyingOutput(PInput, PTransform)} has been called on each component {@link
-   * PValue} returned by {@link #expand()}.
-   *
-   * @deprecated see BEAM-1199
+   * <p>Automatically invoked whenever this {@link POutput} is output, after
+   * {@link PValue#finishSpecifyingOutput(String, PInput, PTransform)} has been called on each
+   * component {@link PValue} returned by {@link #expand()}.
    */
-  @Deprecated
-  void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform);
+  void finishSpecifyingOutput(String transformName, PInput input, PTransform<?, ?> transform);
 }

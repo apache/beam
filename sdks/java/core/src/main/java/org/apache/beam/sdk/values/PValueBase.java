@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
 
@@ -65,10 +66,7 @@ public abstract class PValueBase implements PValue {
    * already been finalized and may no longer be set.
    */
   public PValueBase setName(String name) {
-    if (finishedSpecifying) {
-      throw new IllegalStateException(
-          "cannot change the name of " + this + " once it's been used");
-    }
+    checkState(!finishedSpecifying, "cannot change the name of %s once it's been used", this);
     this.name = name;
     return this;
   }
@@ -103,26 +101,6 @@ public abstract class PValueBase implements PValue {
    * properties, e.g., name, can no longer be changed.
    */
   private boolean finishedSpecifying = false;
-
-  @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
-    recordAsOutput(transform, "out");
-  }
-
-  /**
-   * Records that this {@link PValueBase} is an output with the
-   * given name of the given {@link AppliedPTransform} in the given
-   * {@link Pipeline}.
-   *
-   * <p>To be invoked only by {@link POutput#recordAsOutput}
-   * implementations.  Not to be invoked directly by user code.
-   */
-  protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
-                                String outName) {
-    if (name == null) {
-      name = transform.getFullName() + "." + outName;
-    }
-  }
 
   /**
    * Returns whether this {@link PValueBase} has been finalized, and
@@ -165,11 +143,15 @@ public abstract class PValueBase implements PValue {
     return pipeline;
   }
 
-  /**
-   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
-   * to do nothing. Override if your {@link PValue} requires
-   * finalization.
-   */
   @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {
+    if (name == null) {
+      setName(defaultName(transformName));
+    }
+  }
+
+  static String defaultName(String transformName) {
+    return String.format("%s.%s", transformName, "out");
+  }
 }

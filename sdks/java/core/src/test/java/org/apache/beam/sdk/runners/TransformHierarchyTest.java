@@ -145,7 +145,8 @@ public class TransformHierarchyTest implements Serializable {
     final PCollectionList<Long> appended =
         pcList.and(
             PCollection.<Long>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED));
+                    pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+                .setName("prim"));
     hierarchy.pushNode(
         "AddPc",
         pcList,
