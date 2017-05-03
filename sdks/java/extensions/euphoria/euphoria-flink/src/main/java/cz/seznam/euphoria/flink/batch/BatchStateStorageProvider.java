@@ -25,13 +25,13 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.shaded.guava.com.google.common.io.Closeables;
-import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -153,7 +153,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
           input = null;
         } else {
           finput = new FileInputStream(serializedElements);
-          input = new Input(IOUtils.toBufferedInputStream(finput));
+          input = new Input(new BufferedInputStream(finput));
         }
       } catch (Exception ex) {
         throw new RuntimeException(ex);
