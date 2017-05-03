@@ -96,7 +96,7 @@ class MetricResult(object):
 
   def __str__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
-        self.key, self.committed, self.attempted)
+        self.key, str(self.committed), str(self.attempted))
 
 
 class _MetricsEnvironment(object):

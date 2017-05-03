@@ -193,6 +193,13 @@ class DistributionResult(object):
   def __eq__(self, other):
     return self.data == other.data
 
+  def __repr__(self):
+    return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
+        self.sum,
+        self.count,
+        self.min,
+        self.max)
+
   @property
   def max(self):
     return self.data.max
@@ -244,10 +251,11 @@ class DistributionData(object):
     return not self.__eq__(other)
 
   def __repr__(self):
-    return '<DistributionData({}, {}, {}, {})>'.format(self.sum,
-                                                       self.count,
-                                                       self.min,
-                                                       self.max)
+    return '<DistributionData(sum={}, count={}, min={}, max={})>'.format(
+        self.sum,
+        self.count,
+        self.min,
+        self.max)
 
   def get_cumulative(self):
     return DistributionData(self.sum, self.count, self.min, self.max)
