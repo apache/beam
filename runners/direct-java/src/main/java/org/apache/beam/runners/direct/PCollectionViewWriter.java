@@ -15,31 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * An evaluator of a specific application of a transform. Will be used for at least one
- * {@link CommittedBundle}.
+ * A {@link PCollectionViewWriter} is responsible for writing contents of a {@link PCollection} to
+ * a storage mechanism that can be read from while constructing a {@link PCollectionView}.
  *
- * @param <InputT> the type of elements that will be passed to {@link #processElement}
+ * @param <ElemT> the type of elements the input {@link PCollection} contains.
+ * @param <ViewT> the type of the PCollectionView this writer writes to.
  */
-interface TransformEvaluator<InputT> {
-  /**
-   * Process an element in the input {@link CommittedBundle}.
-   *
-   * @param element the element to process
-   */
-  void processElement(WindowedValue<InputT> element) throws Exception;
-
-  /**
-   * Finish processing the bundle of this {@link TransformEvaluator}.
-   *
-   * <p>After {@link #finishBundle()} is called, the {@link TransformEvaluator} will not be reused,
-   * and no more elements will be processed.
-   *
-   * @return an {@link TransformResult} containing the results of this bundle evaluation.
-   */
-  TransformResult<InputT> finishBundle() throws Exception;
+interface PCollectionViewWriter<ElemT, ViewT> {
+  void add(Iterable<WindowedValue<ElemT>> values);
 }

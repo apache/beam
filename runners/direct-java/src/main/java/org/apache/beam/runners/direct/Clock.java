@@ -22,7 +22,7 @@ import org.joda.time.Instant;
 /**
  * Access to the current time.
  */
-public interface Clock {
+interface Clock {
   /**
    * Returns the current time as an {@link Instant}.
    */
