@@ -40,6 +40,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 
 /** A set of helper functions and classes used by {@link BigQueryIO}. */
 public class BigQueryHelpers {
@@ -303,5 +305,18 @@ public class BigQueryHelpers {
         .setDatasetId(queryTempDatasetId)
         .setTableId(queryTempTableId);
     return queryTempTableRef;
+  }
+
+  static String resolveTempLocation(
+      String tempLocationDir, String bigQueryOperationName, String stepUuid) {
+    try {
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocationDir);
+      return factory.resolve(
+          factory.resolve(tempLocationDir, bigQueryOperationName),  stepUuid);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Failed to resolve temp destination directory in %s",
+              tempLocationDir), e);
+    }
   }
 }

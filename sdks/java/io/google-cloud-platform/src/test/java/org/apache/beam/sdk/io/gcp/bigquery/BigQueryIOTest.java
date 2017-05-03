@@ -91,7 +91,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -136,7 +135,6 @@ import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -946,7 +944,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -962,7 +959,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -985,40 +981,6 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
-  }
-
-  @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
-  public void testBatchWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ false);
-  }
-
-  @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
-  public void testStreamingWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ true);
-  }
-
-  private void testWritePrimitiveDisplayData(boolean streaming) throws IOException,
-      InterruptedException {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
-
-    BigQueryIO.Write write = BigQueryIO.writeTableRows()
-        .to("project:dataset.table")
-        .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
-        .withTestServices(new FakeBigQueryServices()
-          .withDatasetService(new FakeDatasetService())
-          .withJobService(new FakeJobService()))
-        .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
-        displayData, hasItem(hasDisplayItem("tableSpec")));
-
-    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
-        displayData, hasItem(hasDisplayItem("schema")));
   }
 
   @Test
@@ -1360,9 +1322,10 @@ public class BigQueryIOTest implements Serializable {
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), baseDir.toString(), fakeBqServices);
+        stepUuid, StaticValueProvider.of(table), fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
+    options.setTempLocation(baseDir.toString());
     Assert.assertThat(
         SourceTestUtils.readFromSource(bqSource, options),
         CoreMatchers.is(expected));
@@ -1399,9 +1362,8 @@ public class BigQueryIOTest implements Serializable {
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceInitSplit");
 
     String stepUuid = "testStepUuid";
-    String extractDestinationDir = baseDir.toString();
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), extractDestinationDir, fakeBqServices);
+        stepUuid, StaticValueProvider.of(table), fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
@@ -1479,12 +1441,10 @@ public class BigQueryIOTest implements Serializable {
 
 
     String query = FakeBigQueryServices.encodeQuery(expected);
-    String extractDestinationDir = baseDir.toString();
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         stepUuid, StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */,
-        extractDestinationDir, fakeBqServices);
-    options.setTempLocation(extractDestinationDir);
+        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+    options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
         .setProjectId(bqOptions.getProject())
@@ -1571,7 +1531,7 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         stepUuid,
         StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, baseDir.toString(), fakeBqServices);
+        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
 
     options.setTempLocation(baseDir.toString());
 
@@ -1845,7 +1805,7 @@ public class BigQueryIOTest implements Serializable {
     long numPartitions = 3;
     long numFilesPerPartition = 10;
     String jobIdToken = "jobIdToken";
-    String tempFilePrefix = "tempFilePrefix";
+    String stepUuid = "stepUuid";
     Map<TableDestination, List<String>> expectedTempTables = Maps.newHashMap();
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testWriteTables");
@@ -1898,7 +1858,7 @@ public class BigQueryIOTest implements Serializable {
             fakeBqServices,
             jobIdTokenView,
             schemaMapView,
-            tempFilePrefix,
+            stepUuid,
             WriteDisposition.WRITE_EMPTY,
             CreateDisposition.CREATE_IF_NEEDED,
             new IdentityDynamicTables());
@@ -1907,6 +1867,7 @@ public class BigQueryIOTest implements Serializable {
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.setSideInput(schemaMapView, GlobalWindow.INSTANCE, ImmutableMap.<String, String>of());
+    tester.getPipelineOptions().setTempLocation("tempLocation");
     for (KV<ShardedKey<String>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
