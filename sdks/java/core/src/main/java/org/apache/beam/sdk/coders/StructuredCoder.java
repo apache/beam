@@ -112,21 +112,33 @@ public abstract class StructuredCoder<T> implements Coder<T> {
     encode(value, outStream, Coder.Context.OUTER);
   }
 
+  @Deprecated
+  public void encode(T value, OutputStream outStream, Coder.Context context)
+      throws CoderException, IOException {
+    if (context == Coder.Context.NESTED) {
+      encode(value, outStream);
+    } else {
+      encodeOuter(value, outStream);
+    }
+  }
+
   public T decode(InputStream inStream) throws CoderException, IOException {
     return decode(inStream, Coder.Context.NESTED);
   }
 
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the outer context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
   @Deprecated
   public T decodeOuter(InputStream inStream) throws CoderException, IOException {
     return decode(inStream, Coder.Context.OUTER);
+  }
+
+  @Deprecated
+  public T decode(InputStream inStream, Coder.Context context)
+      throws CoderException, IOException {
+    if (context == Coder.Context.NESTED) {
+      return decode(inStream);
+    } else {
+      return decodeOuter(inStream);
+    }
   }
 
   /**
