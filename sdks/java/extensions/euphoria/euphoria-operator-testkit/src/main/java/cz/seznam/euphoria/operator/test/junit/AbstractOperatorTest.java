@@ -77,6 +77,9 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     /** @return the number of runs for the test */
     default int getNumRuns() { return 1; }
+
+    /** Retrieve test specific settings to be applied to the test flow. */
+    default Settings getSettings() { return new Settings(); }
   }
 
   /**
@@ -205,7 +208,7 @@ public abstract class AbstractOperatorTest implements Serializable {
     for (Processing.Type proc: processing.asList()) {
       for (int i = 0; i < tc.getNumRuns(); i++) {
         ListDataSink<?> sink = ListDataSink.get(tc.getNumOutputPartitions());
-        Flow flow = Flow.create(tc.toString());
+        Flow flow = Flow.create(tc.toString(), tc.getSettings());
         Dataset output = tc.getOutput(flow, proc == Type.BOUNDED);
         // skip if output is not supported for the processing type
         output.persist(sink);
