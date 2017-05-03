@@ -77,6 +77,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -238,7 +239,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
-    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempLocation(StaticValueProvider.of(VALID_TEMP_BUCKET));
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new LinkedList<String>());
@@ -472,7 +473,7 @@ public class DataflowRunnerTest {
         temp1.getAbsolutePath(),
         overridePackageName + "=" + temp2.getAbsolutePath()));
     options.setStagingLocation(VALID_STAGING_BUCKET);
-    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempLocation(StaticValueProvider.of(VALID_TEMP_BUCKET));
     options.setTempDatasetId(cloudDataflowDataset);
     options.setProject(PROJECT_ID);
     options.setRegion(REGION_ID);
@@ -571,7 +572,7 @@ public class DataflowRunnerTest {
   public void testGcsStagingLocationInitialization() throws Exception {
     // Set temp location (required), and check that staging location is set.
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempLocation(StaticValueProvider.of(VALID_TEMP_BUCKET));
     options.setProject(PROJECT_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
@@ -653,7 +654,7 @@ public class DataflowRunnerTest {
   @Test
   public void testNonGcsTempLocation() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    options.setTempLocation("file://temp/location");
+    options.setTempLocation(StaticValueProvider.of("file://temp/location"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -867,7 +868,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
-    options.setTempLocation(VALID_TEMP_BUCKET);
+    options.setTempLocation(StaticValueProvider.of(VALID_TEMP_BUCKET));
     options.setGcsUtil(mockGcsUtil);
 
     DataflowRunner.fromOptions(options);
@@ -1087,7 +1088,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
     options.setProject("test-project");
-    options.setTempLocation("gs://test/temp/location");
+    options.setTempLocation(StaticValueProvider.of("gs://test/temp/location"));
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setRunner(DataflowRunner.class);
@@ -1110,7 +1111,7 @@ public class DataflowRunnerTest {
     options.setProject("test-project");
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation(existingFile.getPath());
-    options.setTempLocation(tmpFolder.getRoot().getPath());
+    options.setTempLocation(StaticValueProvider.of(tmpFolder.getRoot().getPath()));
     Pipeline p = Pipeline.create(options);
 
     p.run();
@@ -1128,7 +1129,7 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation("//bad/path");
     options.setProject("test-project");
-    options.setTempLocation(tmpFolder.getRoot().getPath());
+    options.setTempLocation(StaticValueProvider.of(tmpFolder.getRoot().getPath()));
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     Pipeline p = Pipeline.create(options);

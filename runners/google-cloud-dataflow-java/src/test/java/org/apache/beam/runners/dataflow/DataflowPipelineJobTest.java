@@ -55,6 +55,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -121,7 +122,7 @@ public class DataflowPipelineJobTest {
     options.setProject(PROJECT_ID);
     options.setRegion(REGION_ID);
     options.setRunner(DataflowRunner.class);
-    options.setTempLocation("gs://fakebucket/temp");
+    options.setTempLocation(StaticValueProvider.of("gs://fakebucket/temp"));
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setGcpCredential(new TestCredential());
   }

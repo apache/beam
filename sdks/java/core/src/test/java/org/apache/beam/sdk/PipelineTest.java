@@ -19,8 +19,10 @@ package org.apache.beam.sdk;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -40,6 +42,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -514,5 +517,37 @@ public class PipelineTest {
               TaggedPValue.of(original.getKey(), original.getValue()),
               TaggedPValue.of(replacement.getKey(), replacement.getValue())));
     }
+  }
+
+  /**
+   * Tests that outside of the context of a pipeline, a users options are accessible. The pipeline
+   * should get the temp location from transforms, but should not break e.g. the main program's
+   * access to it.
+   */
+  @Test
+  public void testTempLocationAccessibleOutsidePipeline() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    String dummyTemp = "foo";
+    options.setTempLocation(StaticValueProvider.of(dummyTemp));
+    assertThat(options.getTempLocation().isAccessible(), is(true));
+    assertThat(options.getTempLocation().get(), equalTo(dummyTemp));
+  }
+
+  /**
+   * Tests that when {@link PTransform#expand} does something like {@code
+   * input.getPipeline().getOptions()} the temp location is not accessible.
+   */
+  @Test
+  public void testTempLocationNotAccessibleInsidePipeline() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    String dummyTemp = "baz";
+    options.setTempLocation(StaticValueProvider.of(dummyTemp));
+    Pipeline pipeline = Pipeline.create(options);
+
+    assertThat(pipeline.getOptions().getTempLocation().isAccessible(), is(false));
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Not called from a runtime context");
+    options.getTempLocation().get();
   }
 }

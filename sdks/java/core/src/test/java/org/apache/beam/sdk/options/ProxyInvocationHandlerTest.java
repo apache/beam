@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -724,7 +725,7 @@ public class ProxyInvocationHandlerTest {
   @Test
   public void testDisplayDataItemProperties() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation("myTemp");
+    options.setTempLocation(StaticValueProvider.of("myTemp"));
     DisplayData displayData = DisplayData.from(options);
 
     assertThat(displayData, hasDisplayItem(allOf(

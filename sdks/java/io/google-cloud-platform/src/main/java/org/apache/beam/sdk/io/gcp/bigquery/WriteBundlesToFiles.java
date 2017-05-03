@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -45,7 +46,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
 
   // Map from tablespec to a writer for that table.
   private transient Map<TableDestination, TableRowWriter> writers;
-  private final String tempFilePrefix;
+  private final ValueProvider<String> tempFilePrefix;
 
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
@@ -101,7 +102,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
     public void verifyDeterministic() {}
   }
 
-  WriteBundlesToFiles(String tempFilePrefix) {
+  WriteBundlesToFiles(ValueProvider<String> tempFilePrefix) {
     this.tempFilePrefix = tempFilePrefix;
   }
 
@@ -116,7 +117,7 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   public void processElement(ProcessContext c) throws Exception {
     TableRowWriter writer = writers.get(c.element().getKey());
     if (writer == null) {
-      writer = new TableRowWriter(tempFilePrefix);
+      writer = new TableRowWriter(tempFilePrefix.get());
       writer.open(UUID.randomUUID().toString());
       writers.put(c.element().getKey(), writer);
       LOG.debug("Done opening writer {}", writer);

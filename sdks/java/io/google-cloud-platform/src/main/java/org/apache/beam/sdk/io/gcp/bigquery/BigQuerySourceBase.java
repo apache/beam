@@ -63,7 +63,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected static final int JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
   protected final ValueProvider<String> jobIdToken;
-  protected final String extractDestinationDir;
+  protected final ValueProvider<String> extractDestinationDir;
   protected final BigQueryServices bqServices;
   protected final ValueProvider<String> executingProject;
 
@@ -71,7 +71,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
   BigQuerySourceBase(
       ValueProvider<String> jobIdToken,
-      String extractDestinationDir,
+      ValueProvider<String> extractDestinationDir,
       BigQueryServices bqServices,
       ValueProvider<String> executingProject) {
     this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
@@ -124,7 +124,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
         .setProjectId(executingProject.get())
         .setJobId(jobId);
 
-    String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir);
+    String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir.get());
     JobConfigurationExtract extract = new JobConfigurationExtract()
         .setSourceTable(table)
         .setDestinationFormat("AVRO")
@@ -141,7 +141,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           BigQueryHelpers.statusToPrettyString(extractJob.getStatus())));
     }
 
-    List<String> tempFiles = BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
+    List<String> tempFiles =
+        BigQueryIO.getExtractFilePaths(extractDestinationDir.get(), extractJob);
     return ImmutableList.copyOf(tempFiles);
   }
 

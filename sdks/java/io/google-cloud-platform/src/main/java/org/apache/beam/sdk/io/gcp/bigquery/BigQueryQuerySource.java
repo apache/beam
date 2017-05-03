@@ -56,7 +56,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<TableReference> queryTempTableRef,
       Boolean flattenResults,
       Boolean useLegacySql,
-      String extractDestinationDir,
+      ValueProvider<String> extractDestinationDir,
       BigQueryServices bqServices) {
     return new BigQueryQuerySource(
         jobIdToken,
@@ -80,7 +80,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<TableReference> queryTempTableRef,
       Boolean flattenResults,
       Boolean useLegacySql,
-      String extractDestinationDir,
+      ValueProvider<String> extractDestinationDir,
       BigQueryServices bqServices) {
     super(jobIdToken, extractDestinationDir, bqServices,
         NestedValueProvider.of(

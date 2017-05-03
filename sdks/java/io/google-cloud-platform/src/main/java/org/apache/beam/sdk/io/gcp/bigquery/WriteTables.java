@@ -30,7 +30,6 @@ import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -71,7 +71,7 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
-  private final String tempFilePrefix;
+  private final ValueProvider<String> tempFilePrefix;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
   private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
@@ -80,7 +80,7 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
       boolean singlePartition,
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
-      String tempFilePrefix,
+      ValueProvider<String> tempFilePrefix,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       SerializableFunction<TableDestination, TableSchema> schemaFunction) {
@@ -119,7 +119,7 @@ class WriteTables extends DoFn<KV<ShardedKey<TableDestination>, List<String>>,
         tableDestination.getTableDescription());
     c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(ref)));
 
-    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix, partitionFiles);
+    removeTemporaryFiles(c.getPipelineOptions(), tempFilePrefix.get(), partitionFiles);
   }
 
   private void load(

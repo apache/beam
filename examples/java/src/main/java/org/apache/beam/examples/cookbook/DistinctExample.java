@@ -71,7 +71,7 @@ public class DistinctExample {
       @Override
       public String create(PipelineOptions options) {
         if (options.getTempLocation() != null) {
-          return GcsPath.fromUri(options.getTempLocation())
+          return GcsPath.fromUri(options.getTempLocation().get())
               .resolve("deduped.txt").toString();
         } else {
           throw new IllegalArgumentException("Must specify --output or --tempLocation");

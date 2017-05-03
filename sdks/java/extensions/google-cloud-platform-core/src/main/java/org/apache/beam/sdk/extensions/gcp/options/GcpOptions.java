@@ -52,6 +52,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
@@ -233,11 +234,11 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     @Override
     @Nullable
     public String create(PipelineOptions options) {
-      String tempLocation = options.getTempLocation();
+      String tempLocation = options.getTempLocation().get();
       if (isNullOrEmpty(tempLocation)) {
         tempLocation = tryCreateDefaultBucket(options,
             newCloudResourceManagerClient(options.as(CloudResourceManagerOptions.class)).build());
-        options.setTempLocation(tempLocation);
+        options.setTempLocation(StaticValueProvider.of(tempLocation));
       } else {
         try {
           PathValidator validator = options.as(GcsOptions.class).getPathValidator();

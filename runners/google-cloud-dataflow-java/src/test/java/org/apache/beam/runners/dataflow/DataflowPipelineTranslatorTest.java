@@ -72,6 +72,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -179,7 +180,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setJobName("some-job-name");
     options.setProject("some-project");
-    options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
+    options.setTempLocation(
+        StaticValueProvider.of(GcsPath.fromComponents("somebucket", "some/path").toString()));
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
     options.setGcsUtil(mockGcsUtil);
