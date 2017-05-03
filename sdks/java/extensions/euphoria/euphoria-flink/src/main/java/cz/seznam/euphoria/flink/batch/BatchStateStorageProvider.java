@@ -24,7 +24,6 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import cz.seznam.euphoria.shaded.guava.com.google.common.io.Closeables;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.slf4j.Logger;
@@ -145,16 +144,11 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
     }
 
     private Iterator<T> iter() {
-      FileInputStream finput;
       Input input;
       try {
-        if (serializedElements == null) {
-          finput = null;
-          input = null;
-        } else {
-          finput = new FileInputStream(serializedElements);
-          input = new Input(new BufferedInputStream(finput));
-        }
+        input = serializedElements == null
+            ? null
+            : new Input(new BufferedInputStream(new FileInputStream(serializedElements)));
       } catch (Exception ex) {
         throw new RuntimeException(ex);
       }
@@ -166,7 +160,6 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
           boolean n = input != null && !input.eof() || dataIterator.hasNext();
           if (!n && input != null) {
             input.close();
-            Closeables.closeQuietly(finput);
           }
           return n;
         }
@@ -187,7 +180,6 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
           }
           if (input != null) {
             input.close();
-            Closeables.closeQuietly(finput);
           }
           throw new NoSuchElementException();
         }
