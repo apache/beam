@@ -214,14 +214,6 @@ public class GcsFileSystemTest {
     gcsFileSystem.expand(GcsPath.fromUri("gs://testbucket/testdirectory/otherfile"));
   }
 
-  // Patterns that contain recursive wildcards ('**') are not supported.
-  @Test
-  public void testRecursiveGlobExpansionFails() throws IOException {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unsupported wildcard usage");
-    gcsFileSystem.expand(GcsPath.fromUri("gs://testbucket/test**"));
-  }
-
   @Test
   public void testMatchNonGlobs() throws Exception {
     List<StorageObjectOrIOException> items = new ArrayList<>();
