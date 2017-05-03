@@ -231,7 +231,7 @@ public class  CombineFnsTest {
                 KV.of("b", KV.of(13, UserString.of("13")))),
             Arrays.asList(0L, 4L, 7L, 10L, 16L))
         .withCoder(KvCoder.of(
-            StringUtf8Coder.of(),
+            NullableCoder.of(StringUtf8Coder.of()),
             KvCoder.of(
                 BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
 
