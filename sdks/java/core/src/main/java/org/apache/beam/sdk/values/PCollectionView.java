@@ -53,7 +53,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * <p>Gets the {@link PCollection} this {@link PCollectionView} was created from.
    *
@@ -64,7 +64,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   PCollection<?> getPCollection();
 
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, is part of the side input's specification with a {@link ParDo} transform, which will
@@ -75,7 +75,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
    *     attribute of the side input's specification with a {@link ParDo} transform, which will
@@ -86,7 +86,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
 
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * <p>Returns the {@link WindowMappingFn} used to map windows from a main input to the side input
    * of this {@link PCollectionView}.
@@ -96,7 +96,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   WindowMappingFn<?> getWindowMappingFn();
 
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, including its {@link WindowingStrategy}, is part of the side input's specification
@@ -108,7 +108,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
   WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
-   * For internal use only.
+   * <b>For internal use only.</b>
    *
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
    *     input, including its {@link Coder}, is part of the side input's specification with a {@link
