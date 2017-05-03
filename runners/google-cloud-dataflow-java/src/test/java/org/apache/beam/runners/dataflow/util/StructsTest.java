@@ -15,24 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.dataflow.util;
 
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-import static org.apache.beam.sdk.util.Structs.addDouble;
-import static org.apache.beam.sdk.util.Structs.addList;
-import static org.apache.beam.sdk.util.Structs.addLong;
-import static org.apache.beam.sdk.util.Structs.addLongs;
-import static org.apache.beam.sdk.util.Structs.addNull;
-import static org.apache.beam.sdk.util.Structs.addString;
-import static org.apache.beam.sdk.util.Structs.addStringList;
-import static org.apache.beam.sdk.util.Structs.getBoolean;
-import static org.apache.beam.sdk.util.Structs.getDictionary;
-import static org.apache.beam.sdk.util.Structs.getInt;
-import static org.apache.beam.sdk.util.Structs.getListOfMaps;
-import static org.apache.beam.sdk.util.Structs.getLong;
-import static org.apache.beam.sdk.util.Structs.getObject;
-import static org.apache.beam.sdk.util.Structs.getString;
-import static org.apache.beam.sdk.util.Structs.getStrings;
+import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
+import static org.apache.beam.runners.dataflow.util.Structs.addDouble;
+import static org.apache.beam.runners.dataflow.util.Structs.addList;
+import static org.apache.beam.runners.dataflow.util.Structs.addLong;
+import static org.apache.beam.runners.dataflow.util.Structs.addLongs;
+import static org.apache.beam.runners.dataflow.util.Structs.addNull;
+import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.apache.beam.runners.dataflow.util.Structs.addStringList;
+import static org.apache.beam.runners.dataflow.util.Structs.getBoolean;
+import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
+import static org.apache.beam.runners.dataflow.util.Structs.getInt;
+import static org.apache.beam.runners.dataflow.util.Structs.getListOfMaps;
+import static org.apache.beam.runners.dataflow.util.Structs.getLong;
+import static org.apache.beam.runners.dataflow.util.Structs.getObject;
+import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.runners.dataflow.util.Structs.getStrings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
