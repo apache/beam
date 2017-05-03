@@ -36,10 +36,16 @@ Beam currently supports Runners that work with the following distributed process
          alt="Apache Flink">
 * Apache Spark <img src="{{ site.baseurl }}/images/logos/runners/spark.png"
          alt="Apache Spark">
+* Apache Gearpump(incubating) <img src="{{ site.baseurl }}/images/logos/runners/gearpump.png"
+         alt="Apache Gearpump">
 * Google Cloud Dataflow <img src="{{ site.baseurl }}/images/logos/runners/dataflow.png"
          alt="Google Cloud Dataflow">
+    
+**Note:** 
 
-**Note:** You can always execute your pipeline locally for testing and debugging purposes.
+1. You can always execute your pipeline locally for testing and debugging purposes.
+
+2. Gearpump Runner is under development and for more details please refer to [Ongoing Projects]({{ site.baseurl }}/contribute/work-in-progress)         
 
 ## Get Started
 
