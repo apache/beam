@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,7 +44,6 @@ public class HadoopFileSystemModuleTest {
   }
 
   @Test
-  @Ignore
   public void testConfigurationSerializationDeserialization() throws Exception {
     Configuration baseConfiguration = new Configuration(false);
     baseConfiguration.set("testPropertyA", "baseA");
