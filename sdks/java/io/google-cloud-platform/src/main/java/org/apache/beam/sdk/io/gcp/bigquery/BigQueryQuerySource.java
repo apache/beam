@@ -19,9 +19,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobUuid;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobUuid;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
@@ -112,7 +112,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
 
     // 2. Create the temporary dataset in the query location.
     TableReference tableToExtract = createTempTableReference(
-        bqOptions.getProject(), getJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
 
     tableService.createDataset(
         tableToExtract.getProjectId(),
@@ -121,7 +121,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
         "Dataset for BigQuery query job temporary table");
 
     // 3. Execute the query.
-    String queryJobId = getJobIdToken(bqOptions.getJobName(), stepUuid) + "-query";
+    String queryJobId = createJobIdToken(bqOptions.getJobName(), stepUuid) + "-query";
     executeQuery(
         bqOptions.getProject(),
         queryJobId,
@@ -133,7 +133,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
   @Override
   protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
     TableReference tableToRemove = createTempTableReference(
-        bqOptions.getProject(), getJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
 
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
     tableService.deleteTable(tableToRemove);

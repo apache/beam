@@ -19,8 +19,8 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobIdToken;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.Job;
@@ -507,7 +507,8 @@ public class BigQueryIO {
               JobReference jobRef =
                   new JobReference()
                       .setProjectId(bqOptions.getProject())
-                      .setJobId(getExtractJobId(getJobIdToken(bqOptions.getJobName(), stepUuid)));
+                      .setJobId(
+                          getExtractJobId(createJobIdToken(bqOptions.getJobName(), stepUuid)));
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 

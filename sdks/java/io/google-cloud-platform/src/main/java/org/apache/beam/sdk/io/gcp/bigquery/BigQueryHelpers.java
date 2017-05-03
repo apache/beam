@@ -297,11 +297,11 @@ public class BigQueryHelpers {
     }
   }
 
-  static String getJobIdToken(String jobName, String stepUuid) {
-    return "beam_job_" + getJobUuid(jobName, stepUuid);
+  static String createJobIdToken(String jobName, String stepUuid) {
+    return "beam_job_" + createJobUuid(jobName, stepUuid);
   }
 
-  static String getJobUuid(String jobName, String stepUuid) {
+  static String createJobUuid(String jobName, String stepUuid) {
     return stepUuid + "_" + jobName.replaceAll("-", "");
   }
 

@@ -19,8 +19,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getJobIdToken;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -86,7 +86,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
-      String extractJobId = getExtractJobId(getJobIdToken(options.getJobName(), stepUuid));
+      String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
       List<String> tempFiles = executeExtract(
           extractJobId, tableToExtract, jobService, bqOptions.getProject());
 
