@@ -1016,8 +1016,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // however the Dataflow backend require a coder to be set.
         stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(VoidCoder.of()));
       } else if (overriddenTransform.getElementCoder() != null) {
-        stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
-            overriddenTransform.getElementCoder()));
+        stepContext.addEncodingInput(
+            WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
+      } else {
+        // Reuse the input coder
+        stepContext.addEncodingInput(
+            WindowedValue.getValueOnlyCoder(context.getInput(transform).getCoder()));
       }
       PCollection<T> input = context.getInput(transform);
       stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
