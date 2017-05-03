@@ -205,8 +205,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Partition Assignment and Checkpointing</h3>
  * The Kafka partitions are evenly distributed among splits (workers).
  *
- * <p>Checkpointing is fully supported and each split can resume from previous checkpoint,
- * if it's supported and enabled in runner configuration.
+ * <p>Checkpointing is fully supported and each split can resume from previous checkpoint
+ * (to the extent supported by runner).
  * See {@link UnboundedKafkaSource#split(int, PipelineOptions)} for more details on
  * splits and checkpoint support.
  *
@@ -214,7 +214,7 @@ import org.slf4j.LoggerFactory;
  * consuming from the <em>latest</em> offsets. You can override this behavior to consume from the
  * beginning by setting appropriate appropriate properties in {@link ConsumerConfig}, through
  * {@link Read#updateConsumerProperties(Map)}.
- * In this case, you can also enable offset auto_commit in Kafka to resume from last committed.
+ * You can also enable offset auto_commit in Kafka to resume from last committed.
  *
  * <p>In summary, KafkaIO.read follows below sequence to set initial offset:<br>
  * 1. {@link KafkaCheckpointMark} provided by runner;<br>
