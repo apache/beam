@@ -77,6 +77,9 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   /** True when executor is running in local test (mode) */
   private final boolean localMode;
 
+  /** See {@link cz.seznam.euphoria.core.executor.greduce.GroupReducer#allowEarlyEmitting} */
+  private final boolean allowEarlyEmitting;
+
   // see {@link WindowedStorageProvider}
   private final int descriptorsCacheMaxSize;
 
@@ -97,13 +100,15 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
                                 StateFactory<?, ?, State<?, ?>> stateFactory,
                                 StateMerger<?, ?, State<?, ?>> stateCombiner,
                                 boolean localMode,
-                                int descriptorsCacheMaxSize) {
+                                int descriptorsCacheMaxSize,
+                                boolean allowEarlyEmitting) {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = windowing.getTrigger();
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.localMode = localMode;
     this.descriptorsCacheMaxSize = descriptorsCacheMaxSize;
+    this.allowEarlyEmitting = allowEarlyEmitting;
   }
 
   @Override
@@ -284,6 +289,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     output.emitWatermark(mark);
   }
 
+  @SuppressWarnings("unchecked")
   private void processTriggerResult(WID window,
                                     // ~ @windowState the state of `window` to
                                     // use; if `null` the state will be fetched
@@ -302,7 +308,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
       }
 
       if (tr.isFlush()) {
-        windowState.flush();
+        windowState.flush(outputContext);
       }
 
       if (tr.isPurge()) {
@@ -317,7 +323,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   @SuppressWarnings("unchecked")
   private State getWindowState(WID window) {
     storageProvider.setWindow(window);
-    return stateFactory.createState(outputContext, storageProvider);
+    return stateFactory.createState(storageProvider, allowEarlyEmitting ? outputContext : null);
   }
 
   private MergingWindowSet<WID> getMergingWindowSet()  {

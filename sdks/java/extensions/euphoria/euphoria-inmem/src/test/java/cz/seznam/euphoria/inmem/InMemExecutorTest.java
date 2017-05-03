@@ -268,15 +268,11 @@ public class InMemExecutorTest {
    * Simple sort state for tests.
    * This state takes comparable elements and produces sorted sequence.
    */
-  public static class SortState extends State<Integer, Integer> {
+  public static class SortState implements State<Integer, Integer> {
 
     final ListStorage<Integer> data;
 
-    SortState(
-        Context<Integer> c,
-        StorageProvider storageProvider) {
-      
-      super(c);
+    SortState(StorageProvider storageProvider, Context<Integer> c) {
       data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -288,11 +284,11 @@ public class InMemExecutorTest {
 
     @Override
     @SuppressWarnings("unchecked")
-    public void flush() {
+    public void flush(Context<Integer> context) {
       List<Integer> toSort = Lists.newArrayList(data.get());
       Collections.sort(toSort);
       for (Integer i : toSort) {
-        getContext().collect(i);
+        context.collect(i);
       }
     }
 

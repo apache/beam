@@ -354,8 +354,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
 
   static class CombiningReduceState<E>
-          extends State<E, E>
-          implements StateSupport.MergeFrom<CombiningReduceState<E>> {
+          implements State<E, E>, StateSupport.MergeFrom<CombiningReduceState<E>> {
 
     static final class Factory<E> implements StateFactory<E, E, State<E, E>> {
       private final CombinableReduceFunction<E> r;
@@ -365,8 +364,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       }
 
       @Override
-      public State<E, E> createState(Context<E> context, StorageProvider storageProvider) {
-        return new CombiningReduceState<>(context, storageProvider, r);
+      public State<E, E> createState(StorageProvider storageProvider, Context<E> context) {
+        return new CombiningReduceState<>(storageProvider, r);
       }
     }
 
@@ -377,10 +376,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final CombinableReduceFunction<E> reducer;
     private final ValueStorage<E> storage;
 
-    CombiningReduceState(Context<E> context,
-                         StorageProvider storageProvider,
+    CombiningReduceState(StorageProvider storageProvider,
                          CombinableReduceFunction<E> reducer) {
-      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -399,13 +396,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public void flush() {
-      getContext().collect(this.storage.get());
+    public void flush(Context<E> context) {
+      context.collect(storage.get());
     }
 
     @Override
     public void close() {
-      this.storage.clear();
+      storage.clear();
     }
 
     @Override
@@ -415,8 +412,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
   private static class NonCombiningReduceState<IN, OUT>
-          extends State<IN, OUT>
-          implements StateSupport.MergeFrom<NonCombiningReduceState<IN, OUT>> {
+          implements State<IN, OUT>, StateSupport.MergeFrom<NonCombiningReduceState<IN, OUT>> {
 
     static final class Factory<IN, OUT>
             implements StateFactory<IN, OUT, NonCombiningReduceState<IN, OUT>> {
@@ -428,8 +424,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
       @Override
       public NonCombiningReduceState<IN, OUT>
-      createState(Context<OUT> context, StorageProvider storageProvider) {
-        return new NonCombiningReduceState<>(context, storageProvider, r);
+      createState(StorageProvider storageProvider, Context<OUT> context) {
+        return new NonCombiningReduceState<>(storageProvider, r);
       }
     }
 
@@ -440,10 +436,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final ReduceFunction<IN, OUT> reducer;
     private final ListStorage<IN> reducibleValues;
 
-    NonCombiningReduceState(Context<OUT> context,
-                            StorageProvider storageProvider,
+    NonCombiningReduceState(StorageProvider storageProvider,
                             ReduceFunction<IN, OUT> reducer) {
-      super(context);
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -457,9 +451,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public void flush() {
-      OUT result = reducer.apply(reducibleValues.get());
-      getContext().collect(result);
+    public void flush(Context<OUT> ctx) {
+      ctx.collect(reducer.apply(reducibleValues.get()));
     }
 
     @Override

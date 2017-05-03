@@ -248,8 +248,25 @@ public class InMemExecutor implements Executor {
       = ProcessingTimeTriggerScheduler::new;
 
   private boolean allowWindowBasedShuffling = false;
+  private boolean allowEarlyEmitting = false;
 
   private StorageProvider storageProvider = new InMemStorageProvider();
+
+  /**
+   * Specifies whether stateful operators are allowed to emit their results
+   * early.<p>
+   *
+   * Defaults to {@code false}.
+   *
+   * @param allowEarlyEmitting {@code true} to allow states to emit early
+   *                           results, {@code false} otherwise
+   *
+   * @return this instance (for method chaining purposes)
+   */
+  public InMemExecutor setAllowEarlyEmitting(boolean allowEarlyEmitting) {
+    this.allowEarlyEmitting = allowEarlyEmitting;
+    return this;
+  }
 
   /**
    * Set supplier for watermark emit strategy used in state operations.
@@ -632,7 +649,8 @@ public class InMemExecutor implements Executor {
                   ? triggerSchedulerSupplier.get()
                   : new WatermarkTriggerScheduler(watermarkDuration)),
           watermarkEmitStrategySupplier.get(),
-          storageProvider));
+          storageProvider,
+          allowEarlyEmitting));
     }
     return outputSuppliers;
   }
