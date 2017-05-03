@@ -9,6 +9,8 @@ columns:
     name: Apache Spark
   - class: apex
     name: Apache Apex
+  - class: gearpump
+    name: Apache Gearpump
 
 categories:
   - description: What is being computed?
@@ -40,6 +42,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Supported through Apex operator that wraps the function and processes data as single element bundles.
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: Gearpump wraps the per-element transformation function into processor execution.
       - name: GroupByKey
         values:
           - class: model
@@ -62,6 +68,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Apex runner uses the Beam code for grouping by window and thereby has support for all windowing and triggering mechanisms. Runner does not implement partitioning yet (BEAM-838)"
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: "Use Gearpump's groupBy and window for key grouping and translate Beam's windowing and triggering to Gearpump's internal implementation."
       - name: Flatten
         values:
           - class: model
@@ -81,6 +91,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: gearpump
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -106,6 +120,10 @@ categories:
             l1: 'Yes'
             l2: 'fully supported'
             l3: "Default Beam translation. Currently no efficient pre-aggregation (BEAM-935)."
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Composite Transforms
         values:
           - class: model
@@ -125,6 +143,10 @@ categories:
             l2: supported via inlining
             l3: ''
           - class: apex
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
+          - class: gearpump
             l1: 'Partially'
             l2: supported via inlining
             l3: ''
@@ -149,7 +171,11 @@ categories:
           - class: apex
             l1: 'Yes'
             l2: size restrictions
-            l3: No distributed implementation and therefore size restrictions. 
+            l3: No distributed implementation and therefore size restrictions.
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: Implemented by merging side input as a normal stream in Gearpump
       - name: Source API
         values:
           - class: model
@@ -172,7 +198,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: 
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Aggregators
         values:
           - class: model
@@ -195,7 +224,10 @@ categories:
             l1: 'No'
             l2: Not implemented in runner.
             l3: 
-
+          - class: gearpump
+            l1: 'No'
+            l2: ''
+            l3: not implemented
       - name: Stateful Processing
         values:
           - class: model
@@ -218,7 +250,10 @@ categories:
             l1: 'No'
             l2: not implemented
             l3: Apex supports per-key state, so adding support for this should be easy.
-
+          - class: gearpump
+            l1: 'No'
+            l2: not implemented
+            l3: ''
   - description: Where in event time?
     anchor: where
     color-b: '37d'
@@ -248,7 +283,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -271,7 +309,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Sliding windows
         values:
           - class: model
@@ -294,7 +335,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -317,7 +361,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom windows
         values:
           - class: model
@@ -340,7 +387,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -363,7 +413,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -386,7 +439,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
 
   - description: When in processing time?
@@ -419,6 +475,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: gearpump
+            l1: 'No'
+            l2: ''
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -439,6 +499,10 @@ categories:
             l2: ''
             l3: ''
           - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: gearpump
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -465,6 +529,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: gearpump
+            l1: 'No'
+            l2: ''
+            l3: ''
 
       - name: Count triggers
         values:
@@ -487,6 +555,10 @@ categories:
           - class: apex
             l1: 'Yes'
             l2: fully supported
+            l3: ''
+          - class: gearpump
+            l1: 'No'
+            l2: ''
             l3: ''
 
       - name: '[Meta]data driven triggers'
@@ -511,7 +583,11 @@ categories:
           - class: apex
             l1: 'No'
             l2: pending model support
-            l3: 
+            l3:
+          - class: gearpump
+            l1: 'No'
+            l2: pending model support
+            l3:
 
       - name: Composite triggers
         values:
@@ -534,6 +610,10 @@ categories:
           - class: apex
             l1: 'Yes'
             l2: fully supported
+            l3: ''
+          - class: gearpump
+            l1: 'No'
+            l2: ''
             l3: ''
 
       - name: Allowed lateness
@@ -558,6 +638,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -578,6 +662,10 @@ categories:
             l2: not implemented
             l3: ''
           - class: apex
+            l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: gearpump
             l1: 'No'
             l2: not implemented
             l3: ''
@@ -612,6 +700,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -635,6 +727,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: 'Size restriction, see combine support.'
+          - class: gearpump
+            l1: 'No'
+            l2: ''
+            l3: ''
 
       - name: 'Accumulating &amp; Retracting'
         values:
@@ -656,6 +752,10 @@ categories:
             l2: pending model support
             l3: ''
           - class: apex
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: gearpump
             l1: 'No'
             l2: pending model support
             l3: ''
