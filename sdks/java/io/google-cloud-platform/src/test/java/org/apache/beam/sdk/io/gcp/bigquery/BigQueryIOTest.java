@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobUuid;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -1322,7 +1322,7 @@ public class BigQueryIOTest implements Serializable {
     String stepUuid = "testStepUuid";
 
     TableReference tempTableReference = createTempTableReference(
-        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
     fakeDatasetService.createDataset(
         bqOptions.getProject(), tempTableReference.getDatasetId(), "", "");
     fakeDatasetService.createTable(new Table()
@@ -1397,7 +1397,7 @@ public class BigQueryIOTest implements Serializable {
     String stepUuid = "testStepUuid";
 
     TableReference tempTableReference = createTempTableReference(
-        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),

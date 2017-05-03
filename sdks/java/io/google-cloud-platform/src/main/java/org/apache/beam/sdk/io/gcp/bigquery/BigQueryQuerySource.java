@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobUuid;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 
 import com.google.api.services.bigquery.model.Job;
@@ -112,7 +111,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
 
     // 2. Create the temporary dataset in the query location.
     TableReference tableToExtract = createTempTableReference(
-        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
     tableService.createDataset(
         tableToExtract.getProjectId(),
@@ -133,7 +132,7 @@ class BigQueryQuerySource extends BigQuerySourceBase {
   @Override
   protected void cleanupTempResource(BigQueryOptions bqOptions) throws Exception {
     TableReference tableToRemove = createTempTableReference(
-        bqOptions.getProject(), createJobUuid(bqOptions.getJobName(), stepUuid));
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
     tableService.deleteTable(tableToRemove);

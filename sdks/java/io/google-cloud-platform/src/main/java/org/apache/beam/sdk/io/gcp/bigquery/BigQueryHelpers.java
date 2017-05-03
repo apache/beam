@@ -298,15 +298,11 @@ public class BigQueryHelpers {
   }
 
   static String createJobIdToken(String jobName, String stepUuid) {
-    return "beam_job_" + createJobUuid(jobName, stepUuid);
-  }
-
-  static String createJobUuid(String jobName, String stepUuid) {
-    return stepUuid + "_" + jobName.replaceAll("-", "");
+    return String.format("beam_job_%s_%s", stepUuid, jobName.replaceAll("-", ""));
   }
 
   static String getExtractJobId(String jobIdToken) {
-    return jobIdToken + "-extract";
+    return String.format("%s-extract", jobIdToken);
   }
 
   static TableReference createTempTableReference(String projectId, String jobUuid) {
