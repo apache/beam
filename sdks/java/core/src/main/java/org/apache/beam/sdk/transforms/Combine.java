@@ -59,7 +59,7 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;

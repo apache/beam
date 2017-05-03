@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * A {@link GlobalCombineFn} with a fixed accumulator coder. This is created from a

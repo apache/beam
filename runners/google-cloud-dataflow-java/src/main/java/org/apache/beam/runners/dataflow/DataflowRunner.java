@@ -120,7 +120,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
