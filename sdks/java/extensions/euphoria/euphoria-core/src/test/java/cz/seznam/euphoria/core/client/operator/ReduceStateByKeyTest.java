@@ -148,16 +148,12 @@ public class ReduceStateByKeyTest {
   /**
    * Simple aggregating state.
    */
-  private static class WordCountState extends State<Long, Long> {
-
+  private static class WordCountState implements State<Long, Long> {
     private final ValueStorage<Long> sum;
 
-    protected WordCountState(
-        Context<Long> context,
-        StorageProvider storageProvider) {
-      super(context);
-      sum = storageProvider.getValueStorage(ValueStorageDescriptor.of(
-          "sum", Long.class, 0L));
+    protected WordCountState(StorageProvider storageProvider, Context<Long> ctx) {
+      sum = storageProvider.getValueStorage(
+          ValueStorageDescriptor.of("sum", Long.class, 0L));
     }
 
     @Override
@@ -166,8 +162,8 @@ public class ReduceStateByKeyTest {
     }
 
     @Override
-    public void flush() {
-      this.getContext().collect(sum.get());
+    public void flush(Context<Long> ctx) {
+      ctx.collect(sum.get());
     }
 
     static void combine(WordCountState target, Iterable<WordCountState> others) {

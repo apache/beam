@@ -65,12 +65,11 @@ import static org.junit.Assert.assertTrue;
 @Processing(Processing.Type.ALL)
 public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
-  static class SortState extends State<Integer, Integer> {
+  static class SortState implements State<Integer, Integer> {
 
     final ListStorage<Integer> data;
 
-    SortState(Context<Integer> c, StorageProvider storageProvider) {
-      super(c);
+    SortState(StorageProvider storageProvider, Context<Integer> c) {
       this.data = storageProvider.getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
@@ -81,11 +80,11 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush() {
+    public void flush(Context<Integer> context) {
       List<Integer> list = Lists.newArrayList(data.get());
       Collections.sort(list);
       for (Integer i : list) {
-        this.getContext().collect(i);
+        context.collect(i);
       }
     }
 
@@ -221,11 +220,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   // ---------------------------------------------------------------------------------
 
-  private static class CountState<IN> extends State<IN, Long> {
+  private static class CountState<IN> implements State<IN, Long> {
     final ValueStorage<Long> count;
-    CountState(Context<Long> context, StorageProvider storageProvider)
-    {
-      super(context);
+    CountState(StorageProvider storageProvider, Context<Long> context) {
       this.count = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
@@ -237,8 +234,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush() {
-      getContext().collect(count.get());
+    public void flush(Context<Long> context) {
+      context.collect(count.get());
     }
 
     void add(CountState<IN> other) {
@@ -318,13 +315,10 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   // ---------------------------------------------------------------------------------
 
-  private static class AccState<VALUE> extends State<VALUE, VALUE> {
+  private static class AccState<VALUE> implements State<VALUE, VALUE> {
     final ListStorage<VALUE> vals;
     @SuppressWarnings("unchecked")
-    AccState(Context<VALUE> context,
-             StorageProvider storageProvider)
-    {
-      super(context);
+    AccState(StorageProvider storageProvider, Context<VALUE> context) {
       vals = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
@@ -335,9 +329,9 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush() {
+    public void flush(Context<VALUE> context) {
       for (VALUE value : vals.get()) {
-        getContext().collect(value);
+        context.collect(value);
       }
     }
 

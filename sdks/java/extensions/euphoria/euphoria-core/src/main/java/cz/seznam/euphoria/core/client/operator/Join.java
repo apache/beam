@@ -32,8 +32,8 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
-import javax.annotation.Nullable;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
@@ -307,101 +307,220 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   static final ListStorageDescriptor RIGHT_STATE_DESCR =
           ListStorageDescriptor.of("right", (Class) Object.class);
 
-  private class JoinState
-          extends State<Either<LEFT, RIGHT>, OUT>
-          implements StateSupport.MergeFrom<JoinState> {
 
-    // store the elements in memory for this implementation
+  private abstract class AbstractJoinState
+      implements State<Either<LEFT, RIGHT>, OUT> {
+
     final ListStorage<LEFT> leftElements;
     final ListStorage<RIGHT> rightElements;
 
     @SuppressWarnings("unchecked")
-    public JoinState(Context<OUT> context, StorageProvider storageProvider) {
-      super(context);
+    AbstractJoinState(StorageProvider storageProvider) {
       leftElements = storageProvider.getListStorage(LEFT_STATE_DESCR);
       rightElements = storageProvider.getListStorage(RIGHT_STATE_DESCR);
     }
 
     @Override
-    public void add(Either<LEFT, RIGHT> element) {
-      if (element.isLeft()) {
-        leftElements.add(element.left());
-        emitJoinedElements(element, rightElements);
-      } else {
-        rightElements.add(element.right());
-        emitJoinedElements(element, leftElements);
-      }
-    }
-
-    @Override
-    public void flush() {
-      // ~ no-op; we do all the work already on the fly
-      // and flush any "pending" state _only_ when closing
-      // this state
-    }
-
-    @Override
     public void close() {
-      if (outer) {
-        flushUnjoinedElems();
-      }
       leftElements.clear();
       rightElements.clear();
     }
+  }
 
-    private void flushUnjoinedElems() {
-      Iterable<LEFT> lefts = leftElements.get();
-      Iterable<RIGHT> rights = rightElements.get();
+  /**
+   * An implementation of the join state which will accumulate elements
+   * until it is flushed at which point it then emits all elements.<p>
+   *
+   * (This implementation is known to work correctly with merging
+   * windowing, early triggering, as well as with timed multi-window
+   * windowing (e.g. time sliding.))
+   */
+  private class StableJoinState extends AbstractJoinState
+      implements StateSupport.MergeFrom<StableJoinState> {
 
-      boolean leftEmpty = !lefts.iterator().hasNext();
-      boolean rightEmpty = !rights.iterator().hasNext();
-      if (leftEmpty ^ rightEmpty) {
-        // if just a one collection is empty
-        if (leftEmpty) {
-          for (RIGHT elem : rights) {
-            functor.apply(null, elem, getContext());
-          }
-        } else {
-          for (LEFT elem : lefts) {
-            functor.apply(elem, null, getContext());
-          }
-        }
+    StableJoinState(StorageProvider storageProvider) {
+      super(storageProvider);
+    }
+
+    @Override
+    public void add(Either<LEFT, RIGHT> elem) {
+      if (elem.isLeft()) {
+        leftElements.add(elem.left());
+      } else {
+        rightElements.add(elem.right());
       }
     }
 
-    @SuppressWarnings("unchecked")
-    private void emitJoinedElements(
-        Either<LEFT, RIGHT> element, ListStorage otherElements) {
-      if (element.isLeft()) {
-        for (Object right : otherElements.get()) {
-          functor.apply(element.left(), (RIGHT) right, getContext());
+    @Override
+    public void flush(Context<OUT> context) {
+      Iterable<LEFT> lefts = leftElements.get();
+      Iterable<RIGHT> rights = rightElements.get();
+      for (LEFT l : lefts) {
+        for (RIGHT r : rights) {
+          functor.apply(l, r, context);
         }
-      } else {
-        for (Object left : otherElements.get()) {
-          functor.apply((LEFT) left, element.right(), getContext());
+      }
+      if (outer) {
+        flushUnjoinedElems(context, lefts, rights);
+      }
+    }
+
+    private void flushUnjoinedElems(
+        Context<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
+      boolean leftEmpty = !lefts.iterator().hasNext();
+      boolean rightEmpty = !rights.iterator().hasNext();
+      // if just a one collection is empty
+      if (leftEmpty != rightEmpty) {
+        if (leftEmpty) {
+          for (RIGHT elem : rights) {
+            functor.apply(null, elem, context);
+          }
+        } else {
+          for (LEFT elem : lefts) {
+            functor.apply(elem, null, context);
+          }
         }
       }
     }
 
     @Override
-    public void mergeFrom(JoinState other) {
-      // TODO retrieving the actual list stored in the state is a costly operation
-      // ... optimize for it (avoid needlessly calling storage.get(..) multiple times)
-      // ... also avoid calling addAll or alternatively provide a more efficient impl
-      for (LEFT l : other.leftElements.get()) {
-        for (RIGHT r : this.rightElements.get()) {
-          functor.apply(l, r, getContext());
-        }
-      }
-      for (RIGHT r : other.rightElements.get()) {
-        for (LEFT l : this.leftElements.get()) {
-          functor.apply(l, r, getContext());
-        }
-      }
+    public void mergeFrom(StableJoinState other) {
       this.leftElements.addAll(other.leftElements.get());
       this.rightElements.addAll(other.rightElements.get());
     }
   }
+
+
+// XXX EarlyEmittingJoinState
+//private class EarlyEmittingJoinState
+//    extends AbstractJoinState
+//    implements State<Either<LEFT, RIGHT>, OUT>, StateSupport.MergeFrom<EarlyEmittingJoinState> {
+//  private final Context<OUT> context;
+//
+//  @SuppressWarnings("unchecked")
+//  public EarlyEmittingJoinState(StorageProvider storageProvider, Context<OUT> context) {
+//    super(storageProvider);
+//    this.context = Objects.requireNonNull(context);
+//  }
+//
+//}
+//  private static class JoinState
+//      extends AbstractJoinState
+//      implements State<Either<LEFT, RIGHT>, OUT>, StateSupport.MergeFrom<JoinState> {
+//
+//    @Nullable
+//    private final Context<OUT> context;
+//
+//    @SuppressWarnings("unchecked")
+//    public JoinState(StorageProvider storageProvider, Context<OUT> context) {
+//      super(storageProvider);
+//      this.context = context;
+//    }
+//
+//    @Override
+//    public void add(Either<LEFT, RIGHT> element) {
+//      if (element.isLeft()) {
+//        leftElements.add(element.left());
+//        // ~ if we've got a context, we try to emit elements as soon as possible
+//        if (context != null) {
+//          emitJoinedElements(context, element, rightElements);
+//        }
+//      } else {
+//        rightElements.add(element.right());
+//        // ~ if we've got a context, we try to emit elements as soon as possible
+//        if (context != null) {
+//            emitJoinedElements(context, element, leftElements);
+//        }
+//      }
+//    }
+//
+//    @Override
+//    public void flush(Context<OUT> ctx) {
+//      if (context != null) {
+//        // ~ no-op; we do all the work already on the fly
+//        // and flush any "pending" state _only_ when closing
+//        // this state
+//      } else {
+//        Iterable<LEFT> lefts = leftElements.get();
+//        Iterable<RIGHT> rights = rightElements.get();
+//        if (outer) {
+//          flushUnjoinedElems();
+//        }
+//        for (LEFT l : lefts) {
+//          for (RIGHT r : rights) {
+//            functor.apply(l, r, ctx);
+//          }
+//        }
+//      }
+//    }
+//
+//    @Override
+//    public void close() {
+//// XXX
+//
+////      if (outer) {
+////        flushUnjoinedElems();
+////      }
+//      leftElements.clear();
+//      rightElements.clear();
+//    }
+//
+//    private void flushUnjoinedElems() {
+//      Iterable<LEFT> lefts = leftElements.get();
+//      Iterable<RIGHT> rights = rightElements.get();
+//
+//      boolean leftEmpty = !lefts.iterator().hasNext();
+//      boolean rightEmpty = !rights.iterator().hasNext();
+//      if (leftEmpty ^ rightEmpty) {
+//        // if just a one collection is empty
+//        if (leftEmpty) {
+//          for (RIGHT elem : rights) {
+//            functor.apply(null, elem, getContext());
+//          }
+//        } else {
+//          for (LEFT elem : lefts) {
+//            functor.apply(elem, null, getContext());
+//          }
+//        }
+//      }
+//    }
+//
+//    @SuppressWarnings("unchecked")
+//    private void emitJoinedElements(
+//        Context<OUT> context,
+//        Either<LEFT, RIGHT> element,
+//        ListStorage otherElements) {
+//      assert context != null;
+//      if (element.isLeft()) {
+//        for (Object right : otherElements.get()) {
+//          functor.apply(element.left(), (RIGHT) right, context);
+//        }
+//      } else {
+//        for (Object left : otherElements.get()) {
+//          functor.apply((LEFT) left, element.right(), context);
+//        }
+//      }
+//    }
+//
+//    @Override
+//    public void mergeFrom(JoinState other) {
+//      // TODO retrieving the actual list stored in the state is a costly operation
+//      // ... optimize for it (avoid needlessly calling storage.get(..) multiple times)
+//      // ... also avoid calling addAll or alternatively provide a more efficient impl
+//      for (LEFT l : other.leftElements.get()) {
+//        for (RIGHT r : this.rightElements.get()) {
+//          functor.apply(l, r, getContext());
+//        }
+//      }
+//      for (RIGHT r : other.rightElements.get()) {
+//        for (LEFT l : this.leftElements.get()) {
+//          functor.apply(l, r, getContext());
+//        }
+//      }
+//      this.leftElements.addAll(other.leftElements.get());
+//      this.rightElements.addAll(other.rightElements.get());
+//    }
+//  }
 
   public boolean isOuter() {
     return outer;
@@ -436,19 +555,18 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     Union<Either<LEFT, RIGHT>> union =
         new Union<>(name, flow, leftMap.output(), rightMap.output());
 
-    ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, JoinState, W>
+    ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, StableJoinState, W>
         reduce = new ReduceStateByKey(
-              getName() + "::ReduceStateByKey",
-              flow,
-              union.output(),
-              keyExtractor,
-              e -> e,
-              getWindowing(),
-              getEventTimeAssigner(),
-              JoinState::new,
-              new StateSupport.MergeFromStateMerger<>(),
-              partitioning
-        );
+        getName() + "::ReduceStateByKey",
+        flow,
+        union.output(),
+        keyExtractor,
+        e -> e,
+        getWindowing(),
+        getEventTimeAssigner(),
+        (StorageProvider storageProvider, Context ctx) -> new StableJoinState(storageProvider),
+        new StateSupport.MergeFromStateMerger<>(),
+        partitioning);
 
     DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);

@@ -34,8 +34,10 @@ public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
             StateFactory<?, ?, State<?, ?>> stateFactory,
             StateMerger<?, ?, State<?, ?>> stateCombiner,
             boolean localMode,
-            int descriptorsCacheMaxSize) {
-        super(windowing, stateFactory, stateCombiner, localMode, descriptorsCacheMaxSize);
+            int descriptorsCacheMaxSize,
+            boolean allowEarlyEmitting) {
+        super(windowing, stateFactory, stateCombiner, localMode,
+            descriptorsCacheMaxSize, allowEarlyEmitting);
     }
 
     @Override
