@@ -98,7 +98,7 @@ class FakeJobService implements JobService, Serializable {
       HashBasedTable.create();
   private static int numExtractJobCalls = 0;
 
-  private static final com.google.common.collect.Table<String, String, List<String>>
+  private static final com.google.common.collect.Table<String, String, List<ResourceId>>
       filesForLoadJobs = HashBasedTable.create();
   private static final com.google.common.collect.Table<String, String, JobStatistics>
       dryRunQueryResults = HashBasedTable.create();
@@ -117,25 +117,20 @@ class FakeJobService implements JobService, Serializable {
       job.setKind(" bigquery#job");
       job.setStatus(new JobStatus().setState("PENDING"));
 
-      ImmutableList.Builder<ResourceId> sourceFileResources = ImmutableList.builder();
-      ImmutableList.Builder<ResourceId> loadFileResources = ImmutableList.builder();
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
       if (loadConfig.getSourceUris().size() > 0) {
-        List<String> loadFiles = Lists.newArrayList();
+        ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
+        ImmutableList.Builder<ResourceId> loadFiles = ImmutableList.builder();
         for (String filename : loadConfig.getSourceUris()) {
-          sourceFileResources.add(
-              FileSystems.matchNewResource(filename, false /* isDirectory */));
-          ResourceId fileResource = FileSystems.matchNewResource(
-              filename + ThreadLocalRandom.current().nextInt(),
-              false /* isDirectory */);
-          loadFiles.add(fileResource.toString());
-          loadFileResources.add(fileResource);
+          sourceFiles.add(FileSystems.matchNewResource(filename, false /* isDirectory */));
+          loadFiles.add(FileSystems.matchNewResource(
+              filename + ThreadLocalRandom.current().nextInt(), false /* isDirectory */));
         }
 
-        FileSystems.copy(sourceFileResources.build(), loadFileResources.build(),
+        FileSystems.copy(sourceFiles.build(), loadFiles.build(),
             MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
-        filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles);
+        filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
 
       allJobs.put(jobRef.getProjectId(), jobRef.getJobId(), new JobInfo(job));
@@ -299,7 +294,7 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     TableReference destination = load.getDestinationTable();
     TableSchema schema = load.getSchema();
-    List<String> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
+    List<ResourceId> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
     WriteDisposition writeDisposition = WriteDisposition.valueOf(load.getWriteDisposition());
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
     checkArgument(load.getSourceFormat().equals("NEWLINE_DELIMITED_JSON"));
@@ -311,8 +306,8 @@ class FakeJobService implements JobService, Serializable {
     datasetService.createTable(new Table().setTableReference(destination).setSchema(schema));
 
     List<TableRow> rows = Lists.newArrayList();
-    for (String filename : sourceFiles) {
-      rows.addAll(readRows(filename));
+    for (ResourceId filename : sourceFiles) {
+      rows.addAll(readRows(filename.toString()));
     }
     datasetService.insertAll(destination, rows, null);
     return new JobStatus().setState("DONE");

@@ -205,7 +205,6 @@ class BatchLoads<DestinationT>
                             bigQueryServices,
                             jobIdTokenView,
                             schemasView,
-                            stepUuid,
                             WriteDisposition.WRITE_EMPTY,
                             CreateDisposition.CREATE_IF_NEEDED,
                             dynamicDestinations))
@@ -243,7 +242,6 @@ class BatchLoads<DestinationT>
                         bigQueryServices,
                         jobIdTokenView,
                         schemasView,
-                        stepUuid,
                         writeDisposition,
                         createDisposition,
                         dynamicDestinations))

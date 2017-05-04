@@ -91,7 +91,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
 
       String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
-      List<String> tempFiles = executeExtract(
+      List<ResourceId> tempFiles = executeExtract(
           extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
@@ -117,7 +117,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return TableRowJsonCoder.of();
   }
 
-  private List<String> executeExtract(
+  private List<ResourceId> executeExtract(
       String jobId, TableReference table, JobService jobService, String executingProject,
       String extractDestinationDir)
           throws InterruptedException, IOException {
@@ -144,15 +144,11 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
     LOG.info("BigQuery extract job completed: {}", jobId);
 
-    ImmutableList.Builder<String> tempFiles = ImmutableList.builder();
-    for (ResourceId resourceId: BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob)) {
-      tempFiles.add(resourceId.toString());
-    }
-    return tempFiles.build();
+    return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
   private List<BoundedSource<TableRow>> createSources(
-      List<String> files, TableSchema tableSchema) throws IOException, InterruptedException {
+      List<ResourceId> files, TableSchema tableSchema) throws IOException, InterruptedException {
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
 
     SerializableFunction<GenericRecord, TableRow> function =
@@ -164,9 +160,9 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
           }};
 
     List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
-    for (String fileName : files) {
+    for (ResourceId file : files) {
       avroSources.add(new TransformingSource<>(
-          AvroSource.from(fileName), function, getDefaultOutputCoder()));
+          AvroSource.from(file.toString()), function, getDefaultOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
   }

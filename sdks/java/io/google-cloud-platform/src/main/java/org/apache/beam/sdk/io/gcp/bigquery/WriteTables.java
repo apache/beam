@@ -67,7 +67,6 @@ class WriteTables<DestinationT>
   private final BigQueryServices bqServices;
   private final PCollectionView<String> jobIdToken;
   private final PCollectionView<Map<DestinationT, String>> schemasView;
-  private final String stepUuid;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -77,7 +76,6 @@ class WriteTables<DestinationT>
       BigQueryServices bqServices,
       PCollectionView<String> jobIdToken,
       PCollectionView<Map<DestinationT, String>> schemasView,
-      String stepUuid,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
@@ -85,7 +83,6 @@ class WriteTables<DestinationT>
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.schemasView = schemasView;
-    this.stepUuid = stepUuid;
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;

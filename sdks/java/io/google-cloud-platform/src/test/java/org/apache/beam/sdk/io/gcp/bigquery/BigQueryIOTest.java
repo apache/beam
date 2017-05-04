@@ -1861,7 +1861,6 @@ public class BigQueryIOTest implements Serializable {
             fakeBqServices,
             jobIdTokenView,
             schemaMapView,
-            stepUuid,
             WriteDisposition.WRITE_EMPTY,
             CreateDisposition.CREATE_IF_NEEDED,
             new IdentityDynamicTables());
