@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -31,14 +32,19 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * This class contains the shared interfaces and abstract classes for different types of combine
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>This class contains the shared interfaces and abstract classes for different types of combine
  * functions.
  *
  * <p>Users should not implement or extend them directly.
  */
+@Internal
 public class CombineFnBase {
   /**
-   * A {@code GloballyCombineFn<InputT, AccumT, OutputT>} specifies how to combine a
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>A {@code GloballyCombineFn<InputT, AccumT, OutputT>} specifies how to combine a
    * collection of input values of type {@code InputT} into a single
    * output value of type {@code OutputT}.  It does this via one or more
    * intermediate mutable accumulator values of type {@code AccumT}.
@@ -50,6 +56,7 @@ public class CombineFnBase {
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
+  @Internal
   public interface GlobalCombineFn<InputT, AccumT, OutputT> extends Serializable, HasDisplayData {
 
     /**
@@ -93,16 +100,19 @@ public class CombineFnBase {
   }
 
   /**
-   * An abstract {@link GlobalCombineFn} base class shared by
-   * {@link CombineFn} and {@link CombineFnWithContext}.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>Do not extend this class directly.
-   * Extends {@link CombineFn} and {@link CombineFnWithContext} instead.
+   * <p>An abstract {@link GlobalCombineFn} base class shared by {@link CombineFn} and {@link
+   * CombineFnWithContext}.
+   *
+   * <p>Do not extend this class directly. Extends {@link CombineFn} and {@link
+   * CombineFnWithContext} instead.
    *
    * @param <InputT> type of input values
    * @param <AccumT> type of mutable accumulator values
    * @param <OutputT> type of output values
    */
+  @Internal
   abstract static class AbstractGlobalCombineFn<InputT, AccumT, OutputT>
       implements GlobalCombineFn<InputT, AccumT, OutputT>, Serializable {
     private static final String INCOMPATIBLE_GLOBAL_WINDOW_ERROR_MESSAGE =

@@ -40,7 +40,7 @@ public class AfterProcessingTime extends OnceTrigger {
 
   private final List<TimestampTransform> timestampTransforms;
 
-  public AfterProcessingTime(List<TimestampTransform> timestampTransforms) {
+  private AfterProcessingTime(List<TimestampTransform> timestampTransforms) {
     super(null);
     this.timestampTransforms = timestampTransforms;
   }

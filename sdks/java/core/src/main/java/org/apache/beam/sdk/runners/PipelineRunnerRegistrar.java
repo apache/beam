@@ -19,8 +19,11 @@ package org.apache.beam.sdk.runners;
 
 import com.google.auto.service.AutoService;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
  * {@link PipelineRunner} creators have the ability to automatically have their
  * {@link PipelineRunner} registered with this SDK by creating a {@link ServiceLoader} entry
  * and a concrete implementation of this interface.
@@ -33,6 +36,7 @@ import java.util.ServiceLoader;
  * <p>It is optional but recommended to use one of the many build time tools such as
  * {@link AutoService} to generate the necessary META-INF files automatically.
  */
+@Internal
 public interface PipelineRunnerRegistrar {
   /**
    * Get the set of {@link PipelineRunner PipelineRunners} to register.

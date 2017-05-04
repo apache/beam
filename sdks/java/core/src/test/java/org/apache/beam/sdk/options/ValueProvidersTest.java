@@ -26,9 +26,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link ValueProviderUtils}. */
+/** Tests for {@link ValueProviders}. */
 @RunWith(JUnit4.class)
-public class ValueProviderUtilsTest {
+public class ValueProvidersTest {
   /** A test interface. */
   public interface TestOptions extends PipelineOptions {
     String getString();
@@ -43,7 +43,7 @@ public class ValueProviderUtilsTest {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviderUtils.updateSerializedOptions(
+    String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("string", "bar"));
     TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
@@ -56,7 +56,7 @@ public class ValueProviderUtilsTest {
         "--string=baz", "--otherString=quux").as(TestOptions.class);
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviderUtils.updateSerializedOptions(
+    String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("string", "bar"));
     TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
@@ -69,7 +69,7 @@ public class ValueProviderUtilsTest {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviderUtils.updateSerializedOptions(
+    String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.<String, String>of());
     TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
