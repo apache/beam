@@ -271,7 +271,7 @@ public class PipelineOptionsTest {
   public void testSerializingPipelineOptionsWithCustomUserType() throws Exception {
     String expectedValue = "testValue";
     PipelineOptions options = PipelineOptionsFactory
-        .fromArgs("--jacksonIncompatible=\""+ expectedValue + "\"")
+        .fromArgs("--jacksonIncompatible=\"" + expectedValue + "\"")
         .as(JacksonIncompatibleOptions.class);
     SerializedPipelineOptions context = new SerializedPipelineOptions(options);
 
