@@ -114,8 +114,8 @@ public class PubsubUnboundedSourceTest {
     factory = null;
   }
 
-  private static String data(PubsubIO.PubsubMessage message) {
-    return new String(message.getMessage(), StandardCharsets.UTF_8);
+  private static String data(PubsubMessage message) {
+    return new String(message.getPayload(), StandardCharsets.UTF_8);
   }
 
   @Test

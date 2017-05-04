@@ -60,7 +60,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
   private static final String ID_ATTRIBUTE = "id";
   private static final int NUM_SHARDS = 10;
 
-  private static class Stamp extends DoFn<String, PubsubIO.PubsubMessage> {
+  private static class Stamp extends DoFn<String, PubsubMessage> {
     private final Map<String, String> attributes;
 
     private Stamp() {
@@ -74,7 +74,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(
-          new PubsubIO.PubsubMessage(
+          new PubsubMessage(
               c.element().getBytes(StandardCharsets.UTF_8), attributes),
           new Instant(TIMESTAMP));
     }
@@ -115,7 +115,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp(ATTRIBUTES)))
-       .setCoder(PubsubMessageWithAttributesCoder.of())
        .apply(sink);
       p.run();
     }
@@ -145,7 +144,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
               Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
-       .setCoder(PubsubMessagePayloadOnlyCoder.of())
        .apply(sink);
       p.run();
     }
@@ -182,7 +180,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
-       .setCoder(PubsubMessagePayloadOnlyCoder.of())
        .apply(sink);
       p.run();
     }

@@ -107,7 +107,7 @@ import org.slf4j.LoggerFactory;
  * {@link UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
-public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubIO.PubsubMessage>> {
+public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
   /**
@@ -389,7 +389,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    * but not yet consumed downstream and/or ACKed back to Pubsub.
    */
   @VisibleForTesting
-  static class PubsubReader extends UnboundedSource.UnboundedReader<PubsubIO.PubsubMessage> {
+  static class PubsubReader extends UnboundedSource.UnboundedReader<PubsubMessage> {
     /**
      * For access to topic and checkpointCoder.
      */
@@ -963,11 +963,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public PubsubIO.PubsubMessage getCurrent() throws NoSuchElementException {
+    public PubsubMessage getCurrent() throws NoSuchElementException {
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubIO.PubsubMessage(current.elementBytes, current.attributes);
+      return new PubsubMessage(current.elementBytes, current.attributes);
     }
 
     @Override
@@ -1088,7 +1088,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // ================================================================================
 
   @VisibleForTesting
-  static class PubsubSource extends UnboundedSource<PubsubIO.PubsubMessage, PubsubCheckpoint> {
+  static class PubsubSource extends UnboundedSource<PubsubMessage, PubsubCheckpoint> {
     public final PubsubUnboundedSource outer;
     // The subscription to read from.
     @VisibleForTesting
@@ -1161,7 +1161,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public Coder<PubsubIO.PubsubMessage> getDefaultOutputCoder() {
+    public Coder<PubsubMessage> getDefaultOutputCoder() {
       return new PubsubMessageWithAttributesCoder();
     }
 
@@ -1181,7 +1181,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   // StatsFn
   // ================================================================================
 
-  private static class StatsFn extends DoFn<PubsubIO.PubsubMessage, PubsubIO.PubsubMessage> {
+  private static class StatsFn extends DoFn<PubsubMessage, PubsubMessage> {
     private final Counter elementCounter = SourceMetrics.elementsRead();
 
     private final PubsubClientFactory pubsubFactory;
@@ -1398,7 +1398,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   @Override
-  public PCollection<PubsubIO.PubsubMessage> expand(PBegin input) {
+  public PCollection<PubsubMessage> expand(PBegin input) {
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource(this)))
                 .apply("PubsubUnboundedSource.Stats",
