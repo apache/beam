@@ -18,13 +18,26 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.io.Files;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -33,6 +46,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class HadoopFileSystemOptionsTest {
+  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+
   @Test
   public void testParsingHdfsConfiguration() {
     HadoopFileSystemOptions options = PipelineOptionsFactory.fromArgs(
@@ -44,5 +59,115 @@ public class HadoopFileSystemOptionsTest {
         new AbstractMap.SimpleEntry("propertyA", "A")));
     assertThat(options.getHdfsConfiguration().get(1), Matchers.<Map.Entry<String, String>>contains(
         new AbstractMap.SimpleEntry("propertyB", "B")));
+  }
+
+  @Test
+  public void testDefaultUnsetEnvHdfsConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.<String, String>of());
+    assertNull(projectFactory.create(PipelineOptionsFactory.create()));
+  }
+
+  @Test
+  public void testDefaultJustSetHadoopConfDirConfiguration() throws IOException {
+    Files.write(createPropertyData("A"),
+        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("B"),
+        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultJustSetYarnConfDirConfiguration() throws IOException {
+    Files.write(createPropertyData("A"),
+        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("B"),
+        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameConfiguration() throws IOException {
+    Files.write(createPropertyData("A"),
+        tmpFolder.newFile("core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("B"),
+        tmpFolder.newFile("hdfs-site.xml"), StandardCharsets.UTF_8);
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    environment.put("HADOOP_CONF_DIR", tmpFolder.getRoot().getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirNotSameConfiguration() throws IOException {
+    File hadoopConfDir = tmpFolder.newFolder("hadoop");
+    File yarnConfDir = tmpFolder.newFolder("yarn");
+    Files.write(createPropertyData("A"),
+        new File(hadoopConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("B"),
+        new File(hadoopConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("C"),
+        new File(yarnConfDir, "core-site.xml"), StandardCharsets.UTF_8);
+    Files.write(createPropertyData("D"),
+        new File(yarnConfDir, "hdfs-site.xml"), StandardCharsets.UTF_8);
+    HadoopFileSystemOptions.ConfigurationLocator configurationLocator =
+              spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", hadoopConfDir.getAbsolutePath());
+    environment.put("HADOOP_CONF_DIR", yarnConfDir.getAbsolutePath());
+    when(configurationLocator.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList =
+        configurationLocator.create(PipelineOptionsFactory.create());
+    assertEquals(2, configurationList.size());
+    int hadoopConfIndex = configurationList.get(0).get("propertyA") != null ? 0 : 1;
+    assertThat(
+        configurationList.get(hadoopConfIndex).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(
+        configurationList.get(hadoopConfIndex).get("propertyB"), Matchers.equalTo("B"));
+    assertThat(
+        configurationList.get(1 - hadoopConfIndex).get("propertyC"), Matchers.equalTo("C"));
+    assertThat(
+        configurationList.get(1 - hadoopConfIndex).get("propertyD"), Matchers.equalTo("D"));
+  }
+
+  private static String createPropertyData(String property) {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        + "<?xml-stylesheet type=\"text/xsl\" href=\"configuration.xsl\"?>\n"
+        + "<configuration>\n"
+        + "    <property>\n"
+        + "        <name>property" + property + "</name>\n"
+        + "        <value>" + property + "</value>\n"
+        + "    </property>\n"
+        + "</configuration>";
   }
 }
