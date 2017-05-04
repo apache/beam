@@ -33,7 +33,7 @@ import org.junit.Test;
 public class BeamSqlRowCoderTest {
 
   @Test
-  public void encode() throws Exception {
+  public void encodeAndDecode() throws Exception {
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
