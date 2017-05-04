@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.io.gcp.pubsub.BucketingFunction;
 import org.apache.beam.sdk.transforms.Combine;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.Combine;
  * Keep track of the minimum/maximum/sum of a set of timestamped long values.
  * For efficiency, bucket values by their timestamp.
  */
-public class BucketingFunction {
+class BucketingFunction {
   private static class Bucket {
     private int numSamples;
     private long combinedValue;

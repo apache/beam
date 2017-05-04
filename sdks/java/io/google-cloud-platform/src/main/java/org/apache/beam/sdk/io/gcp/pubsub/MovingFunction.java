@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.Combine;
  * is over at most the user-specified last {@code samplePeriodMs}, and is updated every
  * {@code sampleUpdateMs}.
  */
-public class MovingFunction {
+class MovingFunction {
   /**
    * How frequently to update the moving function, in ms.
    */
