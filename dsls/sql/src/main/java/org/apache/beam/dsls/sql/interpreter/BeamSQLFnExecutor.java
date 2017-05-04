@@ -48,6 +48,9 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlPositionExpre
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlSubstringExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlTrimExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowStartExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -112,7 +115,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
 
         case "=":
           return new BeamSqlEqualExpression(subExps);
-        case "<>=":
+        case "<>":
           return new BeamSqlNotEqualExpression(subExps);
         case ">":
           return new BeamSqlLargerThanExpression(subExps);
@@ -161,6 +164,19 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
           return new BeamSqlIsNullExpression(subExps.get(0));
         case "IS NOT NULL":
           return new BeamSqlIsNotNullExpression(subExps.get(0));
+
+        case "HOP":
+        case "TUMBLE":
+        case "SESSION":
+          return new BeamSqlWindowExpression(subExps, node.type.getSqlTypeName());
+        case "HOP_START":
+        case "TUMBLE_START":
+        case "SESSION_START":
+          return new BeamSqlWindowStartExpression();
+        case "HOP_END":
+        case "TUMBLE_END":
+        case "SESSION_END":
+        return new BeamSqlWindowEndExpression();
       default:
         throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
       }
