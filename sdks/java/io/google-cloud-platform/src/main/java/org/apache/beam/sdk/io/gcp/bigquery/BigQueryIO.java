@@ -38,8 +38,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -50,6 +50,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonTableRefToTableRef;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableSchemaToJsonSchema;
@@ -67,8 +71,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -520,18 +522,13 @@ public class BigQueryIO {
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
-              Collection<String> extractFiles = null;
               if (extractJob != null) {
-                extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
-              } else {
-                IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-                Collection<String> dirMatch = factory.match(extractDestinationDir);
-                if (!dirMatch.isEmpty()) {
-                  extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                List<ResourceId> extractFiles =
+                    getExtractFilePaths(extractDestinationDir, extractJob);
+                if (extractFiles != null && !extractFiles.isEmpty()) {
+                  FileSystems.delete(extractFiles,
+                      MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
-              }
-              if (extractFiles != null && !extractFiles.isEmpty()) {
-                IOChannelUtils.getFactory(extractFiles.iterator().next()).remove(extractFiles);
               }
             }
           };
@@ -583,7 +580,7 @@ public class BigQueryIO {
     return String.format("%s/%s", extractDestinationDir, "*.avro");
   }
 
-  static List<String> getExtractFilePaths(String extractDestinationDir, Job extractJob)
+  static List<ResourceId> getExtractFilePaths(String extractDestinationDir, Job extractJob)
       throws IOException {
     JobStatistics jobStats = extractJob.getStatistics();
     List<Long> counts = jobStats.getExtract().getDestinationUriFileCounts();
@@ -597,11 +594,13 @@ public class BigQueryIO {
     }
     long filesCount = counts.get(0);
 
-    ImmutableList.Builder<String> paths = ImmutableList.builder();
-    IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+    ImmutableList.Builder<ResourceId> paths = ImmutableList.builder();
+    ResourceId extractDestinationDirResourceId =
+        FileSystems.matchNewResource(extractDestinationDir, true /* isDirectory */);
     for (long i = 0; i < filesCount; ++i) {
-      String filePath =
-          factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
+      ResourceId filePath = extractDestinationDirResourceId.resolve(
+          String.format("%012d%s", i, ".avro"),
+          ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
       paths.add(filePath);
     }
     return paths.build();

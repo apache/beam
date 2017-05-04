@@ -83,7 +83,9 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -118,7 +120,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -1820,7 +1821,9 @@ public class BigQueryIOTest implements Serializable {
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename = Paths.get(baseDir.toString(),
               String.format("files0x%08x_%05d", tempTableId.hashCode(), k)).toString();
-          try (WritableByteChannel channel = IOChannelUtils.create(filename, MimeTypes.TEXT)) {
+          ResourceId fileResource =
+              FileSystems.matchNewResource(filename, false /* isDirectory */);
+          try (WritableByteChannel channel = FileSystems.create(fileResource, MimeTypes.TEXT)) {
             try (OutputStream output = Channels.newOutputStream(channel)) {
               TableRow tableRow = new TableRow().set("name", tableName);
               TableRowJsonCoder.of().encode(tableRow, output, Context.OUTER);
@@ -1858,7 +1861,6 @@ public class BigQueryIOTest implements Serializable {
             fakeBqServices,
             jobIdTokenView,
             schemaMapView,
-            stepUuid,
             WriteDisposition.WRITE_EMPTY,
             CreateDisposition.CREATE_IF_NEEDED,
             new IdentityDynamicTables());
@@ -1904,14 +1906,9 @@ public class BigQueryIOTest implements Serializable {
     File tempDir = new File(bqOptions.getTempLocation());
     testNumFiles(tempDir, 10);
 
-    WriteTables.removeTemporaryFiles(bqOptions, tempFilePrefix, fileNames);
+    WriteTables.removeTemporaryFiles(fileNames);
 
     testNumFiles(tempDir, 0);
-
-    for (String fileName : fileNames) {
-      loggedWriteTables.verifyDebug("Removing file " + fileName);
-    }
-    loggedWriteTables.verifyDebug(fileNames.get(numFiles) + " does not exist.");
   }
 
   @Test
