@@ -121,7 +121,7 @@ import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.io.fs.PathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.util.ValueWithRecordId;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
