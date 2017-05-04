@@ -385,7 +385,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *    public void processElement(
    *        ProcessContext c,
    *       {@literal @TimerId("my-timer-id") Timer myTimer}) {
-   *      myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *      myTimer.offset(Duration.standardSeconds(...)).setRelative();
    *    }
    *
    *   {@literal @OnTimer("my-timer-id")}
