@@ -57,11 +57,9 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
@@ -71,14 +69,11 @@ import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -97,11 +92,6 @@ public class AvroIOTest {
 
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
-
-  @BeforeClass
-  public static void setupClass() {
-    IOChannelUtils.registerIOFactoriesAllowOverride(TestPipeline.testingPipelineOptions());
-  }
 
   @Test
   public void testAvroIOGetName() {
@@ -569,23 +559,5 @@ public class AvroIOTest {
     assertThat(displayData, hasDisplayItem("schema", GenericClass.class));
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
-  }
-
-  @Test
-  @Category(ValidatesRunner.class)
-  @Ignore("[BEAM-436] DirectRunner ValidatesRunner tempLocation configuration insufficient")
-  public void testPrimitiveWriteDisplayData() throws IOException {
-    PipelineOptions options = DisplayDataEvaluator.getDefaultOptions();
-    String tempRoot = options.as(TestPipelineOptions.class).getTempRoot();
-    String outputPath = IOChannelUtils.getFactory(tempRoot).resolve(tempRoot, "foo");
-
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
-
-    AvroIO.Write<GenericRecord> write =
-        AvroIO.writeGenericRecords(Schema.create(Schema.Type.STRING)).to(outputPath);
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("AvroIO.Write should include the file pattern in its primitive transform",
-        displayData, hasItem(hasDisplayItem("fileNamePattern")));
   }
 }
