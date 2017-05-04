@@ -46,8 +46,6 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
       PTransform<?, ? extends PValue> transform,
       TranslationContext context) {
     try {
-      // TODO: Move this validation out of translation once IOChannelUtils is portable
-      // and can be reconstructed on the worker.
       if (source instanceof FileBasedSource) {
         ValueProvider<String> filePatternOrSpec =
             ((FileBasedSource<?>) source).getFileOrPatternSpecProvider();
