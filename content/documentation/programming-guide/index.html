@@ -167,19 +167,15 @@
 
 <ul>
   <li><a href="#overview">Overview</a></li>
-  <li><a href="#pipeline">Creating the Pipeline</a></li>
+  <li><a href="#pipeline">Creating the Pipeline</a>
+    <ul>
+      <li><a href="#options">Configuring Pipeline Options</a></li>
+    </ul>
+  </li>
   <li><a href="#pcollection">Working with PCollections</a>
     <ul>
       <li><a href="#pccreate">Creating a PCollection</a></li>
-      <li><a href="#pccharacteristics">PCollection Characteristics</a>
-        <ul>
-          <li><a href="#pcelementtype">Element Type</a></li>
-          <li><a href="#pcimmutability">Immutability</a></li>
-          <li><a href="#pcrandomaccess">Random Access</a></li>
-          <li><a href="#pcsizebound">Size and Boundedness</a></li>
-          <li><a href="#pctimestamps">Element Timestamps</a></li>
-        </ul>
-      </li>
+      <li><a href="#pccharacteristics">PCollection Characteristics</a></li>
     </ul>
   </li>
   <li><a href="#transforms">Applying Transforms</a>
@@ -195,7 +191,6 @@
   </li>
   <li><a href="#transforms-composite">Composite Transforms</a></li>
   <li><a href="#io">Pipeline I/O</a></li>
-  <li><a href="#running">Running the Pipeline</a></li>
   <li><a href="#coders">Data Encoding and Type Safety</a></li>
   <li><a href="#windowing">Working with Windowing</a></li>
   <li><a href="#triggers">Working with Triggers</a></li>
@@ -240,25 +235,15 @@
 
 <p>To use Beam, your driver program must first create an instance of the Beam SDK class <code class="highlighter-rouge">Pipeline</code> (typically in the <code class="highlighter-rouge">main()</code> function). When you create your <code class="highlighter-rouge">Pipeline</code>, you’ll also need to set some <strong>configuration options</strong>. You can set your pipeline’s configuration options programatically, but it’s often easier to set the options ahead of time (or read them from the command line) and pass them to the <code class="highlighter-rouge">Pipeline</code> object when you create the object.</p>
 
-<p>The pipeline configuration options determine, among other things, the <code class="highlighter-rouge">PipelineRunner</code> that determines where the pipeline gets executed: locally, or using a distributed back-end of your choice. Depending on where your pipeline gets executed and what your specifed Runner requires, the options can also help you specify other aspects of execution.</p>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
+<span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
-<p>To set your pipeline’s configuration options and create the pipeline, create an object of type <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/options/PipelineOptions.html">PipelineOptions</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/pipeline_options.py">PipelineOptions</a></span> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
-   <span class="c1">// Will parse the arguments passed into the application and construct a PipelineOptions</span>
-   <span class="c1">// Note that --help will print registered options, and --help=PipelineOptionsClassName</span>
-   <span class="c1">// will print out usage for the specific class.</span>
-   <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
-       <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">create</span><span class="o">();</span>
-
-   <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+<span class="c1">// Then create the pipeline.</span>
+<span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Will parse the arguments passed into the application and construct a PipelineOptions object.</span>
-<span class="c"># Note that --help will print registered options.</span>
-
-<span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
@@ -266,7 +251,106 @@
 </code></pre>
 </div>
 
-<p>The Beam SDKs contain various subclasses of <code class="highlighter-rouge">PipelineOptions</code> that correspond to different Runners. For example, <code class="highlighter-rouge">DirectPipelineOptions</code> contains options for the Direct (local) pipeline runner, while <code class="highlighter-rouge">DataflowPipelineOptions</code> contains options for using the runner for Google Cloud Dataflow. You can also define your own custom <code class="highlighter-rouge">PipelineOptions</code> by creating an interface that extends the Beam SDKs’ <code class="highlighter-rouge">PipelineOptions</code> class.</p>
+<h3 id="a-nameoptionsaconfiguring-pipeline-options"><a name="options"></a>Configuring Pipeline Options</h3>
+
+<p>Use the pipeline options to configure different aspects of your pipeline, such as the pipeline runner that will execute your pipeline and any runner-specific configuration required by the chosen runner. Your pipeline options will potentially include information such as your project ID or a location for storing files.</p>
+
+<p>When you run the pipeline on a runner of your choice, a copy of the PipelineOptions will be available to your code. For example, you can read PipelineOptions from a DoFn’s Context.</p>
+
+<h4 id="setting-pipelineoptions-from-command-line-arguments">Setting PipelineOptions from Command-Line Arguments</h4>
+
+<p>While you can configure your pipeline by creating a <code class="highlighter-rouge">PipelineOptions</code> object and setting the fields directly, the Beam SDKs include a command-line parser that you can use to set fields in <code class="highlighter-rouge">PipelineOptions</code> using command-line arguments.</p>
+
+<p>To read options from the command-line, construct your <code class="highlighter-rouge">PipelineOptions</code> object as demonstrated in the following example code:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">create</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
+
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+
+</code></pre>
+</div>
+
+<p>This interprets command-line arguments that follow the format:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--&lt;option&gt;=&lt;value&gt;
+</code></pre>
+</div>
+
+<blockquote>
+  <p><strong>Note:</strong> Appending the method <code class="highlighter-rouge">.withValidation</code> will check for required command-line arguments and validate argument values.</p>
+</blockquote>
+
+<p>Building your <code class="highlighter-rouge">PipelineOptions</code> this way lets you specify any of the options as a command-line argument.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> The <a href="/get-started/wordcount-example">WordCount example pipeline</a> demonstrates how to set pipeline options at runtime by using command-line options.</p>
+</blockquote>
+
+<h4 id="creating-custom-options">Creating Custom Options</h4>
+
+<p>You can add your own custom options in addition to the standard <code class="highlighter-rouge">PipelineOptions</code>. To add your own options, define an interface with getter and setter methods for each option, as in the following example:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">)</span>
+
+</code></pre>
+</div>
+
+<p>You can also specify a description, which appears when a user passes <code class="highlighter-rouge">--help</code> as a command-line argument, and a default value.</p>
+
+<p>You set the description and default value using annotations, as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+    <span class="nd">@Description</span><span class="o">(</span><span class="s">"My custom command line argument."</span><span class="o">)</span>
+    <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"DEFAULT"</span><span class="o">)</span>
+    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">MyOptions</span><span class="p">(</span><span class="n">PipelineOptions</span><span class="p">):</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_add_argparse_args</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">parser</span><span class="p">):</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--input'</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s">'Input for the pipeline'</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/input'</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s">'--output'</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s">'Output for the pipeline'</span><span class="p">,</span>
+                        <span class="n">default</span><span class="o">=</span><span class="s">'gs://my-bucket/output'</span><span class="p">)</span>
+
+</code></pre>
+</div>
+
+<p class="language-java">It’s recommended that you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code> and then pass the interface when creating the <code class="highlighter-rouge">PipelineOptions</code> object. When you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>, the <code class="highlighter-rouge">--help</code> can find your custom options interface and add it to the output of the <code class="highlighter-rouge">--help</code> command. <code class="highlighter-rouge">PipelineOptionsFactory</code> will also validate that your custom options are compatible with all other registered options.</p>
+
+<p class="language-java">The following example code shows how to register your custom options interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">)</span>
+                                                <span class="o">.</span><span class="na">withValidation</span><span class="o">()</span>
+                                                <span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p>Now your pipeline can accept <code class="highlighter-rouge">--myCustomOption=value</code> as a command-line argument.</p>
 
 <h2 id="a-namepcollectionaworking-with-pcollections"><a name="pcollection"></a>Working with PCollections</h2>
 
@@ -290,6 +374,7 @@
         <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">create</span><span class="o">();</span>
     <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
+    <span class="c1">// Create the PCollection 'lines' by applying a 'Read' transform.</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
       <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
@@ -386,7 +471,9 @@
 
 <p>In the Beam SDKs, <strong>transforms</strong> are the operations in your pipeline. A transform takes a <code class="highlighter-rouge">PCollection</code> (or more than one <code class="highlighter-rouge">PCollection</code>) as input, performs an operation that you specify on each element in that collection, and produces a new output <code class="highlighter-rouge">PCollection</code>. To invoke a transform, you must <strong>apply</strong> it to the input <code class="highlighter-rouge">PCollection</code>.</p>
 
-<p>In Beam SDK each transform has a generic <code class="highlighter-rouge">apply</code> method <span class="language-py">(or pipe operator <code class="highlighter-rouge">|</code>)</span>. Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one slight difference: You apply the transform to the input <code class="highlighter-rouge">PCollection</code>, passing the transform itself as an argument, and the operation returns the output <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
+<p>The Beam SDKs contain a number of different transforms that you can apply to your pipeline’s <code class="highlighter-rouge">PCollection</code>s. These include general-purpose core transforms, such as <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a> or <a href="/documentation/programming-guide/#transforms-combine">Combine</a>. There are also pre-written <a href="/documentation/programming-guide/#transforms-composite">composite transforms</a> included in the SDKs, which combine one or more of the core transforms in a useful processing pattern, such as counting or combining elements in a collection. You can also define your own more complex composite transforms to fit your pipeline’s exact use case.</p>
+
+<p>Each transform in the Beam SDKs has a generic <code class="highlighter-rouge">apply</code> method <span class="language-py">(or pipe operator <code class="highlighter-rouge">|</code>)</span>. Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one slight difference: You apply the transform to the input <code class="highlighter-rouge">PCollection</code>, passing the transform itself as an argument, and the operation returns the output <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
 </code></pre>
@@ -1406,28 +1493,6 @@ guest, [[], [order4]]
 <h3 id="beam-provided-io-transforms">Beam-provided I/O Transforms</h3>
 <p>See the  <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a> page for a list of the currently available I/O transforms.</p>
 
-<h2 id="a-namerunningarunning-the-pipeline"><a name="running"></a>Running the pipeline</h2>
-
-<p>To run your pipeline, use the <code class="highlighter-rouge">run</code> method. The program you create sends a specification for your pipeline to a pipeline runner, which then constructs and runs the actual series of pipeline operations. Pipelines are executed asynchronously by default.</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
-</code></pre>
-</div>
-
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</code></pre>
-</div>
-
-<p>For blocking execution, append the <span class="language-java"><code class="highlighter-rouge">waitUntilFinish</code></span> <span class="language-py"><code class="highlighter-rouge">wait_until_finish</code></span> method:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
-</code></pre>
-</div>
-
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pipeline</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
-</code></pre>
-</div>
-
 <h2 id="a-namecodersadata-encoding-and-type-safety"><a name="coders"></a>Data encoding and type safety</h2>
 
 <p>When you create or output pipeline data, you’ll need to specify how the elements in your <code class="highlighter-rouge">PCollection</code>s are encoded and decoded to and from byte strings. Byte strings are used for intermediate storage as well reading from sources and writing to sinks. The Beam SDKs use objects called coders to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> should be encoded and decoded.</p>
@@ -2096,7 +2161,6 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 <div class="language-py highlighter-rouge"><pre class="highlight"><code>  <span class="c"># The Beam SDK for Python does not support triggers.</span>
 </code></pre>
 </div>
-
 
       </div>
 
