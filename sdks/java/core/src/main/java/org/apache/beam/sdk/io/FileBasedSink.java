@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * type, etc.).
  *
  * <p>At pipeline construction time, the methods of FileBasedSink are called to validate the sink
- * and to create a {@link FileBasedWriteOperation} that manages the process of writing to the sink.
+ * and to create a {@link WriteOperation} that manages the process of writing to the sink.
  *
  * <p>The process of writing to file-based sink is as follows:
  * <ol>
@@ -93,8 +93,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the finalize method. Each call to {@link FileBasedWriter#openWindowed}
- * or {@link FileBasedWriter#openUnwindowed} is passed a unique <i>bundle id</i> when it is called
+ * result passed to the finalize method. Each call to {@link Writer#openWindowed}
+ * or {@link Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called
  * by the WriteFiles transform, so even redundant or retried bundles will have a unique way of
  * identifying
  * their output.
@@ -362,10 +362,10 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   public void validate(PipelineOptions options) {}
 
   /**
-   * Return a subclass of {@link FileBasedSink.FileBasedWriteOperation} that will manage the write
+   * Return a subclass of {@link WriteOperation} that will manage the write
    * to the sink.
    */
-  public abstract FileBasedWriteOperation<T> createWriteOperation();
+  public abstract WriteOperation<T> createWriteOperation();
 
   public void populateDisplayData(DisplayData.Builder builder) {
     getFilenamePolicy().populateDisplayData(builder);
@@ -374,24 +374,24 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * Abstract operation that manages the process of writing to {@link FileBasedSink}.
    *
-   * <p>The primary responsibilities of the FileBasedWriteOperation is the management of output
-   * files. During a write, {@link FileBasedSink.FileBasedWriter}s write bundles to temporary file
+   * <p>The primary responsibilities of the WriteOperation is the management of output
+   * files. During a write, {@link Writer}s write bundles to temporary file
    * locations. After the bundles have been written,
    * <ol>
-   * <li>{@link FileBasedSink.FileBasedWriteOperation#finalize} is given a list of the temporary
+   * <li>{@link WriteOperation#finalize} is given a list of the temporary
    * files containing the output bundles.
    * <li>During finalize, these temporary files are copied to final output locations and named
    * according to a file naming template.
    * <li>Finally, any temporary files that were created during the write are removed.
    * </ol>
    *
-   * <p>Subclass implementations of FileBasedWriteOperation must implement
-   * {@link FileBasedSink.FileBasedWriteOperation#createWriter} to return a concrete
+   * <p>Subclass implementations of WriteOperation must implement
+   * {@link WriteOperation#createWriter} to return a concrete
    * FileBasedSinkWriter.
    *
    * <h2>Temporary and Output File Naming:</h2> During the write, bundles are written to temporary
    * files using the tempDirectory that can be provided via the constructor of
-   * FileBasedWriteOperation. These temporary files will be named
+   * WriteOperation. These temporary files will be named
    * {@code {tempDirectory}/{bundleId}}, where bundleId is the unique id of the bundle.
    * For example, if tempDirectory is "gs://my-bucket/my_temp_output", the output for a
    * bundle with bundle id 15723 will be "gs://my-bucket/my_temp_output/15723".
@@ -411,7 +411,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    *
    * @param <T> the type of values written to the sink.
    */
-  public abstract static class FileBasedWriteOperation<T> implements Serializable {
+  public abstract static class WriteOperation<T> implements Serializable {
     /**
      * The Sink that this WriteOperation will write to.
      */
@@ -430,7 +430,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Constructs a FileBasedWriteOperation using the default strategy for generating a temporary
+     * Constructs a WriteOperation using the default strategy for generating a temporary
      * directory from the base output filename.
      *
      * <p>Default is a uniquely named sibling of baseOutputFilename, e.g. if baseOutputFilename is
@@ -438,7 +438,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
-    public FileBasedWriteOperation(FileBasedSink<T> sink) {
+    public WriteOperation(FileBasedSink<T> sink) {
       this(sink, NestedValueProvider.of(
           sink.getBaseOutputDirectoryProvider(), new TemporaryDirectoryBuilder()));
     }
@@ -464,16 +464,16 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Create a new FileBasedWriteOperation.
+     * Create a new WriteOperation.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      * @param tempDirectory the base directory to be used for temporary output files.
      */
-    public FileBasedWriteOperation(FileBasedSink<T> sink, ResourceId tempDirectory) {
+    public WriteOperation(FileBasedSink<T> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory));
     }
 
-    private FileBasedWriteOperation(
+    private WriteOperation(
         FileBasedSink<T> sink, ValueProvider<ResourceId> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
@@ -481,10 +481,10 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Clients must implement to return a subclass of {@link FileBasedSink.FileBasedWriter}. This
+     * Clients must implement to return a subclass of {@link Writer}. This
      * method must not mutate the state of the object.
      */
-    public abstract FileBasedWriter<T> createWriter() throws Exception;
+    public abstract Writer<T> createWriter() throws Exception;
 
     /**
      * Indicates that the operation will be performing windowed writes.
@@ -573,7 +573,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Copy temporary files to final output filenames using the file naming template.
      *
-     * <p>Can be called from subclasses that override {@link FileBasedWriteOperation#finalize}.
+     * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
      *
      * <p>Files will be named according to the file naming template. The order of the output files
      * will be the same as the sorted order of the input filenames.  In other words, if the input
@@ -606,7 +606,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     /**
      * Removes temporary output files. Uses the temporary directory to find files to remove.
      *
-     * <p>Can be called from subclasses that override {@link FileBasedWriteOperation#finalize}.
+     * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
@@ -682,15 +682,15 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * after the values in a bundle, respectively, as well as provide a MIME type for the output
    * channel.
    *
-   * <p>Multiple {@link FileBasedWriter} instances may be created on the same worker, and therefore
+   * <p>Multiple {@link Writer} instances may be created on the same worker, and therefore
    * any access to static members or methods should be thread safe.
    *
    * @param <T> the type of values to write.
    */
-  public abstract static class FileBasedWriter<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriter.class);
+  public abstract static class Writer<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(Writer.class);
 
-    private final FileBasedWriteOperation<T> writeOperation;
+    private final WriteOperation<T> writeOperation;
 
     /** Unique id for this output bundle. */
     private String id;
@@ -719,9 +719,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private final String mimeType;
 
     /**
-     * Construct a new {@link FileBasedWriter} that will produce files of the given MIME type.
+     * Construct a new {@link Writer} that will produce files of the given MIME type.
      */
-    public FileBasedWriter(FileBasedWriteOperation<T> writeOperation, String mimeType) {
+    public Writer(WriteOperation<T> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
@@ -754,7 +754,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     /**
      *  Performs bundle initialization. For example, creates a temporary file for writing or
-     * initializes any state that will be used across calls to {@link FileBasedWriter#write}.
+     * initializes any state that will be used across calls to {@link Writer#write}.
      *
      * <p>The unique id that is given to open should be used to ensure that the writer's output
      * does not interfere with the output of other Writers, as a bundle may be executed many
@@ -833,7 +833,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         closeChannelAndThrow(tempChannel, outputFile, e);
       }
 
-      // The caller shouldn't have to close() this FileBasedWriter if it fails to open(), so close
+      // The caller shouldn't have to close() this Writer if it fails to open(), so close
       // the channel if prepareWrite() or writeHeader() fails.
       String step = "";
       try {
@@ -895,9 +895,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     /**
-     * Return the FileBasedWriteOperation that this Writer belongs to.
+     * Return the WriteOperation that this Writer belongs to.
      */
-    public FileBasedWriteOperation<T> getWriteOperation() {
+    public WriteOperation<T> getWriteOperation() {
       return writeOperation;
     }
   }
