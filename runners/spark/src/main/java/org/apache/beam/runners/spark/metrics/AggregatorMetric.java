@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.Metric;
-
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
 /**

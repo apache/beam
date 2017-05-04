@@ -50,7 +50,6 @@ import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
-
 import scala.Tuple2;
 
 /** A set of utilities to help translating Beam transformations into Spark transformations. */
