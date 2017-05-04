@@ -118,7 +118,7 @@ class TimerSupport<W extends Window> {
   void deleteTimer(long stamp, W window) {
     Timer<W> t = new Timer<>(window, stamp);
     if (this.timers.remove(t)) {
-      this.queue.remove();
+      this.queue.remove(t);
     }
   }
 }
