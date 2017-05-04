@@ -122,7 +122,13 @@ public class BeamQueryPlanner {
    */
   public BeamRelNode convertToBeamRel(String sqlStatement)
       throws ValidationException, RelConversionException, SqlParseException {
-    return (BeamRelNode) validateAndConvert(planner.parse(sqlStatement));
+    BeamRelNode beamRelNode;
+    try {
+      beamRelNode = (BeamRelNode) validateAndConvert(planner.parse(sqlStatement));
+    } finally {
+      planner.close();
+    }
+    return beamRelNode;
   }
 
   private RelNode validateAndConvert(SqlNode sqlNode)

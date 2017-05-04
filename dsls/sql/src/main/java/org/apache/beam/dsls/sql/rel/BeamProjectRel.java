@@ -20,7 +20,7 @@ package org.apache.beam.dsls.sql.rel;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
-import org.apache.beam.dsls.sql.interpreter.BeamSQLSpELExecutor;
+import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutor;
 import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
@@ -69,7 +69,7 @@ public class BeamProjectRel extends Project implements BeamRelNode {
 
     PCollection<BeamSQLRow> upstream = planCreator.getLatestStream();
 
-    BeamSQLExpressionExecutor executor = new BeamSQLSpELExecutor(this);
+    BeamSQLExpressionExecutor executor = new BeamSQLFnExecutor(this);
 
     PCollection<BeamSQLRow> projectStream = upstream.apply(stageName, ParDo
         .of(new BeamSQLProjectFn(getRelTypeName(), executor, BeamSQLRecordType.from(rowType))));

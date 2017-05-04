@@ -30,10 +30,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 //@DefaultCoder(BeamSQLRecordTypeCoder.class)
 public class BeamSQLRecordType implements Serializable {
-  /**
-   *
-   */
-  private static final long serialVersionUID = -5318734648766104712L;
   private List<String> fieldsName = new ArrayList<>();
   private List<SqlTypeName> fieldsType = new ArrayList<>();
 
