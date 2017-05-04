@@ -28,8 +28,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -90,7 +90,7 @@ public class StringUtf8Coder extends CustomCoder<String> {
   public String decode(InputStream inStream, Context context)
       throws IOException {
     if (context.isWholeStream) {
-      byte[] bytes = StreamUtils.getBytes(inStream);
+      byte[] bytes = ExposedByteArrayInputStream.getBytes(inStream);
       return new String(bytes, StandardCharsets.UTF_8);
     } else {
       try {
