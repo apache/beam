@@ -721,14 +721,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input
-          .getPipeline()
-          .apply(source)
-          .setCoder(
-              getNeedsAttributes()
-                  ? PubsubMessageWithAttributesCoder.of()
-                  : PubsubMessagePayloadOnlyCoder.of())
-          .apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn()));
     }
 
     @Override
