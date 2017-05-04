@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.state.State;
 
 /**
  * Interface for invoking the {@code DoFn} processing methods.

@@ -28,7 +28,7 @@ import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.state.StateContext;
+import org.apache.beam.sdk.state.StateContext;
 
 /**
  * Static utility methods that create combine function instances.

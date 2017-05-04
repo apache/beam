@@ -15,31 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.joda.time.Instant;
 
 /**
- * Utilities for constructing and manipulating {@link ReadableState} instances.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>A {@link State} accepting and aggregating output timestamps, which determines the time to
+ * which the output watermark must be held.
  */
-@Experimental(Kind.STATE)
-public class ReadableStates {
-
+@Internal
+public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
   /**
-   * A {@link ReadableState} constructed from a constant value, hence immediately available.
+   * Return the {@link TimestampCombiner} which will be used to determine a watermark hold time
+   * given an element timestamp, and to combine watermarks from windows which are about to be
+   * merged.
    */
-  public static <T> ReadableState<T> immediate(final T value) {
-    return new ReadableState<T>() {
-      @Override
-      public T read() {
-        return value;
-      }
+  TimestampCombiner getTimestampCombiner();
 
-      @Override
-      public ReadableState<T> readLater() {
-        return this;
-      }
-    };
-  }
+  @Override
+  WatermarkHoldState readLater();
 }

@@ -38,7 +38,7 @@ import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.state.ValueState;
 
 /**
  * An {@link ActiveWindowSet} for merging {@link WindowFn} implementations.

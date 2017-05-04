@@ -25,8 +25,8 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.ValueState;
 import org.joda.time.Instant;
 
 /**

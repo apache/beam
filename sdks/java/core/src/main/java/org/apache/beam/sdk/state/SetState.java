@@ -15,28 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * State that combines multiple {@code InputT} values using a {@link CombineFn} to produce a single
- * {@code OutputT} value.
+ * State containing no duplicate elements.
+ * Items can be added to the set and the contents read out.
  *
- * @param <InputT> the type of values added to the state
- * @param <OutputT> the type of value extracted from the state
+ * @param <T> The type of elements in the set.
  */
-public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
+@Experimental(Kind.STATE)
+public interface SetState<T> extends GroupingState<T, Iterable<T>> {
   /**
-   * Add a value to the buffer.
+   * Returns true if this set contains the specified element.
    */
-  void add(InputT value);
+  ReadableState<Boolean> contains(T t);
 
   /**
-   * Return true if this state is empty.
+   * Ensures a value is a member of the set, returning {@code true} if it was added and {@code
+   * false} otherwise.
    */
-  ReadableState<Boolean> isEmpty();
+  ReadableState<Boolean> addIfAbsent(T t);
+
+  /**
+   * Removes the specified element from this set if it is present.
+   */
+  void remove(T t);
 
   @Override
-  GroupingState<InputT, OutputT> readLater();
+  SetState<T> readLater();
 }

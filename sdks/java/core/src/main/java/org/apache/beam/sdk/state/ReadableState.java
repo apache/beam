@@ -15,28 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.joda.time.Instant;
 
 /**
- * A {@link State} accepting and aggregating output timestamps, which determines the time to which
- * the output watermark must be held.
+ * {@link State} that can be read via {@link #read()}.
  *
- * <p><b><i>For internal use only. This API may change at any time.</i></b>
+ * <p>Use {@link #readLater()} for marking several states for prefetching. Runners
+ * can potentially batch these into one read.
+ *
+ * @param <T> The type of value returned by {@link #read}.
  */
 @Experimental(Kind.STATE)
-public interface WatermarkHoldState extends GroupingState<Instant, Instant> {
+public interface ReadableState<T> {
   /**
-   * Return the {@link TimestampCombiner} which will be used to determine a watermark hold time
-   * given an element timestamp, and to combine watermarks from windows which are about to be
-   * merged.
+   * Read the current value, blocking until it is available.
+   *
+   * <p>If there will be many calls to {@link #read} for different state in short succession,
+   * you should first call {@link #readLater} for all of them so the reads can potentially be
+   * batched (depending on the underlying implementation}.
    */
-  TimestampCombiner getTimestampCombiner();
+  T read();
 
-  @Override
-  WatermarkHoldState readLater();
+  /**
+   * Indicate that the value will be read later.
+   *
+   * <p>This allows an implementation to start an asynchronous prefetch or
+   * to include this state in the next batch of reads.
+   *
+   * @return this for convenient chaining
+   */
+  ReadableState<T> readLater();
 }

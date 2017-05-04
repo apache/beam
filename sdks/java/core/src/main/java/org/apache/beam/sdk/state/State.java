@@ -15,7 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * Base interface for all state locations.
@@ -23,6 +26,7 @@ package org.apache.beam.sdk.util.state;
  * <p>Specific types of state add appropriate accessors for reading and writing values, see
  * {@link ValueState}, {@link BagState}, and {@link GroupingState}.
  */
+@Experimental(Kind.STATE)
 public interface State {
 
   /**

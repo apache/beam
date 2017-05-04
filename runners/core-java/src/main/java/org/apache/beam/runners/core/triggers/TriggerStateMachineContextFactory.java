@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timers;
-import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.state.State;
 import org.joda.time.Instant;
 
 /**

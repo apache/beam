@@ -15,23 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * State holding a single value.
- *
- * @param <T> The type of values being stored.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
-@Experimental(Kind.STATE)
-public interface ValueState<T> extends ReadableState<T>, State {
-  /**
-   * Set the value of the buffer.
-   */
-  void write(T input);
+@Internal
+public class ReadableStates {
 
-  @Override
-  ValueState<T> readLater();
+  /**
+   * A {@link ReadableState} constructed from a constant value, hence immediately available.
+   */
+  public static <T> ReadableState<T> immediate(final T value) {
+    return new ReadableState<T>() {
+      @Override
+      public T read() {
+        return value;
+      }
+
+      @Override
+      public ReadableState<T> readLater() {
+        return this;
+      }
+    };
+  }
 }

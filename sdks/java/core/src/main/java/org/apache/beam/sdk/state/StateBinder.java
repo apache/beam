@@ -15,16 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 
 /**
- * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
+ * For internal use only; no backwards-compatibility guarantees.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Visitor for binding a {@link StateSpec} and to the associated {@link State}.
  */
+@Internal
 public interface StateBinder {
   <T> ValueState<T> bindValue(
       String id, StateSpec<ValueState<T>> spec, Coder<T> coder);
