@@ -32,7 +32,7 @@ from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 
 
-def get_first(proto, filter_fn):
+def _get_match(proto, filter_fn):
   query = [elm for elm in proto if filter_fn(elm)]
   if len(query) == 0:
     raise ValueError('Could not find element')
@@ -62,11 +62,11 @@ class DataflowMetrics(MetricResults):
     self._job_graph = job_graph
 
   @staticmethod
-  def is_counter(metric_result):
+  def _is_counter(metric_result):
     return isinstance(metric_result.attempted, numbers.Number)
 
   @staticmethod
-  def is_distribution(metric_result):
+  def _is_distribution(metric_result):
     return isinstance(metric_result.attempted, DistributionResult)
 
   def _translate_step_name(self, internal_name):
@@ -75,9 +75,9 @@ class DataflowMetrics(MetricResults):
       raise ValueError('Could not translate the internal step name.')
 
     try:
-      step = get_first(self._job_graph.proto.steps,
-                       lambda x: x.name == internal_name)
-      user_step_name = get_first(
+      step = _get_match(self._job_graph.proto.steps,
+                        lambda x: x.name == internal_name)
+      user_step_name = _get_match(
           step.properties.additionalProperties,
           lambda x: x.key == 'user_name').value.string_value
     except ValueError:
@@ -94,11 +94,11 @@ class DataflowMetrics(MetricResults):
       #   step name (only happens for unstructured-named metrics).
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
-      step = get_first(metric.name.context.additionalProperties,
-                       lambda x: x.key == 'step').value
+      step = _get_match(metric.name.context.additionalProperties,
+                        lambda xm: x.key == 'step').value
       step = self._translate_step_name(step)
-      namespace = get_first(metric.name.context.additionalProperties,
-                            lambda x: x.key == 'namespace').value
+      namespace = _get_match(metric.name.context.additionalProperties,
+                             lambda x: x.key == 'namespace').value
       name = metric.name.name
     except ValueError:
       return None
@@ -123,7 +123,7 @@ class DataflowMetrics(MetricResults):
         # another way is as four different scalar metrics labeled as [MIN],
         # [MAX], [COUNT], [MEAN].
         # TODO(pabloem) remove these when distributions are not being broken up
-        #  in the QM.
+        #  in the service.
         # The second way is only useful for the UI, and should be ignored.
         continue
       is_tentative = [prop
@@ -150,21 +150,21 @@ class DataflowMetrics(MetricResults):
     return result
 
   def _get_metric_value(self, metric):
-    """Get a metric result object from a MetrcUpdate from Dataflow API."""
+    """Get a metric result object from a MetricUpdate from Dataflow API."""
     if metric is None:
       return None
 
     if metric.scalar is not None:
       return metric.scalar.integer_value
     elif metric.distribution is not None:
-      dist_count = get_first(metric.distribution.object_value.properties,
-                             lambda x: x.key == 'count').value.integer_value
-      dist_min = get_first(metric.distribution.object_value.properties,
-                           lambda x: x.key == 'min').value.integer_value
-      dist_max = get_first(metric.distribution.object_value.properties,
-                           lambda x: x.key == 'max').value.integer_value
-      dist_mean = get_first(metric.distribution.object_value.properties,
-                            lambda x: x.key == 'mean').value.integer_value
+      dist_count = _get_match(metric.distribution.object_value.properties,
+                              lambda x: x.key == 'count').value.integer_value
+      dist_min = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'min').value.integer_value
+      dist_max = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'max').value.integer_value
+      dist_mean = _get_match(metric.distribution.object_value.properties,
+                             lambda x: x.key == 'mean').value.integer_value
       # Calculating dist_sum with a hack, as distribution sum is not yet
       # available in the Dataflow API.
       # TODO(pabloem) Switch to "sum" field once it's available in the API
@@ -198,8 +198,8 @@ class DataflowMetrics(MetricResults):
     metric_results = self._populate_metric_results(response)
     return {'counters': [elm for elm in metric_results
                          if self.matches(filter, elm.key)
-                         and self.is_counter(elm)],
+                         and DataflowMetrics._is_counter(elm)],
             'distributions': [elm for elm in metric_results
                               if self.matches(filter, elm.key)
-                              and self.is_distribution(elm)],
+                              and DataflowMetrics._is_distribution(elm)],
             'gauges': []} # Gauges are not currently supported by dataflow
