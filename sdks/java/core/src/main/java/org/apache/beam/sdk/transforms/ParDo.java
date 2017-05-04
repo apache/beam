@@ -53,7 +53,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * {@link ParDo} is the core element-wise transform in Apache Beam, invoking a user-specified
@@ -763,7 +762,7 @@ public class ParDo {
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends InputT> input, TypedPValue<T> output)
+        PCollection<? extends InputT> input, PCollection<T> output)
         throws CannotProvideCoderException {
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();

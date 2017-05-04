@@ -51,7 +51,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * A {@link PTransformOverrideFactory} that provides overrides for applications of a {@link ParDo}
@@ -184,7 +183,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, TypedPValue<T> output)
+        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, PCollection<T> output)
         throws CannotProvideCoderException {
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
