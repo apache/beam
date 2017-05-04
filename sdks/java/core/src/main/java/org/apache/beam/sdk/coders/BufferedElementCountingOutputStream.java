@@ -22,7 +22,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.util.VarInt;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by

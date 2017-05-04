@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -93,7 +92,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  public long getEncodedElementByteSize(Integer value, Context context)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

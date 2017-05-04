@@ -26,7 +26,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**

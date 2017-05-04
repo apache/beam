@@ -30,7 +30,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import org.apache.beam.sdk.util.VarInt;
 
 /**
  * An abstract base class with functionality for assembling a

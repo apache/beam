@@ -30,7 +30,6 @@ import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**

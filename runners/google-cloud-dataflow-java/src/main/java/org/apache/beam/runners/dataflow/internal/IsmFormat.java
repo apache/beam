@@ -42,7 +42,6 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -652,6 +651,8 @@ public class IsmFormat {
   public static final class KeyPrefixCoder extends CustomCoder<KeyPrefix> {
     private static final KeyPrefixCoder INSTANCE = new KeyPrefixCoder();
 
+    private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+
     public static KeyPrefixCoder of() {
       return INSTANCE;
     }
@@ -659,14 +660,15 @@ public class IsmFormat {
     @Override
     public void encode(KeyPrefix value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
-      VarInt.encode(value.getSharedKeySize(), outStream);
-      VarInt.encode(value.getUnsharedKeySize(), outStream);
+      VAR_INT_CODER.encode(value.getSharedKeySize(), outStream, context.nested());
+      VAR_INT_CODER.encode(value.getUnsharedKeySize(), outStream, context);
     }
 
     @Override
     public KeyPrefix decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
-      return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
+      return KeyPrefix.of(
+          VAR_INT_CODER.decode(inStream, context.nested()), VAR_INT_CODER.decode(inStream, context));
     }
 
     @Override
@@ -686,8 +688,8 @@ public class IsmFormat {
     public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
         throws Exception {
       checkNotNull(value);
-      return VarInt.getLength(value.getSharedKeySize())
-          + VarInt.getLength(value.getUnsharedKeySize());
+      return VAR_INT_CODER.getEncodedElementByteSize(value.getSharedKeySize(), context.nested())
+          + VAR_INT_CODER.getEncodedElementByteSize(value.getUnsharedKeySize(), context);
     }
   }
 

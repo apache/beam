@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.VarInt;
 
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
