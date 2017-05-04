@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -33,14 +34,13 @@ public class NoopPathValidator implements PathValidator {
   }
 
   @Override
-  public String validateInputFilePatternSupported(String filepattern) {
-    return filepattern;
-  }
+  public void validateInputFilePatternSupported(String filepattern) {}
 
   @Override
-  public String validateOutputFilePrefixSupported(String filePrefix) {
-    return filePrefix;
-  }
+  public void validateOutputFilePrefixSupported(String filePrefix) {}
+
+  @Override
+  public void validateOutputResourceSupported(ResourceId resourceId) {}
 
   @Override
   public String verifyPath(String path) {

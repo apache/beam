@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
@@ -44,12 +45,11 @@ public class GcsPathValidator implements PathValidator {
    * is well formed.
    */
   @Override
-  public String validateInputFilePatternSupported(String filepattern) {
+  public void validateInputFilePatternSupported(String filepattern) {
     GcsPath gcsPath = getGcsPath(filepattern);
-    checkArgument(gcpOptions.getGcsUtil().isGcsPatternSupported(gcsPath.getObject()));
-    String returnValue = verifyPath(filepattern);
+    checkArgument(GcsUtil.isGcsPatternSupported(gcsPath.getObject()));
+    verifyPath(filepattern);
     verifyPathIsAccessible(filepattern, "Could not find file %s");
-    return returnValue;
   }
 
   /**
@@ -57,10 +57,18 @@ public class GcsPathValidator implements PathValidator {
    * is well formed.
    */
   @Override
-  public String validateOutputFilePrefixSupported(String filePrefix) {
-    String returnValue = verifyPath(filePrefix);
+  public void validateOutputFilePrefixSupported(String filePrefix) {
+    verifyPath(filePrefix);
     verifyPathIsAccessible(filePrefix, "Output path does not exist or is not writeable: %s");
-    return returnValue;
+  }
+
+  @Override
+  public void validateOutputResourceSupported(ResourceId resourceId) {
+    checkArgument(
+        resourceId.getScheme().equals("gs"),
+        "Expected a valid 'gs://' path but was given: '%s'",
+        resourceId);
+    verifyPath(resourceId.toString());
   }
 
   @Override
