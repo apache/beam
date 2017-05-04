@@ -15,7 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.direct;
+
+import org.apache.beam.sdk.util.IllegalMutationException;
 
 /**
  * An object for detecting illegal mutations.
@@ -24,7 +26,7 @@ package org.apache.beam.sdk.util;
  * style, where the implementing class may choose to perform a final mutation check upon
  * {@link #close()}.
  */
-public interface MutationDetector extends AutoCloseable {
+interface MutationDetector extends AutoCloseable {
   /**
    * @throws IllegalMutationException if illegal mutations are detected.
    */
