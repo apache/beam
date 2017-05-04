@@ -84,6 +84,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -114,7 +115,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
@@ -192,9 +192,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * @return The newly created runner.
    */
   public static DataflowRunner fromOptions(PipelineOptions options) {
-    // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerIOFactoriesAllowOverride(options);
-
     DataflowPipelineOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineOptions.class, options);
     ArrayList<String> missing = new ArrayList<>();
@@ -578,9 +575,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
           "Location must be local or on Cloud Storage, got %s.",
           fileLocation);
+      ResourceId fileResource = FileSystems.matchNewResource(fileLocation, false /* isDirectory */);
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-      try (PrintWriter printWriter = new PrintWriter(
-          Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {
+      try (PrintWriter printWriter =
+          new PrintWriter(
+              Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
