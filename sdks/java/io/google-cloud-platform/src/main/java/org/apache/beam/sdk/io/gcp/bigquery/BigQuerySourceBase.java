@@ -38,6 +38,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -143,8 +144,11 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
 
     LOG.info("BigQuery extract job completed: {}", jobId);
 
-    List<String> tempFiles = BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
-    return ImmutableList.copyOf(tempFiles);
+    ImmutableList.Builder<String> tempFiles = ImmutableList.builder();
+    for (ResourceId resourceId: BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob)) {
+      tempFiles.add(resourceId.toString());
+    }
+    return tempFiles.build();
   }
 
   private List<BoundedSource<TableRow>> createSources(

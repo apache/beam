@@ -40,6 +40,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.io.BufferedReader;
@@ -61,12 +62,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.util.FluentBackoff;
 
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
@@ -121,7 +124,16 @@ class FakeJobService implements JobService, Serializable {
         for (String filename : loadConfig.getSourceUris()) {
           loadFiles.add(filename + ThreadLocalRandom.current().nextInt());
         }
-        IOChannelUtils.getFactory(loadFiles.get(0)).copy(loadConfig.getSourceUris(), loadFiles);
+        ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
+        ImmutableList.Builder<ResourceId> destinationFiles = ImmutableList.builder();
+        for (String file: loadConfig.getSourceUris()) {
+          sourceFiles.add(FileSystems.matchNewResource(file, false /* isDirectory */));
+        }
+        for (String file: loadFiles) {
+          destinationFiles.add(FileSystems.matchNewResource(file, false /* isDirectory */));
+        }
+        FileSystems.copy(sourceFiles.build(), destinationFiles.build(),
+            MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles);
       }
 
@@ -385,7 +397,8 @@ class FakeJobService implements JobService, Serializable {
   private void writeRowsHelper(List<TableRow> rows, Schema avroSchema,
                                String destinationPattern, int shard) throws IOException {
     String filename = destinationPattern.replace("*", String.format("%012d", shard));
-    try (WritableByteChannel channel = IOChannelUtils.create(filename, MimeTypes.BINARY);
+    try (WritableByteChannel channel = FileSystems.create(
+        FileSystems.matchNewResource(filename, false /* isDirectory */), MimeTypes.BINARY);
          DataFileWriter<GenericRecord> tableRowWriter =
              new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(avroSchema))
                  .create(avroSchema, Channels.newOutputStream(channel))) {
