@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
@@ -63,7 +62,6 @@ public class SerializablePipelineOptions implements Externalizable {
         .as(ApexPipelineOptions.class);
 
     if (FILE_SYSTEMS_INTIIALIZED.compareAndSet(false, true)) {
-      IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
       FileSystems.setDefaultConfigInWorkers(pipelineOptions);
     }
   }
