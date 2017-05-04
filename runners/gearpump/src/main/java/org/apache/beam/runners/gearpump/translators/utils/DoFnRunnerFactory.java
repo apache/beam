@@ -22,7 +22,6 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
@@ -50,7 +49,6 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   private final ExecutionContext.StepContext stepContext;
-  private final AggregatorFactory aggregatorFactory;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   public DoFnRunnerFactory(
@@ -61,7 +59,6 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       ExecutionContext.StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = doFn;
     this.options = pipelineOptions;
@@ -70,7 +67,6 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
     this.stepContext = stepContext;
-    this.aggregatorFactory = aggregatorFactory;
     this.windowingStrategy = windowingStrategy;
   }
 
@@ -78,7 +74,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       ReadyCheckingSideInputReader sideInputReader) {
     DoFnRunner<InputT, OutputT> underlying = DoFnRunners.simpleRunner(
         options, fn, sideInputReader, outputManager, mainOutputTag,
-        sideOutputTags, stepContext, aggregatorFactory, windowingStrategy);
+        sideOutputTags, stepContext, windowingStrategy);
     return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
 
