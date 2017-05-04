@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.apex.translation;
 
-
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
 
