@@ -224,9 +224,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
           LOG.info("Started BigQuery job: {}.\n{}", jobRef,
-              formatBqStatusCommand(
-                  jobRef.getJobId().getProject(),
-                  jobRef.getJobId().getJob()));
+              formatBqStatusCommand(jobRef.getProjectId(), jobRef.getJobId()));
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -276,8 +274,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           if (Instant.now().isAfter(nextLog)) {
             LOG.info("Still waiting for BigQuery job {}\n{}",
                 jobRef.getJobId(),
-                formatBqStatusCommand(jobRef.getJobId().getProject(),
-                    jobRef.getJobId().getJob()));
+                formatBqStatusCommand(
+                    jobRef.getProjectId(), jobRef.getJobId()));
             nextLog = Instant.now().plus(POLLING_LOG_GAP);
           }
         } catch (IOException e) {
@@ -289,7 +287,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       return null;
     }
 
-    private String formatBqStatusCommand(String projectId, String jobId) {
+    private static String formatBqStatusCommand(String projectId, String jobId) {
       return String.format("bq show -j --format=prettyjson --project_id=%s %s",
           projectId, jobId);
     }
