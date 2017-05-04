@@ -1,0 +1,52 @@
+.cards
+  background-image: url(../images/cards_bg.svg)
+  background-size: 100%
+  background-repeat: no-repeat
+  background-position: top
+  text-align: center
+  margin-bottom: $pad*2
+
+  .cards__title
+    +type-h2
+    color: #fff
+    padding-top: $pad-md
+    margin-bottom: $pad
+
+  .cards__body
+    max-width: 550px
+    +type-body
+    margin: 0 auto
+
+  .cards__cards
+    margin-bottom: $pad*2
+    +md
+      display: flex
+      justify-content: center
+      align-items: center
+
+    .cards__cards__card
+      background: #fff
+      box-shadow: $box-shadow
+      max-width: 300px
+      margin: 0 auto $pad
+      padding: $pad*1.5
+      +md
+        margin: 0 $pad/2
+
+    .cards__cards__card__body
+      margin-bottom: $pad
+      +type-h3
+
+    .cards__cards__card__user
+      display: flex
+      justify-content: center
+      align-items: center
+
+      .cards__cards__card__user__icon
+        border-radius: 100%
+        background: #efefef
+        width: 40px
+        height: 40px
+
+      .cards__cards__card__user__name
+        margin-left: $pad/2

@@ -1,21 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
   {% include head.html %}
-
-  <body role="document">
-
+  <body class="body {% if page.body_class %}{{page.body_class}}{% endif %}">
     {% include header.html %}
-
-    <div class="container" role="main">
-
-      <div class="row">
-        {{ content }}
-      </div>
-
-
+    <div class="body__contained">
+      {{ content }}
+    </div>
     {% include footer.html %}
-
   </body>
-
 </html>

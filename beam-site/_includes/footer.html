@@ -1,18 +1,50 @@
-<hr>
-  <div class="row">
-      <div class="col-xs-12">
-          <footer>
-              <p class="text-center">
-                &copy; Copyright
-                <a href="http://www.apache.org">The Apache Software Foundation</a>,
-                {{ 'now' | date: "%Y" }}. All Rights Reserved.
-              </p>
-              <p class="text-center">
-                <a href="{{ site.baseurl }}/privacy_policy">Privacy Policy</a> |
-                <a href="{{ "/feed.xml" | prepend: site.baseurl }}">RSS Feed</a>
-              </p>
-          </footer>
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="{{'/images/beam_logo_circle.svg'|prepend:site.baseurl}}" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="{{'/images/apache_logo_circle.svg'|prepend:site.baseurl}}" class="footer__logo" alt="Apache logo">
+        </div>
       </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/get-started/quickstart-py/'|prepend:site.baseurl}}">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/get-started/downloads/'|prepend:site.baseurl}}">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="{{'/documentation/programming-guide/'|prepend:site.baseurl}}">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/documentation/pipelines/design-your-pipeline/'|prepend:site.baseurl}}">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/documentation/runners/capability-matrix/'|prepend:site.baseurl}}">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="{{'/contribute/'|prepend:site.baseurl}}">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/contribute/team/'|prepend:site.baseurl}}">Team</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/contribute/presentation-materials/'|prepend:site.baseurl}}">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="{{'/blog/'|prepend:site.baseurl}}">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="{{'/get-started/support/'|prepend:site.baseurl}}">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
   </div>
-  <!-- container div end -->
-</div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="{{ site.baseurl }}/privacy_policy">Privacy Policy</a>
+    | <a href="{{ "/feed.xml" | prepend: site.baseurl }}">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>

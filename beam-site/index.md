@@ -1,37 +1,152 @@
 ---
 layout: default
+body_class: body--index
+
+logos:
+- title: APEX
+  image_url: /images/logo_apex.png
+  url: "http://apex.apache.org"
+- title: Flink
+  image_url: /images/logo_flink.png
+  url: "http://flink.apache.org"
+- title: Spark
+  image_url: /images/logo_spark.png
+  url: http://spark.apache.org/
+- title: Google Cloud Dataflow
+  image_url: /images/logo_google_cloud.png
+  url: https://cloud.google.com/dataflow/
+
+pillars:
+- title: Unified
+  body: Use a single programming model for both batch and streaming use cases.
+- title: Portable
+  body: Execute pipelines on multiple execution environments.
+- title: Extensible
+  body: Write and share new SDKs, IO connectors, and transformation libraries.
+
+cards:
+- quote: "Apache Beam is a powerful framework that delivers the flexibility and advanced functionality our customers needs."
+  name: Talend
+- quote: "Apache Beam [has] powerful semantics that solve real-world challenges of stream processing."
+  name: PayPal
+- quote: "Apache Beam represents a principled approach for analyzing data streams."
+  name: data Artisans
 ---
-
-# Apache Beam
-
-#### Apache Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs that can run on any execution engine.
-
-Apache Beam is:
-* **UNIFIED** - Use a single programming model for both batch and streaming use cases.
-* **PORTABLE** - Execute pipelines on multiple execution environments, including Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.
-* **EXTENSIBLE** - Write and share new SDKs, IO connectors, and transformation libraries. 
-
-## Get Started
-
-To use Beam for your data processing tasks, start by reading the [Beam Overview]({{ site.baseurl }}/get-started/beam-overview) and performing the steps in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). Then dive into the [Documentation]({{ site.baseurl }}/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.                                    
-
-## Contribute 
-
-Beam is an [Apache Software Foundation](http://www.apache.org) project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.
-
-<hr>
-<div class="row">
-  <div class="col-md-6">
-    <h2>Blog</h2>
-    <div class="list-group">
-    {% for post in site.posts limit:7 %}
-    <a class="list-group-item" href="{{ post.url | prepend: site.baseurl }}">{{ post.date | date: "%b %-d, %Y" }} - {{ post.title }}</a>
-    {% endfor %}
+<div class="hero-bg">
+  <div class="hero section">
+    <div class="hero__cols">
+      <div class="hero__cols__col">
+        <div class="hero__cols__col__content">
+          <div class="hero__title">
+            Apache Beam: An advanced unified programming model
+          </div>
+          <div class="hero__subtitle">
+            Implement batch and streaming data processing jobs that run on any execution engine.
+          </div>
+          <div class="hero__ctas hero__ctas--first">
+            <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
+          </div>
+          <div class="hero__ctas">
+            <a class="button" href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Java Quickstart</a>
+            <a class="button" href="{{'/get-started/quickstart-py/'|prepend:site.baseurl}}">Python Quickstart</a>
+          </div>
+        </div>
+      </div>
+      <div class="hero__cols__col">
+        <div class="hero__blog">
+          <div class="hero__blog__title">
+            The latest from the blog
+          </div>
+          <div class="hero__blog__cards">
+            {% for post in site.posts limit:3 %}
+            <a class="hero__blog__cards__card" href="{{ post.url | prepend: site.baseurl }}">
+              <div class="hero__blog__cards__card__title">{{post.title}}</div>
+              <div class="hero__blog__cards__card__date">{{ post.date | date: "%b %-d, %Y" }}</div>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <h2>Twitter</h2>
-    <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
-    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+</div>
+
+<div class="pillars section">
+  <div class="pillars__title">
+    All about Apache Beam
+  </div>
+  <div class="pillars__cols">
+    {% for pillar in page.pillars %}
+    <div class="pillars__cols__col">
+      <div class="pillars__cols__col__title">
+        {{pillar.title}}
+      </div>
+      <div class="pillars__cols__col__body">
+        {{pillar.body}}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="graphic section">
+<div class="graphic__image">
+<img src="{{ '/images/beam_architecture.png' | prepend: site.baseurl }}" alt="Beam architecture">
+</div>
+</div>
+
+<div class="logos section">
+  <div class="logos__title">
+    Works with
+  </div>
+  <div class="logos__logos">
+    {% for logo in page.logos %}
+    <div class="logos__logos__logo">
+      <a href="{{ logo.url | prepend: base.siteUrl }}"><img src="{{logo.image_url|prepend:site.baseurl}}" alt="{{logo.title}}"></a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="cards section section--wide">
+  <div class="section__contained">
+    <div class="cards__title">
+      A collaborative effort
+    </div>
+    <div class="cards__cards">
+      {% for card in page.cards %}
+      <div class="cards__cards__card">
+        <div class="cards__cards__card__body">
+          {{card.quote}}
+        </div>
+        <div class="cards__cards__card__user">
+          <!-- TODO: Implement icons.
+          <div class="cards__cards__card__user__icon">
+          </div>
+          -->
+          <div class="cards__cards__card__user__name">
+            {{card.name}}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="cards__body">
+      Beam is an open source community and contributions are greatly appreciated!
+      If you’d like to contribute, please see the <a href="{{'/contribute/'|prepend:site.baseurl}}">Contribute</a> section.
+    </div>
+  </div>
+</div>
+
+<div class="ctas section">
+  <div class="ctas__title">
+    Get started
+  </div>
+  <div class="ctas__ctas ctas__ctas--top">
+  <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
+  </div>
+  <div class="ctas__ctas">
+  <a class="button" href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Java Quickstart</a>
+  <a class="button" href="{{'/get-started/quickstart-py/'|prepend:site.baseurl}}">Python Quickstart</a>
   </div>
 </div>
