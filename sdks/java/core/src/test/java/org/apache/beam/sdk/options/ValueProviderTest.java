@@ -32,6 +32,7 @@ import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -41,6 +42,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ValueProvider}. */
 @RunWith(JUnit4.class)
 public class ValueProviderTest {
+  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** A test interface. */
@@ -118,8 +121,7 @@ public class ValueProviderTest {
 
   @Test
   public void testNoDefaultRuntimeProviderWithOverride() throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
-    TestOptions runtime = mapper.readValue(
+    TestOptions runtime = MAPPER.readValue(
       "{ \"options\": { \"foo\": \"quux\" }}", PipelineOptions.class)
       .as(TestOptions.class);
 
@@ -134,8 +136,7 @@ public class ValueProviderTest {
 
   @Test
   public void testDefaultRuntimeProviderWithOverride() throws Exception {
-    ObjectMapper mapper = new ObjectMapper();
-    TestOptions runtime = mapper.readValue(
+    TestOptions runtime = MAPPER.readValue(
       "{ \"options\": { \"bar\": \"quux\" }}", PipelineOptions.class)
       .as(TestOptions.class);
 
@@ -196,12 +197,11 @@ public class ValueProviderTest {
   public void testSerializeDeserializeNoArg() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     assertFalse(submitOptions.getFoo().isAccessible());
-    ObjectMapper mapper = new ObjectMapper();
-    String serializedOptions = mapper.writeValueAsString(submitOptions);
+    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
 
     String runnerString = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("foo", "quux"));
-    TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
+    TestOptions runtime = MAPPER.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
@@ -215,12 +215,11 @@ public class ValueProviderTest {
     TestOptions submitOptions = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
     assertEquals("baz", submitOptions.getFoo().get());
     assertTrue(submitOptions.getFoo().isAccessible());
-    ObjectMapper mapper = new ObjectMapper();
-    String serializedOptions = mapper.writeValueAsString(submitOptions);
+    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
 
     String runnerString = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("foo", "quux"));
-    TestOptions runtime = mapper.readValue(runnerString, PipelineOptions.class)
+    TestOptions runtime = MAPPER.readValue(runnerString, PipelineOptions.class)
       .as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();

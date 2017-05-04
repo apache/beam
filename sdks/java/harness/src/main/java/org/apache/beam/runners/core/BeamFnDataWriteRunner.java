@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.values.KV;
  * For each request, call {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final BeamFnApi.Target outputTarget;
   private final Coder<WindowedValue<InputT>> coder;

@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -47,7 +46,6 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataReadRunner<OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;

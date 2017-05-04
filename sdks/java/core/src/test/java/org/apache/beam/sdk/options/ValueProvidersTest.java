@@ -22,6 +22,7 @@ import static org.junit.Assert.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -29,6 +30,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ValueProviders}. */
 @RunWith(JUnit4.class)
 public class ValueProvidersTest {
+  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+
   /** A test interface. */
   public interface TestOptions extends PipelineOptions {
     String getString();
@@ -41,11 +45,10 @@ public class ValueProvidersTest {
   @Test
   public void testUpdateSerialize() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
-    ObjectMapper mapper = new ObjectMapper();
-    String serializedOptions = mapper.writeValueAsString(submitOptions);
+    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
     String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("string", "bar"));
-    TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
+    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
     assertEquals("bar", runtime.getString());
   }
@@ -54,11 +57,10 @@ public class ValueProvidersTest {
   public void testUpdateSerializeExistingValue() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
         "--string=baz", "--otherString=quux").as(TestOptions.class);
-    ObjectMapper mapper = new ObjectMapper();
-    String serializedOptions = mapper.writeValueAsString(submitOptions);
+    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
     String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.of("string", "bar"));
-    TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
+    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
     assertEquals("bar", runtime.getString());
     assertEquals("quux", runtime.getOtherString());
@@ -67,11 +69,10 @@ public class ValueProvidersTest {
   @Test
   public void testUpdateSerializeEmptyUpdate() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
-    ObjectMapper mapper = new ObjectMapper();
-    String serializedOptions = mapper.writeValueAsString(submitOptions);
+    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
     String updatedOptions = ValueProviders.updateSerializedOptions(
       serializedOptions, ImmutableMap.<String, String>of());
-    TestOptions runtime = mapper.readValue(updatedOptions, PipelineOptions.class)
+    TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
     assertNull(runtime.getString());
   }
