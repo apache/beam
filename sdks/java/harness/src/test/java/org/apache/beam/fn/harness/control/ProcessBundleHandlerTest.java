@@ -75,7 +75,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Before;
@@ -93,9 +92,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessBundleHandler}. */
 @RunWith(JUnit4.class)
 public class ProcessBundleHandlerTest {
-  private static final ObjectMapper OBJECT_MAPPER =
-      new ObjectMapper()
-          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final Coder<WindowedValue<String>> STRING_CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);

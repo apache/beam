@@ -43,7 +43,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,9 +55,7 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link BeamFnDataWriteRunner}. */
 @RunWith(JUnit4.class)
 public class BeamFnDataWriteRunnerTest {
-  private static final ObjectMapper OBJECT_MAPPER =
-      new ObjectMapper()
-          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.getDefaultInstance()).build();

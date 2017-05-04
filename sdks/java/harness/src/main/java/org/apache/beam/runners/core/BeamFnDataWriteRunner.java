@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 
 /**
@@ -41,9 +40,7 @@ import org.apache.beam.sdk.values.KV;
  * For each request, call {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {
-  private final ObjectMapper mapper =
-      new ObjectMapper()
-          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final BeamFnApi.Target outputTarget;
@@ -71,7 +68,7 @@ public class BeamFnDataWriteRunner<InputT> {
         (Coder<WindowedValue<InputT>>)
             CloudObjects.coderFromCloudObject(
                 CloudObject.fromSpec(
-                    mapper.readValue(
+                    OBJECT_MAPPER.readValue(
                         coderSpec
                             .getFunctionSpec()
                             .getData()

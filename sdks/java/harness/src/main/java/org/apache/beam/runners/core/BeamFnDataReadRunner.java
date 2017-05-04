@@ -34,7 +34,6 @@ import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +49,7 @@ import org.slf4j.LoggerFactory;
 public class BeamFnDataReadRunner<OutputT> {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
 
-  private final ObjectMapper mapper =
-      new ObjectMapper()
-          .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
@@ -83,7 +80,7 @@ public class BeamFnDataReadRunner<OutputT> {
         (Coder<WindowedValue<OutputT>>)
             CloudObjects.coderFromCloudObject(
                 CloudObject.fromSpec(
-                    mapper.readValue(
+                    OBJECT_MAPPER.readValue(
                         coderSpec
                             .getFunctionSpec()
                             .getData()
