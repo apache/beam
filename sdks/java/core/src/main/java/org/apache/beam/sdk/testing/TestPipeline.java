@@ -245,8 +245,11 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
+  /** System property used to set {@link TestPipelineOptions}. */
   public static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
+
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
