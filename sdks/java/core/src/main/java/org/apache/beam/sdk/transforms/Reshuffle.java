@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.IdentityWindowFn;
+import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
+import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -31,6 +31,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 
 /**
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
  * A {@link PTransform} that returns a {@link PCollection} equivalent to its input but operationally
  * provides some of the side effects of a {@link GroupByKey}, in particular preventing fusion of
  * the surrounding transforms, checkpointing and deduplication by id (see
@@ -42,7 +44,11 @@ import org.joda.time.Duration;
  *
  * @param <K> The type of key being reshuffled on.
  * @param <V> The type of value being reshuffled.
+ *
+ * @deprecated this transform's intended side effects are not portable; it will likely be removed
  */
+@Internal
+@Deprecated
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
   private Reshuffle() {

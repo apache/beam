@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
  * {@link PTransform PTransforms} for reifying the timestamp of values and reemitting the original
  * value with the original timestamp.
  */
-public class ReifyTimestamps {
+class ReifyTimestamps {
   private ReifyTimestamps() {}
 
   /**

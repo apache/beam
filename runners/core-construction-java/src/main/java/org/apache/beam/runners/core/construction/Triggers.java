@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.apache.beam.sdk.util.ReshuffleTrigger;
+import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
