@@ -53,14 +53,12 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      String extractDestinationDir,
       BigQueryServices bqServices) {
     return new BigQueryQuerySource(
         stepUuid,
         query,
         flattenResults,
         useLegacySql,
-        extractDestinationDir,
         bqServices);
   }
 
@@ -74,9 +72,8 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      String extractDestinationDir,
       BigQueryServices bqServices) {
-    super(stepUuid, extractDestinationDir, bqServices);
+    super(stepUuid, bqServices);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");

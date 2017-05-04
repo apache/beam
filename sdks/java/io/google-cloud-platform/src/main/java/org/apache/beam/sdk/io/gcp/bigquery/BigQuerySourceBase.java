@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -64,14 +65,12 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected static final int JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
   protected final String stepUuid;
-  protected final String extractDestinationDir;
   protected final BigQueryServices bqServices;
 
   private transient List<BoundedSource<TableRow>> cachedSplitResult;
 
-  BigQuerySourceBase(String stepUuid, String extractDestinationDir, BigQueryServices bqServices) {
+  BigQuerySourceBase(String stepUuid, BigQueryServices bqServices) {
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
-    this.extractDestinationDir = checkNotNull(extractDestinationDir, "extractDestinationDir");
     this.bqServices = checkNotNull(bqServices, "bqServices");
   }
 
@@ -86,9 +85,13 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
+
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+
       String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
       List<String> tempFiles = executeExtract(
-          extractJobId, tableToExtract, jobService, bqOptions.getProject());
+          extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
           .getTable(tableToExtract).getSchema();
@@ -114,7 +117,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   private List<String> executeExtract(
-      String jobId, TableReference table, JobService jobService, String executingProject)
+      String jobId, TableReference table, JobService jobService, String executingProject,
+      String extractDestinationDir)
           throws InterruptedException, IOException {
     JobReference jobRef = new JobReference()
         .setProjectId(executingProject)

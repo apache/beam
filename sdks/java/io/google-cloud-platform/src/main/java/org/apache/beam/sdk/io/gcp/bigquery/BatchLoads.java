@@ -19,11 +19,11 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -44,8 +45,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -106,26 +105,23 @@ class BatchLoads<DestinationT>
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
     Pipeline p = input.getPipeline();
-    BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
-
-    validate(p.getOptions());
-
     final String stepUuid = BigQueryHelpers.randomUUIDString();
 
-    String tempLocation = options.getTempLocation();
-    String tempFilePrefix;
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix =
-          factory.resolve(factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-    }
-
     // Create a singleton job ID token at execution time. This will be used as the base for all
-    // load jobs issued from this instance of the transfomr.
-    PCollection<String> singleton = p.apply("Create", Create.of(tempFilePrefix));
+    // load jobs issued from this instance of the transform.
+    PCollection<String> singleton = p
+        .apply("Create", Create.of((Void) null))
+        .apply("GetTempFilePrefix", ParDo.of(new DoFn<Void, String>() {
+          @ProcessElement
+          public void getTempFilePrefix(ProcessContext c) {
+            c.output(
+                resolveTempLocation(
+                    c.getPipelineOptions().getTempLocation(),
+                    "BigQueryWriteTemp",
+                    stepUuid));
+          }
+        }));
+
     PCollectionView<String> jobIdTokenView =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
@@ -152,7 +148,7 @@ class BatchLoads<DestinationT>
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
         inputInGlobalWindow
             .apply("WriteBundlesToFiles", ParDo.of(
-                new WriteBundlesToFiles<DestinationT>(tempFilePrefix)))
+                new WriteBundlesToFiles<DestinationT>(stepUuid)))
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag =
@@ -209,7 +205,7 @@ class BatchLoads<DestinationT>
                             bigQueryServices,
                             jobIdTokenView,
                             schemasView,
-                            tempFilePrefix,
+                            stepUuid,
                             WriteDisposition.WRITE_EMPTY,
                             CreateDisposition.CREATE_IF_NEEDED,
                             dynamicDestinations))
@@ -247,7 +243,7 @@ class BatchLoads<DestinationT>
                         bigQueryServices,
                         jobIdTokenView,
                         schemasView,
-                        tempFilePrefix,
+                        stepUuid,
                         writeDisposition,
                         createDisposition,
                         dynamicDestinations))
