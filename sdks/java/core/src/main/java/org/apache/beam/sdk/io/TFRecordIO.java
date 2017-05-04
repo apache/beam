@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -158,12 +158,11 @@ public class TFRecordIO {
       if (getValidate()) {
         checkState(getFilepattern().isAccessible(), "Cannot validate with a RVP.");
         try {
+          MatchResult matches = FileSystems.match(getFilepattern().get());
           checkState(
-              !IOChannelUtils.getFactory(getFilepattern().get())
-                  .match(getFilepattern().get())
-                  .isEmpty(),
+              !matches.metadata().isEmpty(),
               "Unable to find any files matching %s",
-              getFilepattern());
+              getFilepattern().get());
         } catch (IOException e) {
           throw new IllegalStateException(
               String.format("Failed to validate %s", getFilepattern().get()), e);

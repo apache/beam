@@ -26,7 +26,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.IOChannelUtils;
 
 /**
  * The SparkRuntimeContext allows us to define useful features on the client side before our
@@ -78,8 +77,7 @@ public class SparkRuntimeContext implements Serializable {
             pipelineOptions = deserializePipelineOptions(serializedPipelineOptions);
           }
         }
-        // register IO factories.
-        IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
+        // Register standard FileSystems.
         FileSystems.setDefaultConfigInWorkers(pipelineOptions);
       }
       return pipelineOptions;

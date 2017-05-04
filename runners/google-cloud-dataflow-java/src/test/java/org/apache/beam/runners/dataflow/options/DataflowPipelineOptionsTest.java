@@ -22,10 +22,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.junit.Rule;
 import org.junit.Test;
@@ -127,7 +127,6 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testStagingLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     options.setStagingLocation("gs://staging_location");
@@ -138,21 +137,21 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    FileSystems.setDefaultConfigInWorkers(options);
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setTempLocation("gs://temp_location");
-    assertEquals("gs://temp_location", options.getGcpTempLocation());
-    assertEquals("gs://temp_location/staging", options.getStagingLocation());
+    options.setTempLocation("gs://temp_location/");
+    assertEquals("gs://temp_location/", options.getGcpTempLocation());
+    assertEquals("gs://temp_location/staging/", options.getStagingLocation());
   }
 
   @Test
   public void testDefaultToGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerIOFactoriesAllowOverride(options);
+    FileSystems.setDefaultConfigInWorkers(options);
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setTempLocation("gs://temp_location");
-    options.setGcpTempLocation("gs://gcp_temp_location");
-    assertEquals("gs://gcp_temp_location/staging", options.getStagingLocation());
+    options.setTempLocation("gs://temp_location/");
+    options.setGcpTempLocation("gs://gcp_temp_location/");
+    assertEquals("gs://gcp_temp_location/staging/", options.getStagingLocation());
   }
 
   @Test
