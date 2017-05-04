@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Utilities for working with the {@link ValueProvider} interface.
@@ -37,7 +38,8 @@ class ValueProviders {
    */
   public static String updateSerializedOptions(
       String serializedOptions, Map<String, String> runtimeValues) {
-    ObjectMapper mapper = new ObjectMapper();
+    ObjectMapper mapper = new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
     ObjectNode root, options;
     try {
       root = mapper.readValue(serializedOptions, ObjectNode.class);

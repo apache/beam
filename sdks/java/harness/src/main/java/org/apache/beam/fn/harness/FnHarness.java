@@ -34,6 +34,7 @@ import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +73,9 @@ public class FnHarness {
     System.out.format("Control location %s%n", System.getenv(CONTROL_API_SERVICE_DESCRIPTOR));
     System.out.format("Pipeline options %s%n", System.getenv(PIPELINE_OPTIONS));
 
-    PipelineOptions options = new ObjectMapper().readValue(
+    ObjectMapper objectMapper = new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    PipelineOptions options = objectMapper.readValue(
         System.getenv(PIPELINE_OPTIONS), PipelineOptions.class);
 
     BeamFnApi.ApiServiceDescriptor loggingApiServiceDescriptor =

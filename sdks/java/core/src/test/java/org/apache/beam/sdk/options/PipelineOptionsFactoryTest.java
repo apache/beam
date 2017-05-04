@@ -1689,7 +1689,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** PipelineOptions used to test auto registration of Jackson modules. */
-  public interface JacksonIncompatibleOptions extends PipelineOptions {
+  interface JacksonIncompatibleOptions extends PipelineOptions {
     JacksonIncompatible getJacksonIncompatible();
     void setJacksonIncompatible(JacksonIncompatible value);
   }
