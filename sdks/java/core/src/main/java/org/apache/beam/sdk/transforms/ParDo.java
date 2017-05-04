@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
@@ -191,8 +192,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * necessarily need to be explicitly specified, even if the {@link DoFn}
  * generates them. Within the {@link DoFn}, an element is added to the
  * main output {@link PCollection} as normal, using
- * {@link DoFn.Context#output(Object)}, while an element is added to any additional output
- * {@link PCollection} using {@link DoFn.Context#output(TupleTag, Object)}. For example:
+ * {@link WindowedContext#output(Object)}, while an element is added to any additional output
+ * {@link PCollection} using {@link WindowedContext#output(TupleTag, Object)}. For example:
  *
  * <pre>{@code
  * PCollection<String> words = ...;
