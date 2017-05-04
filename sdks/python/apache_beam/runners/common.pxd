@@ -21,7 +21,7 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
-cdef type OutputValue, TimestampedValue
+cdef type TaggedOutput, TimestampedValue
 
 
 cdef class Receiver(object):
