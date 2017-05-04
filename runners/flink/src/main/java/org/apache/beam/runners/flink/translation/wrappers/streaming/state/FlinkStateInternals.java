@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -86,7 +86,7 @@ public class FlinkStateInternals<K> implements StateInternals {
   public K getKey() {
     ByteBuffer keyBytes = flinkStateBackend.getCurrentKey();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      return Coders.decodeFromByteArray(keyCoder, keyBytes.array());
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }

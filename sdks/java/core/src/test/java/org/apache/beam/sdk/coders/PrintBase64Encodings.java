@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import org.apache.beam.sdk.util.CoderUtils;
 
 /**
  * A command-line utility for printing the base-64 encodings of test values, for generating exact
@@ -74,7 +73,7 @@ public class PrintBase64Encodings {
 
     List<String> base64Encodings = Lists.newArrayList();
     for (Object value : testValues) {
-      base64Encodings.add(CoderUtils.encodeToBase64(testCoder, value));
+      base64Encodings.add(Coders.encodeToBase64(testCoder, value));
     }
     System.out.println(String.format("\"%s\"", Joiner.on("\",\n\"").join(base64Encodings)));
   }

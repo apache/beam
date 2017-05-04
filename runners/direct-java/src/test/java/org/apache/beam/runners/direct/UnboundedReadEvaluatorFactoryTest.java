@@ -49,7 +49,9 @@ import org.apache.beam.runners.direct.UnboundedReadEvaluatorFactory.UnboundedSou
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarInt;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -63,8 +65,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -540,7 +540,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       @Override
       public byte[] getCurrentRecordId() {
         try {
-          return CoderUtils.encodeToByteArray(coder, getCurrent());
+          return Coders.encodeToByteArray(coder, getCurrent());
         } catch (CoderException e) {
           throw new RuntimeException(e);
         }

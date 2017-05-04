@@ -34,7 +34,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.VarInt;
 
 /**
  * An elastic-sized byte array which allows you to manipulate it as a stream, or access

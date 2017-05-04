@@ -25,6 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import org.apache.beam.sdk.coders.VarInt;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

@@ -21,7 +21,7 @@ import org.apache.beam.runners.flink.translation.types.EncodedValueComparator;
 import org.apache.beam.runners.flink.translation.types.EncodedValueTypeInformation;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -54,14 +54,14 @@ public class EncodedValueComparatorTest extends ComparatorTestBase<byte[]> {
 
     try {
       return new byte[][]{
-          CoderUtils.encodeToByteArray(coder, ""),
-          CoderUtils.encodeToByteArray(coder, "Lorem Ipsum Dolor Omit Longer"),
-          CoderUtils.encodeToByteArray(coder, "aaaa"),
-          CoderUtils.encodeToByteArray(coder, "abcd"),
-          CoderUtils.encodeToByteArray(coder, "abce"),
-          CoderUtils.encodeToByteArray(coder, "abdd"),
-          CoderUtils.encodeToByteArray(coder, "accd"),
-          CoderUtils.encodeToByteArray(coder, "bbcd")
+          Coders.encodeToByteArray(coder, ""),
+          Coders.encodeToByteArray(coder, "Lorem Ipsum Dolor Omit Longer"),
+          Coders.encodeToByteArray(coder, "aaaa"),
+          Coders.encodeToByteArray(coder, "abcd"),
+          Coders.encodeToByteArray(coder, "abce"),
+          Coders.encodeToByteArray(coder, "abdd"),
+          Coders.encodeToByteArray(coder, "accd"),
+          Coders.encodeToByteArray(coder, "bbcd")
       };
     } catch (CoderException e) {
       throw new RuntimeException("Could not encode values.", e);

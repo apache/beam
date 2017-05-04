@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import com.google.api.client.util.Base64;
 import com.google.common.base.Throwables;
@@ -26,15 +26,16 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Utilities for working with Coders.
  */
-public final class CoderUtils {
-  private CoderUtils() {}  // Non-instantiable
+public final class Coders {
+  private Coders() {}  // Non-instantiable
 
   private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
@@ -60,6 +61,10 @@ public final class CoderUtils {
     return encodeToByteArray(coder, value, Coder.Context.OUTER);
   }
 
+  /**
+   * @deprecated Coder.Context is to be removed.
+   */
+  @Deprecated
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, Coder.Context context)
       throws CoderException {
     if (threadLocalOutputStreamInUse.get()) {
@@ -105,6 +110,10 @@ public final class CoderUtils {
     return decodeFromByteArray(coder, encodedValue, Coder.Context.OUTER);
   }
 
+  /**
+   * @deprecated Coder.Context is to be removed.
+   */
+  @Deprecated
   public static <T> T decodeFromByteArray(
       Coder<T> coder, byte[] encodedValue, Coder.Context context) throws CoderException {
     try (ExposedByteArrayInputStream stream = new ExposedByteArrayInputStream(encodedValue)) {
@@ -145,21 +154,27 @@ public final class CoderUtils {
   }
 
   /**
+   * <b>For internal use only; no backwards compatibility guarantees.</b>
+   *
    * Clones the given value by encoding and then decoding it with the specified Coder.
    *
    * <p>This function is not reentrant; it should not be called from methods of the provided
    * {@link Coder}.
    */
+  @Internal
   public static <T> T clone(Coder<T> coder, T value) throws CoderException {
     return decodeFromByteArray(coder, encodeToByteArray(coder, value, Coder.Context.OUTER));
   }
 
   /**
+   * <b>For internal use only; no backwards compatibility guarantees.</b>
+   *
    * Encodes the given value using the specified Coder, and returns the Base64 encoding of the
    * encoded bytes.
    *
    * @throws CoderException if there are errors during encoding.
    */
+  @Internal
   public static <T> String encodeToBase64(Coder<T> coder, T value)
       throws CoderException {
     byte[] rawValue = encodeToByteArray(coder, value);
@@ -175,9 +190,12 @@ public final class CoderUtils {
   }
 
   /**
+   * <b>For internal use only; no backwards compatibility guarantees.</b>
+   *
    * If {@code coderType} is a subclass of {@code Coder<T>} for a specific
    * type {@code T}, returns {@code T.class}.
    */
+  @Internal
   @SuppressWarnings({"rawtypes", "unchecked"})
   public static TypeDescriptor getCodedType(TypeDescriptor coderDescriptor) {
     ParameterizedType coderType =

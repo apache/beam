@@ -54,7 +54,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -192,7 +192,7 @@ public class FileBasedSourceTest {
       nextLineStart += offsetAdjustment;
       // When running on Windows, each line obtained from 'readNextLine()' will end with a '\r'
       // since we use '\n' as the line boundary of the reader. So we trim it off here.
-      currentValue = CoderUtils.decodeFromByteArray(StringUtf8Coder.of(), buf.toByteArray()).trim();
+      currentValue = Coders.decodeFromByteArray(StringUtf8Coder.of(), buf.toByteArray()).trim();
       return true;
     }
 

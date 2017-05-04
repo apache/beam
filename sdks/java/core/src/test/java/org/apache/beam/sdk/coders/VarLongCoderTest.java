@@ -22,8 +22,14 @@ import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
 import java.util.List;
+<<<<<<< HEAD
+import org.apache.beam.sdk.util.CoderUtils;
+||||||| parent of 2d8923b56d... Move Coders out of util
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
+=======
+import org.apache.beam.sdk.testing.CoderProperties;
+>>>>>>> 2d8923b56d... Move Coders out of util
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -84,7 +90,7 @@ public class VarLongCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null Long");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test

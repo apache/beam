@@ -25,7 +25,15 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
 import org.apache.beam.sdk.coders.Coder;
+<<<<<<< HEAD
 import org.apache.beam.sdk.testing.CoderProperties;
+||||||| parent of 9b3b46b987... Move coder related stream bits into coders, package-private
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.testing.CoderProperties;
+=======
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.coders.CoderProperties;
+>>>>>>> 9b3b46b987... Move coder related stream bits into coders, package-private
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.TimeDomain;

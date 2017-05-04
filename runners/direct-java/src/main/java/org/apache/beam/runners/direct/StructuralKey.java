@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 
 /**
  * A (Key, Coder) pair that uses the structural value of the key (as provided by
@@ -70,13 +70,13 @@ abstract class StructuralKey<K> {
     private CoderStructuralKey(Coder<K> coder, K key) throws Exception {
       this.coder = coder;
       this.structuralValue = coder.structuralValue(key);
-      this.encoded = CoderUtils.encodeToByteArray(coder, key);
+      this.encoded = Coders.encodeToByteArray(coder, key);
     }
 
     @Override
     public K getKey() {
       try {
-        return CoderUtils.decodeFromByteArray(coder, encoded);
+        return Coders.decodeFromByteArray(coder, encoded);
       } catch (CoderException e) {
         throw new IllegalArgumentException(
             "Could not decode Key with coder of type " + coder.getClass().getSimpleName(), e);

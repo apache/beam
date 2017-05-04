@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -30,7 +30,7 @@ import java.io.OutputStream;
  * Less efficient than BigEndian{Int,Long} coder for negative or large numbers.
  * All negative ints are encoded using 5 bytes, longs take 10 bytes.
  */
-public class VarInt {
+class VarInt {
 
   private static long convertIntToLongNoSignExtend(int v) {
     return v & 0xFFFFFFFFL;

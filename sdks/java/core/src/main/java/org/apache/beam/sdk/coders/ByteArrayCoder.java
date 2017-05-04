@@ -24,9 +24,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.StreamUtils;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -99,7 +98,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
   public byte[] decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     if (context.isWholeStream) {
-      return StreamUtils.getBytes(inStream);
+      return ExposedByteArrayInputStream.getBytes(inStream);
     } else {
       int length = VarInt.decodeInt(inStream);
       if (length < 0) {

@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.CoderUtils.decodeFromByteArray;
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.apache.beam.sdk.coders.Coders.decodeFromByteArray;
+import static org.apache.beam.sdk.coders.Coders.encodeToByteArray;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

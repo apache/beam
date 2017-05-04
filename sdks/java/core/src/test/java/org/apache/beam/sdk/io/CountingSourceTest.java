@@ -42,7 +42,7 @@ import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
@@ -314,7 +314,7 @@ public class CountingSourceTest {
     assertEquals(numToSkip, reader.getCurrentTimestamp().getMillis());
 
     // Checkpoint and restart, and confirm that the source continues correctly.
-    CounterMark mark = CoderUtils.clone(
+    CounterMark mark = Coders.clone(
         source.getCheckpointMarkCoder(), (CounterMark) reader.getCheckpointMark());
     reader = source.createReader(null, mark);
     assertTrue(reader.start());
