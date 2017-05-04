@@ -19,26 +19,13 @@ cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
-
+from apache_beam.transforms.dofn_signature cimport DoFnSignature
 
 cdef type OutputValue, TimestampedValue
 
 
 cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
-
-
-cdef class DoFnMethodWrapper(object):
-  cdef public object args
-  cdef public object defaults
-  cdef public object method_value
-
-
-cdef class DoFnSignature(object):
-  cdef public DoFnMethodWrapper process_method
-  cdef public DoFnMethodWrapper start_bundle_method
-  cdef public DoFnMethodWrapper finish_bundle_method
-  cdef public object do_fn
 
 
 cdef class DoFnInvoker(object):
