@@ -63,28 +63,29 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
 
       switch (value.getDataType().getFieldsType().get(idx)) {
-      case INTEGER:
-        intCoder.encode(value.getInteger(idx), outStream, context.nested());
-        break;
-      case SMALLINT:
-      case TINYINT:
-        intCoder.encode((int) value.getShort(idx), outStream, context.nested());
-        break;
-      case DOUBLE:
-        doubleCoder.encode(value.getDouble(idx), outStream, context.nested());
-        break;
-      case FLOAT:
-        doubleCoder.encode((double) value.getFloat(idx), outStream, context.nested());
-        break;
-      case BIGINT:
-        longCoder.encode(value.getLong(idx), outStream, context.nested());
-        break;
-      case VARCHAR:
-        stringCoder.encode(value.getString(idx), outStream, context.nested());
-        break;
+        case INTEGER:
+          intCoder.encode(value.getInteger(idx), outStream, context.nested());
+          break;
+        case SMALLINT:
+        case TINYINT:
+          intCoder.encode((int) value.getShort(idx), outStream, context.nested());
+          break;
+        case DOUBLE:
+          doubleCoder.encode(value.getDouble(idx), outStream, context.nested());
+          break;
+        case FLOAT:
+          doubleCoder.encode(Double.parseDouble(
+              String.valueOf(value.getFloat(idx))), outStream, context.nested());
+          break;
+        case BIGINT:
+          longCoder.encode(value.getLong(idx), outStream, context.nested());
+          break;
+        case VARCHAR:
+          stringCoder.encode(value.getString(idx), outStream, context.nested());
+          break;
 
-      default:
-        throw new UnsupportedDataTypeException(value.getDataType().getFieldsType().get(idx));
+        default:
+          throw new UnsupportedDataTypeException(value.getDataType().getFieldsType().get(idx));
       }
     }
     //add a dummy field to indicate the end of record
@@ -106,30 +107,30 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
 
       switch (type.getFieldsType().get(idx)) {
-      case INTEGER:
-        record.addField(idx, intCoder.decode(inStream, context.nested()));
-        break;
-      case SMALLINT:
-        record.addField(idx, intCoder.decode(inStream, context.nested()).shortValue());
-        break;
-      case TINYINT:
-        record.addField(idx, intCoder.decode(inStream, context.nested()).byteValue());
-        break;
-      case DOUBLE:
-        record.addField(idx, doubleCoder.decode(inStream, context.nested()));
-        break;
-      case FLOAT:
-        record.addField(idx, doubleCoder.decode(inStream, context.nested()).floatValue());
-        break;
-      case BIGINT:
-        record.addField(idx, longCoder.decode(inStream, context.nested()));
-        break;
-      case VARCHAR:
-        record.addField(idx, stringCoder.decode(inStream, context.nested()));
-        break;
+        case INTEGER:
+          record.addField(idx, intCoder.decode(inStream, context.nested()));
+          break;
+        case SMALLINT:
+          record.addField(idx, intCoder.decode(inStream, context.nested()).shortValue());
+          break;
+        case TINYINT:
+          record.addField(idx, intCoder.decode(inStream, context.nested()).byteValue());
+          break;
+        case DOUBLE:
+          record.addField(idx, doubleCoder.decode(inStream, context.nested()));
+          break;
+        case FLOAT:
+          record.addField(idx, doubleCoder.decode(inStream, context.nested()).floatValue());
+          break;
+        case BIGINT:
+          record.addField(idx, longCoder.decode(inStream, context.nested()));
+          break;
+        case VARCHAR:
+          record.addField(idx, stringCoder.decode(inStream, context.nested()));
+          break;
 
-      default:
-        throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
+        default:
+          throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
       }
     }
     intCoder.decode(inStream, context);
