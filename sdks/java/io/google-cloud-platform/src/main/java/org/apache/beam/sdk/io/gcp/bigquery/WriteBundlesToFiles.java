@@ -46,8 +46,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Writes each bundle of {@link TableRow} elements out to a separate file using {@link
- * TableRowWriter}.
+ * Writes each bundle of {@link TableRow} elements out to separate file using {@link
+ * TableRowWriter}. Elements destined to different destinations are written to separate files.
+ * The transform will not write an element to a file if it is already writing to
+ * {@link #maxNumWritersPerBundle} files and the element is destined to a new destination. In this
+ * case, the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles}
+ * transform will take care of writing it to a file.
  */
 class WriteBundlesToFiles<DestinationT>
     extends DoFn<KV<DestinationT, TableRow>, WriteBundlesToFiles.Result<DestinationT>> {
@@ -63,7 +67,7 @@ class WriteBundlesToFiles<DestinationT>
   private transient Map<DestinationT, BoundedWindow> writerWindows;
   private final String stepUuid;
   private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag;
-  private int maxNumWriters;
+  private int maxNumWritersPerBundle;
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
@@ -127,10 +131,10 @@ class WriteBundlesToFiles<DestinationT>
   WriteBundlesToFiles(
       String stepUuid,
       TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag,
-      int maxNumWriters) {
+      int maxNumWritersPerBundle) {
     this.stepUuid = stepUuid;
     this.unwrittedRecordsTag = unwrittedRecordsTag;
-    this.maxNumWriters = maxNumWriters;
+    this.maxNumWritersPerBundle = maxNumWritersPerBundle;
   }
 
   @StartBundle
@@ -153,8 +157,9 @@ class WriteBundlesToFiles<DestinationT>
       writer = null;
     }
     if (writer == null) {
-      // Only create a new writer if we have fewer than maxNumWriters already in this bundle.
-      if (writers.size() <= maxNumWriters) {
+      // Only create a new writer if we have fewer than maxNumWritersPerBundle already in thi
+      // bundle.
+      if (writers.size() <= maxNumWritersPerBundle) {
         writer = new TableRowWriter(tempFilePrefix);
         writer.open(UUID.randomUUID().toString());
         writers.put(c.element().getKey(), writer);

@@ -66,9 +66,11 @@ class BatchLoads<DestinationT>
   // The first 20 tables from a single BatchLoads transform will write files inline in the
   // transform. Anything beyond that might be shuffled.  Users using this transform directly who
   // know that they are running on workers with sufficient memory can increase this by calling
-  // BatchLoads#setMaxNumWorkers. This allows the workers to do more work in memory, and save on the
-  // cost of shuffling some of this data.
-  private static final int DEFAULT_MAX_NUM_WRITERS = 20;
+  // BatchLoads#setMaxNumWritersPerBundle. This allows the workers to do more work in memory, and
+  // save on the cost of shuffling some of this data.
+  // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
+  // their own policy.
+  private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
@@ -78,7 +80,7 @@ class BatchLoads<DestinationT>
   private final boolean singletonTable;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final Coder<DestinationT> destinationCoder;
-  private int maxNumWriters;
+  private int maxNumWritersPerBundle;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
@@ -90,7 +92,7 @@ class BatchLoads<DestinationT>
     this.singletonTable = singletonTable;
     this.dynamicDestinations = dynamicDestinations;
     this.destinationCoder = destinationCoder;
-    this.maxNumWriters = DEFAULT_MAX_NUM_WRITERS;
+    this.maxNumWritersPerBundle = DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -98,13 +100,13 @@ class BatchLoads<DestinationT>
   }
 
   /** Get the maximum number of file writers that will be open simultaneously in a bundle. */
-  public int getMaxNumWriters() {
-    return maxNumWriters;
+  public int getMaxNumWritersPerBundle() {
+    return maxNumWritersPerBundle;
   }
 
   /** Set the maximum number of file writers that will be open simultaneously in a bundle. */
-  public void setMaxNumWriters(int maxNumWriters) {
-    this.maxNumWriters = maxNumWriters;
+  public void setMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+    this.maxNumWritersPerBundle = maxNumWritersPerBundle;
   }
 
   @Override
@@ -146,7 +148,6 @@ class BatchLoads<DestinationT>
                     stepUuid));
           }
         }));
-
     PCollectionView<String> jobIdTokenView =
         p.apply("TriggerIdCreation", Create.of("ignored"))
             .apply(
@@ -176,7 +177,7 @@ class BatchLoads<DestinationT>
     PCollectionTuple writeBundlesTuple = inputInGlobalWindow
             .apply("WriteBundlesToFiles",
                 ParDo.of(new WriteBundlesToFiles<>(stepUuid, unwrittedRecordsTag,
-                    maxNumWriters))
+                    maxNumWritersPerBundle))
                 .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
         writeBundlesTuple.get(writtenFilesTag)

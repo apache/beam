@@ -24,7 +24,11 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
-/** Created by relax on 4/29/17. */
+/**
+ * Receives elements grouped by their (sharded) destination, and writes them out to a file.
+ * Since all the elements in the {@link Iterable} are destined to the same table, they are all
+ * written to the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
+ */
 class WriteGroupedRecordsToFiles<DestinationT>
     extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
     WriteBundlesToFiles.Result<DestinationT>> {
@@ -44,7 +48,19 @@ class WriteGroupedRecordsToFiles<DestinationT>
             result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         writer = createWriter();
       }
-      writer.write(tableRow);
+      try {
+        writer.write(tableRow);
+      } catch (Exception e) {
+        // Discard write result and close the write.
+        try {
+          writer.close();
+          // The writer does not need to be reset, as this DoFn cannot be reused.
+        } catch (Exception closeException) {
+          // Do not mask the exception that caused the write to fail.
+          e.addSuppressed(closeException);
+        }
+        throw e;
+      }
     }
     TableRowWriter.Result result = writer.close();
     c.output(new WriteBundlesToFiles.Result<>(

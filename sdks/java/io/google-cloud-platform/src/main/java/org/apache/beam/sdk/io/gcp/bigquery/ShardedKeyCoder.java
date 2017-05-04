@@ -56,15 +56,14 @@ class ShardedKeyCoder<KeyT>
   public void encode(ShardedKey<KeyT> key, OutputStream outStream, Context context)
       throws IOException {
     keyCoder.encode(key.getKey(), outStream, context.nested());
-    shardNumberCoder.encode(key.getShardNumber(), outStream, context.nested());
+    shardNumberCoder.encode(key.getShardNumber(), outStream, context);
   }
 
   @Override
   public ShardedKey<KeyT> decode(InputStream inStream, Context context)
       throws IOException {
     return new ShardedKey<>(
-        keyCoder.decode(inStream, context.nested()),
-        shardNumberCoder.decode(inStream, context.nested()));
+        keyCoder.decode(inStream, context.nested()), shardNumberCoder.decode(inStream, context));
   }
 
   @Override

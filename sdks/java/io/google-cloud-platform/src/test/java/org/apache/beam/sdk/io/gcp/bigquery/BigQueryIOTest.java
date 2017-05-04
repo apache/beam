@@ -495,11 +495,10 @@ public class BigQueryIOTest implements Serializable {
     List<String> userList = Lists.newArrayList();
     // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill.
     for (int i = 0; i < WriteBundlesToFiles.SPILLED_RECORD_SHARDING_FACTOR * 2; ++i) {
-      String user = allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
-      userList.add(user + i);
+      String userName = allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
+      userList.add(userName + i);
     }
-    PCollection<String> users = p.apply("CreateUsers",
-        Create.of(userList).withCoder(StringUtf8Coder.of()))
+    PCollection<String> users = p.apply("CreateUsers", Create.of(userList))
         .apply(Window.into(new PartitionedGlobalWindows<>(
             new SerializableFunction<String, String>() {
               @Override
