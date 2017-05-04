@@ -117,22 +117,23 @@ class FakeJobService implements JobService, Serializable {
       job.setKind(" bigquery#job");
       job.setStatus(new JobStatus().setState("PENDING"));
 
+      ImmutableList.Builder<ResourceId> sourceFileResources = ImmutableList.builder();
+      ImmutableList.Builder<ResourceId> loadFileResources = ImmutableList.builder();
       // Copy the files to a new location for import, as the temporary files will be deleted by
       // the caller.
       if (loadConfig.getSourceUris().size() > 0) {
         List<String> loadFiles = Lists.newArrayList();
         for (String filename : loadConfig.getSourceUris()) {
-          loadFiles.add(filename + ThreadLocalRandom.current().nextInt());
+          sourceFileResources.add(
+              FileSystems.matchNewResource(filename, false /* isDirectory */));
+          ResourceId fileResource = FileSystems.matchNewResource(
+              filename + ThreadLocalRandom.current().nextInt(),
+              false /* isDirectory */);
+          loadFiles.add(fileResource.toString());
+          loadFileResources.add(fileResource);
         }
-        ImmutableList.Builder<ResourceId> sourceFiles = ImmutableList.builder();
-        ImmutableList.Builder<ResourceId> destinationFiles = ImmutableList.builder();
-        for (String file: loadConfig.getSourceUris()) {
-          sourceFiles.add(FileSystems.matchNewResource(file, false /* isDirectory */));
-        }
-        for (String file: loadFiles) {
-          destinationFiles.add(FileSystems.matchNewResource(file, false /* isDirectory */));
-        }
-        FileSystems.copy(sourceFiles.build(), destinationFiles.build(),
+
+        FileSystems.copy(sourceFileResources.build(), loadFileResources.build(),
             MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles);
       }
