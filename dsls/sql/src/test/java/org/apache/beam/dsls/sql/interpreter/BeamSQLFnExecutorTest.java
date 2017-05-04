@@ -17,19 +17,28 @@
  */
 package org.apache.beam.dsls.sql.interpreter;
 
+import static org.junit.Assert.assertTrue;
+
 import java.math.BigDecimal;
 import java.util.Arrays;
+
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlDivideExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
@@ -60,27 +69,27 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
     Assert.assertEquals(1, executor.exps.size());
 
     BeamSqlExpression l1Exp = executor.exps.get(0);
-    Assert.assertTrue(l1Exp instanceof BeamSqlAndExpression);
+    assertTrue(l1Exp instanceof BeamSqlAndExpression);
     Assert.assertEquals(SqlTypeName.BOOLEAN, l1Exp.getOutputType());
 
     Assert.assertEquals(2, l1Exp.getOperands().size());
     BeamSqlExpression l1Left = (BeamSqlExpression) l1Exp.getOperands().get(0);
     BeamSqlExpression l1Right = (BeamSqlExpression) l1Exp.getOperands().get(1);
 
-    Assert.assertTrue(l1Left instanceof BeamSqlLessThanEqualExpression);
-    Assert.assertTrue(l1Right instanceof BeamSqlEqualExpression);
+    assertTrue(l1Left instanceof BeamSqlLessThanEqualExpression);
+    assertTrue(l1Right instanceof BeamSqlEqualExpression);
 
     Assert.assertEquals(2, l1Left.getOperands().size());
     BeamSqlExpression l1LeftLeft = (BeamSqlExpression) l1Left.getOperands().get(0);
     BeamSqlExpression l1LeftRight = (BeamSqlExpression) l1Left.getOperands().get(1);
-    Assert.assertTrue(l1LeftLeft instanceof BeamSqlInputRefExpression);
-    Assert.assertTrue(l1LeftRight instanceof BeamSqlPrimitive);
+    assertTrue(l1LeftLeft instanceof BeamSqlInputRefExpression);
+    assertTrue(l1LeftRight instanceof BeamSqlPrimitive);
 
     Assert.assertEquals(2, l1Right.getOperands().size());
     BeamSqlExpression l1RightLeft = (BeamSqlExpression) l1Right.getOperands().get(0);
     BeamSqlExpression l1RightRight = (BeamSqlExpression) l1Right.getOperands().get(1);
-    Assert.assertTrue(l1RightLeft instanceof BeamSqlInputRefExpression);
-    Assert.assertTrue(l1RightRight instanceof BeamSqlPrimitive);
+    assertTrue(l1RightLeft instanceof BeamSqlInputRefExpression);
+    assertTrue(l1RightRight instanceof BeamSqlPrimitive);
   }
 
   @Test
@@ -92,10 +101,34 @@ public class BeamSQLFnExecutorTest extends BeamSQLFnExecutorTestBase {
 
     executor.prepare();
     Assert.assertEquals(4, executor.exps.size());
-    Assert.assertTrue(executor.exps.get(0) instanceof BeamSqlInputRefExpression);
-    Assert.assertTrue(executor.exps.get(1) instanceof BeamSqlInputRefExpression);
-    Assert.assertTrue(executor.exps.get(2) instanceof BeamSqlInputRefExpression);
-    Assert.assertTrue(executor.exps.get(3) instanceof BeamSqlInputRefExpression);
+    assertTrue(executor.exps.get(0) instanceof BeamSqlInputRefExpression);
+    assertTrue(executor.exps.get(1) instanceof BeamSqlInputRefExpression);
+    assertTrue(executor.exps.get(2) instanceof BeamSqlInputRefExpression);
+    assertTrue(executor.exps.get(3) instanceof BeamSqlInputRefExpression);
   }
 
+
+  @Test
+  public void testBuildExpression_arithmetic() {
+    testBuildArithmeticExpression(SqlStdOperatorTable.PLUS, BeamSqlPlusExpression.class);
+    testBuildArithmeticExpression(SqlStdOperatorTable.MINUS, BeamSqlMinusExpression.class);
+    testBuildArithmeticExpression(SqlStdOperatorTable.MULTIPLY, BeamSqlMultiplyExpression.class);
+    testBuildArithmeticExpression(SqlStdOperatorTable.DIVIDE, BeamSqlDivideExpression.class);
+    testBuildArithmeticExpression(SqlStdOperatorTable.MOD, BeamSqlModExpression.class);
+  }
+
+  private void testBuildArithmeticExpression(SqlOperator fn,
+      Class<? extends BeamSqlExpression> clazz) {
+    RexNode rexNode;
+    BeamSqlExpression exp;
+    rexNode = rexBuilder.makeCall(fn,
+        Arrays.asList(
+            rexBuilder.makeBigintLiteral(new BigDecimal(1L)),
+            rexBuilder.makeBigintLiteral(new BigDecimal(1L))
+        )
+    );
+    exp = BeamSQLFnExecutor.buildExpression(rexNode);
+
+    assertTrue(exp.getClass().equals(clazz));
+  }
 }
