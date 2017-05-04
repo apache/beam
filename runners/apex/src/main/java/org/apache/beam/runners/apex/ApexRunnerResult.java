@@ -18,9 +18,7 @@
 package org.apache.beam.runners.apex;
 
 import com.datatorrent.api.DAG;
-
 import java.io.IOException;
-
 import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.ShutdownMode;
 import org.apache.beam.sdk.Pipeline;

@@ -20,9 +20,7 @@ package org.apache.beam.runners.apex.translation;
 import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
-
 import java.util.List;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexGroupByKeyOperator;
