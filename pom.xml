@@ -104,6 +104,7 @@
     <apache.commons.lang.version>3.5</apache.commons.lang.version>
     <apache.commons.compress.version>1.9</apache.commons.compress.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
+    <api-common.version>1.0.0-rc2</api-common.version>
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
     <bigtable.version>0.9.6.2</bigtable.version>
@@ -139,6 +140,7 @@
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
+    <spanner.version>0.16.0-beta</spanner.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <snappy-java.version>1.1.4-M3</snappy-java.version>
@@ -863,6 +865,12 @@
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>gcsio</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-spanner</artifactId>
+        <version>${spanner.version}</version>
       </dependency>
 
       <dependency>
