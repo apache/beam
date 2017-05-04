@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Verify.verify;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -107,6 +108,22 @@ public class FileSystems {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
+
+  /**
+   * Like {@link #match(List)}, but for a single resource specification.
+   *
+   * <p>The function {@link #match(List)} is preferred when matching multiple patterns, as it allows
+   * for bulk API calls to remote filesystems.
+   */
+  public static MatchResult match(String spec) throws IOException {
+    List<MatchResult> matches = match(Collections.singletonList(spec));
+    verify(
+        matches.size() == 1,
+        "FileSystem implementation for %s did not return exactly one MatchResult: %s",
+        spec,
+        matches);
+    return matches.get(0);
+  }
   /**
    * Returns the {@link Metadata} for a single file resource. Expects a resource specification
    * {@code spec} that matches a single result.
