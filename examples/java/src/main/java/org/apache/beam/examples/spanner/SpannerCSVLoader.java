@@ -84,7 +84,7 @@ public class SpannerCSVLoader {
       Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
 
       Pipeline p = Pipeline.create(options);
-      PCollection<String> lines = p.apply(TextIO.Read.from(options.getInput()));
+      PCollection<String> lines = p.apply(TextIO.read().from(options.getInput()));
       PCollection<Mutation> mutations = lines
               .apply(ParDo.of(new NaiveParseCsvFn(options.getTable())));
       mutations
