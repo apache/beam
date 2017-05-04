@@ -113,8 +113,10 @@ public class BeamPlannerAggregationSubmitTest {
     pipeline.run().waitUntilFinish();
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertEquals("site_id=1,agg_hour=Sun Jan 01 01:00:00 PST 2017,size=1",
-        MockedBeamSQLTable.CONTENT.get(0));
+    BeamSQLRow result = MockedBeamSQLTable.CONTENT.get(0);
+    Assert.assertEquals(1, result.getInteger(0));
+    Assert.assertEquals(format.parse("2017-01-01 01:00:00"), result.getDate(1));
+    Assert.assertEquals(1L, result.getLong(2));
   }
 
   @Test
@@ -129,6 +131,6 @@ public class BeamPlannerAggregationSubmitTest {
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
     Assert.assertEquals("site_id=0,agg_hour=null,size=3",
-        MockedBeamSQLTable.CONTENT.get(0));
+        MockedBeamSQLTable.CONTENT.get(0).valueInString());
   }
 }
