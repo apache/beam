@@ -18,12 +18,15 @@
 package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -41,6 +44,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
@@ -186,8 +193,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           if (pipelineRunSucceeded() && !visitedAll(pipelineNodes)) {
             final boolean hasDanglingPAssert =
                 FluentIterable.from(pipelineNodes)
-                              .filter(Predicates.not(Predicates.in(runVisitedNodes)))
-                              .anyMatch(isPAssertNode);
+                    .filter(Predicates.not(Predicates.in(runVisitedNodes)))
+                    .anyMatch(isPAssertNode);
             if (hasDanglingPAssert) {
               throw new AbandonedNodeException("The pipeline contains abandoned PAssert(s).");
             } else {
@@ -238,8 +245,11 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+  /** System property used to set {@link TestPipelineOptions}. */
+  public static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
+
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
+
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
@@ -319,12 +329,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
-        + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+            + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
 
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
       pipelineResult = super.run();
+      verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
       if (cause instanceof AssertionError) {
@@ -370,6 +381,15 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this;
   }
 
+  @VisibleForTesting
+  @Override
+  /**
+   * Get this pipeline's options.
+   */
+  public PipelineOptions getOptions() {
+    return defaultOptions;
+  }
+
   @Override
   public String toString() {
     return "TestPipeline#" + getOptions().as(ApplicationNameOptions.class).getAppName();
@@ -385,8 +405,8 @@ public class TestPipeline extends Pipeline implements TestRule {
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
-                      MAPPER.readValue(beamTestPipelineOptions, String[].class))
-                  .as(TestPipelineOptions.class);
+              MAPPER.readValue(beamTestPipelineOptions, String[].class))
+              .as(TestPipelineOptions.class);
 
       options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, set some reasonable defaults
@@ -486,6 +506,35 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
     return firstInstanceAfterTestPipeline;
+  }
+
+  /**
+   * Verifies all {{@link PAssert PAsserts}} in the pipeline have been executed and were successful.
+   *
+   * <p>Note this only runs for runners which support Metrics. Runners which do not should verify
+   * this in some other way. See: https://issues.apache.org/jira/browse/BEAM-2001</p>
+   */
+  public static void verifyPAssertsSucceeded(Pipeline pipeline, PipelineResult pipelineResult) {
+    if (MetricsEnvironment.isMetricsSupported()) {
+      long expectedNumberOfAssertions = (long) PAssert.countAsserts(pipeline);
+
+      long successfulAssertions = 0;
+      Iterable<MetricResult<Long>> successCounterResults =
+          pipelineResult.metrics().queryMetrics(
+              MetricsFilter.builder()
+                  .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+                  .build())
+              .counters();
+      for (MetricResult<Long> counter : successCounterResults) {
+        if (counter.attempted() > 0) {
+          successfulAssertions++;
+        }
+      }
+
+      assertThat(String
+          .format("Expected %d successful assertions, but found %d.", expectedNumberOfAssertions,
+              successfulAssertions), successfulAssertions, is(expectedNumberOfAssertions));
+    }
   }
 
   private static class IsEmptyVisitor extends PipelineVisitor.Defaults {

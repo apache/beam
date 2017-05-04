@@ -463,7 +463,32 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   @Override
   public void processWatermark2(Watermark mark) throws Exception {
-    // ignore watermarks from the side-input input
+    if (mark.getTimestamp() == BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+      // this means we will never see any more side input
+      pushbackDoFnRunner.startBundle();
+
+      BagState<WindowedValue<InputT>> pushedBack =
+          pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+      if (pushedBackContents != null) {
+        for (WindowedValue<InputT> elem : pushedBackContents) {
+
+          // we need to set the correct key in case the operator is
+          // a (keyed) window operator
+          setKeyContextElement1(new StreamRecord<>(elem));
+
+          doFnRunner.processElement(elem);
+        }
+      }
+
+      setPushedBackWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+
+      pushbackDoFnRunner.finishBundle();
+
+      // maybe output a new watermark
+      processWatermark1(new Watermark(currentInputWatermark));
+    }
   }
 
   @Override

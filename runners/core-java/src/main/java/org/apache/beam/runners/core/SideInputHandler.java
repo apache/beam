@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -161,11 +162,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Override
   public <T> T get(PCollectionView<T> sideInput, BoundedWindow window) {
 
-    if (!isReady(sideInput, window)) {
-      throw new IllegalStateException(
-          "Side input " + sideInput + " is not ready for window " + window);
-    }
-
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) sideInput
@@ -180,6 +176,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
     Iterable<WindowedValue<?>> elements = state.read();
+
+    if (elements == null) {
+      elements = Collections.emptyList();
+    }
 
     return sideInput.getViewFn().apply(elements);
   }

@@ -25,9 +25,9 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -44,19 +44,23 @@ import org.junit.Test;
  */
 public class ForceStreamingTest {
 
-  @Rule
-  public final PipelineRule pipelineRule = PipelineRule.streaming();
-
   @Test
   public void test() throws IOException {
-    Pipeline pipeline = pipelineRule.createPipeline();
+    TestSparkPipelineOptions options =
+        PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
+    options.setRunner(TestSparkRunner.class);
+    options.setForceStreaming(true);
+
+    // pipeline with a bounded read.
+    Pipeline pipeline = Pipeline.create(options);
 
     // apply the BoundedReadFromUnboundedSource.
     BoundedReadFromUnboundedSource<?> boundedRead =
         Read.from(CountingSource.unbounded()).withMaxNumRecords(-1);
-    //noinspection unchecked
     pipeline.apply(boundedRead);
-    TestSparkRunner runner = TestSparkRunner.fromOptions(pipelineRule.getOptions());
+
+    // adapt reads
+    TestSparkRunner runner = TestSparkRunner.fromOptions(options);
     runner.adaptBoundedReads(pipeline);
 
     UnboundedReadDetector unboundedReadDetector = new UnboundedReadDetector();

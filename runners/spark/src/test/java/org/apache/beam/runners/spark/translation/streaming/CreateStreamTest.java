@@ -24,13 +24,14 @@ import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.runners.spark.PipelineRule;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.io.CreateStream;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -61,6 +62,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
 
@@ -74,10 +76,11 @@ import org.junit.rules.ExpectedException;
  * {@link org.apache.spark.streaming.dstream.QueueInputDStream} and advance the system's WMs.
  * //TODO: add synchronized/processing time trigger.
  */
+@Category(StreamingTest.class)
 public class CreateStreamTest implements Serializable {
 
   @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.streaming();
+  public final transient TestPipeline p = TestPipeline.create();
   @Rule
   public final transient ReuseSparkContextRule noContextResue = ReuseSparkContextRule.no();
   @Rule
@@ -85,10 +88,9 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testLateDataAccumulating() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     Instant instant = new Instant(0);
     CreateStream<Integer> source =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(6)))
             .nextBatch(
@@ -159,9 +161,8 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testDiscardingMode() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     CreateStream<String> source =
-        CreateStream.of(StringUtf8Coder.of(), pipelineRule.batchDuration())
+        CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .nextBatch(
                 TimestampedValue.of("firstPane", new Instant(100)),
                 TimestampedValue.of("alsoFirstPane", new Instant(200)))
@@ -208,10 +209,9 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFirstElementLate() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     Instant lateElementTimestamp = new Instant(-1_000_000);
     CreateStream<String> source =
-        CreateStream.of(StringUtf8Coder.of(), pipelineRule.batchDuration())
+        CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(new Instant(0))
             .nextBatch(
@@ -242,10 +242,9 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testElementsAtAlmostPositiveInfinity() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     CreateStream<String> source =
-        CreateStream.of(StringUtf8Coder.of(), pipelineRule.batchDuration())
+        CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .nextBatch(
                 TimestampedValue.of("foo", endOfGlobalWindow),
                 TimestampedValue.of("bar", endOfGlobalWindow))
@@ -267,13 +266,12 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testMultipleStreams() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     CreateStream<String> source =
-        CreateStream.of(StringUtf8Coder.of(), pipelineRule.batchDuration())
+        CreateStream.of(StringUtf8Coder.of(), batchDuration())
             .nextBatch("foo", "bar")
             .advanceNextBatchWatermarkToInfinity();
     CreateStream<Integer> other =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .nextBatch(1, 2, 3, 4)
             .advanceNextBatchWatermarkToInfinity();
 
@@ -298,10 +296,9 @@ public class CreateStreamTest implements Serializable {
 
   @Test
   public void testFlattenedWithWatermarkHold() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     Instant instant = new Instant(0);
     CreateStream<Integer> source1 =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
             .nextBatch(
@@ -310,7 +307,7 @@ public class CreateStreamTest implements Serializable {
                 TimestampedValue.of(3, instant))
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(10)));
     CreateStream<Integer> source2 =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(1)))
             .nextBatch(
@@ -323,14 +320,14 @@ public class CreateStreamTest implements Serializable {
             .advanceNextBatchWatermarkToInfinity();
 
     PCollection<Integer> windowed1 = p
-        .apply(source1)
-        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+        .apply("CreateStream1", source1)
+        .apply("Window1", Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
             .triggering(AfterWatermark.pastEndOfWindow())
             .accumulatingFiredPanes()
             .withAllowedLateness(Duration.ZERO));
     PCollection<Integer> windowed2 = p
-        .apply(source2)
-        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
+        .apply("CreateStream2", source2)
+        .apply("Window2", Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5)))
             .triggering(AfterWatermark.pastEndOfWindow())
             .accumulatingFiredPanes()
             .withAllowedLateness(Duration.ZERO));
@@ -357,10 +354,9 @@ public class CreateStreamTest implements Serializable {
    */
   @Test
   public void testMultiOutputParDo() throws IOException {
-    Pipeline p = pipelineRule.createPipeline();
     Instant instant = new Instant(0);
     CreateStream<Integer> source1 =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
             .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
             .nextBatch(
@@ -397,7 +393,7 @@ public class CreateStreamTest implements Serializable {
   @Test
   public void testElementAtPositiveInfinityThrows() {
     CreateStream<Integer> source =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .nextBatch(TimestampedValue.of(-1, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L)))
             .advanceNextBatchWatermarkToInfinity();
     thrown.expect(IllegalArgumentException.class);
@@ -407,7 +403,7 @@ public class CreateStreamTest implements Serializable {
   @Test
   public void testAdvanceWatermarkNonMonotonicThrows() {
     CreateStream<Integer> source =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .advanceWatermarkForNextBatch(new Instant(0L));
     thrown.expect(IllegalArgumentException.class);
     source
@@ -418,9 +414,14 @@ public class CreateStreamTest implements Serializable {
   @Test
   public void testAdvanceWatermarkEqualToPositiveInfinityThrows() {
     CreateStream<Integer> source =
-        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+        CreateStream.of(VarIntCoder.of(), batchDuration())
             .advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE.minus(1L));
     thrown.expect(IllegalArgumentException.class);
     source.advanceWatermarkForNextBatch(BoundedWindow.TIMESTAMP_MAX_VALUE);
+  }
+
+  private Duration batchDuration() {
+    return Duration.millis(
+        (p.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
   }
 }
