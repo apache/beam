@@ -28,7 +28,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
 import org.apache.beam.sdk.options.Validation.Required;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers;
 
 /**
  * Validates that the {@link PipelineOptions} conforms to all the {@link Validation} criteria.

@@ -15,24 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.common;
+package org.apache.beam.sdk.coders;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Observer;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * An abstract class used for iterables that notify observers about size in bytes of their elements,
- * as they are being iterated over.
+ * <b>For internal use only; no backwards compatibility guarantes.</b>
+ *
+ * <p>An abstract class used for iterables that notify observers about size in
+ * bytes of their elements, as they are being iterated over.
  *
  * @param <V> the type of elements returned by this iterable
  * @param <InputT> type type of iterator returned by this iterable
- * @deprecated for internal Beam use only, look to {@link
- *     org.apache.beam.sdk.coders.ElementByteSizeObservableIterable}
  */
-@Deprecated
+@Internal
 public abstract class ElementByteSizeObservableIterable<
-        V, InputT extends ElementByteSizeObservableIterator<V>>
+    V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
   private List<Observer> observers = new ArrayList<>();
 

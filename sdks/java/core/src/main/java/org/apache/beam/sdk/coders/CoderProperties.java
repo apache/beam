@@ -39,7 +39,6 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions

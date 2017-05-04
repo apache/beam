@@ -40,7 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.coders.ElementByteSizeObserver;
 import org.joda.time.Instant;
 
 /**

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.coders.ElementByteSizeObserver;
 
 /**
  * An interface for things that allow observing the size in bytes of

@@ -43,7 +43,6 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Provides utilities for creating read and write channels.

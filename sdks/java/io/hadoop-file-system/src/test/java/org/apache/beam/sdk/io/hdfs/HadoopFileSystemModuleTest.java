@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
 import org.junit.Test;

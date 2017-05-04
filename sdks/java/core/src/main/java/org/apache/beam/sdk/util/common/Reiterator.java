@@ -23,7 +23,9 @@ import java.util.Iterator;
  * An {@link Iterator} with the ability to copy its iteration state.
  *
  * @param <T> the type of elements returned by this iterator
+ * @deprecated for internal Beam use only, see {@link org.apache.beam.sdk.util.Reiterator}
  */
+@Deprecated
 public interface Reiterator<T> extends Iterator<T> {
   /**
    * Returns a copy of the current {@link Reiterator}.  The copy's iteration

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.common;
+package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -42,10 +42,7 @@ import javax.annotation.Nullable;
 
 /**
  * Utilities for working with with {@link Class Classes} and {@link Method Methods}.
- *
- * @deprecated for internal Beam use only, see {@link org.apache.beam.sdk.util.ReflectHelpers}
  */
-@Deprecated
 public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");

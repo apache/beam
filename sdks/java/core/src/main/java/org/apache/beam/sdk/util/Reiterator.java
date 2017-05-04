@@ -15,24 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.common;
+package org.apache.beam.sdk.util;
 
 import java.util.Iterator;
-import java.util.Observable;
 
 /**
- * An abstract class used for iterators that notify observers about size in bytes of their elements,
- * as they are being iterated over. The subclasses need to implement the standard Iterator interface
- * and call method notifyValueReturned() for each element read and/or iterated over.
+ * An {@link Iterator} with the ability to copy its iteration state.
  *
- * @param <V> value type
- * @deprecated for internal Beam use only, look to {@link
- *     org.apache.beam.sdk.coders.ElementByteSizeObservableIterator}
+ * @param <T> the type of elements returned by this iterator
  */
-public abstract class ElementByteSizeObservableIterator<V> extends Observable
-    implements Iterator<V> {
-  protected final void notifyValueReturned(long byteSize) {
-    setChanged();
-    notifyObservers(byteSize);
-  }
+public interface Reiterator<T> extends Iterator<T> {
+  /**
+   * Returns a copy of the current {@link Reiterator}.  The copy's iteration
+   * state is logically independent of the current iterator; each may be
+   * advanced without affecting the other.
+   *
+   * <p>The returned {@code Reiterator} is not guaranteed to return
+   * referentially identical iteration results as the original
+   * {@link Reiterator}, although {@link Object#equals} will typically return
+   * true for the corresponding elements of each if the original source is
+   * logically immutable.
+   */
+  Reiterator<T> copy();
 }

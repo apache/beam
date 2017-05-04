@@ -24,8 +24,8 @@ import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.util.common.Reiterable;
-import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.sdk.util.Reiterable;
+import org.apache.beam.sdk.util.Reiterator;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Test;
