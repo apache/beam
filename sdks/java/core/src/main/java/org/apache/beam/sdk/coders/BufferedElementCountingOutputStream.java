@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.util.VarInt;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by
@@ -64,7 +65,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
  * for more details. The end of the iterable is detected by reading a count of 0.
  */
 @NotThreadSafe
-public class BufferedElementCountingOutputStream extends OutputStream {
+class BufferedElementCountingOutputStream extends OutputStream {
   public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
   private final ByteBuffer buffer;
   private final OutputStream os;
