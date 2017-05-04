@@ -65,6 +65,7 @@ class Util {
             .map(t -> t.f1.toString())
             .returns(TypeInformation.of(String.class))
             .map(parser::parse)
+            .filter(q -> q != null && q.query != null && !q.query.isEmpty())
             .map(q -> Tuple2.of(q.timestamp, q.query))
             .returns(new TypeHint<Tuple2<Long, String>>() {});
   }
@@ -81,7 +82,8 @@ class Util {
     FlinkKafkaConsumer010<SearchEventsParser.Query> consumer =
             new FlinkKafkaConsumer010<>(topic, new ParseSchema(), props);
     return env.addSource(consumer)
-            .map(t -> Tuple2.of(t.timestamp, t.query))
+            .filter(q -> q != null && q.query != null && !q.query.isEmpty())
+            .map(q -> Tuple2.of(q.timestamp, q.query))
             .returns(new TypeHint<Tuple2<Long, String>>() {});
   }
 
