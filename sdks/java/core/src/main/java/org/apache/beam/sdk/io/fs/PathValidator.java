@@ -15,13 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.fs;
 
-import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * Interface for controlling validation of paths.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
+ * <p>Interface for controlling validation of paths.
  */
+@Internal
 public interface PathValidator {
   /**
    * Validate that a file pattern is conforming.
