@@ -1021,7 +1021,7 @@ class BatchViewOverrides {
 
       long indexInBundle;
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle() throws Exception {
         indexInBundle = 0;
       }
 

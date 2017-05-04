@@ -34,7 +34,6 @@ import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -56,7 +55,7 @@ import org.joda.time.format.DateTimeFormatter;
  * from command-line arguments with {@link PipelineOptionsFactory#fromArgs(String[])}.
  * They can be converted to another type by invoking {@link PipelineOptions#as(Class)} and
  * can be accessed from within a {@link DoFn} by invoking
- * {@link Context#getPipelineOptions()}.
+ * {@code getPipelineOptions()} on the input {@link DoFn.ProcessContext Context} object.
  *
  * <p>For example:
  * <pre>{@code

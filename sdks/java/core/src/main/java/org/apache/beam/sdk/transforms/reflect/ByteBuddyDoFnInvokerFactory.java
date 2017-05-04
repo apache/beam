@@ -67,10 +67,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ContextParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -84,6 +85,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   public static final String CONTEXT_PARAMETER_METHOD = "context";
+  public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
+  public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
@@ -557,11 +560,21 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         new Cases<StackManipulation>() {
 
           @Override
-          public StackManipulation dispatch(ContextParameter p) {
+          public StackManipulation dispatch(StartBundleContextParameter p) {
             return new StackManipulation.Compound(
                 pushDelegate,
                 MethodInvocation.invoke(
-                    getExtraContextFactoryMethodDescription(CONTEXT_PARAMETER_METHOD, DoFn.class)));
+                    getExtraContextFactoryMethodDescription(
+                        START_BUNDLE_CONTEXT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(FinishBundleContextParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override
