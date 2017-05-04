@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
-import org.apache.beam.sdk.util.common.Reiterator;
+import org.apache.beam.sdk.util.Reiterator;
 
 /**
  * A {@link Reiterator} that supports one-element lookahead during iteration.

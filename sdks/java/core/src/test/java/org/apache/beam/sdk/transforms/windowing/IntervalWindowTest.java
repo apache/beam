@@ -24,8 +24,8 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.CoderProperties;
+import org.apache.beam.sdk.coders.Coders;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -71,16 +71,16 @@ public class IntervalWindowTest {
     Instant dayEnd = Instant.parse("2015-04-02T00:00:00Z");
 
     Coder<Instant> instantCoder = InstantCoder.of();
-    byte[] encodedStart = CoderUtils.encodeToByteArray(instantCoder, start);
-    byte[] encodedMinuteEnd = CoderUtils.encodeToByteArray(instantCoder, minuteEnd);
-    byte[] encodedHourEnd = CoderUtils.encodeToByteArray(instantCoder, hourEnd);
-    byte[] encodedDayEnd = CoderUtils.encodeToByteArray(instantCoder, dayEnd);
+    byte[] encodedStart = Coders.encodeToByteArray(instantCoder, start);
+    byte[] encodedMinuteEnd = Coders.encodeToByteArray(instantCoder, minuteEnd);
+    byte[] encodedHourEnd = Coders.encodeToByteArray(instantCoder, hourEnd);
+    byte[] encodedDayEnd = Coders.encodeToByteArray(instantCoder, dayEnd);
 
-    byte[] encodedMinuteWindow = CoderUtils.encodeToByteArray(
+    byte[] encodedMinuteWindow = Coders.encodeToByteArray(
         TEST_CODER, new IntervalWindow(start, minuteEnd));
-    byte[] encodedHourWindow = CoderUtils.encodeToByteArray(
+    byte[] encodedHourWindow = Coders.encodeToByteArray(
         TEST_CODER, new IntervalWindow(start, hourEnd));
-    byte[] encodedDayWindow = CoderUtils.encodeToByteArray(
+    byte[] encodedDayWindow = Coders.encodeToByteArray(
         TEST_CODER, new IntervalWindow(start, dayEnd));
 
     assertThat(encodedMinuteWindow.length,

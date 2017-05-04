@@ -24,10 +24,11 @@ import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
@@ -223,7 +224,7 @@ public class GroupCombineFunctions {
 
   /**
    * An implementation of
-   * {@link org.apache.beam.sdk.util.Reshuffle} for the Spark runner.
+   * {@link Reshuffle} for the Spark runner.
    */
   public static <K, V> JavaRDD<WindowedValue<KV<K, V>>> reshuffle(
       JavaRDD<WindowedValue<KV<K, V>>> rdd,

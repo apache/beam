@@ -71,7 +71,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers;
 
 /**
  * Represents and {@link InvocationHandler} for a {@link Proxy}. The invocation handler uses bean

@@ -825,7 +825,7 @@ public class ApiSurface {
     return ApiSurface.ofPackage("org.apache.beam", classLoader)
         .pruningPattern("org[.]apache[.]beam[.].*Test")
         // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+        .pruningClassName("org.apache.beam.sdk.util.ReflectHelpers")
         .pruningPrefix("java");
   }
 }

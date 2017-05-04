@@ -87,7 +87,7 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
@@ -212,7 +212,7 @@ public class TextIOTest {
 
     try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
       for (String elem : expected) {
-        byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+        byte[] encodedElem = Coders.encodeToByteArray(StringUtf8Coder.of(), elem);
         String line = new String(encodedElem);
         writer.println(line);
       }
@@ -360,7 +360,7 @@ public class TextIOTest {
 
     List<String> expectedElements = new ArrayList<>(elems.length);
     for (String elem : elems) {
-      byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+      byte[] encodedElem = Coders.encodeToByteArray(StringUtf8Coder.of(), elem);
       String line = new String(encodedElem);
       expectedElements.add(line);
     }

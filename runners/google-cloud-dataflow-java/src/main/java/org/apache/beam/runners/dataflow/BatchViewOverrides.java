@@ -73,12 +73,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.coders.Coders;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -87,6 +86,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
@@ -541,7 +541,7 @@ class BatchViewOverrides {
           if (!currentWindowStructuralValue.equals(nextWindowStructuralValue)) {
             c.output(IsmRecord.<WindowedValue<V>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
+                Coders.encodeToByteArray(VarLongCoder.of(), size)));
             size = 0;
           }
 
@@ -553,7 +553,7 @@ class BatchViewOverrides {
         // Output the final value since it is guaranteed to be on a window boundary.
         c.output(IsmRecord.<WindowedValue<V>>meta(
             ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
-            CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
+            Coders.encodeToByteArray(VarLongCoder.of(), size)));
       }
     }
 
@@ -591,7 +591,7 @@ class BatchViewOverrides {
 
           c.output(IsmRecord.<WindowedValue<V>>meta(
               ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
-              CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
+              Coders.encodeToByteArray(keyCoder, currentValue.getValue())));
           elementsInWindow += 1;
 
           if (!currentWindowStructuralValue.equals(nextWindowStructuralValue)) {
@@ -605,7 +605,7 @@ class BatchViewOverrides {
         // Output the final value since it is guaranteed to be on a window boundary.
         c.output(IsmRecord.<WindowedValue<V>>meta(
             ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
-            CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
+            Coders.encodeToByteArray(keyCoder, currentValue.getValue())));
       }
     }
 

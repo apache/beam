@@ -49,8 +49,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.coders.Coders;
+import org.apache.beam.sdk.coders.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -133,8 +133,8 @@ public class PAssertTest implements Serializable {
         new PAssert.PAssertionSite(error.getMessage(), error.getStackTrace()));
     SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
-    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
+    byte[] encoded = Coders.encodeToByteArray(coder, failure);
+    SuccessOrFailure res = Coders.decodeFromByteArray(coder, encoded);
 
     // Should compare strings, because throwables are not directly comparable.
     assertEquals("Encode-decode failed SuccessOrFailure",
@@ -149,8 +149,8 @@ public class PAssertTest implements Serializable {
     SuccessOrFailure success = SuccessOrFailure.success();
     SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, success);
-    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
+    byte[] encoded = Coders.encodeToByteArray(coder, success);
+    SuccessOrFailure res = Coders.decodeFromByteArray(coder, encoded);
 
     assertEquals("Encode-decode successful SuccessOrFailure",
         success.isSuccess(), res.isSuccess());

@@ -24,7 +24,7 @@ import java.beans.Introspector;
 import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers;
 
 /**
  * Utilities to reflect over {@link PipelineOptions}.

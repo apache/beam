@@ -60,7 +60,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.AsIterable;
 import org.apache.beam.sdk.transforms.View.AsSingleton;
-import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.hadoop.conf.Configuration;

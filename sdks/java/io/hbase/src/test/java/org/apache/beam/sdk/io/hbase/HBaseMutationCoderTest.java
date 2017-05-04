@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Mutation;

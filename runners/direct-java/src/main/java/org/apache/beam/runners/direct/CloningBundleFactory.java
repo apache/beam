@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -80,7 +80,7 @@ class CloningBundleFactory implements BundleFactory {
         // Use the cloned value to ensure that if the coder behaves poorly (e.g. a NoOpCoder that
         // does not expect to be used) that is reflected in the values given to downstream
         // transforms
-        WindowedValue<T> clone = element.withValue(CoderUtils.clone(coder, element.getValue()));
+        WindowedValue<T> clone = element.withValue(Coders.clone(coder, element.getValue()));
         underlying.add(clone);
       } catch (CoderException e) {
         throw UserCodeException.wrap(e);

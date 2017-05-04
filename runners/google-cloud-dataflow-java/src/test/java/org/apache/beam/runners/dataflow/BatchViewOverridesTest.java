@@ -40,7 +40,7 @@ import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
@@ -408,13 +408,13 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 0L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 5L)),
+                Coders.encodeToByteArray(VarLongCoder.of(), 5L)),
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowB, 0L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 7L)),
+                Coders.encodeToByteArray(VarLongCoder.of(), 7L)),
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowC, 0L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 9L))));
+                Coders.encodeToByteArray(VarLongCoder.of(), 9L))));
   }
 
   @Test
@@ -464,16 +464,16 @@ public class BatchViewOverridesTest {
         contains(
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 1L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 2L)),
+                Coders.encodeToByteArray(VarLongCoder.of(), 2L)),
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowA, 2L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L)),
+                Coders.encodeToByteArray(VarLongCoder.of(), 3L)),
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowB, 1L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L)),
+                Coders.encodeToByteArray(VarLongCoder.of(), 3L)),
             IsmRecord.<WindowedValue<Long>>meta(
                 ImmutableList.of(IsmFormat.getMetadataKey(), windowC, 1L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), 3L))));
+                Coders.encodeToByteArray(VarLongCoder.of(), 3L))));
   }
 
   @Test

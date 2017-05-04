@@ -30,10 +30,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
-import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
-import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * An abstract base class with functionality for assembling a

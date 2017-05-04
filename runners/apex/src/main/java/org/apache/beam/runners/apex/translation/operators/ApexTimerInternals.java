@@ -35,8 +35,8 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.coders.Coders;
 import org.joda.time.Instant;
 
 /**
@@ -146,7 +146,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       Iterator<Slice> timerIt = keyWithTimers.getValue().iterator();
       while (timerIt.hasNext()) {
         try {
-          TimerData timerData = CoderUtils.decodeFromByteArray(timers.timerDataCoder,
+          TimerData timerData = Coders.decodeFromByteArray(timers.timerDataCoder,
               timerIt.next().buffer);
           if (timerData.getTimestamp().isBefore(currentTime)) {
             toFire.put(keyWithTimers.getKey(), timerData);
@@ -166,7 +166,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
     if (!toFire.isEmpty()) {
       for (Slice keyBytes : toFire.keySet()) {
         try {
-          K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.buffer);
+          K key = Coders.decodeFromByteArray(keyCoder, keyBytes.buffer);
           timerProcessor.fireTimer(key, toFire.get(keyBytes));
         } catch (CoderException e) {
           throw new RuntimeException(e);
@@ -177,7 +177,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
 
   private Slice getKeyBytes(K key) {
     try {
-      return new Slice(CoderUtils.encodeToByteArray(keyCoder, key));
+      return new Slice(Coders.encodeToByteArray(keyCoder, key));
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -198,7 +198,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       }
 
       try {
-        Slice timerBytes = new Slice(CoderUtils.encodeToByteArray(timerDataCoder, timer));
+        Slice timerBytes = new Slice(Coders.encodeToByteArray(timerDataCoder, timer));
         timersForKey.add(timerBytes);
       } catch (CoderException e) {
         throw new RuntimeException(e);
@@ -216,7 +216,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       Iterator<Slice> timerIt = timersForKey.iterator();
       while (timerIt.hasNext()) {
         try {
-          TimerData timerData = CoderUtils.decodeFromByteArray(timerDataCoder,
+          TimerData timerData = Coders.decodeFromByteArray(timerDataCoder,
               timerIt.next().buffer);
           ComparisonChain chain =
               ComparisonChain.start().compare(timerData.getTimerId(), timerId);
@@ -241,7 +241,7 @@ class ApexTimerInternals<K> implements TimerInternals, Serializable {
       Set<Slice> timersForKey = activeTimers.get(keyBytes);
       if (timersForKey != null) {
         try {
-          Slice timerBytes = new Slice(CoderUtils.encodeToByteArray(timerDataCoder, timerKey));
+          Slice timerBytes = new Slice(Coders.encodeToByteArray(timerDataCoder, timerKey));
           timersForKey.add(timerBytes);
           timersForKey.remove(timerBytes);
         } catch (CoderException e) {

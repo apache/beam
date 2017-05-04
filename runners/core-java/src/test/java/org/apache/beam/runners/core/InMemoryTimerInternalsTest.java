@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;

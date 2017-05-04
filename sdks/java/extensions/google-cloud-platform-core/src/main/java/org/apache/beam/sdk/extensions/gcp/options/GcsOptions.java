@@ -35,7 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.PathValidator;
+import org.apache.beam.sdk.io.fs.PathValidator;
 
 /**
  * Options used to configure Google Cloud Storage.

@@ -21,7 +21,9 @@ package org.apache.beam.sdk.util.common;
  * An {@link Iterable} that returns {@link Reiterator} iterators.
  *
  * @param <T> the type of elements returned by the iterator
+ * @deprecated for internal Beam use only, see {@link org.apache.beam.sdk.util.Reiterable}
  */
+@Deprecated
 public interface Reiterable<T> extends Iterable<T> {
   @Override
   Reiterator<T> iterator();

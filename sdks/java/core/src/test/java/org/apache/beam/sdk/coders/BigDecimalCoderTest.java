@@ -23,9 +23,7 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.List;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.testing.CoderProperties.TestElementByteSizeObserver;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.CoderProperties.TestElementByteSizeObserver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -103,7 +101,7 @@ public class BigDecimalCoderTest {
       TEST_CODER.registerByteSizeObserver(value, observer, Coder.Context.OUTER);
       observer.advance();
       assertThat(observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(TEST_CODER, value).length));
+          equalTo((long) Coders.encodeToByteArray(TEST_CODER, value).length));
     }
   }
 
@@ -112,6 +110,6 @@ public class BigDecimalCoderTest {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("cannot encode a null BigDecimal");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 }

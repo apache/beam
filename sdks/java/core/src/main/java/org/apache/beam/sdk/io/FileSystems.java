@@ -57,7 +57,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 
 /**

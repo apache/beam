@@ -18,7 +18,7 @@
 package org.apache.beam.runners.flink.translation.types;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -40,7 +40,7 @@ public class KvKeySelector<InputT, K>
 
   @Override
   public byte[] getKey(WindowedValue<KV<K, InputT>> value) throws Exception {
-    return CoderUtils.encodeToByteArray(keyCoder, value.getValue().getKey());
+    return Coders.encodeToByteArray(keyCoder, value.getValue().getKey());
   }
 
   @Override

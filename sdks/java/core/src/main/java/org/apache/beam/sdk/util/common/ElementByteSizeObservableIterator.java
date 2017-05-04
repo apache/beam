@@ -21,15 +21,16 @@ import java.util.Iterator;
 import java.util.Observable;
 
 /**
- * An abstract class used for iterators that notify observers about size in
- * bytes of their elements, as they are being iterated over. The subclasses
- * need to implement the standard Iterator interface and call method
- * notifyValueReturned() for each element read and/or iterated over.
+ * An abstract class used for iterators that notify observers about size in bytes of their elements,
+ * as they are being iterated over. The subclasses need to implement the standard Iterator interface
+ * and call method notifyValueReturned() for each element read and/or iterated over.
  *
  * @param <V> value type
+ * @deprecated for internal Beam use only, look to {@link
+ *     org.apache.beam.sdk.coders.ElementByteSizeObservableIterator}
  */
-public abstract class ElementByteSizeObservableIterator<V>
-    extends Observable implements Iterator<V> {
+public abstract class ElementByteSizeObservableIterator<V> extends Observable
+    implements Iterator<V> {
   protected final void notifyValueReturned(long byteSize) {
     setChanged();
     notifyObservers(byteSize);

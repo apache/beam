@@ -42,7 +42,10 @@ import javax.annotation.Nullable;
 
 /**
  * Utilities for working with with {@link Class Classes} and {@link Method Methods}.
+ *
+ * @deprecated for internal Beam use only, see {@link org.apache.beam.sdk.util.ReflectHelpers}
  */
+@Deprecated
 public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");

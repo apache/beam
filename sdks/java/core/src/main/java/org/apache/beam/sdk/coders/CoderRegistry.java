@@ -46,9 +46,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
+import org.apache.beam.sdk.util.ReflectHelpers;
+import org.apache.beam.sdk.util.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -624,7 +623,7 @@ public class CoderRegistry implements CoderProvider {
 
     // Various representations of the actual coded type
     @SuppressWarnings("unchecked")
-    TypeDescriptor<T> codedDescriptor = CoderUtils.getCodedType(coderDescriptor);
+    TypeDescriptor<T> codedDescriptor = Coders.getCodedType(coderDescriptor);
     @SuppressWarnings("unchecked")
     Class<T> codedClass = (Class<T>) codedDescriptor.getRawType();
     Type codedType = codedDescriptor.getType();

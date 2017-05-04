@@ -22,14 +22,17 @@ import java.util.List;
 import java.util.Observer;
 
 /**
- * An abstract class used for iterables that notify observers about size in
- * bytes of their elements, as they are being iterated over.
+ * An abstract class used for iterables that notify observers about size in bytes of their elements,
+ * as they are being iterated over.
  *
  * @param <V> the type of elements returned by this iterable
  * @param <InputT> type type of iterator returned by this iterable
+ * @deprecated for internal Beam use only, look to {@link
+ *     org.apache.beam.sdk.coders.ElementByteSizeObservableIterable}
  */
+@Deprecated
 public abstract class ElementByteSizeObservableIterable<
-    V, InputT extends ElementByteSizeObservableIterator<V>>
+        V, InputT extends ElementByteSizeObservableIterator<V>>
     implements Iterable<V> {
   private List<Observer> observers = new ArrayList<>();
 

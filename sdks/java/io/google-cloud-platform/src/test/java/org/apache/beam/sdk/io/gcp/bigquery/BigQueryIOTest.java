@@ -94,7 +94,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -117,18 +117,18 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -1270,10 +1270,10 @@ public class BigQueryIOTest implements Serializable {
     row.set("temperature", Data.nullOf(Object.class));
     row.set("max_temperature", Data.nullOf(Object.class));
 
-    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), row);
+    byte[] bytes = Coders.encodeToByteArray(TableRowJsonCoder.of(), row);
 
-    TableRow newRow = CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
-    byte[] newBytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), newRow);
+    TableRow newRow = Coders.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+    byte[] newBytes = Coders.encodeToByteArray(TableRowJsonCoder.of(), newRow);
 
     Assert.assertArrayEquals(bytes, newBytes);
   }

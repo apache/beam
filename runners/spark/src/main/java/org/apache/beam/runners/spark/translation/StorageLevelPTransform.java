@@ -20,8 +20,8 @@ package org.apache.beam.runners.spark.translation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Get RDD storage level for the input PCollection (mostly used for testing purpose).

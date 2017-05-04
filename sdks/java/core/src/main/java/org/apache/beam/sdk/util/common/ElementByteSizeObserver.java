@@ -22,7 +22,10 @@ import java.util.Observer;
 
 /**
  * An observer that gets notified when additional bytes are read and/or used.
+ *
+ * @deprecated use {@link org.apache.beam.sdk.coders.ElementByteSizeObserver}.
  */
+@Deprecated
 public abstract class ElementByteSizeObserver implements Observer {
   private boolean isLazy = false;
   private long totalSize = 0;

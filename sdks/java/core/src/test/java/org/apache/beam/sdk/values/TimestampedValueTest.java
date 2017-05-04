@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.testing.EqualsTester;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.joda.time.Instant;
