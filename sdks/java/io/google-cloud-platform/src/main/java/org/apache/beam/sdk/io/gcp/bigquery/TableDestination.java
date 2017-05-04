@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
-
 import java.io.Serializable;
 import java.util.Objects;
 

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import java.io.Serializable;
 import java.util.Arrays;
-
 import org.apache.beam.sdk.values.KV;
 
 /**

@@ -15,19 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.joda.time.Instant;
 
 /**
- * The trigger used with {@link Reshuffle} which triggers on every element
- * and never buffers state.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
+ * <p>The trigger used with {@link Reshuffle} which triggers on every element and never buffers
+ * state.
  *
  * @param <W> The kind of window that is being reshuffled.
+ * @deprecated The intended side effect of {@link Reshuffle} is not portable; it will likely be
+ *     removed
  */
+@Internal
+@Deprecated
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   public ReshuffleTrigger() {
