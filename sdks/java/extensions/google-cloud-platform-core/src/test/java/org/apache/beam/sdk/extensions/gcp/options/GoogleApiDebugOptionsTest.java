@@ -28,6 +28,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GoogleApiDebugOptions.GoogleApiTracer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -35,6 +36,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GoogleApiDebugOptions}. */
 @RunWith(JUnit4.class)
 public class GoogleApiDebugOptionsTest {
+  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   private static final String STORAGE_GET_TRACE =
       "--googleApiTrace={\"Objects.Get\":\"GetTraceDestination\"}";
   private static final String STORAGE_GET_AND_LIST_TRACE =
@@ -139,9 +142,8 @@ public class GoogleApiDebugOptionsTest {
   @Test
   public void testDeserializationAndSerializationOfGoogleApiTracer() throws Exception {
     String serializedValue = "{\"Api\":\"Token\"}";
-    ObjectMapper objectMapper = new ObjectMapper();
     assertEquals(serializedValue,
-        objectMapper.writeValueAsString(
-            objectMapper.readValue(serializedValue, GoogleApiTracer.class)));
+        MAPPER.writeValueAsString(
+            MAPPER.readValue(serializedValue, GoogleApiTracer.class)));
   }
 }
