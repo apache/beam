@@ -81,7 +81,7 @@ import org.joda.time.Duration;
  * to dedup messages.
  * </ul>
  */
-public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubMessage>, PDone> {
+public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /**
    * Default maximum number of messages per publish.
    */
@@ -154,7 +154,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
   /**
    * Convert elements to messages and shard them.
    */
-  private static class ShardFn extends DoFn<PubsubIO.PubsubMessage, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn extends DoFn<PubsubMessage, KV<Integer, OutgoingMessage>> {
     private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
@@ -167,8 +167,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.inc();
-      PubsubIO.PubsubMessage message = c.element();
-      byte[] elementBytes = message.getMessage();
+      PubsubMessage message = c.element();
+      byte[] elementBytes = message.getPayload();
       Map<String, String> attributes = message.getAttributeMap();
 
       long timestampMsSinceEpoch = c.timestamp().getMillis();
@@ -427,11 +427,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
   }
 
   @Override
-  public PDone expand(PCollection<PubsubIO.PubsubMessage> input) {
+  public PDone expand(PCollection<PubsubMessage> input) {
     input
         .apply(
             "PubsubUnboundedSink.Window",
-            Window.<PubsubIO.PubsubMessage>into(new GlobalWindows())
+            Window.<PubsubMessage>into(new GlobalWindows())
                 .triggering(
                     Repeatedly.forever(
                         AfterFirst.of(

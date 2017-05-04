@@ -30,7 +30,6 @@ public class PubsubCoderRegistrar implements CoderRegistrar {
   @Override
   public Map<Class<?>, CoderFactory> getCoderFactoriesToUseForClasses() {
     return ImmutableMap.<Class<?>, CoderFactory>of(
-        PubsubIO.PubsubMessage.class,
-        CoderFactories.forCoder(PubsubMessageWithAttributesCoder.of()));
+        PubsubMessage.class, CoderFactories.forCoder(PubsubMessageWithAttributesCoder.of()));
   }
 }

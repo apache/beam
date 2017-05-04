@@ -60,7 +60,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
   private static final String ID_ATTRIBUTE = "id";
   private static final int NUM_SHARDS = 10;
 
-  private static class Stamp extends DoFn<String, PubsubIO.PubsubMessage> {
+  private static class Stamp extends DoFn<String, PubsubMessage> {
     private final Map<String, String> attributes;
 
     private Stamp() {
@@ -74,7 +74,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.outputWithTimestamp(
-          new PubsubIO.PubsubMessage(
+          new PubsubMessage(
               c.element().getBytes(StandardCharsets.UTF_8), attributes),
           new Instant(TIMESTAMP));
     }
