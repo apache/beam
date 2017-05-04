@@ -141,13 +141,15 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
+    <api-common.version>1.0.0-rc2</api-common.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
-    
+
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
+    <spanner.version>0.16.0-beta</spanner.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -858,6 +860,12 @@
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>gcsio</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-spanner</artifactId>
+        <version>${spanner.version}</version>
       </dependency>
 
       <dependency>
