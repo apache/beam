@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Map.Entry;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
@@ -165,8 +164,8 @@ public final class TransformTranslator {
                 Combine.GroupedValues<K, InputT, OutputT> transform,
                 EvaluationContext context) {
               @SuppressWarnings("unchecked")
-              CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> combineFn =
-                  (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
+              CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> combineFn =
+                  (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
                       CombineFnUtil.toFnWithContext(transform.getFn());
               final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
                   new SparkKeyedCombineFn<>(combineFn, context.getRuntimeContext(),
@@ -282,16 +281,15 @@ public final class TransformTranslator {
     return new TransformEvaluator<Combine.PerKey<K, InputT, OutputT>>() {
       @Override
       public void evaluate(
-          Combine.PerKey<K, InputT, OutputT> transform,
-          EvaluationContext context) {
+          Combine.PerKey<K, InputT, OutputT> transform, EvaluationContext context) {
         final PCollection<KV<K, InputT>> input = context.getInput(transform);
         // serializable arguments to pass.
         @SuppressWarnings("unchecked")
         final KvCoder<K, InputT> inputCoder =
             (KvCoder<K, InputT>) context.getInput(transform).getCoder();
         @SuppressWarnings("unchecked")
-        final CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn =
-            (CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>)
+        final CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn =
+            (CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT>)
                 CombineFnUtil.toFnWithContext(transform.getFn());
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
@@ -301,8 +299,9 @@ public final class TransformTranslator {
             new SparkKeyedCombineFn<>(combineFn, runtimeContext, sideInputs, windowingStrategy);
         final Coder<AccumT> vaCoder;
         try {
-          vaCoder = combineFn.getAccumulatorCoder(runtimeContext.getCoderRegistry(),
-              inputCoder.getKeyCoder(), inputCoder.getValueCoder());
+          vaCoder =
+              combineFn.getAccumulatorCoder(
+                  runtimeContext.getCoderRegistry(), inputCoder.getValueCoder());
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException("Could not determine coder for accumulator", e);
         }
@@ -312,19 +311,28 @@ public final class TransformTranslator {
             ((BoundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getRDD();
 
         JavaPairRDD<K, Iterable<WindowedValue<KV<K, AccumT>>>> accumulatePerKey =
-            GroupCombineFunctions.combinePerKey(inRdd, sparkCombineFn, inputCoder.getKeyCoder(),
-                inputCoder.getValueCoder(), vaCoder, windowingStrategy);
+            GroupCombineFunctions.combinePerKey(
+                inRdd,
+                sparkCombineFn,
+                inputCoder.getKeyCoder(),
+                inputCoder.getValueCoder(),
+                vaCoder,
+                windowingStrategy);
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
-            accumulatePerKey.flatMapValues(new Function<Iterable<WindowedValue<KV<K, AccumT>>>,
-                Iterable<WindowedValue<OutputT>>>() {
-                  @Override
-                  public Iterable<WindowedValue<OutputT>> call(
-                      Iterable<WindowedValue<KV<K, AccumT>>> iter) throws Exception {
+            accumulatePerKey
+                .flatMapValues(
+                    new Function<
+                        Iterable<WindowedValue<KV<K, AccumT>>>,
+                        Iterable<WindowedValue<OutputT>>>() {
+                      @Override
+                      public Iterable<WindowedValue<OutputT>> call(
+                          Iterable<WindowedValue<KV<K, AccumT>>> iter) throws Exception {
                         return sparkCombineFn.extractOutput(iter);
                       }
-                }).map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
-                  .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
+                    })
+                .map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
+                .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }

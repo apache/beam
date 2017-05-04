@@ -479,6 +479,7 @@ def assert_split_at_fraction_binary(
         source, expected_items, num_items_to_read_before_split,
         middle_fraction, middle_result, right_fraction, right_result, stats)
 
+
 MAX_CONCURRENT_SPLITTING_TRIALS_PER_ITEM = 100
 MAX_CONCURRENT_SPLITTING_TRIALS_TOTAL = 1000
 
@@ -609,9 +610,10 @@ def _assert_split_at_fraction_concurrent(
   def read_or_split(test_params):
     if test_params[0]:
       return [val for val in test_params[1]]
-    position = test_params[1].position_at_fraction(test_params[2])
-    result = test_params[1].try_split(position)
-    return result
+    else:
+      position = test_params[1].position_at_fraction(test_params[2])
+      result = test_params[1].try_split(position)
+      return result
 
   inputs = []
   pool = thread_pool if thread_pool else _ThreadPool(2)

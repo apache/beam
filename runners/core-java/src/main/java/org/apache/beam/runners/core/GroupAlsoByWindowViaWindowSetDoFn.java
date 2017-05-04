@@ -20,8 +20,6 @@ package org.apache.beam.runners.core;
 import org.apache.beam.runners.core.construction.Triggers;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -44,12 +42,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     return new GroupAlsoByWindowViaWindowSetDoFn<>(strategy, stateInternalsFactory, reduceFn);
   }
 
-  protected final Aggregator<Long, Long> droppedDueToClosedWindow =
-      createAggregator(
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
-  protected final Aggregator<Long, Long> droppedDueToLateness =
-      createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
-
   private final WindowingStrategy<Object, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
@@ -71,7 +63,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
 
     K key = keyedWorkItem.key();
     TimerInternals timerInternals = c.windowingInternals().timerInternals();
-    StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
+    StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
         new ReduceFnRunner<>(
@@ -84,7 +76,6 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             timerInternals,
             WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
             WindowingInternalsAdapters.sideInputReader(c.windowingInternals()),
-            droppedDueToClosedWindow,
             reduceFn,
             c.getPipelineOptions());
 
@@ -99,9 +90,5 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asFn =
         (OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>>) this;
     return asFn;
-  }
-
-  public Aggregator<Long, Long> getDroppedDueToLatenessAggregator() {
-    return droppedDueToLateness;
   }
 }

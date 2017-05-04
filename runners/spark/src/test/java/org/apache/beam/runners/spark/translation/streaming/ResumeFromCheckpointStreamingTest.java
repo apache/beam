@@ -19,7 +19,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -40,21 +39,21 @@ import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.TestSparkPipelineOptions;
 import org.apache.beam.runners.spark.UsesCheckpointRecovery;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
+import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
+import org.apache.beam.sdk.io.kafka.serialization.InstantSerializer;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -62,7 +61,6 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -77,6 +75,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -94,8 +93,8 @@ import org.junit.experimental.categories.Category;
  * <p>Runs the pipeline reading from a Kafka backlog with a WM function that will move to infinity
  * on a EOF signal.
  * After resuming from checkpoint, a single output (guaranteed by the WM) is asserted, along with
- * {@link Aggregator}s and {@link Metrics} values that are expected to resume from previous count
- * and a side-input that is expected to recover as well.
+ * {@link Metrics} values that are expected to resume from previous count and a side-input that is
+ * expected to recover as well.
  */
 public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
@@ -121,18 +120,7 @@ public class ResumeFromCheckpointStreamingTest {
     producerProps.put("request.required.acks", 1);
     producerProps.put("bootstrap.servers", EMBEDDED_KAFKA_CLUSTER.getBrokerList());
     Serializer<String> stringSerializer = new StringSerializer();
-    Serializer<Instant> instantSerializer = new Serializer<Instant>() {
-      @Override
-      public void configure(Map<String, ?> configs, boolean isKey) { }
-
-      @Override
-      public byte[] serialize(String topic, Instant data) {
-        return CoderHelpers.toByteArray(data, InstantCoder.of());
-      }
-
-      @Override
-      public void close() { }
-    };
+    Serializer<Instant> instantSerializer = new InstantSerializer();
 
     try (@SuppressWarnings("unchecked") KafkaProducer<String, Instant> kafkaProducer =
         new KafkaProducer(producerProps, stringSerializer, instantSerializer)) {
@@ -161,16 +149,13 @@ public class ResumeFromCheckpointStreamingTest {
 
     // first run should expect EOT matching the last injected element.
     SparkPipelineResult res = run(pipelineRule, Optional.of(new Instant(400)), 0);
-    // assertions 1:
-    long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(
-        String.format(
-            "Expected %d processed messages count but found %d", 4, processedMessages1),
-        processedMessages1,
-        equalTo(4L));
+
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 4L)));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "processedMessages", "EOFShallNotPassFn", 4L)));
 
     //--- between executions:
 
@@ -186,27 +171,42 @@ public class ResumeFromCheckpointStreamingTest {
     // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(pipelineRule, 1);
     // assertions 2:
-    long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(
-        String.format("Expected %d processed messages count but found %d", 5, processedMessages2),
-        processedMessages2,
-        equalTo(5L));
+    assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
+        hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
+            "processedMessages", "EOFShallNotPassFn", 5L)));
     assertThat(res.metrics().queryMetrics(metricsFilter).counters(),
         hasItem(attemptedMetricsResult(ResumeFromCheckpointStreamingTest.class.getName(),
             "allMessages", "EOFShallNotPassFn", 6L)));
-    int successAssertions = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-    res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+    long successAssertions = 0;
+    Iterable<MetricResult<Long>> counterResults = res.metrics().queryMetrics(
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+            .build()).counters();
+    for (MetricResult<Long> counter : counterResults) {
+      if (counter.attempted().longValue() > 0) {
+        successAssertions++;
+      }
+    }
     assertThat(
         String.format(
-            "Expected %d successful assertions, but found %d.", 1, successAssertions),
+            "Expected %d successful assertions, but found %d.", 1L, successAssertions),
             successAssertions,
-            is(1));
+            is(1L));
     // validate assertion didn't fail.
-    int failedAssertions = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+    long failedAssertions = 0;
+    Iterable<MetricResult<Long>> failCounterResults = res.metrics().queryMetrics(
+        MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
+            .build()).counters();
+    for (MetricResult<Long> counter : failCounterResults) {
+      if (counter.attempted().longValue() > 0) {
+        failedAssertions++;
+      }
+    }
     assertThat(
         String.format("Found %d failed assertions.", failedAssertions),
         failedAssertions,
-        is(0));
+        is(0L));
 
   }
 
@@ -222,8 +222,8 @@ public class ResumeFromCheckpointStreamingTest {
     KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
         .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
         .withTopics(Collections.singletonList(TOPIC))
-        .withKeyCoder(StringUtf8Coder.of())
-        .withValueCoder(InstantCoder.of())
+        .withKeyDeserializer(StringDeserializer.class)
+        .withValueDeserializer(InstantDeserializer.class)
         .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
         .withTimestampFn(new SerializableFunction<KV<String, Instant>, Instant>() {
           @Override
@@ -289,8 +289,8 @@ public class ResumeFromCheckpointStreamingTest {
   /** A pass-through fn that prevents EOF event from passing. */
   private static class EOFShallNotPassFn extends DoFn<String, String> {
     final PCollectionView<List<String>> view;
-    private final Aggregator<Long, Long> aggregator =
-        createAggregator("processedMessages", Sum.ofLongs());
+    private final Counter aggregator = Metrics.counter(
+        ResumeFromCheckpointStreamingTest.class, "processedMessages");
     Counter counter =
         Metrics.counter(ResumeFromCheckpointStreamingTest.class, "allMessages");
 
@@ -305,7 +305,7 @@ public class ResumeFromCheckpointStreamingTest {
       assertThat(c.sideInput(view), containsInAnyOrder("side1", "side2"));
       counter.inc();
       if (!element.equals("EOF")) {
-        aggregator.addValue(1L);
+        aggregator.inc();
         c.output(c.element());
       }
     }
@@ -330,10 +330,8 @@ public class ResumeFromCheckpointStreamingTest {
     }
 
     private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
-      private final Aggregator<Integer, Integer> success =
-          createAggregator(PAssert.SUCCESS_COUNTER, Sum.ofIntegers());
-      private final Aggregator<Integer, Integer> failure =
-          createAggregator(PAssert.FAILURE_COUNTER, Sum.ofIntegers());
+      private final Counter success = Metrics.counter(PAssert.class, PAssert.SUCCESS_COUNTER);
+      private final Counter failure = Metrics.counter(PAssert.class, PAssert.FAILURE_COUNTER);
       private final T[] expected;
 
       AssertDoFn(T[] expected) {
@@ -344,9 +342,9 @@ public class ResumeFromCheckpointStreamingTest {
       public void processElement(ProcessContext c) throws Exception {
         try {
           assertThat(c.element(), containsInAnyOrder(expected));
-          success.addValue(1);
+          success.inc();
         } catch (Throwable t) {
-          failure.addValue(1);
+          failure.inc();
           throw t;
         }
       }

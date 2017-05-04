@@ -37,7 +37,10 @@ import org.apache.beam.sdk.util.NameUtils;
  *
  * <p>For internal use.
  */
-public abstract class PValueBase extends POutputValueBase implements PValue {
+public abstract class PValueBase implements PValue {
+
+  private final Pipeline pipeline;
+
   /**
    * Returns the name of this {@link PValueBase}.
    *
@@ -56,7 +59,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Sets the name of this {@link PValueBase}.  Returns {@code this}.
+   * Sets the name of this {@link PValueBase}. Returns {@code this}.
    *
    * @throws IllegalStateException if this {@link PValueBase} has
    * already been finalized and may no longer be set.
@@ -73,7 +76,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   /////////////////////////////////////////////////////////////////////////////
 
   protected PValueBase(Pipeline pipeline) {
-    super(pipeline);
+    this.pipeline = pipeline;
   }
 
   /**
@@ -82,11 +85,11 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    * valid.
    */
   protected PValueBase() {
-    super();
+    this.pipeline = null;
   }
 
   /**
-   * The name of this {@link PValueBase}, or null if not yet set.
+   * The name of this {@link PValueBase}, or {@code null} if not yet set.
    */
   private String name;
 
@@ -107,7 +110,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   /**
-   * Records that this {@link POutputValueBase} is an output with the
+   * Records that this {@link PValueBase} is an output with the
    * given name of the given {@link AppliedPTransform} in the given
    * {@link Pipeline}.
    *
@@ -116,7 +119,6 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    */
   protected void recordAsOutput(AppliedPTransform<?, ?, ?> transform,
                                 String outName) {
-    super.recordAsOutput(transform);
     if (name == null) {
       name = transform.getFullName() + "." + outName;
     }
@@ -128,7 +130,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
    *
    * <p>For internal use only.
    */
-  public boolean isFinishedSpecifyingInternal() {
+  boolean isFinishedSpecifying() {
     return finishedSpecifying;
   }
 
@@ -157,4 +159,17 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   protected String getKindString() {
     return NameUtils.approximateSimpleName(getClass());
   }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  /**
+   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
+   * to do nothing. Override if your {@link PValue} requires
+   * finalization.
+   */
+  @Override
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
 }

@@ -103,6 +103,10 @@ class FlinkBatchTranslationContext {
     this.currentTransform = currentTransform;
   }
 
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
+
   @SuppressWarnings("unchecked")
   public <T> DataSet<T> getSideInputDataSet(PCollectionView<?> value) {
     return (DataSet<T>) broadcastDataSets.get(value);

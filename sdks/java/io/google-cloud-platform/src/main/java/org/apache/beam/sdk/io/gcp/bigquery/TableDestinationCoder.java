@@ -18,20 +18,18 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /** A coder for {@link TableDestination} objects. */
-public class TableDestinationCoder extends AtomicCoder<TableDestination> {
+public class TableDestinationCoder extends CustomCoder<TableDestination> {
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
 
-  @JsonCreator
   public static TableDestinationCoder of() {
     return INSTANCE;
   }
@@ -43,7 +41,7 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
       throw new CoderException("cannot encode a null value");
     }
     stringCoder.encode(value.getTableSpec(), outStream, context.nested());
-    stringCoder.encode(value.getTableDescription(), outStream, context);
+    stringCoder.encode(value.getTableDescription(), outStream, context.nested());
   }
 
   @Override

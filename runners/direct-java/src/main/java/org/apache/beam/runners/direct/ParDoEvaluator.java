@@ -29,7 +29,6 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -54,7 +53,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         DirectStepContext stepContext,
-        AggregatorContainer.Mutator aggregatorChanges,
         WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy);
   }
 
@@ -70,7 +68,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
           TupleTag<OutputT> mainOutputTag,
           List<TupleTag<?>> additionalOutputTags,
           DirectStepContext stepContext,
-          AggregatorContainer.Mutator aggregatorChanges,
           WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
         DoFnRunner<InputT, OutputT> underlying =
             DoFnRunners.simpleRunner(
@@ -81,7 +78,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
                 mainOutputTag,
                 additionalOutputTags,
                 stepContext,
-                aggregatorChanges,
                 windowingStrategy);
         return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
       }
@@ -100,7 +96,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs,
       DoFnRunnerFactory<InputT, OutputT> runnerFactory) {
-    AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     BundleOutputManager outputManager = createOutputManager(evaluationContext, key, outputs);
 
@@ -116,19 +111,17 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
         mainOutputTag,
         additionalOutputTags,
         stepContext,
-        aggregatorChanges,
         windowingStrategy);
 
-    return create(runner, stepContext, application, aggregatorChanges, outputManager);
+    return create(runner, stepContext, application, outputManager);
   }
 
   public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       PushbackSideInputDoFnRunner<InputT, OutputT> runner,
       DirectStepContext stepContext,
       AppliedPTransform<?, ?, ?> application,
-      AggregatorContainer.Mutator aggregatorChanges,
       BundleOutputManager outputManager) {
-    return new ParDoEvaluator<>(runner, application, aggregatorChanges, outputManager, stepContext);
+    return new ParDoEvaluator<>(runner, application, outputManager, stepContext);
   }
 
   static BundleOutputManager createOutputManager(
@@ -155,7 +148,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
   private final AppliedPTransform<?, ?, ?> transform;
-  private final AggregatorContainer.Mutator aggregatorChanges;
   private final BundleOutputManager outputManager;
   private final DirectStepContext stepContext;
 
@@ -164,14 +156,12 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   private ParDoEvaluator(
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
       AppliedPTransform<?, ?, ?> transform,
-      AggregatorContainer.Mutator aggregatorChanges,
       BundleOutputManager outputManager,
       DirectStepContext stepContext) {
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.outputManager = outputManager;
     this.stepContext = stepContext;
-    this.aggregatorChanges = aggregatorChanges;
     this.unprocessedElements = ImmutableList.builder();
 
     try {
@@ -211,7 +201,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       throw UserCodeException.wrap(e);
     }
     StepTransformResult.Builder<InputT> resultBuilder;
-    CopyOnAccessInMemoryStateInternals<?> state = stepContext.commitState();
+    CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
     if (state != null) {
       resultBuilder =
           StepTransformResult.<InputT>withHold(transform, state.getEarliestWatermarkHold())
@@ -222,7 +212,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     return resultBuilder
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
-        .withAggregatorChanges(aggregatorChanges)
         .addUnprocessedElements(unprocessedElements.build())
         .build();
   }

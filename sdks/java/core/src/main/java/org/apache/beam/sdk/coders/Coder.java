@@ -27,12 +27,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -54,9 +52,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * static methods on a compound {@link Coder} class, a {@link CoderFactory} can be automatically
  * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
  * automatic composition in the {@link CoderRegistry}.
- *
- * <p>The binary format of a {@link Coder} is identified by {@link #getEncodingId()}; be sure to
- * understand the requirements for evolving coder formats.
  *
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
@@ -146,11 +141,6 @@ public interface Coder<T> extends Serializable {
   List<? extends Coder<?>> getCoderArguments();
 
   /**
-   * Returns the {@link CloudObject} that represents this {@code Coder}.
-   */
-  CloudObject asCloudObject();
-
-  /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
    *
    * <p>In order for a {@code Coder} to be considered deterministic,
@@ -198,7 +188,7 @@ public interface Coder<T> extends Serializable {
    *
    * <p>See also {@link #consistentWithEquals()}.
    */
-  Object structuralValue(T value) throws Exception;
+  Object structuralValue(T value);
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
@@ -223,36 +213,6 @@ public interface Coder<T> extends Serializable {
   void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
-
-  /**
-   * An identifier for the binary format written by {@link #encode}.
-   *
-   * <p>This value, along with the fully qualified class name, forms an identifier for the
-   * binary format of this coder. Whenever this value changes, the new encoding is considered
-   * incompatible with the prior format: It is presumed that the prior version of the coder will
-   * be unable to correctly read the new format and the new version of the coder will be unable to
-   * correctly read the old format.
-   *
-   * <p>If the format is changed in a backwards-compatible way (the Coder can still accept data from
-   * the prior format), such as by adding optional fields to a Protocol Buffer or Avro definition,
-   * and you want a Beam runner to understand that the new coder is compatible with the prior coder,
-   * this value must remain unchanged. It is then the responsibility of {@link #decode} to correctly
-   * read data from the prior format.
-   */
-  @Experimental(Kind.CODER_ENCODING_ID)
-  String getEncodingId();
-
-  /**
-   * A collection of encodings supported by {@link #decode} in addition to the encoding
-   * from {@link #getEncodingId()} (which is assumed supported).
-   *
-   * <p><i>This information is not currently used for any purpose</i>. It is descriptive only,
-   * and this method is subject to change.
-   *
-   * @see #getEncodingId()
-   */
-  @Experimental(Kind.CODER_ENCODING_ID)
-  Collection<String> getAllowedEncodings();
 
   /**
    * Returns the {@link TypeDescriptor} for the type encoded.

@@ -188,7 +188,7 @@ public class DoFnInvokersTest {
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)
-      private final StateSpec<Object, ValueState<Integer>> spec =
+      private final StateSpec<ValueState<Integer>> spec =
           StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
@@ -335,7 +335,7 @@ public class DoFnInvokersTest {
     when(fn.newTracker(restriction)).thenReturn(tracker);
     fn.processElement(mockProcessContext, tracker);
 
-    assertEquals(coder, invoker.invokeGetRestrictionCoder(new CoderRegistry()));
+    assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
     invoker.invokeSplitRestriction(
@@ -415,7 +415,7 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
-    CoderRegistry coderRegistry = new CoderRegistry();
+    CoderRegistry coderRegistry = CoderRegistry.createDefault();
     coderRegistry.registerCoder(RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class);
     assertThat(
         invoker.<RestrictionWithDefaultTracker>invokeGetRestrictionCoder(coderRegistry),

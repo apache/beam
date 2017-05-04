@@ -202,7 +202,7 @@ public class CountingSourceTest {
     PCollection<Long> input =
         p.apply(
             Read.from(
-                    CountingSource.createUnbounded()
+                    CountingSource.createUnboundedFrom(0)
                         .withTimestampFn(new ValueAsTimestampFn())
                         .withRate(1, period))
                 .withMaxNumRecords(numElements));
@@ -260,7 +260,7 @@ public class CountingSourceTest {
     int numSplits = 10;
 
     UnboundedCountingSource initial =
-        CountingSource.createUnbounded().withRate(elementsPerPeriod, period);
+        CountingSource.createUnboundedFrom(0).withRate(elementsPerPeriod, period);
     List<? extends UnboundedSource<Long, ?>> splits =
         initial.split(numSplits, p.getOptions());
     assertEquals("Expected exact splitting", numSplits, splits.size());

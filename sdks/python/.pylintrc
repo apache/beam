@@ -95,6 +95,7 @@ disable =
   import-self,
   invalid-name,
   invalid-unary-operand-type,
+  len-as-condition,
   locally-disabled,
   locally-enabled,
   misplaced-bare-raise,

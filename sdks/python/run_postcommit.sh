@@ -76,7 +76,7 @@ python setup.py nosetests \
   --attr ValidatesRunner \
   --nocapture \
   --processes=4 \
-  --process-timeout=600 \
+  --process-timeout=900 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
@@ -93,7 +93,7 @@ python setup.py nosetests \
   --attr IT \
   --nocapture \
   --processes=4 \
-  --process-timeout=600 \
+  --process-timeout=900 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \

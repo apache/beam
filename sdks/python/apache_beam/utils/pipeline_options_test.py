@@ -29,7 +29,7 @@ from apache_beam.utils.value_provider import RuntimeValueProvider
 
 
 class PipelineOptionsTest(unittest.TestCase):
-  def setUp(self):
+  def tearDown(self):
     # Clean up the global variable used by RuntimeValueProvider
     RuntimeValueProvider.runtime_options = None
 

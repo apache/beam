@@ -24,11 +24,10 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
  * specific metric name in a single context.
  *
- * @param <UserT> The type of the user interface for reporting changes to this cell.
  * @param <DataT> The type of metric data stored (and extracted) from this cell.
  */
 @Experimental(Kind.METRICS)
-public interface MetricCell<UserT extends Metric, DataT> {
+public interface MetricCell<DataT> {
 
   /**
    * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
@@ -39,9 +38,4 @@ public interface MetricCell<UserT extends Metric, DataT> {
    * Return the cumulative value of this metric.
    */
   DataT getCumulative();
-
-  /**
-   * Return the user-facing mutator for this cell.
-   */
-  UserT getInterface();
 }

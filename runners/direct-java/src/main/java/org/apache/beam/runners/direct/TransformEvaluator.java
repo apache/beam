@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
@@ -26,7 +25,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  *
  * @param <InputT> the type of elements that will be passed to {@link #processElement}
  */
-public interface TransformEvaluator<InputT> {
+interface TransformEvaluator<InputT> {
   /**
    * Process an element in the input {@link CommittedBundle}.
    *

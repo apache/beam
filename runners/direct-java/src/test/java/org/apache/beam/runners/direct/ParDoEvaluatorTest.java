@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -149,11 +148,6 @@ public class ParDoEvaluatorTest {
             evaluationContext.getExecutionContext(
                 Mockito.any(AppliedPTransform.class), Mockito.any(StructuralKey.class)))
         .thenReturn(executionContext);
-
-    AggregatorContainer container = AggregatorContainer.create();
-    AggregatorContainer.Mutator mutator = container.createMutator();
-    when(evaluationContext.getAggregatorContainer()).thenReturn(container);
-    when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
     @SuppressWarnings("unchecked")
     AppliedPTransform<PCollection<Integer>, ?, ?> transform =

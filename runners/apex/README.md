@@ -44,7 +44,7 @@ Then switch to the newly created directory and run Maven to build the Apache Bea
 
 ```
 cd beam
-mvn clean install ‐DskipTests
+mvn clean install -DskipTests
 ```
 
 Now Apache Beam and the Apex Runner are installed in your local Maven repository.

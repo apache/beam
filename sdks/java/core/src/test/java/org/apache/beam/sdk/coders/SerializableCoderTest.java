@@ -34,9 +34,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Serializer;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
@@ -123,13 +122,11 @@ public class SerializableCoderTest implements Serializable {
   public void testSerializableCoderConstruction() throws Exception {
     SerializableCoder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
     assertEquals(coder.getRecordType(), MyRecord.class);
+    CoderProperties.coderSerializable(coder);
 
-    CloudObject encoding = coder.asCloudObject();
-    Assert.assertThat(encoding.getClassName(),
-        Matchers.containsString(SerializableCoder.class.getSimpleName()));
 
-    Coder<?> decoded = Serializer.deserialize(encoding, Coder.class);
-    Assert.assertThat(decoded, Matchers.instanceOf(SerializableCoder.class));
+    SerializableCoder<?> decoded = SerializableUtils.clone(coder);
+    assertThat(decoded.getRecordType(), Matchers.<Object>equalTo(MyRecord.class));
   }
 
   @Test
@@ -225,14 +222,6 @@ public class SerializableCoderTest implements Serializable {
       assertNull(coder.decode(is, Coder.Context.NESTED));
       assertEquals(0, is.available());
     }
-  }
-
-  @Test
-  public void testPojoEncodingId() throws Exception {
-    Coder<MyRecord> coder = SerializableCoder.of(MyRecord.class);
-    CoderProperties.coderHasEncodingId(
-        coder,
-        String.format("%s:%s", MyRecord.class.getName(), MyRecord.serialVersionUID));
   }
 
   @Test

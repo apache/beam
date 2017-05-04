@@ -17,10 +17,13 @@
  */
 package org.apache.beam.examples.common;
 
+import static com.google.common.base.Verify.verifyNotNull;
+
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -38,8 +41,8 @@ import org.joda.time.format.ISODateTimeFormat;
  */
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
 
-  private static DateTimeFormatter formatter = ISODateTimeFormat.hourMinute();
-  private String filenamePrefix;
+  private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
+  private final String filenamePrefix;
 
   public WriteOneFilePerWindow(String filenamePrefix) {
     this.filenamePrefix = filenamePrefix;
@@ -47,8 +50,23 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
 
   @Override
   public PDone expand(PCollection<String> input) {
+    // filenamePrefix may contain a directory and a filename component. Pull out only the filename
+    // component from that path for the PerWindowFiles.
+    String prefix = "";
+    ResourceId resource = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
+    if (!resource.isDirectory()) {
+      prefix = verifyNotNull(
+          resource.getFilename(),
+          "A non-directory resource should have a non-null filename: %s",
+          resource);
+    }
+
     return input.apply(
-        TextIO.Write.to(new PerWindowFiles(filenamePrefix)).withWindowedWrites().withNumShards(3));
+        TextIO.write()
+            .to(resource.getCurrentDirectory())
+            .withFilenamePolicy(new PerWindowFiles(prefix))
+            .withWindowedWrites()
+            .withNumShards(3));
   }
 
   /**
@@ -59,32 +77,31 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
    */
   public static class PerWindowFiles extends FilenamePolicy {
 
-    private final String output;
+    private final String prefix;
 
-    public PerWindowFiles(String output) {
-      this.output = output;
+    public PerWindowFiles(String prefix) {
+      this.prefix = prefix;
+    }
+
+    public String filenamePrefixForWindow(IntervalWindow window) {
+      return String.format("%s-%s-%s",
+          prefix, FORMATTER.print(window.start()), FORMATTER.print(window.end()));
     }
 
     @Override
-    public ValueProvider<String> getBaseOutputFilenameProvider() {
-      return StaticValueProvider.of(output);
-    }
-
-    public String   filenamePrefixForWindow(IntervalWindow window) {
-      return String.format(
-          "%s-%s-%s", output, formatter.print(window.start()), formatter.print(window.end()));
-    }
-
-    @Override
-    public String windowedFilename(WindowedContext context) {
+    public ResourceId windowedFilename(
+        ResourceId outputDirectory, WindowedContext context, String extension) {
       IntervalWindow window = (IntervalWindow) context.getWindow();
-      return String.format(
-          "%s-%s-of-%s",
-          filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards());
+      String filename = String.format(
+          "%s-%s-of-%s%s",
+          filenamePrefixForWindow(window), context.getShardNumber(), context.getNumShards(),
+          extension);
+      return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
     }
 
     @Override
-    public String unwindowedFilename(Context context) {
+    public ResourceId unwindowedFilename(
+        ResourceId outputDirectory, Context context, String extension) {
       throw new UnsupportedOperationException("Unsupported.");
     }
   }

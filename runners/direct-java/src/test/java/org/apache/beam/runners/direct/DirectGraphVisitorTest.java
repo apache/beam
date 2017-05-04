@@ -24,11 +24,10 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -89,11 +88,10 @@ public class DirectGraphVisitorTest implements Serializable {
   public void getRootTransformsContainsRootTransforms() {
     PCollection<String> created = p.apply(Create.of("foo", "bar"));
     PCollection<Long> counted = p.apply(Read.from(CountingSource.upTo(1234L)));
-    PCollection<Long> unCounted = p.apply(CountingInput.unbounded());
+    PCollection<Long> unCounted = p.apply(GenerateSequence.from(0));
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
     assertThat(graph.getRootTransforms(), hasSize(3));
-    List<PTransform<?, ?>> unapplied = new ArrayList<>();
     assertThat(
         graph.getRootTransforms(),
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(

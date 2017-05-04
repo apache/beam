@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using a selected runner; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns;
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
@@ -178,7 +178,7 @@ public class WindowedWordCount {
      */
     PCollection<String> input = pipeline
       /** Read from the GCS file. */
-      .apply(TextIO.Read.from(options.getInputFile()))
+      .apply(TextIO.read().from(options.getInputFile()))
       // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
       // See AddTimestampFn for more detail on this.
       .apply(ParDo.of(new AddTimestampFn(minTimestamp, maxTimestamp)));

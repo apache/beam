@@ -76,7 +76,7 @@ class RuntimeValueProvider(ValueProvider):
 
   # TODO(BEAM-1999): Remove _unused_options_id
   @classmethod
-  def set_runtime_options(cls, _unused_options_id, pipeline_options):
+  def set_runtime_options(cls, pipeline_options):
     RuntimeValueProvider.runtime_options = pipeline_options
 
   def __str__(self):

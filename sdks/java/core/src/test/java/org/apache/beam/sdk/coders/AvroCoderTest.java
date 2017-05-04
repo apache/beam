@@ -26,8 +26,10 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
@@ -64,7 +66,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -150,10 +153,86 @@ public class AvroCoderTest {
   @Test
   public void testAvroCoderEncoding() throws Exception {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-    CloudObject encoding = coder.asCloudObject();
+    CoderProperties.coderSerializable(coder);
+    AvroCoder<Pojo> copy = SerializableUtils.clone(coder);
 
-    Assert.assertThat(encoding.keySet(),
-        Matchers.containsInAnyOrder("@type", "type", "schema", "encoding_id"));
+    Pojo pojo = new Pojo("foo", 3);
+    Pojo equalPojo = new Pojo("foo", 3);
+    Pojo otherPojo = new Pojo("bar", -19);
+    CoderProperties.coderConsistentWithEquals(coder, pojo, equalPojo);
+    CoderProperties.coderConsistentWithEquals(copy, pojo, equalPojo);
+    CoderProperties.coderConsistentWithEquals(coder, pojo, otherPojo);
+    CoderProperties.coderConsistentWithEquals(copy, pojo, otherPojo);
+  }
+
+  /**
+   * A classloader that intercepts loading of Pojo and makes a new one.
+   */
+  private static class InterceptingUrlClassLoader extends ClassLoader {
+
+    private InterceptingUrlClassLoader(ClassLoader parent) {
+      super(parent);
+    }
+
+    @Override
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+      if (name.equals(AvroCoderTestPojo.class.getName())) {
+        // Quite a hack?
+        try {
+          String classAsResource = name.replace('.', '/') + ".class";
+          byte[] classBytes =
+              ByteStreams.toByteArray(getParent().getResourceAsStream(classAsResource));
+          return defineClass(name, classBytes, 0, classBytes.length);
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        return getParent().loadClass(name);
+      }
+    }
+  }
+
+  /**
+   * Tests that {@link AvroCoder} works around issues in Avro where cache classes might be
+   * from the wrong ClassLoader, causing confusing "Cannot cast X to X" error messages.
+   */
+  @Test
+  public void testTwoClassLoaders() throws Exception {
+    ClassLoader loader1 =
+        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
+    ClassLoader loader2 =
+        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
+
+    Class<?> pojoClass1 = loader1.loadClass(AvroCoderTestPojo.class.getName());
+    Class<?> pojoClass2 = loader2.loadClass(AvroCoderTestPojo.class.getName());
+
+    Object pojo1 = InstanceBuilder.ofType(pojoClass1).withArg(String.class, "hello").build();
+    Object pojo2 = InstanceBuilder.ofType(pojoClass2).withArg(String.class, "goodbye").build();
+
+    // Confirm incompatibility
+    try {
+      pojoClass2.cast(pojo1);
+      fail("Expected ClassCastException; without it, this test is vacuous");
+    } catch (ClassCastException e) {
+      // g2g
+    }
+
+    // The first coder is expected to populate the Avro SpecificData cache
+    // The second coder is expected to be corrupted if the caching is done wrong.
+    AvroCoder<Object> avroCoder1 = (AvroCoder) AvroCoder.of(pojoClass1);
+    AvroCoder<Object> avroCoder2 = (AvroCoder) AvroCoder.of(pojoClass2);
+
+    Object cloned1 = CoderUtils.clone(avroCoder1, pojo1);
+    Object cloned2 = CoderUtils.clone(avroCoder2, pojo2);
+
+    Class<?> class1 = cloned1.getClass();
+    Class<?> class2 = cloned2.getClass();
+
+    // Confirming that the uncorrupted coder is fine
+    pojoClass1.cast(cloned1);
+
+    // Confirmed to fail prior to the fix
+    pojoClass2.cast(cloned2);
   }
 
   /**
@@ -230,12 +309,6 @@ public class AvroCoderTest {
     AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
-  }
-
-  @Test
-  public void testPojoEncodingId() throws Exception {
-    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
-    CoderProperties.coderHasEncodingId(coder, Pojo.class.getName());
   }
 
   @Test

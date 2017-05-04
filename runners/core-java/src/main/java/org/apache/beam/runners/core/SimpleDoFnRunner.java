@@ -32,8 +32,6 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
@@ -108,7 +106,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
-      AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
@@ -135,7 +132,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorFactory,
             windowingStrategy.getWindowFn());
   }
 
@@ -242,7 +238,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final OutputManager outputManager;
     final TupleTag<OutputT> mainOutputTag;
     final StepContext stepContext;
-    final AggregatorFactory aggregatorFactory;
     final WindowFn<?, ?> windowFn;
 
     /**
@@ -259,7 +254,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TupleTag<OutputT> mainOutputTag,
         List<TupleTag<?>> additionalOutputTags,
         StepContext stepContext,
-        AggregatorFactory aggregatorFactory,
         WindowFn<?, ?> windowFn) {
       fn.super();
       this.options = options;
@@ -275,9 +269,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       this.stepContext = stepContext;
-      this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
-      super.setupDelegateAggregators();
     }
 
     //////////////////////////////////////////////////////////////////////////////
@@ -406,13 +398,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "TupleTag passed to outputWithTimestamp cannot be null");
       outputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
-      return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
 
     @Override
@@ -600,13 +585,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    protected <AggregatorInputT, AggregatorOutputT>
-        Aggregator<AggregatorInputT, AggregatorOutputT> createAggregator(
-            String name, CombineFn<AggregatorInputT, ?, AggregatorOutputT> combiner) {
-      return context.createAggregator(name, combiner);
-    }
-
-    @Override
     public BoundedWindow window() {
       return Iterables.getOnlyElement(windowedValue.getWindows());
     }
@@ -635,8 +613,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
@@ -747,8 +725,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public State state(String stateId) {
       try {
-        StateSpec<?, ?> spec =
-            (StateSpec<?, ?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
         return stepContext
             .stateInternals()
             .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
@@ -796,13 +774,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       context.outputWindowedValue(
           tag, output, timestamp, Collections.singleton(window()), PaneInfo.NO_FIRING);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-        String name,
-        CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      throw new UnsupportedOperationException("Cannot createAggregator in @OnTimer method");
     }
   }
 

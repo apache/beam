@@ -337,6 +337,7 @@ class SetupTest(unittest.TestCase):
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

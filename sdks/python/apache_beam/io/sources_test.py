@@ -100,7 +100,7 @@ class SourcesTest(unittest.TestCase):
   def test_run_direct(self):
     file_name = self._create_temp_file('aaaa\nbbbb\ncccc\ndddd')
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.Read(LineSource(file_name))
+    pcoll = pipeline | beam.io.Read(LineSource(file_name))
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
     pipeline.run()

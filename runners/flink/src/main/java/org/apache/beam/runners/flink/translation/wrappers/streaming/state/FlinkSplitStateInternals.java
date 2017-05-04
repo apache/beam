@@ -26,8 +26,7 @@ import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
@@ -53,7 +52,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
  *  Ignore index of key and namespace.
  *  Just implement BagState.
  */
-public class FlinkSplitStateInternals<K> implements StateInternals<K> {
+public class FlinkSplitStateInternals<K> implements StateInternals {
 
   private final OperatorStateBackend stateBackend;
 
@@ -69,7 +68,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
   @Override
   public <T extends State> T state(
       final StateNamespace namespace,
-      StateTag<? super K, T> address) {
+      StateTag<T> address) {
 
     return state(namespace, address, StateContexts.nullContext());
   }
@@ -77,82 +76,69 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
   @Override
   public <T extends State> T state(
       final StateNamespace namespace,
-      StateTag<? super K, T> address,
+      StateTag<T> address,
       final StateContext<?> context) {
 
-    return address.bind(new StateTag.StateBinder<K>() {
+    return address.bind(
+        new StateTag.StateBinder() {
 
-      @Override
-      public <T> ValueState<T> bindValue(
-          StateTag<? super K, ValueState<T>> address,
-          Coder<T> coder) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", ValueState.class.getSimpleName()));
-      }
+          @Override
+          public <T> ValueState<T> bindValue(
+              StateTag<ValueState<T>> address, Coder<T> coder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", ValueState.class.getSimpleName()));
+          }
 
-      @Override
-      public <T> BagState<T> bindBag(
-          StateTag<? super K, BagState<T>> address,
-          Coder<T> elemCoder) {
+          @Override
+          public <T> BagState<T> bindBag(
+              StateTag<BagState<T>> address, Coder<T> elemCoder) {
 
-        return new FlinkSplitBagState<>(stateBackend, address, namespace, elemCoder);
-      }
+            return new FlinkSplitBagState<>(stateBackend, address, namespace, elemCoder);
+          }
 
-      @Override
-      public <T> SetState<T> bindSet(
-          StateTag<? super K, SetState<T>> address,
-          Coder<T> elemCoder) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", SetState.class.getSimpleName()));
-      }
+          @Override
+          public <T> SetState<T> bindSet(
+              StateTag<SetState<T>> address, Coder<T> elemCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", SetState.class.getSimpleName()));
+          }
 
-      @Override
-      public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
-          StateTag<? super K, MapState<KeyT, ValueT>> spec,
-          Coder<KeyT> mapKeyCoder, Coder<ValueT> mapValueCoder) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", MapState.class.getSimpleName()));
-      }
+          @Override
+          public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+              StateTag<MapState<KeyT, ValueT>> spec,
+              Coder<KeyT> mapKeyCoder,
+              Coder<ValueT> mapValueCoder) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", MapState.class.getSimpleName()));
+          }
 
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT>
-      bindCombiningValue(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-        throw new UnsupportedOperationException("bindCombiningValue is not supported.");
-      }
+          @Override
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+                  StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+                  Coder<AccumT> accumCoder,
+                  Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
+            throw new UnsupportedOperationException("bindCombiningValue is not supported.");
+          }
 
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          final Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn) {
-        throw new UnsupportedOperationException("bindKeyedCombiningValue is not supported.");
+          @Override
+          public <InputT, AccumT, OutputT>
+              CombiningState<InputT, AccumT, OutputT> bindCombiningValueWithContext(
+                  StateTag<CombiningState<InputT, AccumT, OutputT>> address,
+                  Coder<AccumT> accumCoder,
+                  CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
+            throw new UnsupportedOperationException(
+                "bindCombiningValueWithContext is not supported.");
+          }
 
-      }
-
-      @Override
-      public <InputT, AccumT, OutputT>
-      CombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
-          StateTag<? super K, CombiningState<InputT, AccumT, OutputT>> address,
-          Coder<AccumT> accumCoder,
-          CombineWithContext.KeyedCombineFnWithContext<
-              ? super K, InputT, AccumT, OutputT> combineFn) {
-        throw new UnsupportedOperationException(
-            "bindKeyedCombiningValueWithContext is not supported.");
-      }
-
-      @Override
-      public <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-          StateTag<? super K, WatermarkHoldState<W>> address,
-          OutputTimeFn<? super W> outputTimeFn) {
-        throw new UnsupportedOperationException(
-            String.format("%s is not supported", CombiningState.class.getSimpleName()));
-      }
-    });
+          @Override
+          public WatermarkHoldState bindWatermark(
+              StateTag<WatermarkHoldState> address,
+              TimestampCombiner timestampCombiner) {
+            throw new UnsupportedOperationException(
+                String.format("%s is not supported", CombiningState.class.getSimpleName()));
+          }
+        });
   }
 
   private static class FlinkSplitBagState<K, T> implements BagState<T> {
@@ -160,11 +146,11 @@ public class FlinkSplitStateInternals<K> implements StateInternals<K> {
     private final ListStateDescriptor<T> descriptor;
     private OperatorStateBackend flinkStateBackend;
     private final StateNamespace namespace;
-    private final StateTag<? super K, BagState<T>> address;
+    private final StateTag<BagState<T>> address;
 
     FlinkSplitBagState(
         OperatorStateBackend flinkStateBackend,
-        StateTag<? super K, BagState<T>> address,
+        StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
       this.flinkStateBackend = flinkStateBackend;

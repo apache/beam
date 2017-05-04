@@ -17,18 +17,11 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -40,18 +33,10 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
+public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
-  }
-
-  @JsonCreator
-  public static KvCoder<?, ?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
-    return of(components.get(0), components.get(1));
   }
 
   public static <K, V> List<Object> getInstanceComponents(
@@ -114,20 +99,13 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
   }
 
   @Override
-  public Object structuralValue(KV<K, V> kv) throws Exception {
+  public Object structuralValue(KV<K, V> kv) {
     if (consistentWithEquals()) {
       return kv;
     } else {
       return KV.of(getKeyCoder().structuralValue(kv.getKey()),
                    getValueCoder().structuralValue(kv.getValue()));
     }
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClassName("kind:pair");
-    addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
-    return result;
   }
 
   /**

@@ -943,7 +943,7 @@ public class DatastoreV1Test {
     RunQueryResponse.Builder statKindResponse = RunQueryResponse.newBuilder();
     Entity.Builder entity = Entity.newBuilder();
     entity.setKey(makeKey("dummyKind", "dummyId"));
-    entity.getMutableProperties().put("entity_bytes", makeValue(entitySizeInBytes).build());
+    entity.putProperties("entity_bytes", makeValue(entitySizeInBytes).build());
     EntityResult.Builder entityResult = EntityResult.newBuilder();
     entityResult.setEntity(entity);
     QueryResultBatch.Builder batch = QueryResultBatch.newBuilder();
@@ -957,7 +957,7 @@ public class DatastoreV1Test {
     RunQueryResponse.Builder timestampResponse = RunQueryResponse.newBuilder();
     Entity.Builder entity = Entity.newBuilder();
     entity.setKey(makeKey("dummyKind", "dummyId"));
-    entity.getMutableProperties().put("timestamp", makeValue(new Date(timestamp * 1000)).build());
+    entity.putProperties("timestamp", makeValue(new Date(timestamp * 1000)).build());
     EntityResult.Builder entityResult = EntityResult.newBuilder();
     entityResult.setEntity(entity);
     QueryResultBatch.Builder batch = QueryResultBatch.newBuilder();

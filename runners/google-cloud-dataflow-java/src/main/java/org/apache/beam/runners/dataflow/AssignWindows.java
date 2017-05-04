@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -73,8 +74,8 @@ class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   @Override
-  public void validate(PCollection<T> input) {
-    transform.validate(input);
+  public void validate(PipelineOptions options) {
+    transform.validate(options);
   }
 
   @Override

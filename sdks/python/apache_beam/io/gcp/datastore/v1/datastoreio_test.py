@@ -241,5 +241,6 @@ class DatastoreioTest(unittest.TestCase):
       split_queries.append(q)
     return split_queries
 
+
 if __name__ == '__main__':
   unittest.main()

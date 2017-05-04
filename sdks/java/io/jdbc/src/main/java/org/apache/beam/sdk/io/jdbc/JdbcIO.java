@@ -32,6 +32,7 @@ import javax.sql.DataSource;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -340,7 +341,7 @@ public class JdbcIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(getQuery() != null,
           "JdbcIO.read() requires a query to be set via withQuery(query)");
       checkState(getRowMapper() != null,
@@ -445,7 +446,7 @@ public class JdbcIO {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PipelineOptions options) {
       checkArgument(getDataSourceConfiguration() != null,
           "JdbcIO.write() requires a configuration to be set via "
               + ".withDataSourceConfiguration(configuration)");

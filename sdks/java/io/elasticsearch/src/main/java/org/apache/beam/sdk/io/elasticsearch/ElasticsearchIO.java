@@ -399,7 +399,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(
           getConnectionConfiguration() != null,
           "ElasticsearchIO.read() requires a connection configuration"
@@ -725,7 +725,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public void validate(PCollection<String> input) {
+    public void validate(PipelineOptions options) {
       checkState(
           getConnectionConfiguration() != null,
           "ElasticsearchIO.write() requires a connection configuration"

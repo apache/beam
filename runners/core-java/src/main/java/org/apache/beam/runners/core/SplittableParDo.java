@@ -29,8 +29,6 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -45,7 +43,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -57,7 +55,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypedPValue;
 import org.joda.time.Instant;
 
 /**
@@ -275,7 +272,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public <T> Coder<T> getDefaultOutputCoder(
         PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
             input,
-        TypedPValue<T> output)
+        PCollection<T> output)
         throws CannotProvideCoderException {
       // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
       @SuppressWarnings("unchecked")
@@ -355,23 +352,23 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      * the input watermark when the first {@link DoFn.ProcessElement} call for this element
      * completes.
      */
-    private static final StateTag<Object, WatermarkHoldState<GlobalWindow>> watermarkHoldTag =
+    private static final StateTag<WatermarkHoldState> watermarkHoldTag =
         StateTags.makeSystemTagInternal(
             StateTags.<GlobalWindow>watermarkStateInternal(
-                "hold", OutputTimeFns.outputAtLatestInputTimestamp()));
+                "hold", TimestampCombiner.LATEST));
 
     /**
      * The state cell containing a copy of the element. Written during the first {@link
      * DoFn.ProcessElement} call and read during subsequent calls in response to timer firings, when
      * the original element is no longer available.
      */
-    private final StateTag<Object, ValueState<WindowedValue<InputT>>> elementTag;
+    private final StateTag<ValueState<WindowedValue<InputT>>> elementTag;
 
     /**
      * The state cell containing a restriction representing the unprocessed part of work for this
      * element.
      */
-    private StateTag<Object, ValueState<RestrictionT>> restrictionTag;
+    private StateTag<ValueState<RestrictionT>> restrictionTag;
 
     private final DoFn<InputT, OutputT> fn;
     private final Coder<InputT> elementCoder;
@@ -455,7 +452,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(final ProcessContext c) {
       String key = c.element().key();
-      StateInternals<String> stateInternals =
+      StateInternals stateInternals =
           stateInternalsFactory.stateInternalsForKey(key);
       TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 
@@ -480,7 +477,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           stateInternals.state(stateNamespace, elementTag);
       ValueState<RestrictionT> restrictionState =
           stateInternals.state(stateNamespace, restrictionTag);
-      WatermarkHoldState<GlobalWindow> holdState =
+      WatermarkHoldState holdState =
           stateInternals.state(stateNamespace, watermarkHoldTag);
 
       ElementAndRestriction<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
@@ -550,12 +547,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         @Override
         public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
           throwUnsupportedOutput();
-        }
-
-        @Override
-        protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
-            String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-          return fn.createAggregator(name, combiner);
         }
 
         private void throwUnsupportedOutput() {

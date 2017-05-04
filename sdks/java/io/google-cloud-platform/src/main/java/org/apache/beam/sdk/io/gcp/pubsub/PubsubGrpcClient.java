@@ -61,8 +61,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.GcpOptions;
-import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 
 /**
  * A helper class for talking to Pubsub via grpc.
@@ -80,7 +79,7 @@ class PubsubGrpcClient extends PubsubClient {
   private static class PubsubGrpcClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
-        @Nullable String timestampLabel, @Nullable String idLabel, PubsubOptions options)
+        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
       ManagedChannel channel = NettyChannelBuilder
           .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
@@ -88,8 +87,8 @@ class PubsubGrpcClient extends PubsubClient {
           .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
           .build();
 
-      return new PubsubGrpcClient(timestampLabel,
-                                  idLabel,
+      return new PubsubGrpcClient(timestampAttribute,
+                                  idAttribute,
                                   DEFAULT_TIMEOUT_S,
                                   channel,
                                   options.getGcpCredential());
@@ -123,17 +122,17 @@ class PubsubGrpcClient extends PubsubClient {
   private final Credentials credentials;
 
   /**
-   * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
+   * Attribute to use for custom timestamps, or {@literal null} if should use Pubsub publish time
    * instead.
    */
   @Nullable
-  private final String timestampLabel;
+  private final String timestampAttribute;
 
   /**
-   * Label to use for custom ids, or {@literal null} if should use Pubsub provided ids.
+   * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
    */
   @Nullable
-  private final String idLabel;
+  private final String idAttribute;
 
 
   /**
@@ -145,13 +144,13 @@ class PubsubGrpcClient extends PubsubClient {
 
   @VisibleForTesting
   PubsubGrpcClient(
-      @Nullable String timestampLabel,
-      @Nullable String idLabel,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       int timeoutSec,
       ManagedChannel publisherChannel,
       Credentials credentials) {
-    this.timestampLabel = timestampLabel;
-    this.idLabel = idLabel;
+    this.timestampAttribute = timestampAttribute;
+    this.idAttribute = idAttribute;
     this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
@@ -227,13 +226,13 @@ class PubsubGrpcClient extends PubsubClient {
         message.putAllAttributes(outgoingMessage.attributes);
       }
 
-      if (timestampLabel != null) {
+      if (timestampAttribute != null) {
         message.getMutableAttributes()
-               .put(timestampLabel, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+               .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
-      if (idLabel != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        message.getMutableAttributes().put(idLabel, outgoingMessage.recordId);
+      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+        message.getMutableAttributes().put(idAttribute, outgoingMessage.recordId);
       }
 
       request.addMessages(message);
@@ -274,7 +273,7 @@ class PubsubGrpcClient extends PubsubClient {
                                                + timestampProto.getNanos() / 1000L);
       }
       long timestampMsSinceEpoch =
-          extractTimestamp(timestampLabel, pubsubTimestampString, attributes);
+          extractTimestamp(timestampAttribute, pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();
@@ -282,8 +281,8 @@ class PubsubGrpcClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idLabel != null && attributes != null) {
-        recordId = attributes.get(idLabel);
+      if (idAttribute != null && attributes != null) {
+        recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {
         // Fall back to the Pubsub provided message id.

@@ -87,9 +87,9 @@ public class DistinctExample {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply("ReadLines", TextIO.Read.from(options.getInput()))
+    p.apply("ReadLines", TextIO.read().from(options.getInput()))
      .apply(Distinct.<String>create())
-     .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
+     .apply("DedupedShakespeare", TextIO.write().to(options.getOutput()));
 
     p.run().waitUntilFinish();
   }

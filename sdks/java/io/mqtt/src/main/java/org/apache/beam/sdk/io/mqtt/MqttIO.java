@@ -291,7 +291,7 @@ public class MqttIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       // validation is performed in the ConnectionConfiguration create()
     }
 
@@ -541,7 +541,7 @@ public class MqttIO {
     }
 
     @Override
-    public void validate(PCollection<byte[]> input) {
+    public void validate(PipelineOptions options) {
       // validate is done in connection configuration
     }
 

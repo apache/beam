@@ -63,27 +63,27 @@ class DirectGraph {
     this.stepNames = stepNames;
   }
 
-  public AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
+  AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
     return producers.get(produced);
   }
 
-  public List<AppliedPTransform<?, ?, ?>> getPrimitiveConsumers(PValue consumed) {
+  List<AppliedPTransform<?, ?, ?>> getPrimitiveConsumers(PValue consumed) {
     return primitiveConsumers.get(consumed);
   }
 
-  public Set<AppliedPTransform<?, ?, ?>> getRootTransforms() {
+  Set<AppliedPTransform<?, ?, ?>> getRootTransforms() {
     return rootTransforms;
   }
 
-  public Set<PCollectionView<?>> getViews() {
+  Set<PCollectionView<?>> getViews() {
     return views;
   }
 
-  public String getStepName(AppliedPTransform<?, ?, ?> step) {
+  String getStepName(AppliedPTransform<?, ?, ?> step) {
     return stepNames.get(step);
   }
 
-  public Collection<AppliedPTransform<?, ?, ?>> getPrimitiveTransforms() {
+  Collection<AppliedPTransform<?, ?, ?>> getPrimitiveTransforms() {
     return stepNames.keySet();
   }
 }

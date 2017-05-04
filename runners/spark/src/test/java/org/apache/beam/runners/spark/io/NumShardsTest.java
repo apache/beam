@@ -73,7 +73,8 @@ public class NumShardsTest {
     PCollection<String> inputWords = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
     PCollection<String> output = inputWords.apply(new WordCount.CountWords())
         .apply(MapElements.via(new WordCount.FormatAsTextFn()));
-    output.apply(TextIO.Write.to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
+    output.apply(
+        TextIO.write().to(outputDir.getAbsolutePath()).withNumShards(3).withSuffix(".txt"));
     p.run().waitUntilFinish();
 
     int count = 0;

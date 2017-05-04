@@ -19,6 +19,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -33,14 +36,11 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,22 +64,14 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   // The maximum number of retries to poll a BigQuery job.
   protected static final int JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
-  protected final ValueProvider<String> jobIdToken;
-  protected final String extractDestinationDir;
+  protected final String stepUuid;
   protected final BigQueryServices bqServices;
-  protected final ValueProvider<String> executingProject;
 
-  private List<BoundedSource<TableRow>> cachedSplitResult;
+  private transient List<BoundedSource<TableRow>> cachedSplitResult;
 
-  BigQuerySourceBase(
-      ValueProvider<String> jobIdToken,
-      String extractDestinationDir,
-      BigQueryServices bqServices,
-      ValueProvider<String> executingProject) {
-    this.jobIdToken = checkNotNull(jobIdToken, "jobIdToken");
-    this.extractDestinationDir = checkNotNull(extractDestinationDir, "extractDestinationDir");
+  BigQuerySourceBase(String stepUuid, BigQueryServices bqServices) {
+    this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.bqServices = checkNotNull(bqServices, "bqServices");
-    this.executingProject = checkNotNull(executingProject, "executingProject");
   }
 
   @Override
@@ -93,8 +85,13 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
-      String extractJobId = BigQueryIO.getExtractJobId(jobIdToken);
-      List<String> tempFiles = executeExtract(extractJobId, tableToExtract, jobService);
+
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+
+      String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
+      List<String> tempFiles = executeExtract(
+          extractJobId, tableToExtract, jobService, bqOptions.getProject(), extractDestinationDir);
 
       TableSchema tableSchema = bqServices.getDatasetService(bqOptions)
           .getTable(tableToExtract).getSchema();
@@ -120,10 +117,11 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   private List<String> executeExtract(
-      String jobId, TableReference table, JobService jobService)
+      String jobId, TableReference table, JobService jobService, String executingProject,
+      String extractDestinationDir)
           throws InterruptedException, IOException {
     JobReference jobRef = new JobReference()
-        .setProjectId(executingProject.get())
+        .setProjectId(executingProject)
         .setJobId(jobId);
 
     String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir);

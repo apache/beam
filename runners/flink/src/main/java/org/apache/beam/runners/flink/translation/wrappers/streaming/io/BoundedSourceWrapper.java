@@ -20,6 +20,8 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
+import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -42,6 +44,7 @@ public class BoundedSourceWrapper<OutputT>
 
   private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceWrapper.class);
 
+  private String stepName;
   /**
    * Keep the options so that we can initialize the readers.
    */
@@ -66,9 +69,11 @@ public class BoundedSourceWrapper<OutputT>
 
   @SuppressWarnings("unchecked")
   public BoundedSourceWrapper(
+      String stepName,
       PipelineOptions pipelineOptions,
       BoundedSource<OutputT> source,
       int parallelism) throws Exception {
+    this.stepName = stepName;
     this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
 
     long desiredBundleSize = source.getEstimatedSizeBytes(pipelineOptions) / parallelism;
@@ -99,6 +104,10 @@ public class BoundedSourceWrapper<OutputT>
         numSubtasks,
         localSources);
 
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+    ReaderInvocationUtil<OutputT, BoundedSource.BoundedReader<OutputT>> readerInvoker =
+        new ReaderInvocationUtil<>(serializedOptions.getPipelineOptions(), metricContainer);
+
     readers = new ArrayList<>();
     // initialize readers from scratch
     for (BoundedSource<OutputT> source : localSources) {
@@ -109,13 +118,13 @@ public class BoundedSourceWrapper<OutputT>
       // the easy case, we just read from one reader
       BoundedSource.BoundedReader<OutputT> reader = readers.get(0);
 
-      boolean dataAvailable = reader.start();
+      boolean dataAvailable = readerInvoker.invokeStart(reader);
       if (dataAvailable) {
         emitElement(ctx, reader);
       }
 
       while (isRunning) {
-        dataAvailable = reader.advance();
+        dataAvailable = readerInvoker.invokeAdvance(reader);
 
         if (dataAvailable)  {
           emitElement(ctx, reader);
@@ -131,7 +140,7 @@ public class BoundedSourceWrapper<OutputT>
 
       // start each reader and emit data if immediately available
       for (BoundedSource.BoundedReader<OutputT> reader : readers) {
-        boolean dataAvailable = reader.start();
+        boolean dataAvailable = readerInvoker.invokeStart(reader);
         if (dataAvailable) {
           emitElement(ctx, reader);
         }
@@ -142,7 +151,7 @@ public class BoundedSourceWrapper<OutputT>
       boolean hadData = false;
       while (isRunning && !readers.isEmpty()) {
         BoundedSource.BoundedReader<OutputT> reader = readers.get(currentReader);
-        boolean dataAvailable = reader.advance();
+        boolean dataAvailable = readerInvoker.invokeAdvance(reader);
 
         if (dataAvailable) {
           emitElement(ctx, reader);

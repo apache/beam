@@ -31,16 +31,16 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
-import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
+import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -79,7 +79,7 @@ public class  CombineFnsTest {
     expectedException.expectMessage("it is already present in the composition");
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
-    CombineFns.composeKeyed()
+    CombineFns.compose()
       .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
       .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
@@ -91,23 +91,6 @@ public class  CombineFnsTest {
 
     TupleTag<UserString> tag = new TupleTag<UserString>();
     CombineFns.compose()
-      .with(
-          new GetUserStringFunction(),
-          new ConcatStringWithContext(null /* view */).forKey("G", StringUtf8Coder.of()),
-          tag)
-      .with(
-          new GetUserStringFunction(),
-          new ConcatStringWithContext(null /* view */).forKey("G", StringUtf8Coder.of()),
-          tag);
-  }
-
-  @Test
-  public void testDuplicatedTagsWithContextKeyed() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("it is already present in the composition");
-
-    TupleTag<UserString> tag = new TupleTag<UserString>();
-    CombineFns.composeKeyed()
       .with(
           new GetUserStringFunction(),
           new ConcatStringWithContext(null /* view */),
@@ -153,17 +136,15 @@ public class  CombineFnsTest {
         .apply(
             "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
-    PCollection<KV<String, KV<Integer, String>>> combinePerKey = perKeyInput
-        .apply(Combine.perKey(CombineFns.composeKeyed()
-            .with(
-                new GetIntegerFunction(),
-                Max.ofIntegers().<String>asKeyedFn(),
-                maxIntTag)
-            .with(
-                new GetUserStringFunction(),
-                new ConcatString().<String>asKeyedFn(),
-                concatStringTag)))
-        .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    PCollection<KV<String, KV<Integer, String>>> combinePerKey =
+        perKeyInput
+            .apply(
+                Combine.<String, KV<Integer, UserString>, CoCombineResult>perKey(
+                    CombineFns.compose()
+                        .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
+                        .with(new GetUserStringFunction(), new ConcatString(), concatStringTag)))
+            .apply(
+                "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
     PAssert.that(combineGlobally).containsInAnyOrder(
         KV.of("global", KV.of(13, "111134")));
     PAssert.that(combinePerKey).containsInAnyOrder(
@@ -205,7 +186,7 @@ public class  CombineFnsTest {
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
-                new ConcatStringWithContext(view).forKey("G", StringUtf8Coder.of()),
+                new ConcatStringWithContext(view),
                 concatStringTag))
             .withoutDefaults()
             .withSideInputs(ImmutableList.of(view)))
@@ -213,23 +194,24 @@ public class  CombineFnsTest {
         .apply(
             "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
-    PCollection<KV<String, KV<Integer, String>>> combinePerKey = perKeyInput
-        .apply(Combine.perKey(CombineFns.composeKeyed()
-            .with(
-                new GetIntegerFunction(),
-                Max.ofIntegers().<String>asKeyedFn(),
-                maxIntTag)
-            .with(
-                new GetUserStringFunction(),
-                new ConcatStringWithContext(view),
-                concatStringTag))
-            .withSideInputs(ImmutableList.of(view)))
-        .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    PCollection<KV<String, KV<Integer, String>>> combinePerKey =
+        perKeyInput
+            .apply(
+                Combine.<String, KV<Integer, UserString>, CoCombineResult>perKey(
+                        CombineFns.compose()
+                            .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
+                            .with(
+                                new GetUserStringFunction(),
+                                new ConcatStringWithContext(view),
+                                concatStringTag))
+                    .withSideInputs(ImmutableList.of(view)))
+            .apply(
+                "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
     PAssert.that(combineGlobally).containsInAnyOrder(
-        KV.of("global", KV.of(13, "111134GI")));
+        KV.of("global", KV.of(13, "111134I")));
     PAssert.that(combinePerKey).containsInAnyOrder(
-        KV.of("a", KV.of(4, "114Ia")),
-        KV.of("b", KV.of(13, "113Ib")));
+        KV.of("a", KV.of(4, "114I")),
+        KV.of("b", KV.of(13, "113I")));
     p.run();
   }
 
@@ -249,24 +231,23 @@ public class  CombineFnsTest {
                 KV.of("b", KV.of(13, UserString.of("13")))),
             Arrays.asList(0L, 4L, 7L, 10L, 16L))
         .withCoder(KvCoder.of(
-            StringUtf8Coder.of(),
+            NullableCoder.of(StringUtf8Coder.of()),
             KvCoder.of(
                 BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
 
     TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
     TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
 
-    PCollection<KV<String, KV<Integer, String>>> combinePerKey = perKeyInput
-        .apply(Combine.perKey(CombineFns.composeKeyed()
-            .with(
-                new GetIntegerFunction(),
-                Max.ofIntegers().<String>asKeyedFn(),
-                maxIntTag)
-            .with(
-                new GetUserStringFunction(),
-                new OutputNullString().<String>asKeyedFn(),
-                concatStringTag)))
-        .apply("ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    PCollection<KV<String, KV<Integer, String>>> combinePerKey =
+        perKeyInput
+            .apply(
+                Combine.<String, KV<Integer, UserString>, CoCombineResult>perKey(
+                    CombineFns.compose()
+                        .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
+                        .with(
+                            new GetUserStringFunction(), new OutputNullString(), concatStringTag)))
+            .apply(
+                "ExtractPerKeyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
     PAssert.that(combinePerKey).containsInAnyOrder(
         KV.of("a", KV.of(4, (String) null)),
         KV.of("b", KV.of(13, (String) null)));
@@ -345,7 +326,7 @@ public class  CombineFnsTest {
     }
   }
 
-  private static class UserStringCoder extends StandardCoder<UserString> {
+  private static class UserStringCoder extends CustomCoder<UserString> {
     public static UserStringCoder of() {
       return INSTANCE;
     }
@@ -407,7 +388,7 @@ public class  CombineFnsTest {
   }
 
   private static class ConcatStringWithContext
-      extends KeyedCombineFnWithContext<String, UserString, UserString, UserString> {
+      extends CombineFnWithContext<UserString, UserString, UserString> {
     private final PCollectionView<String> view;
 
     private ConcatStringWithContext(PCollectionView<String> view) {
@@ -415,22 +396,22 @@ public class  CombineFnsTest {
     }
 
     @Override
-    public UserString createAccumulator(String key, CombineWithContext.Context c) {
-      return UserString.of(key + c.sideInput(view));
+    public UserString createAccumulator(CombineWithContext.Context c) {
+      return UserString.of(c.sideInput(view));
     }
 
     @Override
     public UserString addInput(
-        String key, UserString accumulator, UserString input, CombineWithContext.Context c) {
-      assertThat(accumulator.strValue, Matchers.startsWith(key + c.sideInput(view)));
+        UserString accumulator, UserString input, CombineWithContext.Context c) {
+      assertThat(accumulator.strValue, Matchers.startsWith(c.sideInput(view)));
       accumulator.strValue += input.strValue;
       return accumulator;
     }
 
     @Override
     public UserString mergeAccumulators(
-        String key, Iterable<UserString> accumulators, CombineWithContext.Context c) {
-      String keyPrefix = key + c.sideInput(view);
+        Iterable<UserString> accumulators, CombineWithContext.Context c) {
+      String keyPrefix = c.sideInput(view);
       String all = keyPrefix;
       for (UserString accumulator : accumulators) {
         assertThat(accumulator.strValue, Matchers.startsWith(keyPrefix));
@@ -441,9 +422,8 @@ public class  CombineFnsTest {
     }
 
     @Override
-    public UserString extractOutput(
-        String key, UserString accumulator, CombineWithContext.Context c) {
-      assertThat(accumulator.strValue, Matchers.startsWith(key + c.sideInput(view)));
+    public UserString extractOutput(UserString accumulator, CombineWithContext.Context c) {
+      assertThat(accumulator.strValue, Matchers.startsWith(c.sideInput(view)));
       char[] chars = accumulator.strValue.toCharArray();
       Arrays.sort(chars);
       return UserString.of(new String(chars));

@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
@@ -32,21 +33,22 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -67,14 +69,9 @@ public class FileSystems {
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
-  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
-      new ConcurrentHashMap<>();
-
-  private static PipelineOptions defaultConfig;
-
-  static {
-    loadFileSystemRegistrars();
-  }
+  private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
+      new AtomicReference<Map<String, FileSystem>>(
+          ImmutableMap.<String, FileSystem>of("file", new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/
 
@@ -108,6 +105,38 @@ public class FileSystems {
    */
   public static List<MatchResult> match(List<String> specs) throws IOException {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
+  }
+
+  /**
+   * Returns the {@link Metadata} for a single file resource. Expects a resource specification
+   * {@code spec} that matches a single result.
+   *
+   * @param spec a resource specification that matches exactly one result.
+   * @return the {@link Metadata} for the specified resource.
+   * @throws FileNotFoundException if the file resource is not found.
+   * @throws IOException in the event of an error in the inner call to {@link #match},
+   * or if the given spec does not match exactly 1 result.
+   */
+  public static Metadata matchSingleFileSpec(String spec) throws IOException {
+    List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
+    MatchResult matchResult = Iterables.getOnlyElement(matches);
+    if (matchResult.status() == Status.NOT_FOUND) {
+      throw new FileNotFoundException(String.format("File spec %s not found", spec));
+    } else if (matchResult.status() != Status.OK) {
+      throw new IOException(
+          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+    } else {
+      List<Metadata> metadata = matchResult.metadata();
+      if (metadata.size() != 1) {
+        throw new IOException(
+            String.format(
+                "Expecting spec %s to match exactly one file, but matched %s: %s",
+                spec,
+                metadata.size(),
+                metadata));
+      }
+      return metadata.get(0);
+    }
   }
 
   /**
@@ -186,22 +215,22 @@ public class FileSystems {
    * @param destResourceIds the references of the destination resources
    */
   public static void copy(
-      List<ResourceId> srcResourceIds,
-      List<ResourceId> destResourceIds,
-      MoveOptions... moveOptions) throws IOException {
-    validateOnlyScheme(srcResourceIds, destResourceIds);
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
 
-    List<ResourceId> srcToCopy;
-    List<ResourceId> destToCopy;
+    List<ResourceId> srcToCopy = srcResourceIds;
+    List<ResourceId> destToCopy = destResourceIds;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToCopy = existings.getKey();
       destToCopy = existings.getValue();
-    } else {
-      srcToCopy = srcResourceIds;
-      destToCopy = destResourceIds;
     }
     if (srcToCopy.isEmpty()) {
       return;
@@ -224,22 +253,22 @@ public class FileSystems {
    * @param destResourceIds the references of the destination resources
    */
   public static void rename(
-      List<ResourceId> srcResourceIds,
-      List<ResourceId> destResourceIds,
-      MoveOptions... moveOptions) throws IOException {
-    validateOnlyScheme(srcResourceIds, destResourceIds);
-    List<ResourceId> srcToRename;
-    List<ResourceId> destToRename;
+      List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds, MoveOptions... moveOptions)
+      throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
 
+    List<ResourceId> srcToRename = srcResourceIds;
+    List<ResourceId> destToRename = destResourceIds;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       KV<List<ResourceId>, List<ResourceId>> existings =
           filterMissingFiles(srcResourceIds, destResourceIds);
       srcToRename = existings.getKey();
       destToRename = existings.getValue();
-    } else {
-      srcToRename = srcResourceIds;
-      destToRename = destResourceIds;
     }
     if (srcToRename.isEmpty()) {
       return;
@@ -260,6 +289,11 @@ public class FileSystems {
    */
   public static void delete(
       Collection<ResourceId> resourceIds, MoveOptions... moveOptions) throws IOException {
+    if (resourceIds.isEmpty()) {
+      // Short-circuit.
+      return;
+    }
+
     Collection<ResourceId> resourceIdsToDelete;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
@@ -301,6 +335,12 @@ public class FileSystems {
 
   private static KV<List<ResourceId>, List<ResourceId>> filterMissingFiles(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) throws IOException {
+    validateSrcDestLists(srcResourceIds, destResourceIds);
+    if (srcResourceIds.isEmpty()) {
+      // Short-circuit.
+      return KV.of(Collections.<ResourceId>emptyList(), Collections.<ResourceId>emptyList());
+    }
+
     List<ResourceId> srcToHandle = new ArrayList<>();
     List<ResourceId> destToHandle = new ArrayList<>();
 
@@ -314,13 +354,19 @@ public class FileSystems {
     return KV.of(srcToHandle, destToHandle);
   }
 
-  private static void validateOnlyScheme(
+  private static void validateSrcDestLists(
       List<ResourceId> srcResourceIds, List<ResourceId> destResourceIds) {
     checkArgument(
         srcResourceIds.size() == destResourceIds.size(),
         "Number of source resource ids %s must equal number of destination resource ids %s",
         srcResourceIds.size(),
         destResourceIds.size());
+
+    if (srcResourceIds.isEmpty()) {
+      // nothing more to validate.
+      return;
+    }
+
     Set<String> schemes = FluentIterable.from(srcResourceIds)
         .append(destResourceIds)
         .transform(new Function<ResourceId, String>() {
@@ -357,53 +403,31 @@ public class FileSystems {
     Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return LocalFileSystemRegistrar.LOCAL_FILE_SCHEME;
+      return "file";
     } else {
       return matcher.group("scheme").toLowerCase();
     }
   }
 
   /**
-   * Internal method to get {@link FileSystem} for {@code spec}.
+   * Internal method to get {@link FileSystem} for {@code scheme}.
    */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(String scheme) {
-    return getRegistrarInternal(scheme.toLowerCase()).fromOptions(defaultConfig);
-  }
-
-  /**
-   * Internal method to get {@link FileSystemRegistrar} for {@code scheme}.
-   */
-  @VisibleForTesting
-  static FileSystemRegistrar getRegistrarInternal(String scheme) {
     String lowerCaseScheme = scheme.toLowerCase();
-    if (SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme)) {
-      return SCHEME_TO_REGISTRAR.get(lowerCaseScheme);
-    } else if (SCHEME_TO_REGISTRAR.containsKey(DEFAULT_SCHEME)) {
-      return SCHEME_TO_REGISTRAR.get(DEFAULT_SCHEME);
-    } else {
-      throw new IllegalStateException("Unable to find registrar for " + scheme);
+    Map<String, FileSystem> schemeToFileSystem = SCHEME_TO_FILESYSTEM.get();
+    FileSystem rval = schemeToFileSystem.get(lowerCaseScheme);
+    if (rval != null) {
+      return rval;
     }
+    rval = schemeToFileSystem.get(DEFAULT_SCHEME);
+    if (rval != null) {
+      return rval;
+    }
+    throw new IllegalStateException("Unable to find registrar for " + scheme);
   }
 
   /********************************** METHODS FOR REGISTRATION **********************************/
-
-  /**
-   * Loads available {@link FileSystemRegistrar} services.
-   */
-  private static void loadFileSystemRegistrars() {
-    SCHEME_TO_REGISTRAR.clear();
-    Set<FileSystemRegistrar> registrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
-
-    verifySchemesAreUnique(registrars);
-
-    for (FileSystemRegistrar registrar : registrars) {
-      SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
-    }
-  }
 
   /**
    * Sets the default configuration in workers.
@@ -411,33 +435,63 @@ public class FileSystems {
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
    */
   public static void setDefaultConfigInWorkers(PipelineOptions options) {
-    defaultConfig = checkNotNull(options, "options");
+    checkNotNull(options, "options");
+    Set<FileSystemRegistrar> registrars =
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
+
+    SCHEME_TO_FILESYSTEM.set(verifySchemesAreUnique(options, registrars));
   }
 
   @VisibleForTesting
-  static void verifySchemesAreUnique(Set<FileSystemRegistrar> registrars) {
-    Multimap<String, FileSystemRegistrar> registrarsBySchemes =
+  static Map<String, FileSystem> verifySchemesAreUnique(
+      PipelineOptions options, Set<FileSystemRegistrar> registrars) {
+    Multimap<String, FileSystem> fileSystemsBySchemes =
         TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 
     for (FileSystemRegistrar registrar : registrars) {
-      registrarsBySchemes.put(registrar.getScheme().toLowerCase(), registrar);
+      for (FileSystem fileSystem : registrar.fromOptions(options)) {
+        fileSystemsBySchemes.put(fileSystem.getScheme(), fileSystem);
+      }
     }
-    for (Entry<String, Collection<FileSystemRegistrar>> entry
-        : registrarsBySchemes.asMap().entrySet()) {
+    for (Entry<String, Collection<FileSystem>> entry
+        : fileSystemsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
-        String conflictingRegistrars = Joiner.on(", ").join(
+        String conflictingFileSystems = Joiner.on(", ").join(
             FluentIterable.from(entry.getValue())
-                .transform(new Function<FileSystemRegistrar, String>() {
+                .transform(new Function<FileSystem, String>() {
                   @Override
-                  public String apply(@Nonnull FileSystemRegistrar input) {
+                  public String apply(@Nonnull FileSystem input) {
                     return input.getClass().getName();
                   }})
                 .toSortedList(Ordering.<String>natural()));
         throw new IllegalStateException(String.format(
-            "Scheme: [%s] has conflicting registrars: [%s]",
+            "Scheme: [%s] has conflicting filesystems: [%s]",
             entry.getKey(),
-            conflictingRegistrars));
+            conflictingFileSystems));
       }
     }
+
+    ImmutableMap.Builder<String, FileSystem> schemeToFileSystem = ImmutableMap.builder();
+    for (Entry<String, FileSystem> entry : fileSystemsBySchemes.entries()) {
+      schemeToFileSystem.put(entry.getKey(), entry.getValue());
+    }
+    return schemeToFileSystem.build();
+  }
+
+  /**
+   * Returns a new {@link ResourceId} that represents the named resource of a type corresponding
+   * to the resource type.
+   *
+   * <p>The supplied {@code singleResourceSpec} is expected to be in a proper format, including
+   * any necessary escaping, for the underlying {@link FileSystem}.
+   *
+   * <p>This function may throw an {@link IllegalArgumentException} if given an invalid argument,
+   * such as when the specified {@code singleResourceSpec} is not a valid resource name.
+   */
+  public static ResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
+    return getFileSystemInternal(parseScheme(singleResourceSpec))
+        .matchNewResource(singleResourceSpec, isDirectory);
   }
 }

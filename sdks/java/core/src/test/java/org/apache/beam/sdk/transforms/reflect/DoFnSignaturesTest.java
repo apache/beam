@@ -542,11 +542,11 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private final StateSpec<Object, ValueState<Integer>> myfield1 =
+              private final StateSpec<ValueState<Integer>> myfield1 =
                   StateSpecs.value(VarIntCoder.of());
 
               @StateId("my-id")
-              private final StateSpec<Object, ValueState<Long>> myfield2 =
+              private final StateSpec<ValueState<Long>> myfield2 =
                   StateSpecs.value(VarLongCoder.of());
 
               @ProcessElement
@@ -565,7 +565,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private StateSpec<Object, ValueState<Integer>> myfield =
+              private StateSpec<ValueState<Integer>> myfield =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -618,7 +618,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private final StateSpec<Object, ValueState<Integer>> myfield =
+              private final StateSpec<ValueState<Integer>> myfield =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -644,7 +644,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private final StateSpec<Object, ValueState<Integer>> myfield =
+              private final StateSpec<ValueState<Integer>> myfield =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -668,7 +668,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-id")
-              private final StateSpec<Object, ValueState<Integer>> myfield =
+              private final StateSpec<ValueState<Integer>> myfield =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -683,7 +683,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("foo")
-              private final StateSpec<Object, ValueState<Integer>> bizzle =
+              private final StateSpec<ValueState<Integer>> bizzle =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -728,7 +728,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFnUsingState() {
               @StateId(DoFnUsingState.STATE_ID)
-              private final StateSpec<Object, ValueState<Integer>> spec =
+              private final StateSpec<ValueState<Integer>> spec =
                   StateSpecs.value(VarIntCoder.of());
             }.getClass());
   }
@@ -770,7 +770,7 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("foo")
-              private final StateSpec<Object, ValueState<Integer>> bizzleDecl =
+              private final StateSpec<ValueState<Integer>> bizzleDecl =
                   StateSpecs.value(VarIntCoder.of());
 
               @ProcessElement
@@ -803,7 +803,7 @@ public class DoFnSignaturesTest {
   public void testSimpleStateIdNamedDoFn() throws Exception {
     class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
       @StateId("foo")
-      private final StateSpec<Object, ValueState<Integer>> bizzle =
+      private final StateSpec<ValueState<Integer>> bizzle =
           StateSpecs.value(VarIntCoder.of());
 
       @ProcessElement
@@ -831,7 +831,7 @@ public class DoFnSignaturesTest {
       // Note that in order to have a coder for T it will require initialization in the constructor,
       // but that isn't important for this test
       @StateId("foo")
-      private final StateSpec<Object, ValueState<T>> bizzle = null;
+      private final StateSpec<ValueState<T>> bizzle = null;
 
       @ProcessElement
       public void foo(ProcessContext context) {}
@@ -866,7 +866,7 @@ public class DoFnSignaturesTest {
     public static final String STATE_ID = "my-state-id";
 
     @StateId(STATE_ID)
-    private final StateSpec<Object, ValueState<Integer>> bizzle =
+    private final StateSpec<ValueState<Integer>> bizzle =
         StateSpecs.value(VarIntCoder.of());
   }
 
@@ -882,7 +882,7 @@ public class DoFnSignaturesTest {
     public static final String STATE_ID = "my-state-id";
 
     @StateId(STATE_ID)
-    private final StateSpec<Object, ValueState<String>> myStateSpec =
+    private final StateSpec<ValueState<String>> myStateSpec =
         StateSpecs.value(StringUtf8Coder.of());
 
     @ProcessElement

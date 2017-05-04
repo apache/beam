@@ -258,12 +258,13 @@ public class SourceRDD {
     @Override
     public Partition[] getPartitions() {
       try {
-        List<? extends Source<T>> partitionedSources = microbatchSource.split(
-            -1 /* ignored */, runtimeContext.getPipelineOptions());
-        Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
+        final List<? extends Source<T>> partitionedSources =
+            microbatchSource.split(runtimeContext.getPipelineOptions());
+        final Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
         for (int i = 0; i < partitionedSources.size(); i++) {
-          partitions[i] = new CheckpointableSourcePartition<>(id(), i, partitionedSources.get(i),
-              EmptyCheckpointMark.get());
+          partitions[i] =
+              new CheckpointableSourcePartition<>(
+                  id(), i, partitionedSources.get(i), EmptyCheckpointMark.get());
         }
         return partitions;
       } catch (Exception e) {

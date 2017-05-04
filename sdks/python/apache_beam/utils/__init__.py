@@ -16,7 +16,3 @@
 #
 
 """A package containing utilities."""
-
-# We must import path here to support the pattern of referencing utils.path
-# without needing to explicitly import apache_beam.utils.path.
-import path

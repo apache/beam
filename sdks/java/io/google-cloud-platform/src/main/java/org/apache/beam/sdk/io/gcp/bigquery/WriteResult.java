@@ -20,14 +20,20 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.values.POutputValueBase;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * The result of a {@link BigQueryIO.Write} transform.
  */
-final class WriteResult extends POutputValueBase {
+final class WriteResult implements POutput {
+
+  private final Pipeline pipeline;
+
   /**
    * Creates a {@link WriteResult} in the given {@link Pipeline}.
    */
@@ -41,6 +47,31 @@ final class WriteResult extends POutputValueBase {
   }
 
   private WriteResult(Pipeline pipeline) {
-    super(pipeline);
+    this.pipeline = pipeline;
   }
+
+  @Override
+  public Pipeline getPipeline() {
+    return pipeline;
+  }
+
+  /**
+   * Records that this {@link WriteResult} is an output with the given name of the given {@link
+   * AppliedPTransform}.
+   *
+   * <p>By default, does nothing.
+   *
+   * <p>To be invoked only by {@link POutput#recordAsOutput} implementations. Not to be invoked
+   * directly by user code.
+   */
+  @Override
+  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {}
+
+  /**
+   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
+   * to do nothing. Override if your {@link PValue} requires
+   * finalization.
+   */
+  @Override
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
 }

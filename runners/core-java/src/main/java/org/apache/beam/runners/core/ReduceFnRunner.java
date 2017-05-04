@@ -42,14 +42,15 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -72,7 +73,7 @@ import org.joda.time.Instant;
  *
  * <ul>
  * <li>Tracking the windows that are active (have buffered data) as elements arrive and triggers are
- *     fired.
+ *  fired.
  * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it when the
  *     trigger fires.
  * <li>Calling the appropriate callbacks on {@link ReduceFn} based on trigger execution, timer
@@ -107,9 +108,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private final OutputWindowedValue<KV<K, OutputT>> outputter;
 
-  private final StateInternals<K> stateInternals;
+  private final StateInternals stateInternals;
 
-  private final Aggregator<Long, Long> droppedDueToClosedWindow;
+  private final Counter droppedDueToClosedWindow;
+
+  public static final String DROPPED_DUE_TO_CLOSED_WINDOW = "droppedDueToClosedWindow";
 
   private final K key;
 
@@ -171,7 +174,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * <ul>
    * <li>State: Bag of hold timestamps.
    * <li>State style: RENAMED
-   * <li>Merging: Depending on {@link OutputTimeFn}, may need to be recalculated on merging.
+   * <li>Merging: Depending on {@link TimestampCombiner}, may need to be recalculated on merging.
    * When a pane fires it may be necessary to add (back) an end-of-window or garbage collection
    * hold.
    * <li>Lifetime: Cleared when a pane fires or when the window is garbage collected.
@@ -211,11 +214,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       K key,
       WindowingStrategy<?, W> windowingStrategy,
       ExecutableTriggerStateMachine triggerStateMachine,
-      StateInternals<K> stateInternals,
+      StateInternals stateInternals,
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
       SideInputReader sideInputReader,
-      Aggregator<Long, Long> droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       PipelineOptions options) {
     this.key = key;
@@ -223,8 +225,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
     this.stateInternals = stateInternals;
     this.outputter = outputter;
-    this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.reduceFn = reduceFn;
+    this.droppedDueToClosedWindow = Metrics.counter(ReduceFnRunner.class,
+        DROPPED_DUE_TO_CLOSED_WINDOW);
 
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectWindowingStrategy =
@@ -264,7 +267,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     return activeWindows.getActiveAndNewWindows().isEmpty();
   }
 
-  private Set<W> openWindows(Collection<W> windows) {
+  private Set<W> windowsThatAreOpen(Collection<W> windows) {
     Set<W> result = new HashSet<>();
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.Context directContext = contextFactory.base(
@@ -339,7 +342,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     prefetchWindowsForValues(windows);
 
     // All windows that are open before element processing may need to fire.
-    Set<W> windowsToConsider = openWindows(windows);
+    Set<W> windowsToConsider = windowsThatAreOpen(windows);
 
     // Process each element, using the updated activeWindows determined by mergeWindows.
     for (WindowedValue<InputT> value : values) {
@@ -581,7 +584,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
-        droppedDueToClosedWindow.addValue(1L);
+        droppedDueToClosedWindow.inc();
         WindowTracing.debug(
             "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
             + "since window is no longer active at inputWatermark:{}; outputWatermark:{}",

@@ -155,9 +155,7 @@ public class ApproximateQuantiles {
   public static <K, V, ComparatorT extends Comparator<V> & Serializable>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       perKey(int numQuantiles, ComparatorT compareFn) {
-    return Combine.perKey(
-        ApproximateQuantilesCombineFn.create(numQuantiles, compareFn)
-        .<K>asKeyedFn());
+    return Combine.perKey(ApproximateQuantilesCombineFn.create(numQuantiles, compareFn));
   }
 
   /**
@@ -173,9 +171,7 @@ public class ApproximateQuantiles {
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       perKey(int numQuantiles) {
-    return Combine.perKey(
-        ApproximateQuantilesCombineFn.<V>create(numQuantiles)
-        .<K>asKeyedFn());
+    return Combine.perKey(ApproximateQuantilesCombineFn.<V>create(numQuantiles));
   }
 
 

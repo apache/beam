@@ -23,7 +23,7 @@ import org.joda.time.Instant;
 /**
  * A {@link Clock} that uses {@link System#nanoTime()} to track the progress of time.
  */
-public class NanosOffsetClock implements Clock {
+class NanosOffsetClock implements Clock {
   private final long baseMillis;
   private final long nanosAtBaseMillis;
 

@@ -34,5 +34,5 @@ public interface StateAccessor<K> {
    * <p>Never accounts for merged windows. When windows are merged, any state accessed via
    * this method must be eagerly combined and written into the result window.
    */
-  <StateT extends State> StateT access(StateTag<? super K, StateT> address);
+  <StateT extends State> StateT access(StateTag<StateT> address);
 }

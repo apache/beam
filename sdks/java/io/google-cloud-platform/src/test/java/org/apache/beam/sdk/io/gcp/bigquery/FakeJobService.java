@@ -61,7 +61,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -77,7 +76,6 @@ import org.joda.time.Duration;
  */
 class FakeJobService implements JobService, Serializable {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
-
   // Whenever a job is started, the first 5 calls to GetJob will report the job as pending,
   // the next 5 will return the job as running, and only then will the job report as done.
   private static final int GET_JOBS_TRANSITION_INTERVAL = 5;
@@ -241,7 +239,9 @@ class FakeJobService implements JobService, Serializable {
             job.job.setStatus(runJob(job.job));
           }
         } catch (Exception e) {
-          job.job.getStatus().setState("FAILED").setErrorResult(new ErrorProto());
+          job.job.getStatus().setState("FAILED").setErrorResult(
+              new ErrorProto().setMessage(
+                  String.format("Job %s failed: %s", job.job.getConfiguration(), e.toString())));
         }
         return JSON_FACTORY.fromString(JSON_FACTORY.toString(job.job), Job.class);
       }

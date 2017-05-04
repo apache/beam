@@ -59,6 +59,7 @@ public class SplittableDoFnOperator<
 
   public SplittableDoFnOperator(
       DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT> doFn,
+      String stepName,
       Coder<
           WindowedValue<
               KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
@@ -72,6 +73,7 @@ public class SplittableDoFnOperator<
       Coder<?> keyCoder) {
     super(
         doFn,
+        stepName,
         inputCoder,
         mainOutputTag,
         additionalOutputTags,
@@ -92,10 +94,10 @@ public class SplittableDoFnOperator<
 
     StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
       @Override
-      public StateInternals<String> stateInternalsForKey(String key) {
+      public StateInternals stateInternalsForKey(String key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals<String>) stateInternals;
+        return (StateInternals) stateInternals;
       }
     };
     TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {

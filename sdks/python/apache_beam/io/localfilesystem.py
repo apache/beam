@@ -34,6 +34,30 @@ class LocalFileSystem(FileSystem):
   """A Local ``FileSystem`` implementation for accessing files on disk.
   """
 
+  def join(self, basepath, *paths):
+    """Join two or more pathname components for the filesystem
+
+    Args:
+      basepath: string path of the first component of the path
+      paths: path components to be added
+
+    Returns: full path after combining all the passed components
+    """
+    return os.path.join(basepath, *paths)
+
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    return os.path.split(os.path.abspath(path))
+
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
@@ -93,7 +117,8 @@ class LocalFileSystem(FileSystem):
     raw_file = open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
-    return CompressedFile(raw_file, compression_type=compression_type)
+    else:
+      return CompressedFile(raw_file, compression_type=compression_type)
 
   def create(self, path, mime_type='application/octet-stream',
              compression_type=CompressionTypes.AUTO):

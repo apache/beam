@@ -31,7 +31,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned
@@ -186,11 +186,11 @@ class ParDoTest(unittest.TestCase):
           yield element
         else:
           # Emit this word's long length to the 'above_cutoff_lengths' output.
-          yield pvalue.OutputValue(
+          yield pvalue.TaggedOutput(
               'above_cutoff_lengths', len(element))
         if element.startswith(marker):
           # Emit this word to a different output with the 'marked strings' tag.
-          yield pvalue.OutputValue('marked strings', element)
+          yield pvalue.TaggedOutput('marked strings', element)
     # [END model_pardo_emitting_values_on_tagged_outputs]
 
     words = ['a', 'an', 'the', 'music', 'xyz']
@@ -226,7 +226,7 @@ class ParDoTest(unittest.TestCase):
 
     # [START model_pardo_with_undeclared_outputs]
     def even_odd(x):
-      yield pvalue.OutputValue('odd' if x % 2 else 'even', x)
+      yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
       if x % 10 == 0:
         yield x
 
@@ -245,10 +245,9 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = TestPipeline()
-    evens = None  # pylint: disable=unused-variable
-
     # [START type_hints_missing_define_numbers]
+    p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+
     numbers = p | beam.Create(['1', '2', '3'])
     # [END type_hints_missing_define_numbers]
 
@@ -269,7 +268,6 @@ class TypeHintsTest(unittest.TestCase):
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_takes]
-      p.options.view_as(TypeOptions).pipeline_type_check = True
       evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
       # [END type_hints_takes]
 
@@ -315,10 +313,9 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = TestPipeline()
+    p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
-      p.options.view_as(TypeOptions).runtime_type_check = True
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       p.run()
       # [END type_hints_runtime_on]
@@ -767,7 +764,7 @@ class CombineTest(unittest.TestCase):
   def test_custom_average(self):
     pc = [2, 3, 5, 7]
 
-    # [START combine_custom_average]
+    # [START combine_custom_average_define]
     class AverageFn(beam.CombineFn):
       def create_accumulator(self):
         return (0.0, 0)
@@ -781,8 +778,10 @@ class CombineTest(unittest.TestCase):
 
       def extract_output(self, (sum, count)):
         return sum / count if count else float('NaN')
+    # [END combine_custom_average_define]
+    # [START combine_custom_average_execute]
     average = pc | beam.CombineGlobally(AverageFn())
-    # [END combine_custom_average]
+    # [END combine_custom_average_execute]
     self.assertEqual([4.25], average)
 
   def test_keys(self):
@@ -898,6 +897,24 @@ class CombineTest(unittest.TestCase):
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
     beam.assert_that(unkeyed, beam.equal_to([42, 187]))
+    p.run()
+
+
+class PTransformTest(unittest.TestCase):
+  """Tests for PTransform."""
+
+  def test_composite(self):
+
+    # [START model_composite_transform]
+    class ComputeWordLengths(beam.PTransform):
+      def expand(self, pcoll):
+        # transform logic goes here
+        return pcoll | beam.Map(lambda x: len(x))
+    # [END model_composite_transform]
+
+    p = TestPipeline()
+    lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
+    beam.assert_that(lengths, beam.equal_to([1, 2, 3]))
     p.run()
 
 

@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
@@ -30,8 +27,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -41,21 +36,12 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * @param <T> the type of the values being transcoded
  */
-public class LengthPrefixCoder<T> extends StandardCoder<T> {
+public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   public static <T> LengthPrefixCoder<T> of(
       Coder<T> valueCoder) {
     checkNotNull(valueCoder, "Coder not expected to be null");
     return new LengthPrefixCoder<>(valueCoder);
-  }
-
-  @JsonCreator
-  public static LengthPrefixCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1,
-                  "Expecting 1 components, got " + components.size());
-    return of(components.get(0));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -64,11 +50,6 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
 
   private LengthPrefixCoder(Coder<T> valueCoder) {
     this.valueCoder = valueCoder;
-  }
-
-  @Override
-  protected CloudObject initializeCloudObject() {
-    return CloudObject.forClassName("kind:length_prefix");
   }
 
   @Override
@@ -92,6 +73,13 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
   }
 
   /**
+   * Gets the value coder that will be prefixed by the length.
+   */
+  public Coder<T> getValueCoder() {
+    return valueCoder;
+  }
+
+  /**
    * {@code LengthPrefixCoder} is deterministic if the nested {@code Coder} is.
    *
    * {@inheritDoc}
@@ -112,7 +100,7 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
   }
 
   /**
-   * Overridden to short-circuit the default {@code StandardCoder} behavior of encoding and
+   * Overridden to short-circuit the default {@code StructuredCoder} behavior of encoding and
    * counting the bytes. The size is known to be the size of the value plus the number of bytes
    * required to prefix the length.
    *
@@ -120,15 +108,15 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
    */
   @Override
   protected long getEncodedElementByteSize(T value, Context context) throws Exception {
-    if (valueCoder instanceof StandardCoder) {
-      // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
+    if (valueCoder instanceof StructuredCoder) {
+      // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StandardCoder<T>) valueCoder).getEncodedElementByteSize(
+      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(
           value, Context.OUTER);
       return VarInt.getLength(valueSize) + valueSize;
     }
 
-    // If value is not a StandardCoder then fall back to the default StandardCoder behavior
+    // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the length prefix.
     return super.getEncodedElementByteSize(value, context);
   }

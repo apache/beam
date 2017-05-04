@@ -39,10 +39,14 @@ import java.util.UUID;
 import org.apache.beam.runners.direct.WriteWithShardingFactory.CalculateShardsFn;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.Sink;
+import org.apache.beam.sdk.io.DefaultFilenamePolicy;
+import org.apache.beam.sdk.io.FileBasedSink;
+import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -84,9 +88,9 @@ public class WriteWithShardingFactoryTest {
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
     String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
-    // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
+    // TextIO is implemented in terms of the WriteFiles PTransform. When sharding is not specified,
     // resharding should be automatically applied
-    p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
+    p.apply(Create.of(strs)).apply(TextIO.write().to(targetLocation));
 
     p.run();
 
@@ -121,10 +125,20 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    Write<Object> original = Write.to(new TestSink());
+    ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
+    FilenamePolicy policy = DefaultFilenamePolicy.constructUsingStandardParameters(
+        StaticValueProvider.of(outputDirectory), DefaultFilenamePolicy.DEFAULT_SHARD_TEMPLATE, "");
+    WriteFiles<Object> original = WriteFiles.to(
+        new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
+          @Override
+          public FileBasedWriteOperation<Object> createWriteOperation() {
+            throw new IllegalArgumentException("Should not be used");
+          }
+        });
+    @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
-    AppliedPTransform<PCollection<Object>, PDone, Write<Object>> originalApplication =
+    AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
         AppliedPTransform.of(
             "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 
@@ -205,15 +219,5 @@ public class WriteWithShardingFactoryTest {
 
     List<Integer> shards = fnTester.processBundle((long) count);
     assertThat(shards, containsInAnyOrder(13));
-  }
-
-  private static class TestSink extends Sink<Object> {
-    @Override
-    public void validate(PipelineOptions options) {}
-
-    @Override
-    public WriteOperation<Object, ?> createWriteOperation(PipelineOptions options) {
-      throw new IllegalArgumentException("Should not be used");
-    }
   }
 }

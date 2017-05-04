@@ -21,15 +21,15 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
+import static org.apache.beam.runners.dataflow.util.Structs.addDictionary;
+import static org.apache.beam.runners.dataflow.util.Structs.addList;
+import static org.apache.beam.runners.dataflow.util.Structs.addLong;
+import static org.apache.beam.runners.dataflow.util.Structs.addObject;
+import static org.apache.beam.runners.dataflow.util.Structs.addString;
+import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-import static org.apache.beam.sdk.util.Structs.addDictionary;
-import static org.apache.beam.sdk.util.Structs.addList;
-import static org.apache.beam.sdk.util.Structs.addLong;
-import static org.apache.beam.sdk.util.Structs.addObject;
-import static org.apache.beam.sdk.util.Structs.addString;
-import static org.apache.beam.sdk.util.Structs.getString;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,8 +62,11 @@ import org.apache.beam.runners.dataflow.PrimitiveParDoSingleFactory.ParDoSingle;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.CloudObject;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
+import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
@@ -85,9 +88,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -97,7 +97,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypedPValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -557,7 +556,7 @@ public class DataflowPipelineTranslator {
 
     @Override
     public void addEncodingInput(Coder<?> coder) {
-      CloudObject encoding = SerializableUtils.ensureSerializable(coder);
+      CloudObject encoding = CloudObjects.asCloudObject(coder);
       addObject(getProperties(), PropertyNames.ENCODING, encoding);
     }
 
@@ -599,8 +598,8 @@ public class DataflowPipelineTranslator {
     @Override
     public long addOutput(PValue value) {
       Coder<?> coder;
-      if (value instanceof TypedPValue) {
-        coder = ((TypedPValue<?>) value).getCoder();
+      if (value instanceof PCollection) {
+        coder = ((PCollection<?>) value).getCoder();
         if (value instanceof PCollection) {
           // Wrap the PCollection element Coder inside a WindowedValueCoder.
           coder = WindowedValue.getFullCoder(
@@ -656,7 +655,12 @@ public class DataflowPipelineTranslator {
 
       Map<String, Object> outputInfo = new HashMap<>();
       addString(outputInfo, PropertyNames.OUTPUT_NAME, Long.toString(id));
-      addString(outputInfo, PropertyNames.USER_NAME, value.getName());
+
+      String stepName = getString(properties, PropertyNames.USER_NAME);
+      String generatedName = String.format(
+          "%s.out%d", stepName, outputInfoList.size());
+
+      addString(outputInfo, PropertyNames.USER_NAME, generatedName);
       if (value instanceof PCollection
           && translator.runner.doesPCollectionRequireIndexedFormat((PCollection<?>) value)) {
         addBoolean(outputInfo, PropertyNames.USE_INDEXED_FORMAT, true);
@@ -664,7 +668,7 @@ public class DataflowPipelineTranslator {
       if (valueCoder != null) {
         // Verify that encoding can be decoded, in order to catch serialization
         // failures as early as possible.
-        CloudObject encoding = SerializableUtils.ensureSerializable(valueCoder);
+        CloudObject encoding = CloudObjects.asCloudObject(valueCoder);
         addObject(outputInfo, PropertyNames.ENCODING, encoding);
         translator.outputCoders.put(value, valueCoder);
       }

@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,36 +26,22 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /**
  * A {@link Coder} for {@link KeyedWorkItem KeyedWorkItems}.
  */
-public class KeyedWorkItemCoder<K, ElemT> extends StandardCoder<KeyedWorkItem<K, ElemT>> {
+public class KeyedWorkItemCoder<K, ElemT> extends CustomCoder<KeyedWorkItem<K, ElemT>> {
   /**
    * Create a new {@link KeyedWorkItemCoder} with the provided key coder, element coder, and window
    * coder.
    */
   public static <K, ElemT> KeyedWorkItemCoder<K, ElemT> of(
       Coder<K> keyCoder, Coder<ElemT> elemCoder, Coder<? extends BoundedWindow> windowCoder) {
-    return new KeyedWorkItemCoder<>(keyCoder, elemCoder, windowCoder);
-  }
-
-  @JsonCreator
-  public static <K, ElemT> KeyedWorkItemCoder<K, ElemT> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS) List<Coder<?>> components) {
-    checkArgument(components.size() == 3, "Expecting 3 components, got %s", components.size());
-    @SuppressWarnings("unchecked")
-    Coder<K> keyCoder = (Coder<K>) components.get(0);
-    @SuppressWarnings("unchecked")
-    Coder<ElemT> elemCoder = (Coder<ElemT>) components.get(1);
-    @SuppressWarnings("unchecked")
-    Coder<? extends BoundedWindow> windowCoder = (Coder<? extends BoundedWindow>) components.get(2);
     return new KeyedWorkItemCoder<>(keyCoder, elemCoder, windowCoder);
   }
 

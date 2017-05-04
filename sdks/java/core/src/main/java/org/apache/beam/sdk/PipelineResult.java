@@ -21,7 +21,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
 /**
@@ -63,17 +62,6 @@ public interface PipelineResult {
    * @throws UnsupportedOperationException if the runner does not support cancellation.
    */
   State waitUntilFinish();
-
-  /**
-   * Retrieves the current value of the provided {@link Aggregator}.
-   *
-   * @param aggregator the {@link Aggregator} to retrieve values for.
-   * @return the current values of the {@link Aggregator},
-   * which may be empty if there are no values yet.
-   * @throws AggregatorRetrievalException if the {@link Aggregator} values could not be retrieved.
-   */
-  <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException;
 
   // TODO: method to retrieve error messages.
 

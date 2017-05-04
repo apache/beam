@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A helper class for monitoring jobs submitted to the service.
  */
-public final class MonitoringUtil {
+public class MonitoringUtil {
 
   private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud beta dataflow";
   private static final String ENDPOINT_OVERRIDE_ENV_VAR =
@@ -147,7 +147,7 @@ public final class MonitoringUtil {
    *   timestamp greater than this value.
    * @return collection of messages
    */
-  public ArrayList<JobMessage> getJobMessages(
+  public List<JobMessage> getJobMessages(
       String jobId, long startTimestampMs) throws IOException {
     // TODO: Allow filtering messages by importance
     Instant startTimestamp = new Instant(startTimestampMs);

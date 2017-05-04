@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link BigEndianLongCoder} encodes {@link Long}s in 8 bytes, big-endian.
  */
-public class BigEndianLongCoder extends AtomicCoder<Long> {
+public class BigEndianLongCoder extends CustomCoder<Long> {
 
   @JsonCreator
   public static BigEndianLongCoder of() {
@@ -64,6 +64,9 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
       throw new CoderException(exn);
     }
   }
+
+  @Override
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}

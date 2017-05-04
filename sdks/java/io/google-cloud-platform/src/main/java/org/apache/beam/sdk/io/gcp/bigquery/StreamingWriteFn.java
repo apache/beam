@@ -26,8 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
@@ -49,7 +48,7 @@ class StreamingWriteFn
   private transient Map<String, List<String>> uniqueIdsForTableRows;
 
   /** Tracks bytes written, exposed as "ByteCount" Counter. */
-  private Counter byteCounter = Metrics.counter(StreamingWriteFn.class, "ByteCount");
+  private Counter byteCounter = SinkMetrics.bytesWritten();
 
   StreamingWriteFn(BigQueryServices bqServices) {
     this.bqServices = bqServices;

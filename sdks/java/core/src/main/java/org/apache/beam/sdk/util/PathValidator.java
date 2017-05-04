@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.io.fs.ResourceId;
+
 /**
  * Interface for controlling validation of paths.
  */
@@ -25,17 +27,22 @@ public interface PathValidator {
    * Validate that a file pattern is conforming.
    *
    * @param filepattern The file pattern to verify.
-   * @return The post-validation filepattern.
    */
-  String validateInputFilePatternSupported(String filepattern);
+  void validateInputFilePatternSupported(String filepattern);
 
   /**
    * Validate that an output file prefix is conforming.
    *
    * @param filePrefix the file prefix to verify.
-   * @return The post-validation filePrefix.
    */
-  String validateOutputFilePrefixSupported(String filePrefix);
+  void validateOutputFilePrefixSupported(String filePrefix);
+
+  /**
+   * Validates that an output path is conforming.
+   *
+   * @param resourceId the file prefix to verify.
+   */
+  void validateOutputResourceSupported(ResourceId resourceId);
 
   /**
    * Validate that a path is a valid path and that the path

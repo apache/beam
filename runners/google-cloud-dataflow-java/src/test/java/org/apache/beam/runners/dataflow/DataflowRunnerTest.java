@@ -33,6 +33,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
@@ -46,6 +48,7 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -66,8 +69,10 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.TextIO.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -79,10 +84,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.NoopCredentialFactory;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
@@ -171,8 +174,11 @@ public class DataflowRunnerTest {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
-        .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
+        .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
+
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultConfigInWorkers(options);
 
     return p;
   }
@@ -239,6 +245,10 @@ public class DataflowRunnerTest {
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
+
+    // Configure the FileSystem registrar to use these options.
+    FileSystems.setDefaultConfigInWorkers(options);
+
     return options;
   }
 
@@ -252,7 +262,7 @@ public class DataflowRunnerTest {
     };
 
     try {
-      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
       fail();
     } catch (RuntimeException e) {
       assertThat(
@@ -271,7 +281,7 @@ public class DataflowRunnerTest {
     };
 
     try {
-      TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
+      Pipeline.create(PipelineOptionsFactory.fromArgs(args).create()).run();
       fail();
     } catch (RuntimeException e) {
       assertThat(
@@ -331,8 +341,8 @@ public class DataflowRunnerTest {
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
     p
-        .apply(TextIO.Read.from(options.getInput()).withoutValidation())
-        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
+        .apply(TextIO.read().from(options.getInput()))
+        .apply(TextIO.write().to(options.getOutput()));
   }
 
   /**
@@ -343,7 +353,7 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions dataflowOptions = buildPipelineOptions();
     RuntimeTestOptions options = dataflowOptions.as(RuntimeTestOptions.class);
     Pipeline p = buildDataflowPipeline(dataflowOptions);
-    PCollection<String> unconsumed = p.apply(Read.from(options.getInput()).withoutValidation());
+    PCollection<String> unconsumed = p.apply(TextIO.read().from(options.getInput()));
     DataflowRunner.fromOptions(dataflowOptions).replaceTransforms(p);
     final AtomicBoolean unconsumedSeenAsInput = new AtomicBoolean();
     p.traverseTopologically(new PipelineVisitor.Defaults() {
@@ -446,8 +456,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testRunWithFiles() throws IOException {
-    // Test that the function DataflowRunner.stageFiles works as
-    // expected.
+    // Test that the function DataflowRunner.stageFiles works as expected.
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
@@ -457,6 +466,10 @@ public class DataflowRunnerTest {
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(ImmutableList.of(GcsUtil.StorageObjectOrIOException.create(
+            new FileNotFoundException("some/path"))));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setFilesToStage(ImmutableList.of(
@@ -471,6 +484,16 @@ public class DataflowRunnerTest {
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(new Answer<SeekableByteChannel>() {
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
 
     Pipeline p = buildDataflowPipeline(options);
 
@@ -566,7 +589,7 @@ public class DataflowRunnerTest {
   @Test
   public void testNonGcsFilePathInReadFailure() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadMyNonGcsFile", TextIO.Read.from(tmpFolder.newFile().getPath()));
+    p.apply("ReadMyNonGcsFile", TextIO.read().from(tmpFolder.newFile().getPath()));
 
     thrown.expectCause(Matchers.allOf(
         instanceOf(IllegalArgumentException.class),
@@ -583,8 +606,8 @@ public class DataflowRunnerTest {
   public void testNonGcsFilePathInWriteFailure() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
 
-    p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"))
-        .apply("WriteMyNonGcsFile", TextIO.Write.to("/tmp/file"));
+    p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"))
+        .apply("WriteMyNonGcsFile", TextIO.write().to("/tmp/file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected a valid 'gs://' path but was given"));
@@ -594,7 +617,7 @@ public class DataflowRunnerTest {
   @Test
   public void testMultiSlashGcsFileReadPath() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadInvalidGcsFile", TextIO.Read.from("gs://bucket/tmp//file"));
+    p.apply("ReadInvalidGcsFile", TextIO.read().from("gs://bucket/tmp//file"));
 
     thrown.expectCause(Matchers.allOf(
         instanceOf(IllegalArgumentException.class),
@@ -609,8 +632,8 @@ public class DataflowRunnerTest {
   @Test
   public void testMultiSlashGcsFileWritePath() throws IOException {
     Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.Read.from("gs://bucket/object"));
-    pc.apply("WriteInvalidGcsFile", TextIO.Write.to("gs://bucket/tmp//file"));
+    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"));
+    pc.apply("WriteInvalidGcsFile", TextIO.write().to("gs://bucket/tmp//file"));
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("consecutive slashes");
@@ -917,7 +940,13 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions streamingOptions = buildPipelineOptions();
     streamingOptions.setStreaming(true);
     streamingOptions.setRunner(DataflowRunner.class);
-    Pipeline.create(streamingOptions);
+    Pipeline p = Pipeline.create(streamingOptions);
+
+    // Instantiation of a runner prior to run() currently has a side effect of mutating the options.
+    // This could be tested by DataflowRunner.fromOptions(streamingOptions) but would not ensure
+    // that the pipeline itself had the expected options set.
+    p.run();
+
     assertEquals(
         DataflowRunner.GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT,
         streamingOptions.getGcsUploadBufferSizeBytes().intValue());

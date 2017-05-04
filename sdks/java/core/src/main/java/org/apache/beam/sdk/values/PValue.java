@@ -22,6 +22,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * The interface for values that can be input to and output from {@link PTransform PTransforms}.
+ *
+ * <p>It is recommended to extend {@link PValueBase}
  */
 public interface PValue extends POutput, PInput {
 

@@ -47,7 +47,7 @@
           <artifactId>exec-maven-plugin</artifactId>
           <executions>
             <execution>
-              <!-- trick by @aaltay to skip inheritance -->
+              <!-- trick to skip inheritance -->
               <phase>none</phase>
             </execution>
           </executions>

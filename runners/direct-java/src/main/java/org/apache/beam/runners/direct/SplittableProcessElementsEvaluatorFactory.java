@@ -33,7 +33,6 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -127,7 +126,7 @@ class SplittableProcessElementsEvaluatorFactory<
         new StateInternalsFactory<String>() {
           @SuppressWarnings({"unchecked", "rawtypes"})
           @Override
-          public StateInternals<String> stateInternalsForKey(String key) {
+          public StateInternals stateInternalsForKey(String key) {
             return (StateInternals) stepContext.stateInternals();
           }
         });
@@ -197,7 +196,6 @@ class SplittableProcessElementsEvaluatorFactory<
           TupleTag<OutputT> mainOutputTag,
           List<TupleTag<?>> additionalOutputTags,
           DirectExecutionContext.DirectStepContext stepContext,
-          AggregatorContainer.Mutator aggregatorChanges,
           WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
         ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
             (ProcessFn) fn;
@@ -210,7 +208,6 @@ class SplittableProcessElementsEvaluatorFactory<
             mainOutputTag,
             additionalOutputTags,
             stepContext,
-            aggregatorChanges,
             windowingStrategy);
       }
     };
