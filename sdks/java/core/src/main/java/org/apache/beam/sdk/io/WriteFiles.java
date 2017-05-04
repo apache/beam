@@ -87,8 +87,6 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
   static final int UNKNOWN_SHARDNUM = -1;
-  static final int UNKNOWN_NUMSHARDS = -1;
-
   private FileBasedSink<T> sink;
   private WriteOperation<T> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
@@ -269,8 +267,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         if (writer == null) {
           LOG.info("Opening writer for write operation {}, window {}", writeOperation, window);
           writer = writeOperation.createWriter();
-          writer.openWindowed(UUID.randomUUID().toString(), window, paneInfo, UNKNOWN_SHARDNUM,
-              UNKNOWN_NUMSHARDS);
+          writer.openWindowed(UUID.randomUUID().toString(), window, paneInfo, UNKNOWN_SHARDNUM);
           windowedWriters.put(key, writer);
           LOG.debug("Done opening writer {} for operation {} window {}", writer, writeOperation,
               window);
@@ -281,7 +278,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         if (writer == null) {
           LOG.info("Opening writer for write operation {}", writeOperation);
           writer = this.writer = writeOperation.createWriter();
-          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
           LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
         }
         this.window = window;
@@ -364,10 +361,9 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
-            numShards);
+        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey());
       } else {
-        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
       }
       LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
 
@@ -589,8 +585,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
                   Writer<T> writer = writeOperation.createWriter();
-                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
-                      UNKNOWN_NUMSHARDS);
+                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
                   FileResult emptyWrite = writer.close();
                   results.add(emptyWrite);
                 }

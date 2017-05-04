@@ -103,7 +103,7 @@ public class FileBasedSinkTest {
 
     SimpleSink.SimpleWriter writer =
         buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
-    writer.openUnwindowed(testUid, -1, -1);
+    writer.openUnwindowed(testUid, -1);
     for (String value : values) {
       writer.write(value);
     }
@@ -205,7 +205,6 @@ public class FileBasedSinkTest {
           new FileResult(
               LocalResources.fromFile(temporaryFiles.get(i), false),
               WriteFiles.UNKNOWN_SHARDNUM,
-              WriteFiles.UNKNOWN_NUMSHARDS,
               null,
               null));
     }
@@ -364,9 +363,9 @@ public class FileBasedSinkTest {
     try {
       Iterable<FileResult> results =
           Lists.newArrayList(
-              new FileResult(temp1, 1, 1, null, null),
-              new FileResult(temp2, 1, 1, null, null),
-              new FileResult(temp3, 1, 1, null, null));
+              new FileResult(temp1, 1, null, null),
+              new FileResult(temp2, 1, null, null),
+              new FileResult(temp3, 1, null, null));
       writeOp.buildOutputFilenames(results);
       fail("Should have failed.");
     } catch (IllegalStateException exn) {
@@ -504,7 +503,7 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.openUnwindowed(testUid, -1, -1);
+    writer.openUnwindowed(testUid, -1);
     writer.write("a");
     writer.write("b");
     final FileResult result = writer.close();

@@ -526,14 +526,16 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
         Iterable<FileResult> writerResults) {
+      int numShards = Iterables.size(writerResults);
       Map<ResourceId, ResourceId> outputFilenames = new HashMap<>();
+
       List<FileResult> unshardedFiles = new ArrayList<>();
       FilenamePolicy policy = getSink().getFilenamePolicy();
       for (FileResult result : writerResults) {
         if (result.getShard() != WriteFiles.UNKNOWN_SHARDNUM) {
           outputFilenames.put(result.getTempFilename(),
               result.getDestinationFile(policy, getSink().getBaseOutputDirectoryProvider().get(),
-                  getSink().getExtension()));
+                  numShards, getSink().getExtension()));
         } else {
           unshardedFiles.add(result);
         }
@@ -544,6 +546,10 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         checkArgument(outputFilenames.isEmpty());
 
         // Sort files for idempotence. Sort by temporary filename.
+        // Note that this codepath should not be used when processing triggered windows. In the
+        // case of triggers, the list of FileResult objects in the Finalize iterable is not
+        // deterministic, and might change over retries. This breaks the assumption below that
+        // sorting the FileResult objects provides idempotency.
         unshardedFiles = Ordering.from(new Comparator<FileResult>() {
           @Override
           public int compare(FileResult first, FileResult second) {
@@ -555,10 +561,9 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         for (int i = 0; i < unshardedFiles.size(); i++) {
           FileResult result = unshardedFiles.get(i);
           result.setShard(i);
-          result.setNumShards(unshardedFiles.size());
           outputFilenames.put(result.getTempFilename(),
               result.getDestinationFile(policy, getSink().getBaseOutputDirectoryProvider().get(),
-                  getSink().getExtension()));
+                  numShards, getSink().getExtension()));
         }
       }
 
@@ -698,7 +703,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private BoundedWindow window;
     private PaneInfo paneInfo;
     private int shard = -1;
-    private int numShards = -1;
 
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
@@ -753,24 +757,23 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     protected void finishWrite() throws Exception {}
 
     /**
-     *  Performs bundle initialization. For example, creates a temporary file for writing or
+     * Performs bundle initialization. For example, creates a temporary file for writing or
      * initializes any state that will be used across calls to {@link Writer#write}.
      *
-     * <p>The unique id that is given to open should be used to ensure that the writer's output
-     * does not interfere with the output of other Writers, as a bundle may be executed many
-     * times for fault tolerance.
+     * <p>The unique id that is given to open should be used to ensure that the writer's output does
+     * not interfere with the output of other Writers, as a bundle may be executed many times for
+     * fault tolerance.
      *
-     * <p>The window and paneInfo arguments are populated when windowed writes are requested.
-     * shard and numShards are populated for the case of static sharding. In cases where the
-     * runner is dynamically picking sharding, shard and numShards might both be set to -1.
+     * <p>The window and paneInfo arguments are populated when windowed writes are requested. shard
+     * id populated for the case of static sharding. In cases where the runner is dynamically
+     * picking sharding, shard might be set to -1.
      */
-    public final void openWindowed(
-        String uId, BoundedWindow window, PaneInfo paneInfo, int shard, int numShards)
+    public final void openWindowed(String uId, BoundedWindow window, PaneInfo paneInfo, int shard)
         throws Exception {
       if (!getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openWindowed called a non-windowed sink.");
       }
-      open(uId, window,  paneInfo, shard, numShards);
+      open(uId, window, paneInfo, shard);
     }
 
     /**
@@ -782,13 +785,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * Similar to {@link #openWindowed} however for the case where unwindowed writes were
      * requested.
      */
-    public final void openUnwindowed(String uId,
-                                     int shard,
-                                     int numShards) throws Exception {
+    public final void openUnwindowed(String uId, int shard) throws Exception {
       if (getWriteOperation().windowedWrites) {
         throw new IllegalStateException("openUnwindowed called a windowed sink.");
       }
-      open(uId, null, null, shard, numShards);
+      open(uId, null, null, shard);
     }
 
     // Helper function to close a channel, on exception cases.
@@ -807,13 +808,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private void open(String uId,
                       @Nullable BoundedWindow window,
                       @Nullable PaneInfo paneInfo,
-                      int shard,
-                      int numShards) throws Exception {
+                      int shard) throws Exception {
       this.id = uId;
       this.window = window;
       this.paneInfo = paneInfo;
       this.shard = shard;
-      this.numShards = numShards;
       ResourceId tempDirectory = getWriteOperation().tempDirectory.get();
       outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
       verifyNotNull(
@@ -889,7 +888,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
         throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
       }
 
-      FileResult result = new FileResult(outputFile, shard, numShards, window, paneInfo);
+      FileResult result = new FileResult(outputFile, shard, window, paneInfo);
       LOG.debug("Result for bundle {}: {}", this.id, outputFile);
       return result;
     }
@@ -909,15 +908,13 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   public static final class FileResult {
     private final ResourceId tempFilename;
     private int shard;
-    private int numShards;
     private BoundedWindow window;
     private PaneInfo paneInfo;
 
-    public FileResult(ResourceId tempFilename, int shard, int numShards, BoundedWindow window,
+    public FileResult(ResourceId tempFilename, int shard, BoundedWindow window,
                       PaneInfo paneInfo) {
       this.tempFilename = tempFilename;
       this.shard = shard;
-      this.numShards = numShards;
       this.window = window;
       this.paneInfo = paneInfo;
     }
@@ -934,14 +931,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       this.shard = shard;
     }
 
-    public int getNumShards() {
-      return numShards;
-    }
-
-    public void setNumShards(int numShards) {
-      this.numShards = numShards;
-    }
-
     public BoundedWindow getWindow() {
       return window;
     }
@@ -951,14 +940,14 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     public ResourceId getDestinationFile(FilenamePolicy policy, ResourceId outputDirectory,
-                                         String extension) {
+                                         int numShards, String extension) {
       checkArgument(getShard() != WriteFiles.UNKNOWN_SHARDNUM);
-      checkArgument(getNumShards() != WriteFiles.UNKNOWN_NUMSHARDS);
+      checkArgument(numShards > 0);
       if (getWindow() != null) {
         return policy.windowedFilename(outputDirectory, new WindowedContext(
-            getWindow(), getPaneInfo(), getShard(), getNumShards()), extension);
+            getWindow(), getPaneInfo(), getShard(), numShards), extension);
       } else {
-        return policy.unwindowedFilename(outputDirectory, new Context(getShard(), getNumShards()),
+        return policy.unwindowedFilename(outputDirectory, new Context(getShard(), numShards),
             extension);
       }
     }
@@ -997,7 +986,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       windowCoder.encode(value.getWindow(), outStream);
       paneInfoCoder.encode(value.getPaneInfo(), outStream);
       integerCoder.encode(value.getShard(), outStream);
-      integerCoder.encode(value.getNumShards(), outStream);
     }
 
     @Override
@@ -1008,9 +996,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = paneInfoCoder.decode(inStream);
       int shard = integerCoder.decode(inStream);
-      int numShards = integerCoder.decode(inStream);
       return new FileResult(FileSystems.matchNewResource(tempFilename, false /* isDirectory */),
-          shard, numShards, window, paneInfo);
+          shard, window, paneInfo);
     }
 
     @Override
