@@ -18,14 +18,17 @@
 
 package org.apache.beam.runners.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.protobuf.BytesValue;
 import java.io.IOException;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.core.construction.Coders;
+import org.apache.beam.runners.dataflow.util.CloudObject;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -37,6 +40,8 @@ import org.apache.beam.sdk.values.KV;
  * For each request, call {@link #registerForOutput()} to start and call {@link #close()} to finish.
  */
 public class BeamFnDataWriteRunner<InputT> {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
   private final BeamFnApi.Target outputTarget;
   private final Coder<WindowedValue<InputT>> coder;
@@ -58,12 +63,19 @@ public class BeamFnDataWriteRunner<InputT> {
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
 
-    MessageWithComponents runnerApiCoder =
-        coderSpec.getFunctionSpec().getData().unpack(MessageWithComponents.class);
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<InputT>> coder =
         (Coder<WindowedValue<InputT>>)
-            Coders.fromProto(runnerApiCoder.getCoder(), runnerApiCoder.getComponents());
+            CloudObjects.coderFromCloudObject(
+                CloudObject.fromSpec(
+                    OBJECT_MAPPER.readValue(
+                        coderSpec
+                            .getFunctionSpec()
+                            .getData()
+                            .unpack(BytesValue.class)
+                            .getValue()
+                            .newInput(),
+                        Map.class)));
     this.coder = coder;
   }
 
