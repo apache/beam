@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 import java.nio.ByteBuffer;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -45,7 +45,7 @@ public class WorkItemKeySelector<K, V>
   @Override
   public ByteBuffer getKey(WindowedValue<SingletonKeyedWorkItem<K, V>> value) throws Exception {
     K key = value.getValue().key();
-    byte[] keyBytes = CoderUtils.encodeToByteArray(keyCoder, key);
+    byte[] keyBytes = Coders.encodeToByteArray(keyCoder, key);
     return ByteBuffer.wrap(keyBytes);
   }
 

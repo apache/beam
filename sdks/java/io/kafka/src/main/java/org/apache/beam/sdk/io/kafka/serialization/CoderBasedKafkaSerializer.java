@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.kafka.common.serialization.Serializer;
 
 /**
@@ -50,7 +50,7 @@ public class CoderBasedKafkaSerializer<T> implements Serializer<T> {
     }
 
     try {
-      return CoderUtils.encodeToByteArray(coder, data);
+      return Coders.encodeToByteArray(coder, data);
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }

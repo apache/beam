@@ -30,7 +30,7 @@ import org.apache.beam.sdk.io.ShardNameTemplate;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.MimeTypes;
 
 /** Implementation of {@link XmlIO#write}. */
@@ -138,7 +138,7 @@ class XmlSink<T> extends FileBasedSink<T> {
     @Override
     protected void writeHeader() throws Exception {
       String rootElementName = getWriteOperation().getSink().spec.getRootElement();
-      os.write(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "<" + rootElementName + ">\n"));
+      os.write(Coders.encodeToByteArray(StringUtf8Coder.of(), "<" + rootElementName + ">\n"));
     }
 
     /**
@@ -147,7 +147,7 @@ class XmlSink<T> extends FileBasedSink<T> {
     @Override
     protected void writeFooter() throws Exception {
       String rootElementName = getWriteOperation().getSink().spec.getRootElement();
-      os.write(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "\n</" + rootElementName + ">"));
+      os.write(Coders.encodeToByteArray(StringUtf8Coder.of(), "\n</" + rootElementName + ">"));
     }
 
     /**

@@ -48,7 +48,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -57,7 +57,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
@@ -88,9 +88,9 @@ public class UnboundedReadFromBoundedSourceTest {
   public void testCheckpointCoderNulls() throws Exception {
     CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
     Checkpoint<String> emptyCheckpoint = new Checkpoint<>(null, null);
-    Checkpoint<String> decodedEmptyCheckpoint = CoderUtils.decodeFromByteArray(
+    Checkpoint<String> decodedEmptyCheckpoint = Coders.decodeFromByteArray(
         coder,
-        CoderUtils.encodeToByteArray(coder, emptyCheckpoint));
+        Coders.encodeToByteArray(coder, emptyCheckpoint));
     assertNull(decodedEmptyCheckpoint.getResidualElements());
     assertNull(decodedEmptyCheckpoint.getResidualSource());
   }
@@ -227,9 +227,9 @@ public class UnboundedReadFromBoundedSourceTest {
       if (actual.size() % 9 == 0) {
         Checkpoint<T> checkpoint = reader.getCheckpointMark();
         Coder<Checkpoint<T>> checkpointCoder = unboundedSource.getCheckpointMarkCoder();
-        Checkpoint<T> decodedCheckpoint = CoderUtils.decodeFromByteArray(
+        Checkpoint<T> decodedCheckpoint = Coders.decodeFromByteArray(
             checkpointCoder,
-            CoderUtils.encodeToByteArray(checkpointCoder, checkpoint));
+            Coders.encodeToByteArray(checkpointCoder, checkpoint));
         reader.close();
         checkpoint.finalizeCheckpoint();
 

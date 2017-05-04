@@ -29,8 +29,8 @@ import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -40,6 +40,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
 public class JAXBCoder<T> extends CustomCoder<T> {
+
+  private static final VarLongCoder VAR_LONG_CODER = VarLongCoder.of();
 
   private final Class<T> jaxbClass;
   private transient volatile JAXBContext jaxbContext;
@@ -94,7 +96,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
           long size = getEncodedElementByteSize(value, Context.OUTER);
           // record the number of bytes the XML consists of so when reading we only read the encoded
           // value
-          VarInt.encode(size, outStream);
+          VAR_LONG_CODER.encode(size, outStream, context.nested());
         } catch (Exception e) {
           throw new CoderException(
               "An Exception occured while trying to get the size of an encoded representation", e);
@@ -112,7 +114,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     try {
       InputStream stream = inStream;
       if (!context.isWholeStream) {
-        long limit = VarInt.decodeLong(inStream);
+        long limit = VAR_LONG_CODER.decode(inStream, context.nested());
         stream = ByteStreams.limit(inStream, limit);
       }
       @SuppressWarnings("unchecked")

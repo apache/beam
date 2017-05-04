@@ -29,9 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,7 +100,7 @@ public class MapCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null Map");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test

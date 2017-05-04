@@ -33,8 +33,8 @@ import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkKeyGroupStateInternals;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -93,7 +93,7 @@ public class FlinkKeyGroupStateInternalsTest {
           keyGroupRange,
           new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
       keyedStateBackend.setCurrentKey(ByteBuffer.wrap(
-          CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "1")));
+          Coders.encodeToByteArray(StringUtf8Coder.of(), "1")));
       return keyedStateBackend;
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -171,10 +171,10 @@ public class FlinkKeyGroupStateInternalsTest {
   public void testKeyGroupAndCheckpoint() throws Exception {
     // assign to keyGroup 0
     ByteBuffer key0 = ByteBuffer.wrap(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "11111111"));
+        Coders.encodeToByteArray(StringUtf8Coder.of(), "11111111"));
     // assign to keyGroup 1
     ByteBuffer key1 = ByteBuffer.wrap(
-        CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "22222222"));
+        Coders.encodeToByteArray(StringUtf8Coder.of(), "22222222"));
     FlinkKeyGroupStateInternals<String> allState;
     {
       KeyedStateBackend keyedStateBackend = getKeyedStateBackend(2, new KeyGroupRange(0, 1));

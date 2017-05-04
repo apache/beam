@@ -67,7 +67,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -182,7 +182,7 @@ public class DirectRunnerTest implements Serializable {
       @Override
       public byte[] apply(Integer input) {
         try {
-          return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
+          return Coders.encodeToByteArray(VarIntCoder.of(), input);
         } catch (CoderException e) {
           fail("Unexpected Coder Exception " + e);
           throw new AssertionError("Unreachable");
@@ -204,7 +204,7 @@ public class DirectRunnerTest implements Serializable {
           @Override
           public KV<Integer, Long> apply(KV<byte[], Long> input) {
             try {
-              return KV.of(CoderUtils.decodeFromByteArray(VarIntCoder.of(), input.getKey()),
+              return KV.of(Coders.decodeFromByteArray(VarIntCoder.of(), input.getKey()),
                   input.getValue());
             } catch (CoderException e) {
               fail("Unexpected Coder Exception " + e);

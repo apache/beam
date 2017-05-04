@@ -24,7 +24,7 @@ import java.util.Map;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.kafka.common.serialization.Deserializer;
 
 /**
@@ -49,7 +49,7 @@ public class CoderBasedKafkaDeserializer<T> implements Deserializer<T> {
     }
 
     try {
-      return CoderUtils.decodeFromByteArray(coder, data);
+      return Coders.decodeFromByteArray(coder, data);
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }

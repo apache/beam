@@ -15,41 +15,61 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import com.google.common.base.MoreObjects;
-import java.io.FilterOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
  * A {@link OutputStream} wrapper which protects against the user attempting to modify
- * the underlying stream by closing it.
+ * the underlying stream by closing it or using mark.
  */
-public class UnownedOutputStream extends FilterOutputStream {
-  public UnownedOutputStream(OutputStream delegate) {
+class UnownedInputStream extends FilterInputStream {
+  public UnownedInputStream(InputStream delegate) {
     super(delegate);
   }
 
   @Override
   public void close() throws IOException {
-    throw new UnsupportedOperationException("Caller does not own the underlying output stream "
+    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
         + " and should not call close().");
   }
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof UnownedOutputStream
-        && ((UnownedOutputStream) obj).out.equals(out);
+    return obj instanceof UnownedInputStream
+        && ((UnownedInputStream) obj).in.equals(in);
   }
 
   @Override
   public int hashCode() {
-    return out.hashCode();
+    return in.hashCode();
+  }
+
+  @SuppressWarnings("UnsynchronizedOverridesSynchronized")
+  @Override
+  public void mark(int readlimit) {
+    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
+        + " and should not call mark().");
+  }
+
+  @Override
+  public boolean markSupported() {
+    return false;
+  }
+
+  @SuppressWarnings("UnsynchronizedOverridesSynchronized")
+  @Override
+  public void reset() throws IOException {
+    throw new UnsupportedOperationException("Caller does not own the underlying input stream "
+        + " and should not call reset().");
   }
 
   @Override
   public String toString() {
-    return MoreObjects.toStringHelper(UnownedOutputStream.class).add("out", out).toString();
+    return MoreObjects.toStringHelper(UnownedInputStream.class).add("in", in).toString();
   }
 }

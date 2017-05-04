@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;

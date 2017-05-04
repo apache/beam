@@ -23,8 +23,6 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;
@@ -84,7 +82,7 @@ public class DurationCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null ReadableDuration");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test

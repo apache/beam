@@ -25,8 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -78,9 +76,9 @@ public class ByteArrayCoderTest {
   @Test
   public void testEncodeThenMutate() throws Exception {
     byte[] input = { 0x7, 0x3, 0xA, 0xf };
-    byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, input);
+    byte[] encoded = Coders.encodeToByteArray(TEST_CODER, input);
     input[1] = 0x9;
-    byte[] decoded = CoderUtils.decodeFromByteArray(TEST_CODER, encoded);
+    byte[] decoded = Coders.decodeFromByteArray(TEST_CODER, encoded);
 
     // now that I have mutated the input, the output should NOT match
     assertThat(input, not(equalTo(decoded)));
@@ -89,7 +87,7 @@ public class ByteArrayCoderTest {
   @Test
   public void testEncodeAndOwn() throws Exception {
     for (byte[] value : TEST_VALUES) {
-      byte[] encodedSlow = CoderUtils.encodeToByteArray(TEST_CODER, value);
+      byte[] encodedSlow = Coders.encodeToByteArray(TEST_CODER, value);
       byte[] encodedFast = encodeToByteArrayAndOwn(TEST_CODER, value);
       assertThat(encodedSlow, equalTo(encodedFast));
     }
@@ -130,7 +128,7 @@ public class ByteArrayCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null byte[]");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test

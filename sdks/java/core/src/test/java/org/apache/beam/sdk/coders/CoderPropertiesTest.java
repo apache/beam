@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -26,6 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.hamcrest.CoreMatchers;

@@ -27,9 +27,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -167,33 +167,38 @@ public class Count {
     @Override
     public Coder<long[]> getAccumulatorCoder(CoderRegistry registry,
                                              Coder<T> inputCoder) {
-      return new CustomCoder<long[]>() {
-        @Override
-        public void encode(long[] value, OutputStream outStream, Context context)
-            throws IOException {
-          VarInt.encode(value[0], outStream);
-        }
+      return new BoxedLongCoder();
+    }
 
-        @Override
-        public long[] decode(InputStream inStream, Context context)
-            throws IOException, CoderException {
-          try {
-            return new long[] {VarInt.decodeLong(inStream)};
-          } catch (EOFException | UTFDataFormatException exn) {
-            throw new CoderException(exn);
-          }
-        }
+    private static class BoxedLongCoder extends CustomCoder<long[]> {
 
-        @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
-          return true;
-        }
+      private static final VarLongCoder VAR_LONG_CODER = VarLongCoder.of();
 
-        @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
-          return VarInt.getLength(value[0]);
+      @Override
+      public void encode(long[] value, OutputStream outStream, Context context)
+          throws IOException {
+        VAR_LONG_CODER.encode(value[0], outStream, context);
+      }
+
+      @Override
+      public long[] decode(InputStream inStream, Context context)
+          throws IOException, CoderException {
+        try {
+          return new long[] {VAR_LONG_CODER.decode(inStream, context)};
+        } catch (EOFException | UTFDataFormatException exn) {
+          throw new CoderException(exn);
         }
-      };
+      }
+
+      @Override
+      public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        return true;
+      }
+
+      @Override
+      protected long getEncodedElementByteSize(long[] value, Context context) throws Exception {
+        return VAR_LONG_CODER.getEncodedElementByteSize(value[0], context);
+      }
     }
   }
 }

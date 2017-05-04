@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;

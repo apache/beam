@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.junit.Test;

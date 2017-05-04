@@ -29,9 +29,9 @@ import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.util.VarInt;
 
 /**
  * Provides information about the pane an element belongs to. Every pane is implicitly associated
@@ -339,6 +339,8 @@ public final class PaneInfo {
 
     public static final PaneInfoCoder INSTANCE = new PaneInfoCoder();
 
+    private static VarLongCoder VAR_LONG_CODER = VarLongCoder.of();
+
     @Override
     public void encode(PaneInfo value, final OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
@@ -349,12 +351,12 @@ public final class PaneInfo {
           break;
         case ONE_INDEX:
           outStream.write(value.encodedByte | encoding.tag);
-          VarInt.encode(value.index, outStream);
+          VAR_LONG_CODER.encode(value.index, outStream, context);
           break;
         case TWO_INDICES:
           outStream.write(value.encodedByte | encoding.tag);
-          VarInt.encode(value.index, outStream);
-          VarInt.encode(value.nonSpeculativeIndex, outStream);
+          VAR_LONG_CODER.encode(value.index, outStream, context.nested());
+          VAR_LONG_CODER.encode(value.nonSpeculativeIndex, outStream, context);
           break;
         default:
           throw new CoderException("Unknown encoding " + encoding);
@@ -371,12 +373,12 @@ public final class PaneInfo {
         case FIRST:
           return base;
         case ONE_INDEX:
-          index = VarInt.decodeLong(inStream);
+          index = VAR_LONG_CODER.decode(inStream, context);
           onTimeIndex = base.timing == Timing.EARLY ? -1 : index;
           break;
         case TWO_INDICES:
-          index = VarInt.decodeLong(inStream);
-          onTimeIndex = VarInt.decodeLong(inStream);
+          index = VAR_LONG_CODER.decode(inStream, context.nested());
+          onTimeIndex = VAR_LONG_CODER.decode(inStream, context);
           break;
         default:
           throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));

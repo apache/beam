@@ -30,13 +30,13 @@ import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkStateInternals;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.GroupingState;
@@ -101,7 +101,7 @@ public class FlinkStateInternalsTest {
       underTest = new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
 
       keyedStateBackend.setCurrentKey(
-          ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
+          ByteBuffer.wrap(Coders.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

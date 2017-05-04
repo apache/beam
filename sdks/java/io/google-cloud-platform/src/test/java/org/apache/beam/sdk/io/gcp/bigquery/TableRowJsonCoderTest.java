@@ -24,7 +24,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
