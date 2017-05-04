@@ -952,6 +952,8 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
 
     public ResourceId getDestinationFile(FilenamePolicy policy, ResourceId outputDirectory,
                                          String extension) {
+      checkArgument(getShard() != WriteFiles.UNKNOWN_SHARDNUM);
+      checkArgument(getNumShards() != WriteFiles.UNKNOWN_NUMSHARDS);
       if (getWindow() != null) {
         return policy.windowedFilename(outputDirectory, new WindowedContext(
             getWindow(), getPaneInfo(), getShard(), getNumShards()), extension);

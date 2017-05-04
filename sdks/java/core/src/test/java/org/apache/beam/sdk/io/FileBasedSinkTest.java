@@ -46,12 +46,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
-import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
+import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
+import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -93,7 +93,7 @@ public class FileBasedSinkTest {
   @Test
   public void testWriter() throws Exception {
     String testUid = "testId";
-    ResourceId expectedFile = getBaseTempDirectory()
+    ResourceId expectedTempFile = getBaseTempDirectory()
         .resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
     List<String> expected = new ArrayList<>();
@@ -110,9 +110,8 @@ public class FileBasedSinkTest {
     FileResult result = writer.close();
 
     FileBasedSink sink = writer.getWriteOperation().getSink();
-    assertEquals(expectedFile, result.getDestinationFile(sink.getFilenamePolicy(),
-        getBaseTempDirectory(), sink.getExtension()));
-    assertFileContains(expected, expectedFile);
+    assertEquals(expectedTempFile, result.getTempFilename());
+    assertFileContains(expected, expectedTempFile);
   }
 
   /**
@@ -510,8 +509,7 @@ public class FileBasedSinkTest {
     writer.write("b");
     final FileResult result = writer.close();
 
-    assertEquals(
-        expectedFile, result.getDestinationFile(writeOp.getSink().getFilenamePolicy(), root, ""));
+    assertEquals(expectedFile, result.getTempFilename());
     assertFileContains(expected, expectedFile);
   }
 
