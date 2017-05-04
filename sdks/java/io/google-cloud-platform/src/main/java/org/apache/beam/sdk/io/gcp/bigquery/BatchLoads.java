@@ -19,11 +19,11 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
@@ -45,8 +45,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -116,18 +114,11 @@ class BatchLoads<DestinationT>
         .apply("GetTempFilePrefix", ParDo.of(new DoFn<Void, String>() {
           @ProcessElement
           public void getTempFilePrefix(ProcessContext c) {
-            String tempLocation = c.getPipelineOptions().getTempLocation();
-            String tempFilePrefix;
-            try {
-              IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-              tempFilePrefix =
-                  factory.resolve(
-                      factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-            } catch (IOException e) {
-              throw new RuntimeException(
-                  String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-            }
-            c.output(tempFilePrefix);
+            c.output(
+                resolveTempLocation(
+                    c.getPipelineOptions().getTempLocation(),
+                    "BigQueryWriteTemp",
+                    stepUuid));
           }
         }));
 

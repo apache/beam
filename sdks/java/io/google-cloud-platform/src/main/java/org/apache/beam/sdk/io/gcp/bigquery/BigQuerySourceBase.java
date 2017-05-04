@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -41,8 +42,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,15 +86,8 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
       TableReference tableToExtract = getTableToExtract(bqOptions);
       JobService jobService = bqServices.getJobService(bqOptions);
 
-      final String extractDestinationDir;
-      String tempLocation = bqOptions.getTempLocation();
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-        extractDestinationDir = factory.resolve(tempLocation, stepUuid);
-      } catch (IOException e) {
-        throw new RuntimeException(
-            String.format("Failed to resolve extract destination directory in %s", tempLocation));
-      }
+      final String extractDestinationDir =
+          resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
 
       String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
       List<String> tempFiles = executeExtract(

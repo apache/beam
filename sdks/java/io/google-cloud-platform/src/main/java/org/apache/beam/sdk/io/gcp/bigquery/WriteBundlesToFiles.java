@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -32,8 +34,6 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,17 +118,8 @@ class WriteBundlesToFiles<DestinationT>
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    String tempLocation = c.getPipelineOptions().getTempLocation();
-    String tempFilePrefix;
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix =
-          factory.resolve(
-              factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-    }
+    String tempFilePrefix = resolveTempLocation(
+        c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
     TableRowWriter writer = writers.get(c.element().getKey());
     if (writer == null) {
       writer = new TableRowWriter(tempFilePrefix);

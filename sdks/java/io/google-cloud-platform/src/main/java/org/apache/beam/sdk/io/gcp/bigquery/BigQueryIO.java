@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.getExtractJobId;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.services.bigquery.model.Job;
@@ -505,16 +506,11 @@ public class BigQueryIO {
             @Override
             void cleanup(PipelineOptions options) throws Exception {
               BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-              final String extractDestinationDir;
-              String tempLocation = bqOptions.getTempLocation();
-              try {
-                IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-                extractDestinationDir = factory.resolve(tempLocation, stepUuid);
-              } catch (IOException e) {
-                throw new RuntimeException(
-                    String.format("Failed to resolve extract destination directory in %s",
-                        tempLocation));
-              }
+              final String extractDestinationDir =
+                  resolveTempLocation(
+                      bqOptions.getTempLocation(),
+                      "BigQueryExtractTemp",
+                      stepUuid);
 
               JobReference jobRef =
                   new JobReference()

@@ -91,7 +91,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -982,38 +981,6 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
-  }
-
-  @Test
-  public void testBatchWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ false);
-  }
-
-  @Test
-  public void testStreamingWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ true);
-  }
-
-  private void testWritePrimitiveDisplayData(boolean streaming) throws IOException,
-      InterruptedException {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
-
-    BigQueryIO.Write write = BigQueryIO.writeTableRows()
-        .to("project:dataset.table")
-        .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
-        .withTestServices(new FakeBigQueryServices()
-          .withDatasetService(new FakeDatasetService())
-          .withJobService(new FakeJobService()))
-        .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
-        displayData, hasItem(hasDisplayItem("tableSpec")));
-
-    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
-        displayData, hasItem(hasDisplayItem("schema")));
   }
 
   @Test

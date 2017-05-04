@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -112,18 +114,8 @@ class WriteTables<DestinationT>
           tableReference, tableDestination.getTableDescription());
     }
 
-    String tempLocation = c.getPipelineOptions().getTempLocation();
-    String tempFilePrefix;
-    try {
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-      tempFilePrefix =
-          factory.resolve(
-              factory.resolve(tempLocation, "BigQueryWriteTemp"), stepUuid);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Failed to resolve BigQuery temp location in %s", tempLocation), e);
-    }
-
+    String tempFilePrefix = resolveTempLocation(
+        c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
     Integer partition = c.element().getKey().getShardNumber();
     List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
     String jobIdPrefix =
