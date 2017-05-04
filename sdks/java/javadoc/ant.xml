@@ -79,7 +79,7 @@
         offline="true" packageListLoc="joda-docs"/>
       <link href="http://junit.sourceforge.net/javadoc/"
             offline="true" packageListLoc="junit-docs"/>
-      
+
       <excludepackage name="org.apache.beam.examples.*"/>
       <excludepackage name="org.apache.beam.fn.*"/>
       <excludepackage name="org.apache.beam.runners.apex.translation.*"/>
@@ -89,6 +89,8 @@
       <excludepackage name="org.apache.beam.runners.flink.translation.*"/>
       <excludepackage name="org.apache.beam.runners.spark.examples.*"/>
       <excludepackage name="org.apache.beam.runners.spark.translation.*"/>
+      <excludepackage name="org.apache.beam.sdk.transforms.reflect.*"/>
+      <excludepackage name="org.apache.beam.sdk.util.*"/>
     </javadoc>
     <!-- make a jar file to push to central -->
     <jar destfile="${output.jar}" basedir="${output.dir}"/>
