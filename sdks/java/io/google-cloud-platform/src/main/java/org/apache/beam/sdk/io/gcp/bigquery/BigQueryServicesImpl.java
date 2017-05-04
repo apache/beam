@@ -223,7 +223,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
-          LOG.info("Started BigQuery job: {}.", jobRef);
+          LOG.info("Started BigQuery job: {}.\n{}", jobRef,
+              formatBqStatusCommand(
+                  jobRef.getJobId().getProject(),
+                  jobRef.getJobId().getJob()));
           return; // SUCCEEDED
         } catch (GoogleJsonResponseException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
@@ -271,7 +274,10 @@ class BigQueryServicesImpl implements BigQueryServices {
           }
           // The job is not DONE, wait longer and retry.
           if (Instant.now().isAfter(nextLog)) {
-            LOG.info("Still waiting for BigQuery job {}", jobRef.getJobId());
+            LOG.info("Still waiting for BigQuery job {}\n{}",
+                jobRef.getJobId(),
+                formatBqStatusCommand(jobRef.getJobId().getProject(),
+                    jobRef.getJobId().getJob()));
             nextLog = Instant.now().plus(POLLING_LOG_GAP);
           }
         } catch (IOException e) {
@@ -281,6 +287,11 @@ class BigQueryServicesImpl implements BigQueryServices {
       } while (nextBackOff(sleeper, backoff));
       LOG.warn("Unable to poll job status: {}, aborting after reached max .", jobRef.getJobId());
       return null;
+    }
+
+    private String formatBqStatusCommand(String projectId, String jobId) {
+      return String.format("bq show -j --format=prettyjson --project_id=%s %s",
+          projectId, jobId);
     }
 
     @Override
