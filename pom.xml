@@ -106,6 +106,7 @@
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
+    <bigtable.version>0.9.6</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -129,6 +130,7 @@
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.8.Final</netty.version>
+    <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
@@ -796,6 +798,25 @@
             <artifactId>guava-jdk5</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud.bigtable</groupId>
+        <artifactId>bigtable-protos</artifactId>
+        <version>${bigtable.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud.bigtable</groupId>
+        <artifactId>bigtable-client-core</artifactId>
+        <version>${bigtable.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-tcnative-boringssl-static</artifactId>
+        <version>${netty.tcnative.version}</version>
+        <scope>runtime</scope>
       </dependency>
 
       <dependency>
