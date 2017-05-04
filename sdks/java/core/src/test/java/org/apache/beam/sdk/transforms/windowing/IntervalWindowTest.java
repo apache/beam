@@ -24,7 +24,7 @@ import com.google.common.collect.Lists;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.coders.Coders;
 import org.joda.time.Instant;
 import org.junit.Test;

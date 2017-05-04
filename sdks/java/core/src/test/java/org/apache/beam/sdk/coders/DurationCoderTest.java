@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.ReadableDuration;

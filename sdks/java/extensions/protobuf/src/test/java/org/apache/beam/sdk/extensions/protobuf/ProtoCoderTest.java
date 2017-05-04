@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageA;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;

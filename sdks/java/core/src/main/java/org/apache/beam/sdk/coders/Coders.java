@@ -27,12 +27,8 @@ import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
-import org.apache.beam.sdk.util.UnownedInputStream;
-import org.apache.beam.sdk.util.UnownedOutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**

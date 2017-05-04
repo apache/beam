@@ -24,12 +24,8 @@ import static org.mockito.Mockito.mock;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.Coders;
-import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.testing.CoderPropertiesTest.ClosingCoder;
+import org.apache.beam.sdk.coders.CoderPropertiesTest.ClosingCoder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

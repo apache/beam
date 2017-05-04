@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
-import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import org.apache.beam.sdk.coders.UnownedOutputStream;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,48 +28,30 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link UnownedInputStream}. */
+/** Unit tests for {@link UnownedOutputStream}. */
 @RunWith(JUnit4.class)
-public class UnownedInputStreamTest {
+public class UnownedOutputStreamTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
-  private ByteArrayInputStream bais;
-  private UnownedInputStream os;
+  private ByteArrayOutputStream baos;
+  private UnownedOutputStream os;
 
   @Before
   public void setup() {
-    bais = new ByteArrayInputStream(new byte[]{ 1, 2, 3 });
-    os = new UnownedInputStream(bais);
+    baos = new ByteArrayOutputStream();
+    os = new UnownedOutputStream(baos);
   }
 
   @Test
   public void testHashCodeEqualsAndToString() throws Exception {
-    assertEquals(bais.hashCode(), os.hashCode());
-    assertEquals("UnownedInputStream{in=" + bais + "}", os.toString());
-    assertEquals(new UnownedInputStream(bais), os);
+    assertEquals(baos.hashCode(), os.hashCode());
+    assertEquals("UnownedOutputStream{out=" + baos + "}", os.toString());
+    assertEquals(new UnownedOutputStream(baos), os);
   }
 
   @Test
   public void testClosingThrows() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    expectedException.expectMessage("close()");
     os.close();
-  }
-
-  @Test
-  public void testMarkThrows() throws Exception {
-    assertFalse(os.markSupported());
-    expectedException.expect(UnsupportedOperationException.class);
-    expectedException.expectMessage("Caller does not own the underlying");
-    expectedException.expectMessage("mark()");
-    os.mark(1);
-  }
-
-  @Test
-  public void testResetThrows() throws Exception {
-    expectedException.expect(UnsupportedOperationException.class);
-    expectedException.expectMessage("Caller does not own the underlying");
-    expectedException.expectMessage("reset()");
-    os.reset();
   }
 }

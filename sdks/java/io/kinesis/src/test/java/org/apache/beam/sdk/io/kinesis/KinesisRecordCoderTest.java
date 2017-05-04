@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import java.nio.ByteBuffer;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.joda.time.Instant;
 import org.junit.Test;
 

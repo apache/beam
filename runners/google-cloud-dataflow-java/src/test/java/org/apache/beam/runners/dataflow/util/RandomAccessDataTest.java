@@ -31,7 +31,7 @@ import java.util.Arrays;
 import org.apache.beam.runners.dataflow.util.RandomAccessData.RandomAccessDataCoder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
