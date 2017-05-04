@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.values;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
@@ -33,6 +33,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Materialization;
@@ -41,18 +42,15 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValueBase;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * Implementations of {@link PCollectionView} shared across the SDK.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
  *
- * <p>For internal use only, subject to change.
+ * <p>Implementations of {@link PCollectionView} shared across the SDK.
  */
+@Internal
 public class PCollectionViews {
 
   /**
