@@ -149,6 +149,18 @@ public abstract class StructuredCoder<T> implements Coder<T> {
    *         unless it is overridden. This is considered expensive.
    */
   @Override
+  public boolean isRegisterByteSizeObserverCheap(T value) {
+    return isRegisterByteSizeObserverCheap(value, Context.NESTED);
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
+   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
+   *         unless it is overridden. This is considered expensive.
+   */
+  @Override
   public boolean isRegisterByteSizeObserverCheap(T value, Context context) {
     return false;
   }
@@ -165,6 +177,12 @@ public abstract class StructuredCoder<T> implements Coder<T> {
       throw new IllegalArgumentException(
           "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
     }
+  }
+
+  @Override
+  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
+      throws Exception {
+    registerByteSizeObserver(value, observer, Context.NESTED);
   }
 
   /**

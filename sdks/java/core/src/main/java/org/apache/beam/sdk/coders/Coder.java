@@ -246,6 +246,19 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
+  boolean isRegisterByteSizeObserverCheap(T value);
+
+  /**
+   * Returns whether {@link #registerByteSizeObserver} cheap enough to
+   * call for every element, that is, if this {@code Coder} can
+   * calculate the byte size of the element to be coded in roughly
+   * constant time (or lazily).
+   *
+   * <p>Not intended to be called by user code, but instead by
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * implementations.
+   */
+  @Deprecated
   boolean isRegisterByteSizeObserverCheap(T value, Context context);
 
   /**
@@ -256,6 +269,19 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
+  void registerByteSizeObserver(
+      T value, ElementByteSizeObserver observer)
+      throws Exception;
+
+  /**
+   * Notifies the {@code ElementByteSizeObserver} about the byte size
+   * of the encoded value using this {@code Coder}.
+   *
+   * <p>Not intended to be called by user code, but instead by
+   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * implementations.
+   */
+  @Deprecated
   void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
