@@ -224,7 +224,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
     assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
     assertThat(optionsMap,
-        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
+        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging/"));
     assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
     assertThat(optionsMap, hasEntry("streaming", (Object) false));
     assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
