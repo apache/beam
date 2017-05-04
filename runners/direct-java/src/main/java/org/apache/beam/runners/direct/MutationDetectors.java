@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.direct;
 
 import java.util.Arrays;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.IllegalMutationException;
 
 /**
  * Static methods for creating and working with {@link MutationDetector}.
  */
-public class MutationDetectors {
+class MutationDetectors {
 
   private MutationDetectors() {}
 
