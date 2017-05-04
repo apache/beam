@@ -89,7 +89,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
@@ -867,7 +867,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIORead
-      extends PTransform<PBegin, PCollection<PubsubIO.PubsubMessage>> {
+      extends PTransform<PBegin, PCollection<PubsubMessage>> {
     private final PubsubUnboundedSource transform;
 
     /**
@@ -883,8 +883,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PCollection<PubsubIO.PubsubMessage> expand(PBegin input) {
-      return PCollection.<PubsubIO.PubsubMessage>createPrimitiveOutputInternal(
+    public PCollection<PubsubMessage> expand(PBegin input) {
+      return PCollection.<PubsubMessage>createPrimitiveOutputInternal(
           input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
           .setCoder(new PubsubMessageWithAttributesCoder());
     }
@@ -956,9 +956,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class IdentityMessageFn
-      extends SimpleFunction<PubsubIO.PubsubMessage, PubsubIO.PubsubMessage> {
+      extends SimpleFunction<PubsubMessage, PubsubMessage> {
     @Override
-    public PubsubIO.PubsubMessage apply(PubsubIO.PubsubMessage input) {
+    public PubsubMessage apply(PubsubMessage input) {
       return input;
     }
   }
@@ -968,7 +968,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * instead defer to Windmill's implementation.
    */
   private static class StreamingPubsubIOWrite
-      extends PTransform<PCollection<PubsubIO.PubsubMessage>, PDone> {
+      extends PTransform<PCollection<PubsubMessage>, PDone> {
     private final PubsubUnboundedSink transform;
 
     /**
@@ -984,7 +984,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PDone expand(PCollection<PubsubIO.PubsubMessage> input) {
+    public PDone expand(PCollection<PubsubMessage> input) {
       return PDone.in(input.getPipeline());
     }
 
@@ -1332,7 +1332,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private class StreamingPubsubIOWriteOverrideFactory
       implements PTransformOverrideFactory<
-          PCollection<PubsubIO.PubsubMessage>, PDone, PubsubUnboundedSink> {
+          PCollection<PubsubMessage>, PDone, PubsubUnboundedSink> {
     private final DataflowRunner runner;
 
     private StreamingPubsubIOWriteOverrideFactory(DataflowRunner runner) {
@@ -1340,9 +1340,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<PubsubIO.PubsubMessage>, PDone>
+    public PTransformReplacement<PCollection<PubsubMessage>, PDone>
         getReplacementTransform(
-            AppliedPTransform<PCollection<PubsubIO.PubsubMessage>, PDone, PubsubUnboundedSink>
+            AppliedPTransform<PCollection<PubsubMessage>, PDone, PubsubUnboundedSink>
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),

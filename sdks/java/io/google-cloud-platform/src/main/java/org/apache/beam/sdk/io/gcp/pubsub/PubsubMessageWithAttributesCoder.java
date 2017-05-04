@@ -30,13 +30,13 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes. */
-public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.PubsubMessage> {
+public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage> {
   private static final Coder<byte[]> PAYLOAD_CODER =
       NullableCoder.of(ByteArrayCoder.of());
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
       StringUtf8Coder.of(), StringUtf8Coder.of());
 
-  public static Coder<PubsubIO.PubsubMessage> of(TypeDescriptor<PubsubIO.PubsubMessage> ignored) {
+  public static Coder<PubsubMessage> of(TypeDescriptor<PubsubMessage> ignored) {
     return of();
   }
 
@@ -44,19 +44,19 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.Pubsu
     return new PubsubMessageWithAttributesCoder();
   }
 
-  public void encode(PubsubIO.PubsubMessage value, OutputStream outStream, Context context)
+  public void encode(PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
     PAYLOAD_CODER.encode(
-        value.getMessage(),
+        value.getPayload(),
         outStream,
         context.nested());
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
   }
 
   @Override
-  public PubsubIO.PubsubMessage decode(InputStream inStream, Context context) throws IOException {
+  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream, context.nested());
     Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context);
-    return new PubsubIO.PubsubMessage(payload, attributes);
+    return new PubsubMessage(payload, attributes);
   }
 }
