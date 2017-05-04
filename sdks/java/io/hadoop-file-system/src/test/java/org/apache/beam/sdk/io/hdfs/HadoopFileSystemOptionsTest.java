@@ -18,11 +18,18 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import java.util.AbstractMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,5 +51,69 @@ public class HadoopFileSystemOptionsTest {
         new AbstractMap.SimpleEntry("propertyA", "A")));
     assertThat(options.getHdfsConfiguration().get(1), Matchers.<Map.Entry<String, String>>contains(
         new AbstractMap.SimpleEntry("propertyB", "B")));
+  }
+
+  @Test
+  public void testDefaultUnsetEnvHdfsConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.<String, String>of());
+    assertNull(projectFactory.create(PipelineOptionsFactory.create()));
+  }
+
+  @Test
+  public void testDefaultJustSetHadoopConfDirConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("HADOOP_CONF_DIR", this.getClass().getResource("/").getPath());
+    when(projectFactory.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList = projectFactory.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultJustSetYarnConfDirConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", this.getClass().getResource("/").getPath());
+    when(projectFactory.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList = projectFactory.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirAndSameConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+            spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", this.getClass().getResource("/").getPath());
+    environment.put("HADOOP_CONF_DIR", this.getClass().getResource("/").getPath());
+    when(projectFactory.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList = projectFactory.create(PipelineOptionsFactory.create());
+    assertEquals(1, configurationList.size());
+    assertThat(configurationList.get(0).get("propertyA"), Matchers.equalTo("A"));
+    assertThat(configurationList.get(0).get("propertyB"), Matchers.equalTo("B"));
+  }
+
+  @Test
+  public void testDefaultSetYarnConfDirAndHadoopConfDirNotSameConfiguration() {
+    HadoopFileSystemOptions.ConfigurationLocator projectFactory =
+              spy(new HadoopFileSystemOptions.ConfigurationLocator());
+    Map<String, String> environment = Maps.newHashMap();
+    environment.put("YARN_CONF_DIR", this.getClass().getResource("/").getPath() + "/conf");
+    environment.put("HADOOP_CONF_DIR", this.getClass().getResource("/").getPath());
+    when(projectFactory.getEnvironment()).thenReturn(environment);
+
+    List<Configuration> configurationList = projectFactory.create(PipelineOptionsFactory.create());
+    assertEquals(2, configurationList.size());
   }
 }

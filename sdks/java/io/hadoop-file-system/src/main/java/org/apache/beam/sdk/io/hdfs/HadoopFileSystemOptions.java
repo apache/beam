@@ -17,12 +17,22 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import java.io.File;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration}
@@ -39,11 +49,65 @@ public interface HadoopFileSystemOptions extends PipelineOptions {
   void setHdfsConfiguration(List<Configuration> value);
 
   /** A {@link DefaultValueFactory} which locates a Hadoop {@link Configuration}. */
-  class ConfigurationLocator implements DefaultValueFactory<Configuration> {
+  class ConfigurationLocator implements DefaultValueFactory<List<Configuration>> {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationLocator.class);
     @Override
-    public Configuration create(PipelineOptions options) {
-      // TODO: Find default configuration to use
-      return null;
+    public List<Configuration> create(PipelineOptions options) {
+      // Find default configuration when HADOOP_CONF_DIR or YARN_CONF_DIR is set.
+      List<Configuration> configurationList = readConfigurationFromHadoopYarnConfigDirs();
+      return configurationList.size() > 0 ? configurationList : null;
+    }
+
+    private List<Configuration> readConfigurationFromHadoopYarnConfigDirs() {
+      List<Configuration> configurationList = Lists.newArrayList();
+
+      /*
+      * If we find a configuration in HADOOP_CONF_DIR and YARN_CONF_DIR,
+      * we should be returning them both separately.
+      *
+      * Also, ensure that we only load one configuration if both
+      * HADOOP_CONF_DIR and YARN_CONF_DIR point to the same location.
+      */
+      Set<String> confDirs = Sets.newHashSet();
+      for (String confDir : Lists.newArrayList("HADOOP_CONF_DIR", "YARN_CONF_DIR")) {
+        if (getEnvironment().containsKey(confDir)) {
+          String hadoopConfDir = getEnvironment().get(confDir);
+          if (!Strings.isNullOrEmpty(hadoopConfDir)) {
+            confDirs.add(hadoopConfDir);
+          }
+        }
+      }
+
+      for (String confDir : confDirs) {
+        if (new File(confDir).exists()) {
+          Configuration conf = new Configuration(false);
+          if (new File(confDir, "core-site.xml").exists()) {
+            conf.addResource(new Path(confDir, "core-site.xml"));
+
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Adding {}/core-site.xml to hadoop configuration", confDir);
+            }
+          }
+
+          if (new File(confDir, "hdfs-site.xml").exists()) {
+            conf.addResource(new Path(confDir, "hdfs-site.xml"));
+
+            if (LOG.isDebugEnabled()) {
+              LOG.debug("Adding {}/hdfs-site.xml to hadoop configuration", confDir);
+            }
+          }
+
+          if (conf.size() != 0) {
+            configurationList.add(conf);
+          }
+        }
+      }
+      return configurationList;
+    }
+
+    @VisibleForTesting
+    Map<String, String> getEnvironment() {
+      return System.getenv();
     }
   }
 }
