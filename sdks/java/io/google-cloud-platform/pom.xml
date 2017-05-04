@@ -85,7 +85,6 @@
     <dependency>
       <groupId>com.google.api.grpc</groupId>
       <artifactId>grpc-google-common-protos</artifactId>
-      <version>${grpc-google-common-protos.version}</version>
     </dependency>
 
     <dependency>
@@ -96,7 +95,6 @@
     <dependency>
       <groupId>com.google.api</groupId>
       <artifactId>api-common</artifactId>
-      <version>${api-common.version}</version>
     </dependency>
 
     <dependency>
@@ -166,7 +164,6 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-spanner</artifactId>
-      <version>${spanner.version}</version>
     </dependency>
 
     <dependency>
