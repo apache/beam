@@ -37,9 +37,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 

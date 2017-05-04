@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.values;
 
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
@@ -24,16 +24,20 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * Immutable struct containing a value as well as a unique id identifying the value.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
+ * <p>Immutable struct containing a value as well as a unique id identifying the value.
  *
  * @param <ValueT> the underlying value type
  */
+@Internal
 public class ValueWithRecordId<ValueT> {
   private final ValueT value;
   private final byte[] id;
