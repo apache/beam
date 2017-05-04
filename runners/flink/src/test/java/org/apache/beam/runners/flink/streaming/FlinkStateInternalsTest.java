@@ -42,7 +42,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
@@ -101,7 +101,7 @@ public class FlinkStateInternalsTest {
       underTest = new FlinkStateInternals<>(keyedStateBackend, StringUtf8Coder.of());
 
       keyedStateBackend.setCurrentKey(
-          ByteBuffer.wrap(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
+          ByteBuffer.wrap(Coders.encodeToByteArray(StringUtf8Coder.of(), "Hello")));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

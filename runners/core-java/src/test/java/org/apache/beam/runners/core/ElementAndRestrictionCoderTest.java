@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -121,7 +121,7 @@ public class ElementAndRestrictionCoderTest<K, V> {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null ElementAndRestriction");
 
-    CoderUtils.encodeToBase64(
+    Coders.encodeToBase64(
         ElementAndRestrictionCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), null);
   }
 }

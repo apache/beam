@@ -31,7 +31,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageB;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageC;
 import org.apache.beam.sdk.extensions.protobuf.Proto2CoderTestMessages.MessageWithMap;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -128,7 +128,7 @@ public class ProtoCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null MessageA");
 
-    CoderUtils.encodeToBase64(ProtoCoder.of(MessageA.class), null);
+    Coders.encodeToBase64(ProtoCoder.of(MessageA.class), null);
   }
 
   @Test
@@ -164,6 +164,6 @@ public class ProtoCoderTest {
 
     // Assert the encoded messages are not equal.
     Coder<MessageWithMap> coder = ProtoCoder.of(MessageWithMap.class);
-    assertNotEquals(CoderUtils.encodeToBase64(coder, msg2), CoderUtils.encodeToBase64(coder, msg1));
+    assertNotEquals(Coders.encodeToBase64(coder, msg2), Coders.encodeToBase64(coder, msg1));
   }
 }

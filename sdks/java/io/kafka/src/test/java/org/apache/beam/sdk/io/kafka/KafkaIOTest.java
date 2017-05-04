@@ -74,7 +74,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -532,7 +532,7 @@ public class KafkaIOTest {
     assertEquals(numToSkip - 1, reader.getCurrentTimestamp().getMillis());
 
     // Checkpoint and restart, and confirm that the source continues correctly.
-    KafkaCheckpointMark mark = CoderUtils.clone(
+    KafkaCheckpointMark mark = Coders.clone(
         source.getCheckpointMarkCoder(), (KafkaCheckpointMark) reader.getCheckpointMark());
     reader = source.createReader(null, mark);
 
@@ -566,7 +566,7 @@ public class KafkaIOTest {
     }
 
     // Checkpoint and restart, and confirm that the source continues correctly.
-    KafkaCheckpointMark mark = CoderUtils.clone(
+    KafkaCheckpointMark mark = Coders.clone(
         source.getCheckpointMarkCoder(), (KafkaCheckpointMark) reader.getCheckpointMark());
 
     // Create another source with MockConsumer with OffsetResetStrategy.LATEST. This insures that

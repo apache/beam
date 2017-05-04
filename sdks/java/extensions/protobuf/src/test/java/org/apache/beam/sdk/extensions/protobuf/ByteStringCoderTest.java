@@ -31,7 +31,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,7 +104,7 @@ public class ByteStringCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null ByteString");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test
@@ -118,7 +118,7 @@ public class ByteStringCoderTest {
   public void testEncodedElementByteSizeInAllContexts() throws Throwable {
     for (Context context : CoderProperties.ALL_CONTEXTS) {
       for (ByteString value : TEST_VALUES) {
-        byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, value, context);
+        byte[] encoded = Coders.encodeToByteArray(TEST_CODER, value, context);
         assertEquals(encoded.length, TEST_CODER.getEncodedElementByteSize(value, context));
       }
     }

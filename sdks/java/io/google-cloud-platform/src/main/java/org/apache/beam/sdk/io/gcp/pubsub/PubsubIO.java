@@ -53,7 +53,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -956,7 +956,7 @@ public class PubsubIO {
     @Override
     public T apply(PubsubMessage input) {
       try {
-        return CoderUtils.decodeFromByteArray(coder, input.getPayload());
+        return Coders.decodeFromByteArray(coder, input.getMessage());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }
@@ -983,7 +983,7 @@ public class PubsubIO {
     public PubsubMessage apply(T input) {
       try {
         return new PubsubMessage(
-            CoderUtils.encodeToByteArray(coder, input), ImmutableMap.<String, String>of());
+            Coders.encodeToByteArray(coder, input), ImmutableMap.<String, String>of());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

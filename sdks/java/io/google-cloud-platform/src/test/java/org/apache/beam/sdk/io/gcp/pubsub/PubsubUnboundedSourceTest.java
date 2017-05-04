@@ -52,7 +52,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
@@ -239,8 +239,8 @@ public class PubsubUnboundedSourceTest {
 
     // Restore from checkpoint.
     byte[] checkpointBytes =
-        CoderUtils.encodeToByteArray(primSource.getCheckpointMarkCoder(), checkpoint);
-    checkpoint = CoderUtils.decodeFromByteArray(primSource.getCheckpointMarkCoder(),
+        Coders.encodeToByteArray(primSource.getCheckpointMarkCoder(), checkpoint);
+    checkpoint = Coders.decodeFromByteArray(primSource.getCheckpointMarkCoder(),
                                                 checkpointBytes);
     assertEquals(1, checkpoint.notYetReadIds.size());
     assertEquals("ackid_1", checkpoint.notYetReadIds.get(0));
@@ -385,7 +385,7 @@ public class PubsubUnboundedSourceTest {
 
     checkpoint.finalizeCheckpoint();
     PubsubCheckpoint deserCheckpoint =
-        CoderUtils.clone(actualSource.getCheckpointMarkCoder(), checkpoint);
+        Coders.clone(actualSource.getCheckpointMarkCoder(), checkpoint);
     assertThat(checkpoint.subscriptionPath, not(nullValue()));
     assertThat(checkpoint.subscriptionPath, equalTo(deserCheckpoint.subscriptionPath));
 

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,7 +79,7 @@ public class VarIntCoderTest {
     thrown.expect(CoderException.class);
     thrown.expectMessage("cannot encode a null Integer");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    Coders.encodeToBase64(TEST_CODER, null);
   }
 
   @Test

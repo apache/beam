@@ -48,7 +48,7 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.KeyGroupsList;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -99,7 +99,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   public K getKey() {
     ByteBuffer keyBytes = (ByteBuffer) keyedStateBackend.getCurrentKey();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      return Coders.decodeFromByteArray(keyCoder, keyBytes.array());
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }

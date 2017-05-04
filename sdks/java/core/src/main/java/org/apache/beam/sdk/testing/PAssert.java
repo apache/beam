@@ -64,7 +64,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -931,7 +931,7 @@ public class PAssert {
                   new DoFn<T, T>() {
                     @ProcessElement
                     public void processElement(ProcessContext context) throws CoderException {
-                      context.output(CoderUtils.clone(coder, context.element()));
+                      context.output(Coders.clone(coder, context.element()));
                     }
                   }))
           .apply(actualView);
@@ -952,7 +952,7 @@ public class PAssert {
       this.coder = coder;
 
       try {
-        this.encodedExpected = CoderUtils.encodeToByteArray(coder, expected);
+        this.encodedExpected = Coders.encodeToByteArray(coder, expected);
       } catch (IOException coderException) {
         throw new RuntimeException(coderException);
       }
@@ -961,7 +961,7 @@ public class PAssert {
     @Override
     public Void apply(T actual) {
       try {
-        T expected = CoderUtils.decodeFromByteArray(coder, encodedExpected);
+        T expected = Coders.decodeFromByteArray(coder, encodedExpected);
         return relation.assertFor(expected).apply(actual);
       } catch (IOException coderException) {
         throw new RuntimeException(coderException);

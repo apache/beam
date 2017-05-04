@@ -25,7 +25,7 @@ import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 
 /**
  * A {@link Supplier} that returns a static set of {@link BoundedWindow BoundedWindows}. The
@@ -42,7 +42,7 @@ final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Seria
     ImmutableSet.Builder<byte[]> windowsBuilder = ImmutableSet.builder();
     for (W window : windows) {
       try {
-        windowsBuilder.add(CoderUtils.encodeToByteArray(coder, window));
+        windowsBuilder.add(Coders.encodeToByteArray(coder, window));
       } catch (CoderException e) {
         throw new IllegalArgumentException(
             "Could not encode provided windows with the provided window coder", e);
@@ -69,7 +69,7 @@ final class WindowSupplier implements Supplier<Collection<BoundedWindow>>, Seria
       ImmutableList.Builder<BoundedWindow> windowsBuilder = ImmutableList.builder();
       for (byte[] encoded : encodedWindows) {
         try {
-          windowsBuilder.add(CoderUtils.decodeFromByteArray(coder, encoded));
+          windowsBuilder.add(Coders.decodeFromByteArray(coder, encoded));
         } catch (CoderException e) {
           throw new IllegalArgumentException(
               "Could not decode provided windows with the provided window coder", e);

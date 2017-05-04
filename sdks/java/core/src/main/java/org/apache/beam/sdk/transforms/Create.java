@@ -44,7 +44,7 @@ import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.OffsetBasedSource.OffsetBasedReader;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -360,7 +360,7 @@ public class Create<T> {
         ImmutableList.Builder<byte[]> allElementsBytes = ImmutableList.builder();
         long totalSize = 0L;
         for (T element : elements) {
-          byte[] bytes = CoderUtils.encodeToByteArray(elemCoder, element);
+          byte[] bytes = Coders.encodeToByteArray(elemCoder, element);
           allElementsBytes.add(bytes);
           totalSize += bytes.length;
         }
@@ -469,7 +469,7 @@ public class Create<T> {
         index++;
         next =
             Optional.fromNullable(
-                CoderUtils.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
+                Coders.decodeFromByteArray(source.coder, source.allElementsBytes.get(index)));
         return true;
       }
     }

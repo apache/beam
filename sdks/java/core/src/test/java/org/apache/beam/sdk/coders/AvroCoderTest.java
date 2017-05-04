@@ -66,7 +66,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -222,8 +221,8 @@ public class AvroCoderTest {
     AvroCoder<Object> avroCoder1 = (AvroCoder) AvroCoder.of(pojoClass1);
     AvroCoder<Object> avroCoder2 = (AvroCoder) AvroCoder.of(pojoClass2);
 
-    Object cloned1 = CoderUtils.clone(avroCoder1, pojo1);
-    Object cloned2 = CoderUtils.clone(avroCoder2, pojo2);
+    Object cloned1 = Coders.clone(avroCoder1, pojo1);
+    Object cloned2 = Coders.clone(avroCoder2, pojo2);
 
     Class<?> class1 = cloned1.getClass();
     Class<?> class2 = cloned2.getClass();

@@ -34,7 +34,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -112,8 +111,8 @@ public class SerializableCoderTest implements Serializable {
       records.add(new MyRecord(l));
     }
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, records);
-    Iterable<MyRecord> decoded = CoderUtils.decodeFromByteArray(coder, encoded);
+    byte[] encoded = Coders.encodeToByteArray(coder, records);
+    Iterable<MyRecord> decoded = Coders.decodeFromByteArray(coder, encoded);
 
     assertEquals(records, decoded);
   }
@@ -164,8 +163,8 @@ public class SerializableCoderTest implements Serializable {
     String source = new String(chars);
 
     // Verify OUTER encoding.
-    assertEquals(source, CoderUtils.decodeFromByteArray(coder,
-        CoderUtils.encodeToByteArray(coder, source)));
+    assertEquals(source, Coders.decodeFromByteArray(coder,
+        Coders.encodeToByteArray(coder, source)));
 
     // Second string uses a UTF8 character.  Each codepoint is translated into
     // 4 characters in UTF8.
@@ -174,8 +173,8 @@ public class SerializableCoderTest implements Serializable {
     String source2 = new String(codePoints, 0, codePoints.length);
 
     // Verify OUTER encoding.
-    assertEquals(source2, CoderUtils.decodeFromByteArray(coder,
-        CoderUtils.encodeToByteArray(coder, source2)));
+    assertEquals(source2, Coders.decodeFromByteArray(coder,
+        Coders.encodeToByteArray(coder, source2)));
 
 
     // Encode both strings into NESTED form.
@@ -197,8 +196,8 @@ public class SerializableCoderTest implements Serializable {
   @Test
   public void testNullEncoding() throws Exception {
     Coder<String> coder = SerializableCoder.of(String.class);
-    byte[] encodedBytes = CoderUtils.encodeToByteArray(coder, null);
-    assertNull(CoderUtils.decodeFromByteArray(coder, encodedBytes));
+    byte[] encodedBytes = Coders.encodeToByteArray(coder, null);
+    assertNull(Coders.decodeFromByteArray(coder, encodedBytes));
   }
 
   @Test

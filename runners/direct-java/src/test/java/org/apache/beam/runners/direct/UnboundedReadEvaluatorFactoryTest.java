@@ -63,7 +63,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -540,7 +540,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       @Override
       public byte[] getCurrentRecordId() {
         try {
-          return CoderUtils.encodeToByteArray(coder, getCurrent());
+          return Coders.encodeToByteArray(coder, getCurrent());
         } catch (CoderException e) {
           throw new RuntimeException(e);
         }

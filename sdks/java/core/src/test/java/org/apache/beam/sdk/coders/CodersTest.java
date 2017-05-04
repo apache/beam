@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.coders;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -27,6 +27,7 @@ import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.testing.CoderPropertiesTest.ClosingCoder;
 import org.junit.Rule;
@@ -36,10 +37,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for CoderUtils.
+ * Tests for Coders.
  */
 @RunWith(JUnit4.class)
-public class CoderUtilsTest {
+public class CodersTest {
 
   @Rule
   public transient ExpectedException expectedException = ExpectedException.none();
@@ -77,48 +78,48 @@ public class CoderUtilsTest {
     expectedException.expect(CoderException.class);
     expectedException.expectMessage("testing exception");
 
-    CoderUtils.encodeToByteArray(crashingCoder, "hello");
+    Coders.encodeToByteArray(crashingCoder, "hello");
   }
 
   @Test
   public void testClosingCoderFailsWhenDecodingBase64() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.decodeFromBase64(new ClosingCoder(), "test-value");
+    Coders.decodeFromBase64(new ClosingCoder(), "test-value");
   }
 
   @Test
   public void testClosingCoderFailsWhenDecodingByteArray() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.decodeFromByteArray(new ClosingCoder(), new byte[0]);
+    Coders.decodeFromByteArray(new ClosingCoder(), new byte[0]);
   }
 
   @Test
   public void testClosingCoderFailsWhenDecodingByteArrayInContext() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.decodeFromByteArray(new ClosingCoder(), new byte[0], Context.NESTED);
+    Coders.decodeFromByteArray(new ClosingCoder(), new byte[0], Context.NESTED);
   }
 
   @Test
   public void testClosingCoderFailsWhenEncodingToBase64() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.encodeToBase64(new ClosingCoder(), "test-value");
+    Coders.encodeToBase64(new ClosingCoder(), "test-value");
   }
 
   @Test
   public void testClosingCoderFailsWhenEncodingToByteArray() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.encodeToByteArray(new ClosingCoder(), "test-value");
+    Coders.encodeToByteArray(new ClosingCoder(), "test-value");
   }
 
   @Test
   public void testClosingCoderFailsWhenEncodingToByteArrayInContext() throws Exception {
     expectedException.expect(UnsupportedOperationException.class);
     expectedException.expectMessage("Caller does not own the underlying");
-    CoderUtils.encodeToByteArray(new ClosingCoder(), "test-value", Context.NESTED);
+    Coders.encodeToByteArray(new ClosingCoder(), "test-value", Context.NESTED);
   }
 }

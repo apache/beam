@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -56,9 +57,9 @@ public class WindowedValueTest {
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
 
-    byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+    byte[] encodedValue = Coders.encodeToByteArray(windowedValueCoder, value);
     WindowedValue<String> decodedValue =
-        CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
+        Coders.decodeFromByteArray(windowedValueCoder, encodedValue);
 
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());

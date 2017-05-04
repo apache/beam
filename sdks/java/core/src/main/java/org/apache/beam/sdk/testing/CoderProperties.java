@@ -40,7 +40,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
@@ -284,7 +284,7 @@ public class CoderProperties {
 
   public static <T> void coderDecodesBase64(Coder<T> coder, String base64Encoding, T value)
       throws Exception {
-    assertThat(DECODING_WIRE_FORMAT_MESSAGE, CoderUtils.decodeFromBase64(coder, base64Encoding),
+    assertThat(DECODING_WIRE_FORMAT_MESSAGE, Coders.decodeFromBase64(coder, base64Encoding),
         equalTo(value));
   }
 
@@ -307,7 +307,7 @@ public class CoderProperties {
 
   public static <T> void coderEncodesBase64(Coder<T> coder, T value, String base64Encoding)
       throws Exception {
-    assertThat(ENCODING_WIRE_FORMAT_MESSAGE, CoderUtils.encodeToBase64(coder, value),
+    assertThat(ENCODING_WIRE_FORMAT_MESSAGE, Coders.encodeToBase64(coder, value),
         equalTo(base64Encoding));
   }
 
@@ -325,7 +325,7 @@ public class CoderProperties {
   public static <T, IterableT extends Iterable<T>> void coderDecodesBase64ContentsEqual(
       Coder<IterableT> coder, String base64Encoding, IterableT expected) throws Exception {
 
-    IterableT result = CoderUtils.decodeFromBase64(coder, base64Encoding);
+    IterableT result = Coders.decodeFromBase64(coder, base64Encoding);
     if (Iterables.isEmpty(expected)) {
       assertThat(ENCODING_WIRE_FORMAT_MESSAGE, result, emptyIterable());
     } else {

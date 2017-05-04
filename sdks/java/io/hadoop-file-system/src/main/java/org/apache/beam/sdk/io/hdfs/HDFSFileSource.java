@@ -51,7 +51,7 @@ import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -190,7 +190,7 @@ public abstract class HDFSFileSource<T, K, V> extends BoundedSource<T> {
           @Override
           public T apply(KV<AvroKey<T>, NullWritable> input) {
             try {
-              return CoderUtils.clone(coder, input.getKey().datum());
+              return Coders.clone(coder, input.getKey().datum());
             } catch (CoderException e) {
               throw new RuntimeException(e);
             }

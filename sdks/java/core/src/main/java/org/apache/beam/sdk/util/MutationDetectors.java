@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coders;
 
 /**
  * Static methods for creating and working with {@link MutationDetector}.
@@ -103,8 +104,8 @@ public class MutationDetectors {
     public CodedValueMutationDetector(T value, Coder<T> coder) throws CoderException {
       this.coder = coder;
       this.possiblyModifiedObject = value;
-      this.encodedOriginalObject = CoderUtils.encodeToByteArray(coder, value);
-      this.clonedOriginalObject = CoderUtils.decodeFromByteArray(coder, encodedOriginalObject);
+      this.encodedOriginalObject = Coders.encodeToByteArray(coder, value);
+      this.clonedOriginalObject = Coders.decodeFromByteArray(coder, encodedOriginalObject);
     }
 
     @Override
@@ -128,14 +129,14 @@ public class MutationDetectors {
       // general neither retainedObject.equals(clonedObject) nor clonedObject.equals(retainedObject)
       // will hold.
       //
-      // For example, CoderUtils.clone(IterableCoder<Integer>, IterableSubclass<Integer>) will
+      // For example, Coders.clone(IterableCoder<Integer>, IterableSubclass<Integer>) will
       // produce an ArrayList<Integer> with the same contents as the IterableSubclass, but the
       // latter will quite reasonably not consider itself equivalent to an ArrayList (and vice
       // versa).
       //
       // To enable a reasonable comparison, we clone retainedObject again here, converting it to
       // the same sort of T that the Coder<T> output when it created clonedObject.
-      T clonedPossiblyModifiedObject = CoderUtils.clone(coder, possiblyModifiedObject);
+      T clonedPossiblyModifiedObject = Coders.clone(coder, possiblyModifiedObject);
 
       // If deepEquals() then we trust the equals implementation.
       // This deliberately allows fields to escape this check.
@@ -151,8 +152,8 @@ public class MutationDetectors {
       // ArrayList, which will then be re-encoded in a bounded format. So we really do need to
       // encode-decode-encode retainedObject.
       if (Arrays.equals(
-          CoderUtils.encodeToByteArray(coder, clonedOriginalObject),
-          CoderUtils.encodeToByteArray(coder, clonedPossiblyModifiedObject))) {
+          Coders.encodeToByteArray(coder, clonedOriginalObject),
+          Coders.encodeToByteArray(coder, clonedPossiblyModifiedObject))) {
         return;
       }
 
@@ -167,8 +168,8 @@ public class MutationDetectors {
           String.format("Value %s mutated illegally, new value was %s."
               + " Encoding was %s, now %s.",
               previousValue, newValue,
-              CoderUtils.encodeToBase64(coder, previousValue),
-              CoderUtils.encodeToBase64(coder, newValue)),
+              Coders.encodeToBase64(coder, previousValue),
+              Coders.encodeToBase64(coder, newValue)),
           previousValue, newValue);
     }
 

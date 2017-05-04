@@ -23,7 +23,7 @@ import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -58,7 +58,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   @Override
   public T copy(T t) {
     try {
-      return CoderUtils.clone(coder, t);
+      return Coders.clone(coder, t);
     } catch (CoderException e) {
       throw new RuntimeException("Could not clone.", e);
     }

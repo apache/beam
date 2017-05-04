@@ -117,7 +117,7 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
@@ -1270,10 +1270,10 @@ public class BigQueryIOTest implements Serializable {
     row.set("temperature", Data.nullOf(Object.class));
     row.set("max_temperature", Data.nullOf(Object.class));
 
-    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), row);
+    byte[] bytes = Coders.encodeToByteArray(TableRowJsonCoder.of(), row);
 
-    TableRow newRow = CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
-    byte[] newBytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), newRow);
+    TableRow newRow = Coders.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+    byte[] newBytes = Coders.encodeToByteArray(TableRowJsonCoder.of(), newRow);
 
     Assert.assertArrayEquals(bytes, newBytes);
   }
