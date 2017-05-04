@@ -27,6 +27,7 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes. */
 public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.PubsubMessage> {
@@ -34,6 +35,10 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.Pubsu
       NullableCoder.of(ByteArrayCoder.of());
   private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
       StringUtf8Coder.of(), StringUtf8Coder.of());
+
+  public static Coder<PubsubIO.PubsubMessage> of(TypeDescriptor<PubsubIO.PubsubMessage> ignored) {
+    return of();
+  }
 
   public static PubsubMessageWithAttributesCoder of() {
     return new PubsubMessageWithAttributesCoder();
