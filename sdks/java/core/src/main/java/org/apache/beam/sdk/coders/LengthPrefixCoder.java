@@ -27,7 +27,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} which is able to take any existing coder and wrap it such that it is only

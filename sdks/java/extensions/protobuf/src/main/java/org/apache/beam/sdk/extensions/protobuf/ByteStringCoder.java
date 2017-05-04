@@ -23,10 +23,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -47,6 +46,8 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   private static final TypeDescriptor<ByteString> TYPE_DESCRIPTOR =
       new TypeDescriptor<ByteString>() {};
 
+  private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+
   private ByteStringCoder() {}
 
   @Override
@@ -58,7 +59,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
 
     if (!context.isWholeStream) {
       // ByteString is not delimited, so write its size before its contents.
-      VarInt.encode(value.size(), outStream);
+      VAR_INT_CODER.encode(value.size(), outStream, context.nested());
     }
     value.writeTo(outStream);
   }
@@ -69,7 +70,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
       return ByteString.readFrom(inStream);
     }
 
-    int size = VarInt.decodeInt(inStream);
+    int size = VAR_INT_CODER.decode(inStream, context.nested());
     // ByteString reads to the end of the input stream, so give it a limited stream of exactly
     // the right length. Also set its chunk size so that the ByteString will contain exactly
     // one chunk.
@@ -83,7 +84,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
     if (context.isWholeStream) {
       return size;
     }
-    return VarInt.getLength(size) + size;
+    return VAR_INT_CODER.getEncodedElementByteSize(size, context.nested()) + size;
   }
 
   @Override
@@ -104,7 +105,8 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   /**
    * {@inheritDoc}
    *
-   * <p>Returns true. {@link ByteString#size} returns the size of an array and a {@link VarInt}.
+   * <p>Returns true. {@link ByteString#size} returns the size of an array and an integer
+   * encoded via {@link VarIntCoder}.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {

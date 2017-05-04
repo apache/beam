@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.Materialization;
 import org.apache.beam.sdk.transforms.Materializations;
@@ -163,7 +164,7 @@ public class PCollectionViews {
       this.valueCoder = valueCoder;
       if (hasDefault) {
         try {
-          this.encodedDefaultValue = CoderUtils.encodeToByteArray(valueCoder, defaultValue);
+          this.encodedDefaultValue = Coders.encodeToByteArray(valueCoder, defaultValue);
         } catch (IOException e) {
           throw new RuntimeException("Unexpected IOException: ", e);
         }
@@ -185,7 +186,7 @@ public class PCollectionViews {
       synchronized (this) {
         if (encodedDefaultValue != null && defaultValue == null) {
           try {
-            defaultValue = CoderUtils.decodeFromByteArray(valueCoder, encodedDefaultValue);
+            defaultValue = Coders.decodeFromByteArray(valueCoder, encodedDefaultValue);
           } catch (IOException e) {
             throw new RuntimeException("Unexpected IOException: ", e);
           }

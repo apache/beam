@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.runners.dataflow;
 
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.apache.beam.sdk.coders.Coders.encodeToByteArray;
 
 import java.io.IOException;
 import java.util.ArrayList;

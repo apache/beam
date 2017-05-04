@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.KV;
 import org.hamcrest.BaseMatcher;
@@ -1119,7 +1119,7 @@ class SerializableMatchers implements Serializable {
       this.coder = coder;
       this.value = value;
       try {
-        this.encodedValue = CoderUtils.encodeToByteArray(coder, value);
+        this.encodedValue = Coders.encodeToByteArray(coder, value);
       } catch (CoderException exc) {
         throw new RuntimeException("Error serializing via Coder", exc);
       }
@@ -1129,7 +1129,7 @@ class SerializableMatchers implements Serializable {
     public T get() {
       if (value == null) {
         try {
-          value = CoderUtils.decodeFromByteArray(coder, encodedValue);
+          value = Coders.decodeFromByteArray(coder, encodedValue);
         } catch (CoderException exc) {
           throw new RuntimeException("Error deserializing via Coder", exc);
         }
@@ -1157,7 +1157,7 @@ class SerializableMatchers implements Serializable {
       this.coder = ListCoder.of(elementCoder);
       this.value = value;
       try {
-        this.encodedValue = CoderUtils.encodeToByteArray(coder, Arrays.asList(value));
+        this.encodedValue = Coders.encodeToByteArray(coder, Arrays.asList(value));
       } catch (CoderException exc) {
         throw UserCodeException.wrap(exc);
       }
@@ -1168,7 +1168,7 @@ class SerializableMatchers implements Serializable {
       if (value == null) {
         try {
           @SuppressWarnings("unchecked")
-          T[] decoded = (T[]) CoderUtils.decodeFromByteArray(coder, encodedValue).toArray();
+          T[] decoded = (T[]) Coders.decodeFromByteArray(coder, encodedValue).toArray();
           value = decoded;
         } catch (CoderException exc) {
           throw new RuntimeException("Error deserializing via Coder", exc);

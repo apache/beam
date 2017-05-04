@@ -45,7 +45,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
@@ -442,7 +442,7 @@ public class ApexStateInternals<K> implements StateInternals {
     public ApexStateInternals<K> stateInternalsForKey(K key) {
       final Slice keyBytes;
       try {
-        keyBytes = (key != null) ? new Slice(CoderUtils.encodeToByteArray(keyCoder, key)) :
+        keyBytes = (key != null) ? new Slice(Coders.encodeToByteArray(keyCoder, key)) :
           new Slice(null);
       } catch (CoderException e) {
         throw new RuntimeException(e);

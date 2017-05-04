@@ -54,7 +54,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
@@ -286,8 +285,8 @@ public class CommonCoderTest {
     Coder coder = instantiateCoder(testSpec.getCoder());
     Object testValue = convertValue(testSpec.getValue(), testSpec.getCoder(), coder);
     Context context = testSpec.getNested() ? Context.NESTED : Context.OUTER;
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, testValue, context);
-    Object decodedValue = CoderUtils.decodeFromByteArray(coder, testSpec.getSerialized(), context);
+    byte[] encoded = Coders.encodeToByteArray(coder, testValue, context);
+    Object decodedValue = Coders.decodeFromByteArray(coder, testSpec.getSerialized(), context);
 
     if (!testSpec.getCoder().getNonDeterministic()) {
       assertThat(testSpec.toString(), encoded, equalTo(testSpec.getSerialized()));
@@ -339,7 +338,7 @@ public class CommonCoderTest {
    */
   private static <T> String jsonByteString(Coder<T> coder, T value, Context context)
       throws CoderException {
-    byte[] bytes = CoderUtils.encodeToByteArray(coder, value, context);
+    byte[] bytes = Coders.encodeToByteArray(coder, value, context);
     ObjectMapper mapper = new ObjectMapper();
     mapper.configure(JsonGenerator.Feature.ESCAPE_NON_ASCII, true);
     try {

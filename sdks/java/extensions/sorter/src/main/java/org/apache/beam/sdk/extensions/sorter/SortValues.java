@@ -27,7 +27,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -154,8 +154,8 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
         for (KV<SecondaryKeyT, ValueT> record : records) {
           sorter.add(
               KV.of(
-                  CoderUtils.encodeToByteArray(keyCoder, record.getKey()),
-                  CoderUtils.encodeToByteArray(valueCoder, record.getValue())));
+                  Coders.encodeToByteArray(keyCoder, record.getKey()),
+                  Coders.encodeToByteArray(valueCoder, record.getValue())));
         }
 
         c.output(
@@ -197,8 +197,8 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
         KV<byte[], byte[]> next = iterator.next();
         try {
           return KV.of(
-              CoderUtils.decodeFromByteArray(keyCoder, next.getKey()),
-              CoderUtils.decodeFromByteArray(valueCoder, next.getValue()));
+              Coders.decodeFromByteArray(keyCoder, next.getKey()),
+              Coders.decodeFromByteArray(valueCoder, next.getValue()));
         } catch (IOException e) {
           throw new RuntimeException(e);
         }

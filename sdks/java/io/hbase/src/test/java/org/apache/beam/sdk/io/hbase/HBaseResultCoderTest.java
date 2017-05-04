@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.hbase;
 
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.apache.hadoop.hbase.client.Result;
 import org.junit.Rule;
 import org.junit.Test;

@@ -24,13 +24,16 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A UnionCoder encodes RawUnionValues.
  */
 public class UnionCoder extends CustomCoder<RawUnionValue> {
+
+  private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
@@ -63,7 +66,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
       throws IOException, CoderException  {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
-    VarInt.encode(index, outStream);
+    VAR_INT_CODER.encode(index, outStream, context.nested());
 
     // Write out the actual value.
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
@@ -76,7 +79,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   @Override
   public RawUnionValue decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    int index = VarInt.decodeInt(inStream);
+    int index = VAR_INT_CODER.decode(inStream, context.nested());
     Object value = elementCoders.get(index).decode(inStream, context);
     return new RawUnionValue(index, value);
   }
@@ -116,7 +119,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
-    observer.update(VarInt.getLength(index));
+    observer.update(VAR_INT_CODER.getEncodedElementByteSize(index, context.nested()));
     // Write out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);

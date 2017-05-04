@@ -22,8 +22,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
@@ -76,9 +74,9 @@ public class CustomCoderTest {
     MyCustomCoder coder = new MyCustomCoder("key");
     CoderProperties.coderDecodeEncodeEqual(coder, KV.of("key", 3L));
 
-    byte[] encoded2 = CoderUtils.encodeToByteArray(coder, KV.of("ignored", 3L));
+    byte[] encoded2 = Coders.encodeToByteArray(coder, KV.of("ignored", 3L));
     Assert.assertEquals(
-        KV.of("key", 3L), CoderUtils.decodeFromByteArray(coder, encoded2));
+        KV.of("key", 3L), Coders.decodeFromByteArray(coder, encoded2));
   }
 
   @Test

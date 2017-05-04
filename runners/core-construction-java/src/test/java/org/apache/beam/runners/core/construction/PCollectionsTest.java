@@ -32,6 +32,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -47,7 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -128,14 +129,17 @@ public class PCollectionsTest {
 
   @AutoValue
   abstract static class CustomIntCoder extends CustomCoder<Integer> {
+
+    private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
+
     @Override
     public void encode(Integer value, OutputStream outStream, Context context) throws IOException {
-      VarInt.encode(value, outStream);
+      VAR_INT_CODER.encode(value, outStream, context);
     }
 
     @Override
     public Integer decode(InputStream inStream, Context context) throws IOException {
-      return VarInt.decodeInt(inStream);
+      return VAR_INT_CODER.decode(inStream, context);
     }
   }
 
@@ -158,31 +162,36 @@ public class PCollectionsTest {
 
     @Override
     public Coder<BoundedWindow> windowCoder() {
-      return new CustomCoder<BoundedWindow>() {
-        @Override public void verifyDeterministic() {}
-
-        @Override
-        public void encode(BoundedWindow value, OutputStream outStream, Context context)
-            throws IOException {
-          VarInt.encode(value.maxTimestamp().getMillis(), outStream);
-        }
-
-        @Override
-        public BoundedWindow decode(InputStream inStream, Context context) throws IOException {
-          final Instant ts = new Instant(VarInt.decodeLong(inStream));
-          return new BoundedWindow() {
-            @Override
-            public Instant maxTimestamp() {
-              return ts;
-            }
-          };
-        }
-      };
+      return new CustomWindowsCoder();
     }
 
     @Override
     public WindowMappingFn<BoundedWindow> getDefaultWindowMappingFn() {
       throw new UnsupportedOperationException();
+    }
+
+    private static class CustomWindowsCoder extends CustomCoder<BoundedWindow> {
+
+      private static final VarLongCoder VAR_LONG_CODER = VarLongCoder.of();
+
+      @Override public void verifyDeterministic() {}
+
+      @Override
+      public void encode(BoundedWindow value, OutputStream outStream, Context context)
+          throws IOException {
+        VAR_LONG_CODER.encode(value.maxTimestamp().getMillis(), outStream, context);
+      }
+
+      @Override
+      public BoundedWindow decode(InputStream inStream, Context context) throws IOException {
+        final Instant ts = new Instant(VAR_LONG_CODER.decode(inStream, context));
+        return new BoundedWindow() {
+          @Override
+          public Instant maxTimestamp() {
+            return ts;
+          }
+        };
+      }
     }
   }
 }

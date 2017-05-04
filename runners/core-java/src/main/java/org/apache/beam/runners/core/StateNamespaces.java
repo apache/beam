@@ -24,7 +24,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 
 /**
  * Factory methods for creating the {@link StateNamespace StateNamespaces}.
@@ -112,7 +112,7 @@ public class StateNamespaces {
     @Override
     public String stringKey() {
       try {
-        return String.format(WINDOW_FORMAT, CoderUtils.encodeToBase64(windowCoder, window));
+        return String.format(WINDOW_FORMAT, Coders.encodeToBase64(windowCoder, window));
       } catch (CoderException e) {
         throw new RuntimeException("Unable to generate string key from window " + window, e);
       }
@@ -120,7 +120,7 @@ public class StateNamespaces {
 
     @Override
     public void appendTo(Appendable sb) throws IOException {
-      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window)).append('/');
+      sb.append('/').append(Coders.encodeToBase64(windowCoder, window)).append('/');
     }
 
     /**
@@ -192,7 +192,7 @@ public class StateNamespaces {
     public String stringKey() {
       try {
         return String.format(WINDOW_AND_TRIGGER_FORMAT,
-            CoderUtils.encodeToBase64(windowCoder, window),
+            Coders.encodeToBase64(windowCoder, window),
             // Use base 36 so that can address 36 triggers in a single byte and still be human
             // readable.
             Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
@@ -203,7 +203,7 @@ public class StateNamespaces {
 
     @Override
     public void appendTo(Appendable sb) throws IOException {
-      sb.append('/').append(CoderUtils.encodeToBase64(windowCoder, window));
+      sb.append('/').append(Coders.encodeToBase64(windowCoder, window));
       sb.append('/').append(Integer.toString(triggerIndex, TRIGGER_RADIX).toUpperCase());
       sb.append('/');
     }
@@ -273,7 +273,7 @@ public class StateNamespaces {
     }
 
     try {
-      W window = CoderUtils.decodeFromBase64(windowCoder, parts.get(1));
+      W window = Coders.decodeFromBase64(windowCoder, parts.get(1));
       if (parts.size() > 3) {
         int index = Integer.parseInt(parts.get(2), WindowAndTriggerNamespace.TRIGGER_RADIX);
         return windowAndTrigger(windowCoder, window, index);

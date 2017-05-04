@@ -33,12 +33,12 @@ import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.CombiningState;
 import org.apache.beam.sdk.util.state.MapState;
@@ -99,7 +99,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
   public K getKey() {
     ByteBuffer keyBytes = (ByteBuffer) keyedStateBackend.getCurrentKey();
     try {
-      return CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
+      return Coders.decodeFromByteArray(keyCoder, keyBytes.array());
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }

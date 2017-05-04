@@ -33,11 +33,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderProperties;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
@@ -100,16 +100,16 @@ public class JAXBCoderTest {
   public void testEncodeDecodeOuter() throws Exception {
     JAXBCoder<TestType> coder = JAXBCoder.of(TestType.class);
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, new TestType("abc", 9999));
-    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
+    byte[] encoded = Coders.encodeToByteArray(coder, new TestType("abc", 9999));
+    assertEquals(new TestType("abc", 9999), Coders.decodeFromByteArray(coder, encoded));
   }
 
   @Test
   public void testEncodeDecodeAfterClone() throws Exception {
     JAXBCoder<TestType> coder = SerializableUtils.clone(JAXBCoder.of(TestType.class));
 
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, new TestType("abc", 9999));
-    assertEquals(new TestType("abc", 9999), CoderUtils.decodeFromByteArray(coder, encoded));
+    byte[] encoded = Coders.encodeToByteArray(coder, new TestType("abc", 9999));
+    assertEquals(new TestType("abc", 9999), Coders.decodeFromByteArray(coder, encoded));
   }
 
   @Test
@@ -117,9 +117,9 @@ public class JAXBCoderTest {
     JAXBCoder<TestType> jaxbCoder = JAXBCoder.of(TestType.class);
     TestCoder nesting = new TestCoder(jaxbCoder);
 
-    byte[] encoded = CoderUtils.encodeToByteArray(nesting, new TestType("abc", 9999));
+    byte[] encoded = Coders.encodeToByteArray(nesting, new TestType("abc", 9999));
     assertEquals(
-        new TestType("abc", 9999), CoderUtils.decodeFromByteArray(nesting, encoded));
+        new TestType("abc", 9999), Coders.decodeFromByteArray(nesting, encoded));
   }
 
   @Test
@@ -148,9 +148,9 @@ public class JAXBCoderTest {
               }
 
               try {
-                byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
+                byte[] encoded = Coders.encodeToByteArray(coder, elem);
                 assertEquals(
-                    new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
+                    new TestType("abc", index), Coders.decodeFromByteArray(coder, encoded));
               } catch (Throwable e) {
                 thrown.compareAndSet(null, e);
               }

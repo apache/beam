@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.coders.CoderProperties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

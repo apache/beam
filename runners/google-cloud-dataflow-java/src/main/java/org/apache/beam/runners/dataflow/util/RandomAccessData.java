@@ -34,7 +34,7 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.coders.VarIntCoder;
 
 /**
  * An elastic-sized byte array which allows you to manipulate it as a stream, or access
@@ -57,6 +57,7 @@ public class RandomAccessData {
    */
   public static class RandomAccessDataCoder extends CustomCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
+    private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
 
     public static RandomAccessDataCoder of() {
       return INSTANCE;
@@ -69,7 +70,7 @@ public class RandomAccessData {
         throw new CoderException("Positive infinity can not be encoded.");
       }
       if (!context.isWholeStream) {
-        VarInt.encode(value.size, outStream);
+        VAR_INT_CODER.encode(value.size, outStream, context.nested());
       }
       value.writeTo(outStream, 0, value.size);
     }
@@ -79,7 +80,7 @@ public class RandomAccessData {
         throws CoderException, IOException {
       RandomAccessData rval = new RandomAccessData();
       if (!context.isWholeStream) {
-        int length = VarInt.decodeInt(inStream);
+        int length = VAR_INT_CODER.decode(inStream, context.nested());
         rval.readFrom(inStream, 0, length);
       } else {
         ByteStreams.copy(inStream, rval.asOutputStream());
@@ -109,7 +110,7 @@ public class RandomAccessData {
       }
       long size = 0;
       if (!context.isWholeStream) {
-        size += VarInt.getLength(value.size);
+        size += VAR_INT_CODER.getEncodedElementByteSize(value.size, context.nested());
       }
       return size + value.size;
     }

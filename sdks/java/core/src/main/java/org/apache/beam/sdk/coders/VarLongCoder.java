@@ -24,7 +24,6 @@ import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -106,7 +105,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Long value, Context context)
+  public long getEncodedElementByteSize(Long value, Context context)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

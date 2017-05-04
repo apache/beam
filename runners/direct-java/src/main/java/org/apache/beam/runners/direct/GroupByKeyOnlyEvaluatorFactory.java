@@ -18,7 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.apache.beam.sdk.coders.Coders.encodeToByteArray;
 
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;

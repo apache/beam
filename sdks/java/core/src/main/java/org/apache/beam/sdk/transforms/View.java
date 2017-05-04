@@ -24,7 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.coders.Coders;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -360,7 +360,7 @@ public class View {
         } else {
           this.valueCoder = coder;
           try {
-            this.defaultValue = CoderUtils.encodeToByteArray(coder, defaultValue);
+            this.defaultValue = Coders.encodeToByteArray(coder, defaultValue);
           } catch (CoderException e) {
             throw new IllegalArgumentException(
                 String.format(
@@ -388,7 +388,7 @@ public class View {
           return null;
         }
         try {
-          return CoderUtils.decodeFromByteArray(valueCoder, defaultValue);
+          return Coders.decodeFromByteArray(valueCoder, defaultValue);
         } catch (CoderException e) {
           throw new IllegalArgumentException(
               String.format(
