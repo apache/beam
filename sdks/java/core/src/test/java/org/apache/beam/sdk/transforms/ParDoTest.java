@@ -1244,7 +1244,9 @@ public class ParDoTest implements Serializable {
     outputTuple.get(additionalOutputTag).apply(View.<TestDummy>asSingleton());
 
     assertEquals(new TestDummyCoder(), outputTuple.get(additionalOutputTag).getCoder());
-    outputTuple.get(additionalOutputTag).finishSpecifyingOutput(input, pardo); // Check for crashes
+    outputTuple
+        .get(additionalOutputTag)
+        .finishSpecifyingOutput("ParDo", input, pardo); // Check for crashes
     assertEquals(new TestDummyCoder(),
         outputTuple.get(additionalOutputTag).getCoder()); // Check for corruption
   }

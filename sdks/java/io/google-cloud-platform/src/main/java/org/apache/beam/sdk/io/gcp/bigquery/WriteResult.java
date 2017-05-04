@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -55,23 +54,7 @@ final class WriteResult implements POutput {
     return pipeline;
   }
 
-  /**
-   * Records that this {@link WriteResult} is an output with the given name of the given {@link
-   * AppliedPTransform}.
-   *
-   * <p>By default, does nothing.
-   *
-   * <p>To be invoked only by {@link POutput#recordAsOutput} implementations. Not to be invoked
-   * directly by user code.
-   */
   @Override
-  public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {}
-
-  /**
-   * Default behavior for {@link #finishSpecifyingOutput(PInput, PTransform)}} is
-   * to do nothing. Override if your {@link PValue} requires
-   * finalization.
-   */
-  @Override
-  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) { }
+  public void finishSpecifyingOutput(
+      String transformName, PInput input, PTransform<?, ?> transform) {}
 }
