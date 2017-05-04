@@ -33,6 +33,11 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlDivideExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -74,7 +79,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
    * {@link #buildExpression(RexNode)} visits the operands of {@link RexNode} recursively,
    * and represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
-  private BeamSqlExpression buildExpression(RexNode rexNode) {
+  static BeamSqlExpression buildExpression(RexNode rexNode) {
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
       return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
@@ -107,12 +112,24 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "<=":
           return new BeamSqlLessThanEqualExpression(subExps);
 
+        // arithmetic operators
+        case "+":
+          return new BeamSqlPlusExpression(subExps);
+        case "-":
+          return new BeamSqlMinusExpression(subExps);
+        case "*":
+          return new BeamSqlMultiplyExpression(subExps);
+        case "/":
+          return new BeamSqlDivideExpression(subExps);
+        case "MOD":
+          return new BeamSqlModExpression(subExps);
+
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
         case "IS NOT NULL":
           return new BeamSqlIsNotNullExpression(subExps.get(0));
       default:
-        throw new BeamSqlUnsupportedException();
+        throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
       }
     } else {
       throw new BeamSqlUnsupportedException(
