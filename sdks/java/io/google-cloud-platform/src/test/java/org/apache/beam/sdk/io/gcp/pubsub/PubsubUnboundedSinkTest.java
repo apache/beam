@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubTestClient.PubsubTestClientFactor
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,7 +41,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -96,7 +94,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void sendOneMessage() throws IOException {
     List<OutgoingMessage> outgoing =
         ImmutableList.of(new OutgoingMessage(
@@ -123,7 +120,35 @@ public class PubsubUnboundedSinkTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  public void sendOneMessageWithoutAttributes() throws IOException {
+    List<OutgoingMessage> outgoing =
+        ImmutableList.of(
+            new OutgoingMessage(
+                DATA.getBytes(), null /* attributes */, TIMESTAMP, getRecordId(DATA)));
+    try (PubsubTestClientFactory factory =
+        PubsubTestClient.createFactoryForPublish(
+            TOPIC, outgoing, ImmutableList.<OutgoingMessage>of())) {
+      PubsubUnboundedSink sink =
+          new PubsubUnboundedSink(
+              factory,
+              StaticValueProvider.of(TOPIC),
+              TIMESTAMP_ATTRIBUTE,
+              ID_ATTRIBUTE,
+              NUM_SHARDS,
+              1 /* batchSize */,
+              1 /* batchBytes */,
+              Duration.standardSeconds(2),
+              RecordIdMethod.DETERMINISTIC);
+      p.apply(Create.of(ImmutableList.of(DATA)))
+          .apply(ParDo.of(new Stamp(null /* attributes */)))
+          .apply(sink);
+      p.run();
+    }
+    // The PubsubTestClientFactory will assert fail on close if the actual published
+    // message does not match the expected publish message.
+  }
+
+  @Test
   public void sendMoreThanOneBatchByNumMessages() throws IOException {
     List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();
@@ -152,7 +177,6 @@ public class PubsubUnboundedSinkTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void sendMoreThanOneBatchByByteSize() throws IOException {
     List<OutgoingMessage> outgoing = new ArrayList<>();
     List<String> data = new ArrayList<>();
