@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.utils;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Encapsulates the PipelineOptions in serialized form to ship them to the cluster.
@@ -42,7 +44,7 @@ public class SerializedPipelineOptions implements Serializable {
     checkNotNull(options, "PipelineOptions must not be null.");
 
     try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-      new ObjectMapper().writeValue(baos, options);
+      createMapper().writeValue(baos, options);
       this.serializedOptions = baos.toByteArray();
     } catch (Exception e) {
       throw new RuntimeException("Couldn't serialize PipelineOptions.", e);
@@ -53,7 +55,7 @@ public class SerializedPipelineOptions implements Serializable {
   public PipelineOptions getPipelineOptions() {
     if (pipelineOptions == null) {
       try {
-        pipelineOptions = new ObjectMapper().readValue(serializedOptions, PipelineOptions.class);
+        pipelineOptions = createMapper().readValue(serializedOptions, PipelineOptions.class);
 
         IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
         FileSystems.setDefaultConfigInWorkers(pipelineOptions);
@@ -63,5 +65,15 @@ public class SerializedPipelineOptions implements Serializable {
     }
 
     return pipelineOptions;
+  }
+
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static ObjectMapper createMapper() {
+    return new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   }
 }
