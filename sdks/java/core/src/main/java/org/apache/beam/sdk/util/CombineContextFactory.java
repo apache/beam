@@ -64,28 +64,4 @@ public class CombineContextFactory {
     };
   }
 
-  /**
-   * Returns a {@code Combine.Context} from {@code PipelineOptions}, {@code SideInputReader},
-   * and the main input window.
-   */
-  public static Context createFromComponents(final PipelineOptions options,
-      final SideInputReader sideInputReader, final BoundedWindow mainInputWindow) {
-    return new Context() {
-      @Override
-      public PipelineOptions getPipelineOptions() {
-        return options;
-      }
-
-      @Override
-      public <T> T sideInput(PCollectionView<T> view) {
-        if (!sideInputReader.contains(view)) {
-          throw new IllegalArgumentException("calling sideInput() with unknown view");
-        }
-
-        BoundedWindow sideInputWindow =
-            view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
-        return sideInputReader.get(view, sideInputWindow);
-      }
-    };
-  }
 }
