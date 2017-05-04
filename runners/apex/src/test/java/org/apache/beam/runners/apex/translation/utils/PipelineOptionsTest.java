@@ -23,15 +23,25 @@ import static org.junit.Assert.assertNotNull;
 import com.datatorrent.common.util.FSStorageAgent;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-
+import java.io.IOException;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -49,36 +59,92 @@ public class PipelineOptionsTest {
     void setTestOption(String value);
   }
 
-  private static class MyOptionsWrapper {
-    private MyOptionsWrapper() {
+  private static class OptionsWrapper {
+    private OptionsWrapper() {
       this(null); // required for Kryo
     }
-    private MyOptionsWrapper(ApexPipelineOptions options) {
+    private OptionsWrapper(ApexPipelineOptions options) {
       this.options = new SerializablePipelineOptions(options);
     }
     @Bind(JavaSerializer.class)
     private final SerializablePipelineOptions options;
   }
 
-  private static MyOptions options;
-
-  private static final String[] args = new String[]{"--testOption=nothing"};
-
-  @BeforeClass
-  public static void beforeTest() {
-    options = PipelineOptionsFactory.fromArgs(args).as(MyOptions.class);
-  }
-
   @Test
   public void testSerialization() {
-    MyOptionsWrapper wrapper = new MyOptionsWrapper(PipelineOptionsTest.options);
+    OptionsWrapper wrapper = new OptionsWrapper(
+        PipelineOptionsFactory.fromArgs("--testOption=nothing").as(MyOptions.class));
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     FSStorageAgent.store(bos, wrapper);
 
     ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-    MyOptionsWrapper wrapperCopy = (MyOptionsWrapper) FSStorageAgent.retrieve(bis);
+    OptionsWrapper wrapperCopy = (OptionsWrapper) FSStorageAgent.retrieve(bis);
     assertNotNull(wrapperCopy.options);
     assertEquals("nothing", wrapperCopy.options.get().as(MyOptions.class).getTestOption());
   }
 
+  @Test
+  public void testSerializationWithUserCustomType() {
+    OptionsWrapper wrapper = new OptionsWrapper(
+        PipelineOptionsFactory.fromArgs("--jacksonIncompatible=\"testValue\"")
+            .as(JacksonIncompatibleOptions.class));
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    FSStorageAgent.store(bos, wrapper);
+
+    ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+    OptionsWrapper wrapperCopy = (OptionsWrapper) FSStorageAgent.retrieve(bis);
+    assertNotNull(wrapperCopy.options);
+    assertEquals("testValue",
+        wrapperCopy.options.get().as(JacksonIncompatibleOptions.class)
+            .getJacksonIncompatible().value);
+  }
+
+  /** PipelineOptions used to test auto registration of Jackson modules. */
+  public interface JacksonIncompatibleOptions extends ApexPipelineOptions {
+    JacksonIncompatible getJacksonIncompatible();
+    void setJacksonIncompatible(JacksonIncompatible value);
+  }
+
+  /** A Jackson {@link Module} to test auto-registration of modules. */
+  @AutoService(Module.class)
+  public static class RegisteredTestModule extends SimpleModule {
+    public RegisteredTestModule() {
+      super("RegisteredTestModule");
+      setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
+    }
+  }
+
+  /** A class which Jackson does not know how to serialize/deserialize. */
+  public static class JacksonIncompatible {
+    private final String value;
+    public JacksonIncompatible(String value) {
+      this.value = value;
+    }
+  }
+
+  /** A Jackson mixin used to add annotations to other classes. */
+  @JsonDeserialize(using = JacksonIncompatibleDeserializer.class)
+  @JsonSerialize(using = JacksonIncompatibleSerializer.class)
+  public static final class JacksonIncompatibleMixin {}
+
+  /** A Jackson deserializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleDeserializer extends
+      JsonDeserializer<JacksonIncompatible> {
+
+    @Override
+    public JacksonIncompatible deserialize(JsonParser jsonParser,
+        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+      return new JacksonIncompatible(jsonParser.readValueAs(String.class));
+    }
+  }
+
+  /** A Jackson serializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleSerializer extends JsonSerializer<JacksonIncompatible> {
+
+    @Override
+    public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+      jsonGenerator.writeString(jacksonIncompatible.value);
+    }
+  }
 }
