@@ -111,7 +111,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
     try {
-      Optional<Boolean> result = Optional.absent();
+      Optional<Boolean> assertionResult = Optional.absent();
 
       if (options.isStreaming()) {
         // In streaming, there are infinite retries, so rather than timeout
@@ -148,14 +148,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
 
         if (messageHandler.hasSeenError()) {
-          result = Optional.of(false);
+          // We know it is a failure, but there are no metrics in streaming
+          // and the message may be a non-assertion failure
+          assertionResult = Optional.absent();
         }
       } else {
         job.waitUntilFinish(Duration.standardSeconds(-1), messageHandler);
-        result = checkForPAssertSuccess(job);
+        assertionResult = checkForPAssertSuccess(job);
       }
 
-      if (!result.isPresent()) {
+      if (!assertionResult.isPresent()) {
         if (options.isStreaming()) {
           LOG.warn(
               "Dataflow job {} did not output a success or failure metric."
@@ -167,7 +169,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               String.format(
                   "Dataflow job %s did not output a success or failure metric.", job.getJobId()));
         }
-      } else if (!result.get()) {
+      } else if (!assertionResult.get()) {
         throw new AssertionError(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
                 ? String.format(
@@ -202,19 +204,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * <p>If the pipeline is not in a failed/cancelled state and no PAsserts were used within the
    * pipeline, then this method will state that all PAsserts succeeded.
    *
-   * @return Optional.of(false) if we are certain a PAssert or some other critical thing has failed,
-   *     Optional.of(true) if we are certain all PAsserts passed, and Optional.absent() if the
-   *     evidence is inconclusive.
+   * @return Optional.of(false) if we are certain a PAssert failed.
+   *     Optional.of(true) if we are certain all PAsserts passed.
+   *     Optional.absent() if the evidence is inconclusive, including when the pipeline may have
+   *     failed for other reasons.
    */
   @VisibleForTesting
   Optional<Boolean> checkForPAssertSuccess(DataflowPipelineJob job) throws IOException {
-
-    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
-    State state = job.getState();
-    if (state == State.FAILED || state == State.CANCELLED) {
-      LOG.info("Dataflow job {} terminated in failure state {}", job.getJobId(), state);
-      return Optional.of(false);
-    }
 
     JobMetrics metrics = getJobMetrics(job);
     if (metrics == null || metrics.getMetrics() == null) {
@@ -252,6 +248,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           failures,
           expectedNumberOfAssertions);
       return Optional.of(true);
+    }
+
+    // If the job failed, this is a definite failure. We only cancel jobs when they fail.
+    State state = job.getState();
+    if (state == State.FAILED || state == State.CANCELLED) {
+      LOG.info(
+          "Dataflow job {} terminated in failure state {} without reporting a failed assertion",
+          job.getJobId(),
+          state);
+      return Optional.absent();
     }
 
     LOG.info(
