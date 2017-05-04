@@ -1,0 +1,43 @@
+$ak-breakpoint-xs: 374px !default
+$ak-breakpoint-sm: 480px !default
+$ak-breakpoint-md: 718px !default
+$ak-breakpoint-lg: 1024px !default
+$ak-breakpoint-xl: 1292px !default
+
+// Only override the `ak-breakpoint-map` var to define custom size names.
+$ak-breakpoint-map: (xs: $ak-breakpoint-xs, sm: $ak-breakpoint-sm, md: $ak-breakpoint-md, lg: $ak-breakpoint-lg, xl: $ak-breakpoint-xl) !default
+
+@mixin ak-breakpoint-gt($size)
+  $width: map-get($ak-breakpoint-map, $size)
+  @media (min-width: $width)
+    @content
+
+@mixin ak-breakpoint-rule-gt($sizes: (sm, md, lg), $include-root: true)
+  @if $include-root
+    @content
+
+  @each $size in $sizes
+    &--gt-#{$size}
+      @include ak-breakpoint-gt($size)
+        @content
+
+=xs
+  +ak-breakpoint-gt(xs)
+    @content
+=sm
+  +ak-breakpoint-gt(sm)
+    @content
+=md
+  +ak-breakpoint-gt(lg)
+    @content
+=lg
+  +ak-breakpoint-gt(lg)
+    @content
+=xl
+  +ak-breakpoint-gt(xl)
+    @content
+
+=contained
+  padding: 0 $pad
+  max-width: 1280px
+  margin: 0 auto
