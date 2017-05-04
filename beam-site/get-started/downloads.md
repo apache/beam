@@ -8,7 +8,7 @@ redirect_from:
   - /releases/
 ---
 
-# Apache Beam Downloads
+# Apache Beam&#8482; Downloads
 
 The easiest way to use Apache Beam is via one of the released versions in a central repository.
 Java SDK is available on [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22),
