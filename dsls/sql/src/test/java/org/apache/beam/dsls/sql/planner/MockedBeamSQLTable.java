@@ -37,7 +37,7 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
 
-  public static final List<String> CONTENT = new ArrayList<>();
+  public static final List<BeamSQLRow> CONTENT = new ArrayList<>();
 
   private List<BeamSQLRow> inputRecords;
 
@@ -82,7 +82,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
 
         @ProcessElement
         public void processElement(ProcessContext c) {
-          CONTENT.add(c.element().valueInString());
+          CONTENT.add(c.element());
         }
 
         @Teardown
