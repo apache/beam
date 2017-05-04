@@ -114,6 +114,7 @@
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.4.0</datastore.client.version>
     <datastore.proto.version>1.3.0</datastore.proto.version>
+    <google-api-common.version>1.0.0-rc2</google-api-common.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.4.1</google-auto-value.version>
     <google-auth.version>0.6.1</google-auth.version>
@@ -136,15 +137,15 @@
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
     <spark.version>1.6.2</spark.version>
+    <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
-    <spring.version>4.3.5.RELEASE</spring.version>
-    <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
-    <api-common.version>1.0.0-rc2</api-common.version>
-    <surefire-plugin.version>2.20</surefire-plugin.version>
+
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
+    <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
+    <surefire-plugin.version>2.20</surefire-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -603,6 +604,12 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api</groupId>
+        <artifactId>api-common</artifactId>
+        <version>${google-api-common.version}</version>
       </dependency>
 
       <dependency>
