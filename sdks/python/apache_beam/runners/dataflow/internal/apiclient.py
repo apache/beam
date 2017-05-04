@@ -30,9 +30,9 @@ from datetime import datetime
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
-from apache_beam import utils
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
@@ -233,7 +233,6 @@ class Environment(object):
       options_dict = {k: v
                       for k, v in sdk_pipeline_options.iteritems()
                       if v is not None}
-      options_dict['_options_id'] = 0  # TODO(BEAM-1999): Remove.
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -337,10 +336,11 @@ class Job(object):
     # for GCS staging locations where the potential for such clashes is high.
     if self.google_cloud_options.staging_location.startswith('gs://'):
       path_suffix = '%s.%f' % (self.google_cloud_options.job_name, time.time())
-      self.google_cloud_options.staging_location = utils.path.join(
+      self.google_cloud_options.staging_location = FileSystems.join(
           self.google_cloud_options.staging_location, path_suffix)
-      self.google_cloud_options.temp_location = utils.path.join(
+      self.google_cloud_options.temp_location = FileSystems.join(
           self.google_cloud_options.temp_location, path_suffix)
+
     self.proto = dataflow.Job(name=self.google_cloud_options.job_name)
     if self.options.view_as(StandardOptions).streaming:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
@@ -389,12 +389,12 @@ class DataflowApplicationClient(object):
                  mime_type='application/octet-stream'):
     """Stages a file at a GCS or local path with stream-supplied contents."""
     if not gcs_or_local_path.startswith('gs://'):
-      local_path = os.path.join(gcs_or_local_path, file_name)
+      local_path = FileSystems.join(gcs_or_local_path, file_name)
       logging.info('Staging file locally to %s', local_path)
       with open(local_path, 'wb') as f:
         f.write(stream.read())
       return
-    gcs_location = gcs_or_local_path + '/' + file_name
+    gcs_location = FileSystems.join(gcs_or_local_path, file_name)
     bucket, name = gcs_location[5:].split('/', 1)
 
     request = storage.StorageObjectsInsertRequest(
@@ -418,7 +418,6 @@ class DataflowApplicationClient(object):
     logging.info('Completed GCS upload to %s', gcs_location)
     return response
 
-  # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
     """Creates job description. May stage and/or submit for remote execution."""
@@ -449,8 +448,7 @@ class DataflowApplicationClient(object):
     job.proto.environment = Environment(
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
-    # TODO(silviuc): Remove the debug logging eventually.
-    logging.info('JOB: %s', job)
+    logging.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):
@@ -466,6 +464,7 @@ class DataflowApplicationClient(object):
       raise
     return response
 
+  @retry.with_exponential_backoff(num_retries=3)
   def submit_job_description(self, job):
     """Creates and excutes a job request."""
     request = dataflow.DataflowProjectsLocationsJobsCreateRequest()

@@ -25,7 +25,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 class TestDataflowRunner(DataflowRunner):
   def run(self, pipeline):
     """Execute test pipeline and verify test matcher"""
-    options = pipeline.options.view_as(TestOptions)
+    options = pipeline._options.view_as(TestOptions)
     on_success_matcher = options.on_success_matcher
 
     # [BEAM-1889] Do not send this to remote workers also, there is no need to
@@ -34,7 +34,7 @@ class TestDataflowRunner(DataflowRunner):
 
     self.result = super(TestDataflowRunner, self).run(pipeline)
     if self.result.has_job:
-      project = pipeline.options.view_as(GoogleCloudOptions).project
+      project = pipeline._options.view_as(GoogleCloudOptions).project
       job_id = self.result.job_id()
       # TODO(markflyhigh)(BEAM-1890): Use print since Nose dosen't show logs
       # in some cases.

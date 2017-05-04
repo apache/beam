@@ -248,7 +248,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file(path, FOO_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -261,7 +261,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -274,7 +274,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -287,7 +287,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
     self._write_file_gzip(path, FOO_BAR_RECORD_BASE64)
     with TestPipeline() as p:
       result = (p
-                | beam.Read(
+                | beam.io.Read(
                     _TFRecordSource(
                         path,
                         coder=coders.BytesCoder(),
@@ -401,6 +401,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(path+'-*', validate=True)
       beam.assert_that(actual_data, beam.equal_to(expected_data))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

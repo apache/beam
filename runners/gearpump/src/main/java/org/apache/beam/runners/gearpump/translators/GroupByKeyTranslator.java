@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -66,8 +66,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     JavaStream<WindowedValue<KV<K, V>>> inputStream =
         context.getInputStream(input);
     int parallelism = context.getPipelineOptions().getParallelism();
-    OutputTimeFn<? super BoundedWindow> outputTimeFn = (OutputTimeFn<? super BoundedWindow>)
-        input.getWindowingStrategy().getOutputTimeFn();
+    TimestampCombiner timestampCombiner = input.getWindowingStrategy().getTimestampCombiner();
     WindowFn<KV<K, V>, BoundedWindow> windowFn = (WindowFn<KV<K, V>, BoundedWindow>)
         input.getWindowingStrategy().getWindowFn();
     JavaStream<WindowedValue<KV<K, List<V>>>> outputStream = inputStream
@@ -75,9 +74,8 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
             new GearpumpWindowFn(windowFn.isNonMerging()),
             EventTimeTrigger$.MODULE$, Discarding$.MODULE$), "assign_window")
         .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
-        .map(new KeyedByTimestamp<K, V>((OutputTimeFn<? super BoundedWindow>)
-            input.getWindowingStrategy().getOutputTimeFn()), "keyed_by_timestamp")
-        .fold(new Merge<>(windowFn, outputTimeFn), "merge")
+        .map(new KeyedByTimestamp<K, V>(timestampCombiner), "keyed_by_timestamp")
+        .fold(new Merge<>(windowFn, timestampCombiner), "merge")
         .map(new Values<K, V>(), "values");
 
     context.setOutputStream(context.getOutput(), outputStream);
@@ -148,17 +146,17 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
       extends MapFunction<WindowedValue<KV<K, V>>,
       KV<Instant, WindowedValue<KV<K, V>>>> {
 
-    private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
+    private final TimestampCombiner timestampCombiner;
 
-    public KeyedByTimestamp(OutputTimeFn<? super BoundedWindow> outputTimeFn) {
-      this.outputTimeFn = outputTimeFn;
+    public KeyedByTimestamp(TimestampCombiner timestampCombiner) {
+      this.timestampCombiner = timestampCombiner;
     }
 
     @Override
     public KV<org.joda.time.Instant, WindowedValue<KV<K, V>>> map(
         WindowedValue<KV<K, V>> wv) {
-      Instant timestamp = outputTimeFn.assignOutputTime(wv.getTimestamp(),
-          Iterables.getOnlyElement(wv.getWindows()));
+      Instant timestamp = timestampCombiner.assign(
+          Iterables.getOnlyElement(wv.getWindows()), wv.getTimestamp());
       return KV.of(timestamp, wv);
     }
   }
@@ -171,12 +169,12 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
       KV<Instant, WindowedValue<KV<K, List<V>>>>> {
 
     private final WindowFn<KV<K, V>, BoundedWindow> windowFn;
-    private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
+    private final TimestampCombiner timestampCombiner;
 
     Merge(WindowFn<KV<K, V>, BoundedWindow> windowFn,
-        OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+        TimestampCombiner timestampCombiner) {
       this.windowFn = windowFn;
-      this.outputTimeFn = outputTimeFn;
+      this.timestampCombiner = timestampCombiner;
     }
 
     @Override
@@ -229,7 +227,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
         mergedWindows.addAll(wv1.getWindows());
       }
 
-      Instant timestamp = outputTimeFn.combine(t1, t2);
+      Instant timestamp = timestampCombiner.combine(t1, t2);
       return KV.of(timestamp,
           WindowedValue.of(wv1.getValue(), timestamp,
               mergedWindows, wv1.getPane()));

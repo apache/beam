@@ -26,23 +26,22 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * A collection of static methods for manipulating datastructure representations
- * transferred via the Dataflow API.
+ * A collection of static methods for manipulating datastructure representations transferred via the
+ * Dataflow API.
  */
 public final class Structs {
-  private Structs() {}  // Non-instantiable
+  private Structs() {} // Non-instantiable
 
-  public static String getString(Map<String, Object> map, String name) throws Exception {
+  public static String getString(Map<String, Object> map, String name) {
     return getValue(map, name, String.class, "a string");
   }
 
   public static String getString(
-      Map<String, Object> map, String name, @Nullable String defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, @Nullable String defaultValue) {
     return getValue(map, name, String.class, "a string", defaultValue);
   }
 
-  public static byte[] getBytes(Map<String, Object> map, String name) throws Exception {
+  public static byte[] getBytes(Map<String, Object> map, String name) {
     @Nullable byte[] result = getBytes(map, name, null);
     if (result == null) {
       throw new ParameterNotFoundException(name, map);
@@ -51,8 +50,8 @@ public final class Structs {
   }
 
   @Nullable
-  public static byte[] getBytes(Map<String, Object> map, String name, @Nullable byte[] defaultValue)
-      throws Exception {
+  public static byte[] getBytes(
+      Map<String, Object> map, String name, @Nullable byte[] defaultValue) {
     @Nullable String jsonString = getString(map, name, null);
     if (jsonString == null) {
       return defaultValue;
@@ -63,41 +62,38 @@ public final class Structs {
     return StringUtils.jsonStringToByteArray(jsonString);
   }
 
-  public static Boolean getBoolean(Map<String, Object> map, String name) throws Exception {
+  public static Boolean getBoolean(Map<String, Object> map, String name) {
     return getValue(map, name, Boolean.class, "a boolean");
   }
 
   @Nullable
   public static Boolean getBoolean(
-      Map<String, Object> map, String name, @Nullable Boolean defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, @Nullable Boolean defaultValue) {
     return getValue(map, name, Boolean.class, "a boolean", defaultValue);
   }
 
-  public static Long getLong(Map<String, Object> map, String name) throws Exception {
+  public static Long getLong(Map<String, Object> map, String name) {
     return getValue(map, name, Long.class, "a long");
   }
 
   @Nullable
-  public static Long getLong(Map<String, Object> map, String name, @Nullable Long defaultValue)
-      throws Exception {
+  public static Long getLong(Map<String, Object> map, String name, @Nullable Long defaultValue) {
     return getValue(map, name, Long.class, "a long", defaultValue);
   }
 
-  public static Integer getInt(Map<String, Object> map, String name) throws Exception {
+  public static Integer getInt(Map<String, Object> map, String name) {
     return getValue(map, name, Integer.class, "an int");
   }
 
   @Nullable
-  public static Integer getInt(Map<String, Object> map, String name, @Nullable Integer defaultValue)
-      throws Exception {
+  public static Integer getInt(
+      Map<String, Object> map, String name, @Nullable Integer defaultValue) {
     return getValue(map, name, Integer.class, "an int", defaultValue);
   }
 
   @Nullable
   public static List<String> getStrings(
-      Map<String, Object> map, String name, @Nullable List<String> defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, @Nullable List<String> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
       if (map.containsKey(name)) {
@@ -130,8 +126,7 @@ public final class Structs {
     return result;
   }
 
-  public static Map<String, Object> getObject(Map<String, Object> map, String name)
-      throws Exception {
+  public static Map<String, Object> getObject(Map<String, Object> map, String name) {
     @Nullable Map<String, Object> result = getObject(map, name, null);
     if (result == null) {
       throw new ParameterNotFoundException(name, map);
@@ -141,8 +136,7 @@ public final class Structs {
 
   @Nullable
   public static Map<String, Object> getObject(
-      Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
       if (map.containsKey(name)) {
@@ -154,7 +148,7 @@ public final class Structs {
   }
 
   private static Map<String, Object> checkObject(
-      Object value, Map<String, Object> map, String name) throws Exception {
+      Object value, Map<String, Object> map, String name) {
     if (Data.isNull(value)) {
       // This is a JSON literal null.  When represented as an object, this is an
       // empty map.
@@ -166,17 +160,16 @@ public final class Structs {
     @SuppressWarnings("unchecked")
     Map<String, Object> mapValue = (Map<String, Object>) value;
     if (!mapValue.containsKey(PropertyNames.OBJECT_TYPE_NAME)) {
-      throw new IncorrectTypeException(name, map,
-          "an object (no \"" + PropertyNames.OBJECT_TYPE_NAME + "\" field)");
+      throw new IncorrectTypeException(
+          name, map, "an object (no \"" + PropertyNames.OBJECT_TYPE_NAME + "\" field)");
     }
     return mapValue;
   }
 
   @Nullable
-  public static List<Map<String, Object>> getListOfMaps(Map<String, Object> map, String name,
-      @Nullable List<Map<String, Object>> defaultValue) throws Exception {
-    @Nullable
-    Object value = map.get(name);
+  public static List<Map<String, Object>> getListOfMaps(
+      Map<String, Object> map, String name, @Nullable List<Map<String, Object>> defaultValue) {
+    @Nullable Object value = map.get(name);
     if (value == null) {
       if (map.containsKey(name)) {
         throw new IncorrectTypeException(name, map, "a list");
@@ -205,8 +198,7 @@ public final class Structs {
     return result;
   }
 
-  public static Map<String, Object> getDictionary(
-      Map<String, Object> map, String name) throws Exception {
+  public static Map<String, Object> getDictionary(Map<String, Object> map, String name) {
     @Nullable Object value = map.get(name);
     if (value == null) {
       throw new ParameterNotFoundException(name, map);
@@ -226,8 +218,7 @@ public final class Structs {
 
   @Nullable
   public static Map<String, Object> getDictionary(
-      Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, @Nullable Map<String, Object> defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
       if (map.containsKey(name)) {
@@ -262,8 +253,7 @@ public final class Structs {
     addObject(map, name, CloudObject.forInteger(value));
   }
 
-  public static void addObject(
-      Map<String, Object> map, String name, Map<String, Object> value) {
+  public static void addObject(Map<String, Object> map, String name, Map<String, Object> value) {
     map.put(name, value);
   }
 
@@ -308,8 +298,7 @@ public final class Structs {
 
   // Helper methods for a few of the accessor methods.
 
-  private static <T> T getValue(Map<String, Object> map, String name, Class<T> clazz, String type)
-      throws Exception {
+  private static <T> T getValue(Map<String, Object> map, String name, Class<T> clazz, String type) {
     @Nullable T result = getValue(map, name, clazz, type, null);
     if (result == null) {
       throw new ParameterNotFoundException(name, map);
@@ -319,8 +308,7 @@ public final class Structs {
 
   @Nullable
   private static <T> T getValue(
-      Map<String, Object> map, String name, Class<T> clazz, String type, @Nullable T defaultValue)
-      throws Exception {
+      Map<String, Object> map, String name, Class<T> clazz, String type, @Nullable T defaultValue) {
     @Nullable Object value = map.get(name);
     if (value == null) {
       if (map.containsKey(name)) {
@@ -369,13 +357,13 @@ public final class Structs {
     }
   }
 
-  private static final class ParameterNotFoundException extends Exception {
+  private static final class ParameterNotFoundException extends RuntimeException {
     public ParameterNotFoundException(String name, Map<String, Object> map) {
       super("didn't find required parameter " + name + " in " + map);
     }
   }
 
-  private static final class IncorrectTypeException extends Exception {
+  private static final class IncorrectTypeException extends RuntimeException {
     public IncorrectTypeException(String name, Map<String, Object> map, String type) {
       super("required parameter " + name + " in " + map + " not " + type);
     }

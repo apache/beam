@@ -33,8 +33,10 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
@@ -51,7 +53,10 @@ import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -340,6 +345,51 @@ public class CreateStreamTest implements Serializable {
 
     IntervalWindow window = new IntervalWindow(instant, instant.plus(Duration.standardMinutes(5L)));
     PAssert.that(triggered).inOnTimePane(window).containsInAnyOrder(1, 2, 3, 4, 5);
+
+    p.run();
+  }
+
+  /**
+   * Test multiple output {@link ParDo} in streaming pipelines.
+   * This is currently needed as a test for https://issues.apache.org/jira/browse/BEAM-2029 since
+   * {@link org.apache.beam.sdk.testing.ValidatesRunner} tests do not currently run for Spark runner
+   * in streaming mode.
+   */
+  @Test
+  public void testMultiOutputParDo() throws IOException {
+    Pipeline p = pipelineRule.createPipeline();
+    Instant instant = new Instant(0);
+    CreateStream<Integer> source1 =
+        CreateStream.of(VarIntCoder.of(), pipelineRule.batchDuration())
+            .emptyBatch()
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(5)))
+            .nextBatch(
+                TimestampedValue.of(1, instant),
+                TimestampedValue.of(2, instant),
+                TimestampedValue.of(3, instant))
+            .advanceNextBatchWatermarkToInfinity();
+
+    PCollection<Integer> inputs = p.apply(source1);
+
+    final TupleTag<Integer> mainTag = new TupleTag<>();
+    final TupleTag<Integer> additionalTag = new TupleTag<>();
+
+    PCollectionTuple outputs = inputs.apply(ParDo.of(new DoFn<Integer, Integer>() {
+
+      @SuppressWarnings("unused")
+      @ProcessElement
+      public void process(ProcessContext context) {
+        Integer element = context.element();
+        context.output(element);
+        context.output(additionalTag, element + 1);
+      }
+    }).withOutputTags(mainTag, TupleTagList.of(additionalTag)));
+
+    PCollection<Integer> output1 = outputs.get(mainTag).setCoder(VarIntCoder.of());
+    PCollection<Integer> output2 = outputs.get(additionalTag).setCoder(VarIntCoder.of());
+
+    PAssert.that(output1).containsInAnyOrder(1, 2, 3);
+    PAssert.that(output2).containsInAnyOrder(2, 3, 4);
 
     p.run();
   }

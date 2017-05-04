@@ -33,10 +33,9 @@ import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator.Gearpum
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -83,15 +82,15 @@ public class GroupByKeyTranslatorTest {
   }
 
   @Parameterized.Parameters(name = "{index}: {0}")
-  public static Iterable<OutputTimeFn<BoundedWindow>> data() {
+  public static Iterable<TimestampCombiner> data() {
     return ImmutableList.of(
-        OutputTimeFns.outputAtEarliestInputTimestamp(),
-        OutputTimeFns.outputAtLatestInputTimestamp(),
-        OutputTimeFns.outputAtEndOfWindow());
+        TimestampCombiner.EARLIEST,
+        TimestampCombiner.LATEST,
+        TimestampCombiner.END_OF_WINDOW);
   }
 
   @Parameterized.Parameter(0)
-  public OutputTimeFn<? super BoundedWindow> outputTimeFn;
+  public TimestampCombiner timestampCombiner;
 
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -99,15 +98,15 @@ public class GroupByKeyTranslatorTest {
     BoundedWindow window =
         new IntervalWindow(new org.joda.time.Instant(0), new org.joda.time.Instant(10));
     GroupByKeyTranslator.KeyedByTimestamp keyedByTimestamp =
-        new GroupByKeyTranslator.KeyedByTimestamp(outputTimeFn);
+        new GroupByKeyTranslator.KeyedByTimestamp(timestampCombiner);
     WindowedValue<KV<String, String>> value =
         WindowedValue.of(
             KV.of("key", "val"), org.joda.time.Instant.now(), window, PaneInfo.NO_FIRING);
     KV<org.joda.time.Instant, WindowedValue<KV<String, String>>> result =
         keyedByTimestamp.map(value);
     org.joda.time.Instant time =
-        outputTimeFn.assignOutputTime(
-            value.getTimestamp(), Iterables.getOnlyElement(value.getWindows()));
+        timestampCombiner.assign(Iterables.getOnlyElement(value.getWindows()),
+            value.getTimestamp());
     assertThat(result, equalTo(KV.of(time, value)));
   }
 
@@ -115,7 +114,8 @@ public class GroupByKeyTranslatorTest {
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testMerge() {
     WindowFn slidingWindows = Sessions.withGapDuration(Duration.millis(10));
-    GroupByKeyTranslator.Merge merge = new GroupByKeyTranslator.Merge(slidingWindows, outputTimeFn);
+    GroupByKeyTranslator.Merge merge = new GroupByKeyTranslator.Merge(slidingWindows,
+        timestampCombiner);
     org.joda.time.Instant key1 = new org.joda.time.Instant(5);
     WindowedValue<KV<String, String>> value1 =
         WindowedValue.of(
@@ -140,7 +140,7 @@ public class GroupByKeyTranslatorTest {
 
     KV<org.joda.time.Instant, WindowedValue<KV<String, List<String>>>> result2 =
         merge.fold(result1, KV.of(key2, value2));
-    assertThat(result2.getKey(), equalTo(outputTimeFn.combine(key1, key2)));
+    assertThat(result2.getKey(), equalTo(timestampCombiner.combine(key1, key2)));
     Collection<? extends BoundedWindow> resultWindows = result2.getValue().getWindows();
     assertThat(resultWindows.size(), equalTo(1));
     IntervalWindow expectedWindow =

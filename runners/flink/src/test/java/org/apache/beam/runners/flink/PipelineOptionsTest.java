@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -94,6 +95,13 @@ public class PipelineOptionsTest {
   }
 
   @Test
+  public void testEnableMetrics() {
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setEnableMetrics(false);
+    assertFalse(options.getEnableMetrics());
+  }
+
+  @Test
   public void testCaching() {
     PipelineOptions deserializedOptions =
         serializedOptions.getPipelineOptions().as(PipelineOptions.class);
@@ -113,6 +121,7 @@ public class PipelineOptionsTest {
   public void parDoBaseClassPipelineOptionsNullTest() {
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
+        "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
         new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
@@ -133,6 +142,7 @@ public class PipelineOptionsTest {
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
         new TestDoFn(),
+        "stepName",
         WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()),
         new TupleTag<String>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
@@ -170,6 +180,15 @@ public class PipelineOptionsTest {
 
   }
 
+  @Test
+  public void testExternalizedCheckpointsConfigs() {
+    String[] args = new String[] { "--externalizedCheckpointsEnabled=true",
+        "--retainExternalizedCheckpointsOnCancellation=false" };
+    final FlinkPipelineOptions options = PipelineOptionsFactory.fromArgs(args)
+        .as(FlinkPipelineOptions.class);
+    assertEquals(options.isExternalizedCheckpointsEnabled(), true);
+    assertEquals(options.getRetainExternalizedCheckpointsOnCancellation(), false);
+  }
 
   private static class TestDoFn extends DoFn<String, String> {
 

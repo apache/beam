@@ -28,7 +28,34 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.METRICS)
 public abstract class MetricResults {
   /**
-   * Query for all metrics that match the filter.
+   * Query for all metric values that match a given filter.
+   *
+   * <p>The {@code filter} may filter based on the namespace and/or name of the metric, as well as
+   * the step that reported the metric.
+   *
+   * <p>For each type of metric, the result contains an iterable of all metrics of that type that
+   * matched the filter. Each {@link MetricResult} includes the name of the metric, the step in
+   * which it was reported and the {@link MetricResult#committed} and
+   * {@link MetricResult#attempted} values.
+   *
+   * <p>Note that runners differ in their support for committed and attempted values.
+   *
+   * <p>Example: Querying the metrics reported from the {@code SomeDoFn} example in {@link Metrics}
+   * could be done as follows:
+   * <pre>{@code
+   * Pipeline p = ...;
+   * p.apply("create1", Create.of("hello")).apply("myStepName1", ParDo.of(new SomeDoFn()));
+   * p.apply("create2", Create.of("world")).apply("myStepName2", ParDo.of(new SomeDoFn()));
+   * PipelineResult result = p.run();
+   * MetricResults metrics = result.metrics();
+   * MetricQueryResults metricResults = metrics.queryMetrics(new MetricsFilter.Builder()
+   *     .addNameFilter("my-counter")
+   *     .addStepFilter("myStepName1").addStepFilter("myStepName2")
+   *     .build());
+   * Iterable<MetricResult<Long>> counters = metricResults.counters();
+   * // counters should contain the value of my-counter reported from each of the ParDo
+   * // applications.
+   * }</pre>
    */
   public abstract MetricQueryResults queryMetrics(MetricsFilter filter);
 }

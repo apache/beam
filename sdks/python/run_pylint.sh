@@ -46,7 +46,10 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
-"apache_beam/runners/api/beam_runner_api_pb2.py")
+"apache_beam/runners/api/beam_fn_api_pb2.py"
+"apache_beam/runners/api/beam_fn_api_pb2_grpc.py"
+"apache_beam/runners/api/beam_runner_api_pb2.py"
+)
 
 FILES_TO_IGNORE=""
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
@@ -59,5 +62,5 @@ echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
 pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pep8 for module $MODULE:"
-pep8 $MODULE --exclude="$FILES_TO_IGNORE"
+echo "Running pycodestyle for module $MODULE:"
+pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"

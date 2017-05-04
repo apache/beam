@@ -60,6 +60,7 @@ class BigqueryTornadoesIT(unittest.TestCase):
     bigquery_tornadoes.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

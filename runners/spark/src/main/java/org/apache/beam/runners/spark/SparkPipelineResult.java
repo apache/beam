@@ -24,14 +24,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.metrics.SparkMetricResults;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -78,15 +75,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   protected abstract State awaitTermination(Duration duration)
       throws TimeoutException, ExecutionException, InterruptedException;
-
-  public <T> T getAggregatorValue(final String name, final Class<T> resultType) {
-    return SparkAggregators.valueOf(name, resultType);
-  }
-
-  @Override
-  public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator) {
-    return SparkAggregators.valueOf(aggregator);
-  }
 
   @Override
   public PipelineResult.State getState() {

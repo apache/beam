@@ -37,16 +37,15 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -149,7 +148,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
+            .withTimestampCombiner(TimestampCombiner.EARLIEST);
 
     List<WindowedValue<KV<String, Iterable<String>>>> result =
         runGABW(
@@ -200,7 +199,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(SlidingWindows.of(Duration.millis(20)).every(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp());
+            .withTimestampCombiner(TimestampCombiner.EARLIEST);
 
     List<WindowedValue<KV<String, Long>>> result =
         runGABW(
@@ -348,7 +347,7 @@ public class GroupAlsoByWindowsProperties {
   /**
    * Tests that for a simple sequence of elements on the same key, the given GABW implementation
    * correctly groups them according to fixed windows and also sets the output timestamp according
-   * to the policy {@link OutputTimeFns#outputAtEndOfWindow()}.
+   * to the policy {@link TimestampCombiner#END_OF_WINDOW}.
    */
   public static void groupsElementsIntoFixedWindowsWithEndOfWindowTimestamp(
       GroupAlsoByWindowsDoFnFactory<String, String, Iterable<String>> gabwFactory)
@@ -356,7 +355,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
+            .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW);
 
     List<WindowedValue<KV<String, Iterable<String>>>> result =
         runGABW(
@@ -386,7 +385,7 @@ public class GroupAlsoByWindowsProperties {
   /**
    * Tests that for a simple sequence of elements on the same key, the given GABW implementation
    * correctly groups them according to fixed windows and also sets the output timestamp according
-   * to the policy {@link OutputTimeFns#outputAtLatestInputTimestamp()}.
+   * to the policy {@link TimestampCombiner#LATEST}.
    */
   public static void groupsElementsIntoFixedWindowsWithLatestTimestamp(
       GroupAlsoByWindowsDoFnFactory<String, String, Iterable<String>> gabwFactory)
@@ -394,7 +393,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp());
+            .withTimestampCombiner(TimestampCombiner.LATEST);
 
     List<WindowedValue<KV<String, Iterable<String>>>> result =
         runGABW(
@@ -431,7 +430,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
+            .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW);
 
     List<WindowedValue<KV<String, Iterable<String>>>> result =
         runGABW(
@@ -468,7 +467,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtLatestInputTimestamp());
+            .withTimestampCombiner(TimestampCombiner.LATEST);
 
     BoundedWindow unmergedWindow = window(15, 25);
     List<WindowedValue<KV<String, Iterable<String>>>> result =
@@ -508,7 +507,7 @@ public class GroupAlsoByWindowsProperties {
 
     WindowingStrategy<?, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(10)))
-            .withOutputTimeFn(OutputTimeFns.outputAtEndOfWindow());
+            .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW);
 
     BoundedWindow secondWindow = window(15, 25);
     List<WindowedValue<KV<String, Long>>> result =
@@ -571,7 +570,7 @@ public class GroupAlsoByWindowsProperties {
   }
 
   private static final class CachingStateInternalsFactory<K> implements StateInternalsFactory<K> {
-    private final LoadingCache<K, StateInternals<K>> stateInternalsCache;
+    private final LoadingCache<K, StateInternals> stateInternalsCache;
 
     private CachingStateInternalsFactory() {
       this.stateInternalsCache = CacheBuilder.newBuilder().build(new StateInternalsLoader<K>());
@@ -579,7 +578,7 @@ public class GroupAlsoByWindowsProperties {
 
     @Override
     @SuppressWarnings("unchecked")
-    public StateInternals<K> stateInternalsForKey(K key) {
+    public StateInternals stateInternalsForKey(K key) {
       try {
         return stateInternalsCache.get(key);
       } catch (Exception exc) {
@@ -588,9 +587,9 @@ public class GroupAlsoByWindowsProperties {
     }
   }
 
-  private static class StateInternalsLoader<K> extends CacheLoader<K, StateInternals<K>> {
+  private static class StateInternalsLoader<K> extends CacheLoader<K, StateInternals> {
     @Override
-    public StateInternals<K> load(K key) throws Exception {
+    public StateInternals load(K key) throws Exception {
       return InMemoryStateInternals.forKey(key);
     }
   }
@@ -687,7 +686,7 @@ public class GroupAlsoByWindowsProperties {
         }
 
         @Override
-        public StateInternals<?> stateInternals() {
+        public StateInternals stateInternals() {
           throw new UnsupportedOperationException();
         }
 
@@ -735,12 +734,6 @@ public class GroupAlsoByWindowsProperties {
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new UnsupportedOperationException();
     }
 

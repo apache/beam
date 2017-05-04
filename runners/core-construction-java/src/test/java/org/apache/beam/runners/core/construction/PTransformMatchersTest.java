@@ -30,8 +30,7 @@ import java.util.Collections;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink;
-import org.apache.beam.sdk.io.Write;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.runners.PTransformMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -170,7 +169,7 @@ public class PTransformMatchersTest implements Serializable {
         private final String stateId = "mystate";
 
         @StateId(stateId)
-        private final StateSpec<Object, ValueState<Integer>> intState =
+        private final StateSpec<ValueState<Integer>> intState =
             StateSpecs.value(VarIntCoder.of());
 
         @ProcessElement
@@ -499,12 +498,11 @@ public class PTransformMatchersTest implements Serializable {
 
   @Test
   public void writeWithRunnerDeterminedSharding() {
-    Write<Integer> write =
-        Write.to(
+    WriteFiles<Integer> write =
+        WriteFiles.to(
             new FileBasedSink<Integer>("foo", "bar") {
               @Override
-              public FileBasedWriteOperation<Integer> createWriteOperation(
-                  PipelineOptions options) {
+              public FileBasedWriteOperation<Integer> createWriteOperation() {
                 return null;
               }
             });
@@ -512,13 +510,13 @@ public class PTransformMatchersTest implements Serializable {
         PTransformMatchers.writeWithRunnerDeterminedSharding().matches(appliedWrite(write)),
         is(true));
 
-    Write<Integer> withStaticSharding = write.withNumShards(3);
+    WriteFiles<Integer> withStaticSharding = write.withNumShards(3);
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
             .matches(appliedWrite(withStaticSharding)),
         is(false));
 
-    Write<Integer> withCustomSharding =
+    WriteFiles<Integer> withCustomSharding =
         write.withSharding(Sum.integersGlobally().asSingletonView());
     assertThat(
         PTransformMatchers.writeWithRunnerDeterminedSharding()
@@ -526,9 +524,9 @@ public class PTransformMatchersTest implements Serializable {
         is(false));
   }
 
-  private AppliedPTransform<?, ?, ?> appliedWrite(Write<Integer> write) {
-    return AppliedPTransform.<PCollection<Integer>, PDone, Write<Integer>>of(
-        "Write",
+  private AppliedPTransform<?, ?, ?> appliedWrite(WriteFiles<Integer> write) {
+    return AppliedPTransform.<PCollection<Integer>, PDone, WriteFiles<Integer>>of(
+        "WriteFiles",
         Collections.<TupleTag<?>, PValue>emptyMap(),
         Collections.<TupleTag<?>, PValue>emptyMap(),
         write,

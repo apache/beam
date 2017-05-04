@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.FileBasedSink.constructName;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,7 +45,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
-
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
@@ -85,6 +84,30 @@ public class FileBasedSinkTest {
 
   private String getBaseTempDirectory() {
     return appendToTempFolder(tempDirectory);
+  }
+
+  @Test
+  public void testConstructName() {
+    assertEquals("output-001-of-123.txt",
+        constructName("output", "-SSS-of-NNN", ".txt", 1, 123));
+
+    assertEquals("out.txt/part-00042",
+        constructName("out.txt", "/part-SSSSS", "", 42, 100));
+
+    assertEquals("out.txt",
+        constructName("ou", "t.t", "xt", 1, 1));
+
+    assertEquals("out0102shard.txt",
+        constructName("out", "SSNNshard", ".txt", 1, 2));
+
+    assertEquals("out-2/1.part-1-of-2.txt",
+        constructName("out", "-N/S.part-S-of-N", ".txt", 1, 2));
+  }
+
+  @Test
+  public void testConstructNameWithLargeShardCount() {
+    assertEquals("out-100-of-5000.txt",
+        constructName("out", "-SS-of-NN", ".txt", 100, 5000));
   }
 
   /**
@@ -508,7 +531,7 @@ public class FileBasedSinkTest {
     final String testUid = "testId";
     SimpleSink.SimpleWriteOperation writeOp =
         new SimpleSink(getBaseOutputFilename(), "txt", new DrunkWritableByteChannelFactory())
-            .createWriteOperation(null);
+            .createWriteOperation();
     final FileBasedWriter<String> writer =
         writeOp.createWriter(null);
     final String expectedFilename = IOChannelUtils.resolve(writeOp.tempDirectory.get(), testUid);
@@ -530,79 +553,6 @@ public class FileBasedSinkTest {
 
     assertEquals(expectedFilename, result.getFilename());
     assertFileContains(expected, expectedFilename);
-  }
-
-  /**
-   * A simple FileBasedSink that writes String values as lines with header and footer lines.
-   */
-  private static final class SimpleSink extends FileBasedSink<String> {
-    public SimpleSink(String baseOutputFilename, String extension) {
-      super(baseOutputFilename, extension);
-    }
-
-    public SimpleSink(String baseOutputFilename, String extension,
-        WritableByteChannelFactory writableByteChannelFactory) {
-      super(baseOutputFilename, extension, writableByteChannelFactory);
-    }
-
-    public SimpleSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
-      super(baseOutputFilename, extension, fileNamingTemplate);
-    }
-
-    @Override
-    public SimpleWriteOperation createWriteOperation(PipelineOptions options) {
-      return new SimpleWriteOperation(this);
-    }
-
-    private static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
-      public SimpleWriteOperation(SimpleSink sink, String tempOutputFilename) {
-        super(sink, tempOutputFilename);
-      }
-
-      public SimpleWriteOperation(SimpleSink sink) {
-        super(sink);
-      }
-
-      @Override
-      public SimpleWriter createWriter(PipelineOptions options) throws Exception {
-        return new SimpleWriter(this);
-      }
-    }
-
-    private static final class SimpleWriter extends FileBasedWriter<String> {
-      static final String HEADER = "header";
-      static final String FOOTER = "footer";
-
-      private WritableByteChannel channel;
-
-      public SimpleWriter(SimpleWriteOperation writeOperation) {
-        super(writeOperation);
-      }
-
-      private static ByteBuffer wrap(String value) throws Exception {
-        return ByteBuffer.wrap((value + "\n").getBytes("UTF-8"));
-      }
-
-      @Override
-      protected void prepareWrite(WritableByteChannel channel) throws Exception {
-        this.channel = channel;
-      }
-
-      @Override
-      protected void writeHeader() throws Exception {
-        channel.write(wrap(HEADER));
-      }
-
-      @Override
-      protected void writeFooter() throws Exception {
-        channel.write(wrap(FOOTER));
-      }
-
-      @Override
-      public void write(String value) throws Exception {
-        channel.write(wrap(value));
-      }
-    }
   }
 
   /**

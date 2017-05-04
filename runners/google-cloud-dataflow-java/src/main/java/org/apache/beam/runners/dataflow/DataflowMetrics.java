@@ -79,9 +79,9 @@ class DataflowMetrics extends MetricResults {
   private MetricKey metricHashKey(
       com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
     String fullStepName = metricUpdate.getName().getContext().get("step");
-    fullStepName = (dataflowPipelineJob.aggregatorTransforms != null
-        ? dataflowPipelineJob.aggregatorTransforms
-            .getAppliedTransformForStepName(fullStepName).getFullName() : fullStepName);
+    fullStepName = (dataflowPipelineJob.transformStepNames != null
+        ? dataflowPipelineJob.transformStepNames
+        .inverse().get(fullStepName).getFullName() : fullStepName);
     return MetricKey.create(
         fullStepName,
         MetricName.named(
@@ -136,22 +136,32 @@ class DataflowMetrics extends MetricResults {
         ImmutableList.builder();
     ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults = ImmutableList.builder();
     for (MetricKey metricKey : metricHashKeys) {
-      String metricName = metricKey.metricName().name();
-      if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
-          || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
-        // Skip distribution metrics, as these are not yet properly supported.
-        LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
-            + "User Interface");
+      if (!MetricFiltering.matches(filter, metricKey)) {
+        // Skip unmatched metrics early.
         continue;
       }
-      String namespace = metricKey.metricName().namespace();
-      String step = metricKey.stepName();
-      Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
-      Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
-      if (MetricFiltering.matches(filter, metricKey)) {
-        counterResults.add(DataflowMetricResult.create(
-            MetricName.named(namespace, metricName),
-            step, committed, attempted));
+
+      // This code is not robust to evolutions in the types of metrics that can be returned, so
+      // wrap it in a try-catch and log errors.
+      try {
+        String metricName = metricKey.metricName().name();
+        if (metricName.endsWith("[MIN]") || metricName.endsWith("[MAX]")
+            || metricName.endsWith("[MEAN]") || metricName.endsWith("[COUNT]")) {
+          // Skip distribution metrics, as these are not yet properly supported.
+          LOG.warn("Distribution metrics are not yet supported. You can see them in the Dataflow"
+              + "User Interface");
+          continue;
+        }
+
+        String namespace = metricKey.metricName().namespace();
+        String step = metricKey.stepName();
+        Long committed = ((Number) committedByName.get(metricKey).getScalar()).longValue();
+        Long attempted = ((Number) tentativeByName.get(metricKey).getScalar()).longValue();
+        counterResults.add(
+            DataflowMetricResult.create(
+                MetricName.named(namespace, metricName), step, committed, attempted));
+      } catch (Exception e) {
+        LOG.warn("Error handling metric {} for filter {}, skipping result.", metricKey, filter);
       }
     }
     return DataflowMetricQueryResults.create(

@@ -154,7 +154,7 @@ public class ProxyInvocationHandlerTest {
     MyEnum("MyTestEnum");
 
     private final String value;
-    private EnumType(String value) {
+    EnumType(String value) {
       this.value = value;
     }
 

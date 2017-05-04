@@ -98,31 +98,21 @@ public class SerializableUtils {
    * <p>Throws a RuntimeException if serialized Coder cannot be deserialized, or
    * if the deserialized instance is not equal to the original.
    *
-   * @return the serialized Coder, as a {@link CloudObject}
+   * @return the deserialized Coder
    */
-  public static CloudObject ensureSerializable(Coder<?> coder) {
+  public static Coder<?> ensureSerializable(Coder<?> coder) {
     // Make sure that Coders are java serializable as well since
     // they are regularly captured within DoFn's.
     Coder<?> copy = (Coder<?>) ensureSerializable((Serializable) coder);
 
-    CloudObject cloudObject = copy.asCloudObject();
-
-    Coder<?> decoded;
-    try {
-      decoded = Serializer.deserialize(cloudObject, Coder.class);
-    } catch (RuntimeException e) {
-      throw new RuntimeException(
-          String.format("Unable to deserialize Coder: %s. "
-              + "Check that a suitable constructor is defined.  "
-              + "See Coder for details.", coder), e
-      );
-    }
-    checkState(coder.equals(decoded),
+    checkState(
+        coder.equals(copy),
         "Coder not equal to original after serialization, indicating that the Coder may not "
-        + "implement serialization correctly.  Before: %s, after: %s, cloud encoding: %s",
-        coder, decoded, cloudObject);
+            + "implement serialization correctly.  Before: %s, after: %s",
+        coder,
+        copy);
 
-    return cloudObject;
+    return copy;
   }
 
   /**

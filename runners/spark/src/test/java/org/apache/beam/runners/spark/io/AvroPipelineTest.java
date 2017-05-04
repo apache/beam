@@ -74,8 +74,8 @@ public class AvroPipelineTest {
 
     Pipeline p = pipelineRule.createPipeline();
     PCollection<GenericRecord> input = p.apply(
-        AvroIO.Read.from(inputFile.getAbsolutePath()).withSchema(schema));
-    input.apply(AvroIO.Write.to(outputDir.getAbsolutePath()).withSchema(schema));
+        AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
+    input.apply(AvroIO.writeGenericRecords(schema).to(outputDir.getAbsolutePath()));
     p.run().waitUntilFinish();
 
     List<GenericRecord> records = readGenericFile();

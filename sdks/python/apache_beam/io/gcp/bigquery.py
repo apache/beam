@@ -45,11 +45,11 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'very_big' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'VeryBig' >> beam.io.Read(beam.io.BigQuerySource()
+  side_table = pipeline | 'NotBig' >> beam.io.Read(beam.io.BigQuerySource()
   results = (
       main_table
-      | 'process data' >> beam.Map(
+      | 'ProcessData' >> beam.Map(
           lambda element, side_input: ..., AsList(side_table)))
 
 There is no difference in how main and side inputs are read. What makes the
@@ -370,7 +370,7 @@ class BigQuerySource(dataflow_io.NativeSource):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base.py import *
+      from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -480,7 +480,7 @@ class BigQuerySink(dataflow_io.NativeSink):
     # Import here to avoid adding the dependency for local running scenarios.
     try:
       # pylint: disable=wrong-import-order, wrong-import-position
-      from apitools.base.py import *
+      from apitools.base import py  # pylint: disable=unused-variable
     except ImportError:
       raise ImportError(
           'Google Cloud IO not available, '
@@ -996,12 +996,13 @@ class BigQueryWrapper(object):
           % (project_id, dataset_id, table_id))
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
-    # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
-    # the table before this point.
-    return self._create_table(project_id=project_id,
-                              dataset_id=dataset_id,
-                              table_id=table_id,
-                              schema=schema or found_table.schema)
+    else:
+      # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
+      # the table before this point.
+      return self._create_table(project_id=project_id,
+                                dataset_id=dataset_id,
+                                table_id=table_id,
+                                schema=schema or found_table.schema)
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):

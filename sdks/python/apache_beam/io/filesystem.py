@@ -426,6 +426,35 @@ class FileSystem(object):
     return compression_type
 
   @abc.abstractmethod
+  def join(self, basepath, *paths):
+    """Join two or more pathname components for the filesystem
+
+    Args:
+      basepath: string path of the first component of the path
+      paths: path components to be added
+
+    Returns: full path after combining all the passed components
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def split(self, path):
+    """Splits the given path into two parts.
+
+    Splits the path into a pair (head, tail) such that tail contains the last
+    component of the path and head contains everything up to that.
+
+    For file-systems other than the local file-system, head should include the
+    prefix.
+
+    Args:
+      path: path as a string
+    Returns:
+      a pair of path components as strings.
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
   def mkdirs(self, path):
     """Recursively create directories for the provided path.
 
@@ -453,7 +482,8 @@ class FileSystem(object):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def create(self, path, mime_type, compression_type):
+  def create(self, path, mime_type='application/octet-stream',
+             compression_type=CompressionTypes.AUTO):
     """Returns a write channel for the given file path.
 
     Args:
@@ -466,7 +496,8 @@ class FileSystem(object):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def open(self, path, mime_type, compression_type):
+  def open(self, path, mime_type='application/octet-stream',
+           compression_type=CompressionTypes.AUTO):
     """Returns a read channel for the given file path.
 
     Args:

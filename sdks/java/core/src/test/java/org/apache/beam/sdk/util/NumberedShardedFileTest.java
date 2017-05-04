@@ -21,7 +21,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
@@ -33,7 +32,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.LocalResources;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,6 +55,13 @@ public class NumberedShardedFileTest {
   @Mock private PipelineResult pResult = Mockito.mock(PipelineResult.class);
 
   private final BackOff backOff = NumberedShardedFile.BACK_OFF_FACTORY.backoff();
+  private String filePattern;
+
+  @Before
+  public void setup() throws IOException {
+    filePattern = LocalResources.fromFile(tmpFolder.getRoot(), true).resolve(
+            "*", StandardResolveOptions.RESOLVE_FILE).toString();
+  }
 
   @Test
   public void testPreconditionFilePathIsNull() {
@@ -82,8 +91,9 @@ public class NumberedShardedFileTest {
     Files.write(contents2, tmpFile2, StandardCharsets.UTF_8);
     Files.write(contents3, tmpFile3, StandardCharsets.UTF_8);
 
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "result-*"));
+    filePattern = LocalResources.fromFile(tmpFolder.getRoot(), true).resolve(
+        "result-*", StandardResolveOptions.RESOLVE_FILE).toString();
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     assertThat(shardedFile.readFilesWithRetries(), containsInAnyOrder(contents1, contents2));
   }
@@ -92,8 +102,7 @@ public class NumberedShardedFileTest {
   public void testReadEmpty() throws Exception {
     File emptyFile = tmpFolder.newFile("result-000-of-001");
     Files.write("", emptyFile, StandardCharsets.UTF_8);
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     assertThat(shardedFile.readFilesWithRetries(), empty());
   }
@@ -110,9 +119,7 @@ public class NumberedShardedFileTest {
 
     Pattern customizedTemplate =
         Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"), customizedTemplate);
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern, customizedTemplate);
 
     assertThat(shardedFile.readFilesWithRetries(), containsInAnyOrder(contents1, contents2));
   }
@@ -122,10 +129,8 @@ public class NumberedShardedFileTest {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
 
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(
-            IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
-            Pattern.compile("incorrect-template"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern,
+        Pattern.compile("incorrect-template"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -138,12 +143,10 @@ public class NumberedShardedFileTest {
   public void testReadWithRetriesFailsSinceFilesystemError() throws Exception {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
-
-    NumberedShardedFile shardedFile =
-        spy(new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*")));
+    NumberedShardedFile shardedFile = spy(new NumberedShardedFile(filePattern));
     doThrow(IOException.class)
         .when(shardedFile)
-        .readLines(anyCollection(), any(IOChannelFactory.class));
+        .readLines(anyCollection());
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -154,8 +157,7 @@ public class NumberedShardedFileTest {
 
   @Test
   public void testReadWithRetriesFailsWhenOutputDirEmpty() throws Exception {
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
@@ -169,8 +171,7 @@ public class NumberedShardedFileTest {
     tmpFolder.newFile("result-000-of-001");
     tmpFolder.newFile("tmp-result-000-of-001");
 
-    NumberedShardedFile shardedFile =
-        new NumberedShardedFile(IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
+    NumberedShardedFile shardedFile = new NumberedShardedFile(filePattern);
 
     thrown.expect(IOException.class);
     thrown.expectMessage(

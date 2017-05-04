@@ -54,7 +54,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
         getTransform(),
         getOutputBundles(),
         getUnprocessedElements(),
-        getAggregatorChanges(),
         metricUpdates,
         getWatermarkHold(),
         getState(),
@@ -70,9 +69,8 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
-    private CopyOnAccessInMemoryStateInternals<?> state;
+    private CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
-    private AggregatorContainer.Mutator aggregatorChanges;
     private final Set<OutputType> producedOutputs;
     private final Instant watermarkHold;
 
@@ -91,7 +89,6 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
-          aggregatorChanges,
           metricUpdates,
           watermarkHold,
           state,
@@ -99,17 +96,12 @@ public abstract class StepTransformResult<InputT> implements TransformResult<Inp
           producedOutputs);
     }
 
-    public Builder<InputT> withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
-      this.aggregatorChanges = aggregatorChanges;
-      return this;
-    }
-
     public Builder<InputT> withMetricUpdates(MetricUpdates metricUpdates) {
       this.metricUpdates = metricUpdates;
       return this;
     }
 
-    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals<?> state) {
+    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals state) {
       this.state = state;
       return this;
     }

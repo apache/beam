@@ -65,6 +65,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -80,7 +82,6 @@ import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Structs;
-import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -133,8 +134,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    p.apply("ReadMyFile", TextIO.Read.from("gs://bucket/object"))
-     .apply("WriteMyFile", TextIO.Write.to("gs://bucket/object"));
+    // Enable the FileSystems API to know about gs:// URIs in this test.
+    FileSystems.setDefaultConfigInWorkers(options);
+
+    p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
+     .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(p);
 
@@ -461,7 +465,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     // Create a pipeline that the predefined step will be embedded into
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
         .apply(ParDo.of(new NoOpFn()))
         .apply(new EmbeddedTransform(predefinedStep.clone()))
         .apply(ParDo.of(new NoOpFn()));
@@ -519,9 +523,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline pipeline = Pipeline.create(options);
     String stepName = "DoFn1";
-    pipeline.apply("ReadMyFile", TextIO.Read.from("gs://bucket/in"))
+    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
         .apply(stepName, ParDo.of(new NoOpFn()))
-        .apply("WriteMyFile", TextIO.Write.to("gs://bucket/out"));
+        .apply("WriteMyFile", TextIO.write().to("gs://bucket/out"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
     Job job =
@@ -532,7 +536,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Collections.<DataflowPackage>emptyList())
             .getJob();
 
-    assertEquals(13, job.getSteps().size());
+    assertEquals(8, job.getSteps().size());
     Step step = job.getSteps().get(1);
     assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
     assertAllStepOutputsHaveUniqueIds(job);
@@ -719,7 +723,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   private void applyRead(Pipeline pipeline, String path) {
-    pipeline.apply("Read(" + path + ")", TextIO.Read.from(path));
+    pipeline.apply("Read(" + path + ")", TextIO.read().from(path));
   }
 
   /**
@@ -732,7 +736,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+    pipeline.apply(TextIO.read().from("gs://bucket/foo**/baz"));
 
     // Check that translation does fail.
     thrown.expectCause(allOf(
@@ -762,13 +766,107 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline pipeline = Pipeline.create(options);
     DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
 
-    pipeline.apply(TextIO.Read.from(new TestValueProvider()).withoutValidation());
+    pipeline.apply(TextIO.read().from(new TestValueProvider()));
 
     // Check that translation does not fail.
     t.translate(
         pipeline,
         DataflowRunner.fromOptions(options),
         Collections.<DataflowPackage>emptyList());
+  }
+
+  /**
+   * Test that in translation the name for a collection (in this case just a Create output) is
+   * overriden to be what the Dataflow service expects.
+   */
+  @Test
+  public void testNamesOverridden() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline.apply("Jazzy", Create.of(3)).setName("foobizzle");
+
+    runner.replaceTransforms(pipeline);
+
+    Job job = translator.translate(pipeline,
+        runner,
+        Collections.<DataflowPackage>emptyList()).getJob();
+
+    // The Create step
+    Step step = job.getSteps().get(0);
+
+    // This is the name that is "set by the user" that the Dataflow translator must override
+    String userSpecifiedName =
+        Structs.getString(
+            Structs.getListOfMaps(
+                step.getProperties(),
+                PropertyNames.OUTPUT_INFO,
+                null).get(0),
+        PropertyNames.USER_NAME);
+
+    // This is the calculated name that must actually be used
+    String calculatedName = getString(step.getProperties(), PropertyNames.USER_NAME) + ".out0";
+
+    assertThat(userSpecifiedName, equalTo(calculatedName));
+  }
+
+  /**
+   * Test that in translation the name for collections of a multi-output ParDo - a special case
+   * because the user can name tags - are overridden to be what the Dataflow service expects.
+   */
+  @Test
+  public void testTaggedNamesOverridden() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(false);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    TupleTag<Integer> tag1 = new TupleTag<Integer>("frazzle") {};
+    TupleTag<Integer> tag2 = new TupleTag<Integer>("bazzle") {};
+    TupleTag<Integer> tag3 = new TupleTag<Integer>() {};
+
+    PCollectionTuple outputs =
+        pipeline
+            .apply(Create.of(3))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void drop() {}
+                        })
+                    .withOutputTags(tag1, TupleTagList.of(tag2).and(tag3)));
+
+    outputs.get(tag1).setName("bizbazzle");
+    outputs.get(tag2).setName("gonzaggle");
+    outputs.get(tag3).setName("froonazzle");
+
+    runner.replaceTransforms(pipeline);
+
+    Job job = translator.translate(pipeline,
+        runner,
+        Collections.<DataflowPackage>emptyList()).getJob();
+
+    // The ParDo step
+    Step step = job.getSteps().get(1);
+    String stepName = Structs.getString(step.getProperties(), PropertyNames.USER_NAME);
+
+    List<Map<String, Object>> outputInfos =
+        Structs.getListOfMaps(step.getProperties(), PropertyNames.OUTPUT_INFO, null);
+
+    assertThat(outputInfos.size(), equalTo(3));
+
+    // The names set by the user _and_ the tags _must_ be ignored, or metrics will not show up.
+    for (int i = 0; i < outputInfos.size(); ++i) {
+      assertThat(
+          Structs.getString(outputInfos.get(i), PropertyNames.USER_NAME),
+          equalTo(String.format("%s.out%s", stepName, i)));
+    }
   }
 
   /**
@@ -792,7 +890,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             ParDo.of(
                 new DoFn<KV<Integer, Integer>, Integer>() {
                   @StateId("unused")
-                  final StateSpec<Object, ValueState<Integer>> stateSpec =
+                  final StateSpec<ValueState<Integer>> stateSpec =
                       StateSpecs.value(VarIntCoder.of());
 
                   @ProcessElement

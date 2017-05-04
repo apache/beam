@@ -48,6 +48,7 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.utils import urns
 from apache_beam.utils.pipeline_options import TypeOptions
 
 
@@ -126,7 +127,6 @@ class DoFn(WithTypeHints, HasDisplayData):
   """
 
   ElementParam = 'ElementParam'
-  ContextParam = 'ContextParam'
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
   WindowParam = 'WindowParam'
@@ -184,7 +184,7 @@ class DoFn(WithTypeHints, HasDisplayData):
         trivial_inference.infer_return_type(self.process, [input_type]))
 
   def _strip_output_annotations(self, type_hint):
-    annotations = (TimestampedValue, WindowedValue, pvalue.OutputValue)
+    annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
     # TODO(robertwb): These should be parameterized types that the
     # type inferencer understands.
     if (type_hint in annotations
@@ -589,6 +589,9 @@ class ParDo(PTransformWithSideInputs):
 
   def __init__(self, fn, *args, **kwargs):
     super(ParDo, self).__init__(fn, *args, **kwargs)
+    # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
+    self.dofn = self.fn
+    self.output_tags = set()
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
@@ -614,9 +617,6 @@ class ParDo(PTransformWithSideInputs):
             'fn_dd': self.fn}
 
   def expand(self, pcoll):
-    self.output_tags = set()
-    # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
-    self.dofn = self.fn
     return pvalue.PCollection(pcoll.pipeline)
 
   def with_outputs(self, *tags, **main_kw):
@@ -957,7 +957,7 @@ class CombineValues(PTransformWithSideInputs):
       key_type, _ = input_type.tuple_types
 
     runtime_type_check = (
-        pcoll.pipeline.options.view_as(TypeOptions).runtime_type_check)
+        pcoll.pipeline._options.view_as(TypeOptions).runtime_type_check)
     return pcoll | ParDo(
         CombineValuesDoFn(key_type, self.fn, runtime_type_check),
         *args, **kwargs)
@@ -1098,21 +1098,22 @@ class GroupByKey(PTransform):
 
       # pylint: disable=bad-continuation
       return (pcoll
-              | 'reify_windows' >> (ParDo(self.ReifyWindows())
+              | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | 'group_by_key' >> (GroupByKeyOnly()
+              | 'GroupByKey' >> (GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
-              | ('group_by_window' >> ParDo(
+              | ('GroupByWindow' >> ParDo(
                      self.GroupAlsoByWindow(pcoll.windowing))
                  .with_input_types(gbk_input_type)
                  .with_output_types(gbk_output_type)))
-    # If the input_type is None, run the default
-    return (pcoll
-            | 'reify_windows' >> ParDo(self.ReifyWindows())
-            | 'group_by_key' >> GroupByKeyOnly()
-            | 'group_by_window' >> ParDo(
-                self.GroupAlsoByWindow(pcoll.windowing)))
+    else:
+      # The input_type is None, run the default
+      return (pcoll
+              | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+              | 'GroupByKey' >> GroupByKeyOnly()
+              | 'GroupByWindow' >> ParDo(
+                    self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
@@ -1156,7 +1157,7 @@ class Partition(PTransformWithSideInputs):
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the output that corresponds to the
       # selected partition.
-      yield pvalue.OutputValue(str(partition), element)
+      yield pvalue.TaggedOutput(str(partition), element)
 
   def make_fn(self, fn):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
@@ -1184,6 +1185,10 @@ class Windowing(object):
       else:
         raise ValueError(
             'accumulation_mode must be provided for non-trivial triggers')
+    if not windowfn.get_window_coder().is_deterministic():
+      raise ValueError(
+          'window fn (%s) does not have a determanistic coder (%s)' % (
+              window_fn, windowfn.get_window_coder()))
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
@@ -1262,7 +1267,7 @@ class WindowInto(ParDo):
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 
-  def __init__(self, windowfn, *args, **kwargs):
+  def __init__(self, windowfn, **kwargs):
     """Initializes a WindowInto transform.
 
     Args:
@@ -1273,8 +1278,7 @@ class WindowInto(ParDo):
     output_time_fn = kwargs.pop('output_time_fn', None)
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
                                output_time_fn)
-    dofn = self.WindowIntoFn(self.windowing)
-    super(WindowInto, self).__init__(dofn)
+    super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
     return self.windowing
@@ -1290,6 +1294,30 @@ class WindowInto(ParDo):
       self.with_input_types(input_type)
       self.with_output_types(output_type)
     return super(WindowInto, self).expand(pcoll)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.WINDOW_INTO_TRANSFORM,
+        self.windowing.to_runner_api(context))
+
+  @staticmethod
+  def from_runner_api_parameter(proto, context):
+    windowing = Windowing.from_runner_api(proto, context)
+    return WindowInto(
+        windowing.windowfn,
+        trigger=windowing.triggerfn,
+        accumulation_mode=windowing.accumulation_mode,
+        output_time_fn=windowing.output_time_fn)
+
+
+PTransform.register_urn(
+    urns.WINDOW_INTO_TRANSFORM,
+    # TODO(robertwb): Update WindowIntoPayload to include the full strategy.
+    # (Right now only WindowFn is used, but we need this to reconstitute the
+    # WindowInto transform, and in the future will need it at runtime to
+    # support meta-data driven triggers.)
+    beam_runner_api_pb2.WindowingStrategy,
+    WindowInto.from_runner_api_parameter)
 
 
 # Python's pickling is broken for nested classes.
@@ -1335,6 +1363,17 @@ class Flatten(PTransform):
       return Windowing(GlobalWindows())
     return super(Flatten, self).get_windowing(inputs)
 
+  def to_runner_api_parameter(self, context):
+    return urns.FLATTEN_TRANSFORM, None
+
+  @staticmethod
+  def from_runner_api_parameter(unused_parameter, unused_context):
+    return Flatten()
+
+
+PTransform.register_urn(
+    urns.FLATTEN_TRANSFORM, None, Flatten.from_runner_api_parameter)
+
 
 class Create(PTransform):
   """A transform that creates a PCollection from an iterable."""
@@ -1359,13 +1398,14 @@ class Create(PTransform):
     return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
 
   def expand(self, pbegin):
+    from apache_beam.io import iobase
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     ouput_type = (self.get_type_hints().simple_output_type(self.label) or
                   self.infer_output_type(None))
     coder = typecoders.registry.get_coder(ouput_type)
     source = self._create_source_from_iterable(self.value, coder)
-    return pbegin.pipeline | Read(source).with_output_types(ouput_type)
+    return pbegin.pipeline | iobase.Read(source).with_output_types(ouput_type)
 
   def get_windowing(self, unused_inputs):
     return Windowing(GlobalWindows())
@@ -1453,13 +1493,3 @@ class Create(PTransform):
         return self._total_size
 
     return _CreateSource(serialized_values, coder)
-
-
-def Read(*args, **kwargs):
-  from apache_beam import io
-  return io.Read(*args, **kwargs)
-
-
-def Write(*args, **kwargs):
-  from apache_beam import io
-  return io.Write(*args, **kwargs)

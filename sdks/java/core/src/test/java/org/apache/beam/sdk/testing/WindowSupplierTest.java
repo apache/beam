@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -72,7 +72,7 @@ public class WindowSupplierTest {
         Collections.<BoundedWindow>singleton(window));
   }
 
-  private static class FailingCoder extends AtomicCoder<BoundedWindow>  {
+  private static class FailingCoder extends CustomCoder<BoundedWindow>  {
     @Override
     public void encode(
         BoundedWindow value, OutputStream outStream, Context context)

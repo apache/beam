@@ -44,6 +44,7 @@ class UserScoreTest(unittest.TestCase):
           ('user1_team1', 50), ('user2_team2', 2), ('user3_team3', 8),
           ('user4_team3', 5)]))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

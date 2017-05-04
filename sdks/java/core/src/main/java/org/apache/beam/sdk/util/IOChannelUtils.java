@@ -30,8 +30,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.text.DecimalFormat;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +41,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -53,9 +52,6 @@ public class IOChannelUtils {
   // TODO: add registration mechanism for adding new schemas.
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
-
-  // Pattern that matches shard placeholders within a shard template.
-  private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
 
   private static final ClassLoader CLASS_LOADER = ReflectHelpers.findClassLoader();
 
@@ -201,7 +197,7 @@ public class IOChannelUtils {
   public static WritableByteChannel create(String prefix, String shardTemplate,
       String suffix, int numShards, String mimeType) throws IOException {
     if (numShards == 1) {
-      return create(constructName(prefix, shardTemplate, suffix, 0, 1),
+      return create(FileBasedSink.constructName(prefix, shardTemplate, suffix, 0, 1),
                     mimeType);
     }
 
@@ -213,7 +209,7 @@ public class IOChannelUtils {
     Set<String> outputNames = new HashSet<>();
     for (int i = 0; i < numShards; i++) {
       String outputName =
-          constructName(prefix, shardTemplate, suffix, i, numShards);
+          FileBasedSink.constructName(prefix, shardTemplate, suffix, i, numShards);
       if (!outputNames.add(outputName)) {
         throw new IllegalArgumentException(
             "Shard name collision detected for: " + outputName);
@@ -234,46 +230,6 @@ public class IOChannelUtils {
    */
   public static long getSizeBytes(String spec) throws IOException {
     return getFactory(spec).getSizeBytes(spec);
-  }
-
-  /**
-   * Constructs a fully qualified name from components.
-   *
-   * <p>The name is built from a prefix, shard template (with shard numbers
-   * applied), and a suffix.  All components are required, but may be empty
-   * strings.
-   *
-   * <p>Within a shard template, repeating sequences of the letters "S" or "N"
-   * are replaced with the shard number, or number of shards respectively.  The
-   * numbers are formatted with leading zeros to match the length of the
-   * repeated sequence of letters.
-   *
-   * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
-   * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
-   * produced:  "output-001-of-100.txt".
-   */
-  public static String constructName(String prefix,
-      String shardTemplate, String suffix, int shardNum, int numShards) {
-    // Matcher API works with StringBuffer, rather than StringBuilder.
-    StringBuffer sb = new StringBuffer();
-    sb.append(prefix);
-
-    Matcher m = SHARD_FORMAT_RE.matcher(shardTemplate);
-    while (m.find()) {
-      boolean isShardNum = (m.group(1).charAt(0) == 'S');
-
-      char[] zeros = new char[m.end() - m.start()];
-      Arrays.fill(zeros, '0');
-      DecimalFormat df = new DecimalFormat(String.valueOf(zeros));
-      String formatted = df.format(isShardNum
-                                   ? shardNum
-                                   : numShards);
-      m.appendReplacement(sb, formatted);
-    }
-    m.appendTail(sb);
-
-    sb.append(suffix);
-    return sb.toString();
   }
 
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(

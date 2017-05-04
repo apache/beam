@@ -72,8 +72,8 @@ class DirectRunner(PipelineRunner):
     pipeline.visit(self.consumer_tracking_visitor)
 
     evaluation_context = EvaluationContext(
-        pipeline.options,
-        BundleFactory(stacked=pipeline.options.view_as(DirectOptions)
+        pipeline._options,
+        BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
                       .direct_runner_use_stacked_bundle),
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,
@@ -85,13 +85,11 @@ class DirectRunner(PipelineRunner):
     executor = Executor(self.consumer_tracking_visitor.value_to_consumers,
                         TransformEvaluatorRegistry(evaluation_context),
                         evaluation_context)
+    # DirectRunner does not support injecting
+    # PipelineOptions values at runtime
+    RuntimeValueProvider.set_runtime_options({})
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
-
-    if pipeline.options:
-      # DirectRunner does not support RuntimeValueProviders.
-      RuntimeValueProvider.set_runtime_options(None, {})
-
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 

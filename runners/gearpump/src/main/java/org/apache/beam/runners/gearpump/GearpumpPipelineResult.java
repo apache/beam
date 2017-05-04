@@ -20,12 +20,9 @@ package org.apache.beam.runners.gearpump;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 
 import org.apache.gearpump.cluster.ApplicationStatus;
 import org.apache.gearpump.cluster.MasterToAppMaster.AppMasterData;
@@ -82,14 +79,6 @@ public class GearpumpPipelineResult implements PipelineResult {
       finished = true;
     }
     return State.DONE;
-  }
-
-  @Override
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException {
-    throw new AggregatorRetrievalException(
-        "PipelineResult getAggregatorValues not supported in Gearpump pipeline",
-        new UnsupportedOperationException());
   }
 
   @Override

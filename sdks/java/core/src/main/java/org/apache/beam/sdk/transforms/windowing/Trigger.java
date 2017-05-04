@@ -89,6 +89,9 @@ public abstract class Trigger implements Serializable {
    * Specifically, triggers that are time based and intended to provide speculative results should
    * continue providing speculative results. Triggers that fire once (or multiple times) should
    * continue firing once (or multiple times).
+   *
+   * <p>If this method is not overridden, its default implementation delegates its behavior to
+   * {@link #getContinuationTrigger(List)} which is expected to be implemented by subclasses.
    */
   public Trigger getContinuationTrigger() {
     if (subTriggers == null) {
@@ -103,8 +106,13 @@ public abstract class Trigger implements Serializable {
   }
 
   /**
-   * Return the {@link #getContinuationTrigger} of this {@link Trigger}. For convenience, this is
-   * provided the continuation trigger of each of the sub-triggers.
+   * Subclasses should override this to return the {@link #getContinuationTrigger} of this
+   * {@link Trigger}. For convenience, this is provided the continuation trigger of each of the
+   * sub-triggers in the same order as {@link #subTriggers}.
+   *
+   * @param continuationTriggers null if {@link #subTriggers} is null, otherwise contains the
+   *                             result of {@link #getContinuationTrigger()} on each of the
+   *                             subTriggers in the same order.
    */
   protected abstract Trigger getContinuationTrigger(List<Trigger> continuationTriggers);
 

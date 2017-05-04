@@ -72,7 +72,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -591,7 +591,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(getProjectId(), "projectId");
 
       if (getProjectId().isAccessible() && getProjectId().get() == null) {
@@ -1068,7 +1068,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public void validate(PCollection<T> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(projectId, "projectId ValueProvider");
       if (projectId.isAccessible()) {
         checkNotNull(projectId.get(), "projectId");

@@ -295,7 +295,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PBegin input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
@@ -654,7 +654,7 @@ public class JmsIO {
     }
 
     @Override
-    public void validate(PCollection<String> input) {
+    public void validate(PipelineOptions options) {
       checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
           + "factory to be set via withConnectionFactory(connectionFactory)");
       checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "

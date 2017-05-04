@@ -110,6 +110,7 @@ class FallbackCoderTest(unittest.TestCase):
     self.assertEqual(coder, coders.FastPrimitivesCoder())
     self.assertEqual(DummyClass(), coder.decode(coder.encode(DummyClass())))
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

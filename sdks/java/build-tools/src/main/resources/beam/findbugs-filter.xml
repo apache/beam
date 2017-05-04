@@ -203,7 +203,7 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.io.gcp.storage.GcsResourceId"/>
+    <Class name="org.apache.beam.sdk.extensions.gcp.storage.GcsResourceId"/>
     <Method name="getCurrentDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
     <!--
@@ -361,7 +361,7 @@
     <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
+    <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
@@ -377,6 +377,12 @@
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ClassPath$ClassInfo"/>
+    <Method name="equals"/>
+    <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
+    <!--[BEAM-1676] Class doesn't override equals in superclass-->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.util.AutoValue_GcsUtil_StorageObjectOrIOException"/>

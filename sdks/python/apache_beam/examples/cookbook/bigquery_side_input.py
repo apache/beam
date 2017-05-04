@@ -101,7 +101,7 @@ def run(argv=None):
 
   pcoll_corpus = p | 'read corpus' >> beam.io.Read(
       beam.io.BigQuerySource(query=query_corpus))
-  pcoll_word = p | 'read_words' >> beam.Read(
+  pcoll_word = p | 'read_words' >> beam.io.Read(
       beam.io.BigQuerySource(query=query_word))
   pcoll_ignore_corpus = p | 'create_ignore_corpus' >> beam.Create(
       [ignore_corpus])

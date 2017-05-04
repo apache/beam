@@ -35,7 +35,10 @@ import javax.annotation.Nullable;
  * {@code CloudObject} is constructed, the method should explicitly add
  * additional properties to be presented during deserialization, representing
  * child objects by building additional {@code CloudObject}s.
+ *
+ * @deprecated replaced by {@code org.apache.beam.runners.dataflow.CloudKnownType}
  */
+@Deprecated
 public final class CloudObject extends GenericJson {
   /**
    * Constructs a {@code CloudObject} by copying the supplied serialized object

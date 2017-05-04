@@ -18,9 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
  * {@link org.apache.beam.sdk.Pipeline} for testing Dataflow programs on the
@@ -61,12 +59,11 @@ public class FlinkTestPipeline extends Pipeline {
    */
   private static FlinkTestPipeline create(boolean streaming) {
     TestFlinkRunner flinkRunner = TestFlinkRunner.create(streaming);
-    return new FlinkTestPipeline(flinkRunner, flinkRunner.getPipelineOptions());
+    return new FlinkTestPipeline(flinkRunner.getPipelineOptions());
   }
 
-  private FlinkTestPipeline(PipelineRunner<? extends PipelineResult> runner,
-              PipelineOptions options) {
-    super(runner, options);
+  private FlinkTestPipeline(PipelineOptions options) {
+    super(options);
   }
 }
 

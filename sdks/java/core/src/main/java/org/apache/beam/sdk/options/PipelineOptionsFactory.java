@@ -444,7 +444,8 @@ public class PipelineOptionsFactory {
   private static final Logger LOG = LoggerFactory.getLogger(PipelineOptionsFactory.class);
   @SuppressWarnings("rawtypes")
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
-  private static final ObjectMapper MAPPER = new ObjectMapper();
+  static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   private static final ClassLoader CLASS_LOADER;
 
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
@@ -1191,7 +1192,6 @@ public class PipelineOptionsFactory {
         method.property = propertyDescriptor;
         method.methodType = "setter";
         missingBeanMethods.add(method);
-        continue;
       }
     }
     throwForMissingBeanMethod(iface, missingBeanMethods);

@@ -26,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.CloudObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,7 +33,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link LengthPrefixCoder}. */
 @RunWith(JUnit4.class)
 public class LengthPrefixCoderTest {
-  private static final StandardCoder<byte[]> TEST_CODER = LengthPrefixCoder.of(ByteArrayCoder.of());
+  private static final StructuredCoder<byte[]> TEST_CODER =
+      LengthPrefixCoder.of(ByteArrayCoder.of());
 
   private static final List<byte[]> TEST_VALUES = Arrays.asList(
     new byte[]{ 0xa, 0xb, 0xc },
@@ -51,12 +51,6 @@ public class LengthPrefixCoderTest {
       "Ag0D",
       "Ag0O",
       "AA");
-
-  @Test
-  public void testCloudObjectRepresentation() throws Exception {
-    CloudObject cloudObject = TEST_CODER.asCloudObject();
-    assertEquals("kind:length_prefix", cloudObject.getClassName());
-  }
 
   @Test
   public void testCoderSerializable() throws Exception {
@@ -112,14 +106,6 @@ public class LengthPrefixCoderTest {
         CoderProperties.structuralValueConsistentWithEquals(TEST_CODER, value1, value2);
       }
     }
-  }
-
-  // If this changes, it implies the binary format has changed.
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
 
   @Test

@@ -74,6 +74,11 @@ def construct_pipeline(renames):
   """A reverse words snippet as an example for constructing a pipeline."""
   import re
 
+  # This is duplicate of the import statement in
+  # pipelines_constructing_creating tag below, but required to avoid
+  # Unresolved reference in ReverseWords class
+  import apache_beam as beam
+
   class ReverseWords(beam.PTransform):
     """A PTransform that reverses individual elements in a PCollection."""
 
@@ -85,6 +90,7 @@ def construct_pipeline(renames):
     return True
 
   # [START pipelines_constructing_creating]
+  import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
@@ -172,16 +178,18 @@ def model_pcollection(argv):
   # [START model_pcollection]
   p = beam.Pipeline(options=pipeline_options)
 
-  (p
-   | beam.Create([
-       'To be, or not to be: that is the question: ',
-       'Whether \'tis nobler in the mind to suffer ',
-       'The slings and arrows of outrageous fortune, ',
-       'Or to take arms against a sea of troubles, '])
+  lines = (p
+           | beam.Create([
+               'To be, or not to be: that is the question: ',
+               'Whether \'tis nobler in the mind to suffer ',
+               'The slings and arrows of outrageous fortune, ',
+               'Or to take arms against a sea of troubles, ']))
+  # [END model_pcollection]
+
+  (lines
    | beam.io.WriteToText(my_options.output))
 
   result = p.run()
-  # [END model_pcollection]
   result.wait_until_finish()
 
 
@@ -570,6 +578,57 @@ def examples_wordcount_debugging(renames):
   p.run()
 
 
+import apache_beam as beam
+from apache_beam.io import iobase
+from apache_beam.io.range_trackers import OffsetRangeTracker
+from apache_beam.transforms.core import PTransform
+from apache_beam.utils.pipeline_options import PipelineOptions
+
+
+# Defining a new source.
+# [START model_custom_source_new_source]
+class CountingSource(iobase.BoundedSource):
+
+  def __init__(self, count):
+    self.records_read = Metrics.counter(self.__class__, 'recordsRead')
+    self._count = count
+
+  def estimate_size(self):
+    return self._count
+
+  def get_range_tracker(self, start_position, stop_position):
+    if start_position is None:
+      start_position = 0
+    if stop_position is None:
+      stop_position = self._count
+
+    return OffsetRangeTracker(start_position, stop_position)
+
+  def read(self, range_tracker):
+    for i in range(self._count):
+      if not range_tracker.try_claim(i):
+        return
+      self.records_read.inc()
+      yield i
+
+  def split(self, desired_bundle_size, start_position=None,
+            stop_position=None):
+    if start_position is None:
+      start_position = 0
+    if stop_position is None:
+      stop_position = self._count
+
+    bundle_start = start_position
+    while bundle_start < self._count:
+      bundle_stop = max(self._count, bundle_start + desired_bundle_size)
+      yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
+                                source=self,
+                                start_position=bundle_start,
+                                stop_position=bundle_stop)
+      bundle_start = bundle_stop
+# [END model_custom_source_new_source]
+
+
 def model_custom_source(count):
   """Demonstrates creating a new custom source and using it in a pipeline.
 
@@ -594,53 +653,6 @@ def model_custom_source(count):
            demonstrated in this method.
 
   """
-
-  import apache_beam as beam
-  from apache_beam.io import iobase
-  from apache_beam.io.range_trackers import OffsetRangeTracker
-  from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.pipeline_options import PipelineOptions
-
-  # Defining a new source.
-  # [START model_custom_source_new_source]
-  class CountingSource(iobase.BoundedSource):
-
-    def __init__(self, count):
-      self._count = count
-
-    def estimate_size(self):
-      return self._count
-
-    def get_range_tracker(self, start_position, stop_position):
-      if start_position is None:
-        start_position = 0
-      if stop_position is None:
-        stop_position = self._count
-
-      return OffsetRangeTracker(start_position, stop_position)
-
-    def read(self, range_tracker):
-      for i in range(self._count):
-        if not range_tracker.try_claim(i):
-          return
-        yield i
-
-    def split(self, desired_bundle_size, start_position=None,
-              stop_position=None):
-      if start_position is None:
-        start_position = 0
-      if stop_position is None:
-        stop_position = self._count
-
-      bundle_start = start_position
-      while bundle_start < self._count:
-        bundle_stop = max(self._count, bundle_start + desired_bundle_size)
-        yield iobase.SourceBundle(weight=(bundle_stop - bundle_start),
-                                  source=self,
-                                  start_position=bundle_start,
-                                  stop_position=bundle_stop)
-        bundle_start = bundle_stop
-  # [END model_custom_source_new_source]
 
   # Using the source in an example pipeline.
   # [START model_custom_source_use_new_source]
@@ -1002,9 +1014,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   # types.)
   # [START model_multiple_pcollections_flatten]
   merged = (
-      # [START model_multiple_pcollections_tuple]
       (pcoll1, pcoll2, pcoll3)
-      # [END model_multiple_pcollections_tuple]
       # A list of tuples can be "piped" directly into a Flatten transform.
       | beam.Flatten())
   # [END model_multiple_pcollections_flatten]

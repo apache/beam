@@ -33,12 +33,10 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
-import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -69,7 +67,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected final BigQueryServices bqServices;
   protected final ValueProvider<String> executingProject;
 
-  private List<BoundedSource<TableRow>> cachedSplitResult;
+  private transient List<BoundedSource<TableRow>> cachedSplitResult;
 
   BigQuerySourceBase(
       ValueProvider<String> jobIdToken,

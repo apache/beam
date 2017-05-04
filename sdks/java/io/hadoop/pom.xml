@@ -28,6 +28,10 @@
   <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop</name>
   <description>Parent for Beam SDK Hadoop IO which reads data from any source which implements Hadoop Input Format.</description>
 
+  <properties>
+    <log4j.core.version>2.6.2</log4j.core.version>
+  </properties>
+
   <modules>
     <module>input-format</module>
   </modules>
@@ -51,10 +55,24 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${log4j.core.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-all</artifactId>

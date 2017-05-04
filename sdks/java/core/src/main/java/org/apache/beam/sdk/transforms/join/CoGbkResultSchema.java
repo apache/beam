@@ -17,16 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
-import static org.apache.beam.sdk.util.Structs.addList;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
@@ -41,9 +34,7 @@ public class CoGbkResultSchema implements Serializable {
 
   private final TupleTagList tupleTagList;
 
-  @JsonCreator
-  public static CoGbkResultSchema of(
-      @JsonProperty(PropertyNames.TUPLE_TAGS) List<TupleTag<?>> tags) {
+  public static CoGbkResultSchema of(List<TupleTag<?>> tags) {
     TupleTagList tupleTags = TupleTagList.empty();
     for (TupleTag<?> tag : tags) {
       tupleTags = tupleTags.and(tag);
@@ -97,16 +88,6 @@ public class CoGbkResultSchema implements Serializable {
    */
   public TupleTagList getTupleTagList() {
     return tupleTagList;
-  }
-
-  public CloudObject asCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    List<CloudObject> serializedTags = new ArrayList<>(tupleTagList.size());
-    for (TupleTag<?> tag : tupleTagList.getAll()) {
-      serializedTags.add(tag.asCloudObject());
-    }
-    addList(result, PropertyNames.TUPLE_TAGS, serializedTags);
-    return result;
   }
 
   @Override

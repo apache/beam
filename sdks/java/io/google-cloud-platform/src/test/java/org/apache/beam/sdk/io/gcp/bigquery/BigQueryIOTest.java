@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+
 import com.google.api.client.util.Data;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatistics;
@@ -44,7 +45,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -64,26 +64,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
-import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -591,7 +588,7 @@ public class BigQueryIOTest implements Serializable {
   /**
    * Coder for @link{PartitionedGlobalWindow}.
    */
-  private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
+  private static class PartitionedGlobalWindowCoder extends CustomCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
@@ -603,6 +600,9 @@ public class BigQueryIOTest implements Serializable {
         throws IOException, CoderException {
       return new PartitionedGlobalWindow(StringUtf8Coder.of().decode(inStream, context));
     }
+
+    @Override
+    public void verifyDeterministic() {}
   }
 
   @Test
@@ -1041,7 +1041,7 @@ public class BigQueryIOTest implements Serializable {
     PCollection<TableRow> tableRows;
     if (unbounded) {
       tableRows =
-          p.apply(CountingInput.unbounded())
+          p.apply(GenerateSequence.from(0))
               .apply(
                   MapElements.via(
                       new SimpleFunction<Long, TableRow>() {
@@ -1091,7 +1091,7 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows =
-        p.apply(CountingInput.unbounded())
+        p.apply(GenerateSequence.from(0))
         .apply(
             MapElements.via(
                 new SimpleFunction<Long, TableRow>() {
@@ -1775,7 +1775,7 @@ public class BigQueryIOTest implements Serializable {
     for (int i = 0; i < numFiles; ++i) {
       String fileName = String.format("files%05d", i);
       writer.open(fileName);
-      fileNames.add(writer.close().filename);
+      fileNames.add(writer.close().resourceId.toString());
     }
     fileNames.add(tempFilePrefix + String.format("files%05d", numFiles));
 

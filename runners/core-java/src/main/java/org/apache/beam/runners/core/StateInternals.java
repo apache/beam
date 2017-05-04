@@ -40,20 +40,20 @@ import org.apache.beam.sdk.util.state.StateContext;
  * used directly, and is highly likely to change.
  */
 @Experimental(Kind.STATE)
-public interface StateInternals<K> {
+public interface StateInternals {
 
   /** The key for this {@link StateInternals}. */
-  K getKey();
+  Object getKey();
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}.
    */
-  <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address);
+  <T extends State> T state(StateNamespace namespace, StateTag<T> address);
 
   /**
    * Return the state associated with {@code address} in the specified {@code namespace}
    * with the {@link StateContext}.
    */
   <T extends State> T state(
-      StateNamespace namespace, StateTag<? super K, T> address, StateContext<?> c);
+      StateNamespace namespace, StateTag<T> address, StateContext<?> c);
 }

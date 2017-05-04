@@ -28,7 +28,10 @@ import javax.annotation.Nullable;
 
 /**
  * Utility for converting objects between Java and Cloud representations.
+ *
+ * @deprecated replaced by {@code org.apache.beam.runners.dataflow.util.Serializer}
  */
+@Deprecated
 public final class Serializer {
   // Delay initialization of statics until the first call to Serializer.
   private static class SingletonHelper {

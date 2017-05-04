@@ -38,7 +38,6 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
-import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils.RawUnionValue;
@@ -92,7 +91,6 @@ public class DoFnFunction<InputT, OutputT> extends
         mainOutput,
         sideOutputs,
         new NoOpStepContext(),
-        new NoOpAggregatorFactory(),
         windowingStrategy
     );
     this.sideInputs = sideInputs;

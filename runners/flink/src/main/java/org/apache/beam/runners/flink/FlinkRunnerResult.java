@@ -20,28 +20,25 @@ package org.apache.beam.runners.flink;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
+import org.apache.beam.runners.flink.metrics.FlinkMetricResults;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
 /**
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
- * has methods to query to job runtime and the final values of
- * {@link org.apache.beam.sdk.transforms.Aggregator}s.
+ * has methods to query to job runtime and the final values of the accumulators.
  */
 public class FlinkRunnerResult implements PipelineResult {
 
-  private final Map<String, Object> aggregators;
+  private final Map<String, Object> accumulators;
 
   private final long runtime;
 
-  FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
-    this.aggregators = (aggregators == null || aggregators.isEmpty())
+  FlinkRunnerResult(Map<String, Object> accumulators, long runtime) {
+    this.accumulators = (accumulators == null || accumulators.isEmpty())
         ? Collections.<String, Object>emptyMap()
-        : Collections.unmodifiableMap(aggregators);
+        : Collections.unmodifiableMap(accumulators);
     this.runtime = runtime;
   }
 
@@ -51,27 +48,9 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @Override
-  public <T> AggregatorValues<T> getAggregatorValues(final Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException {
-    // TODO provide a list of all accumulator step values
-    Object value = aggregators.get(aggregator.getName());
-    if (value != null) {
-      return new AggregatorValues<T>() {
-        @Override
-        public Map<String, T> getValuesAtSteps() {
-          return (Map<String, T>) aggregators;
-        }
-      };
-    } else {
-      throw new AggregatorRetrievalException("Accumulator results not found.",
-          new RuntimeException("Accumulator does not exist."));
-    }
-  }
-
-  @Override
   public String toString() {
     return "FlinkRunnerResult{"
-        + "aggregators=" + aggregators
+        + "accumulators=" + accumulators
         + ", runtime=" + runtime
         + '}';
   }
@@ -93,6 +72,6 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
+    return new FlinkMetricResults(accumulators);
   }
 }
