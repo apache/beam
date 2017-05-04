@@ -17,27 +17,24 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.json.GenericJson;
-import com.google.api.client.util.Key;
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
+import java.util.Map;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utilities for working with release information.
+ * Properties pertaining to this release of Apache Beam.
+ *
+ * <p>Properties will always include a name and version.
  */
-public final class ReleaseInfo extends GenericJson {
-  private static final Logger LOG = LoggerFactory.getLogger(ReleaseInfo.class);
-
-  private static final String PROPERTIES_PATH =
-      "/org/apache/beam/sdk/sdk.properties";
-
-  private static class LazyInit {
-    private static final ReleaseInfo INSTANCE =
-        new ReleaseInfo(PROPERTIES_PATH);
-  }
+@AutoValue
+public abstract class ReleaseInfo implements Serializable {
+  private static final String PROPERTIES_PATH = "/org/apache/beam/sdk/sdk.properties";
 
   /**
    * Returns an instance of {@link ReleaseInfo}.
@@ -46,35 +43,46 @@ public final class ReleaseInfo extends GenericJson {
     return LazyInit.INSTANCE;
   }
 
-  @Key private String name = "Apache Beam SDK for Java";
-  @Key private String version = "Unknown";
+  /**
+   * Returns an immutable map of all properties pertaining to this release.
+   */
+  public abstract Map<String, String> getProperties();
 
   /** Provides the SDK name. */
   public String getName() {
-    return name;
+    return getProperties().get("name");
   }
 
   /** Provides the SDK version. */
   public String getVersion() {
-    return version;
+    return getProperties().get("version");
   }
 
-  private ReleaseInfo(String resourcePath) {
-    Properties properties = new Properties();
+  /////////////////////////////////////////////////////////////////////////
+  private static final Logger LOG = LoggerFactory.getLogger(ReleaseInfo.class);
+  private static final String DEFAULT_NAME = "Apache Beam SDK for Java";
+  private static final String DEFAULT_VERSION = "Unknown";
 
-    try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
-      if (in == null) {
-        LOG.warn("Beam properties resource not found: {}", resourcePath);
-        return;
+  private static class LazyInit {
+    private static final ReleaseInfo INSTANCE;
+    static {
+      Properties properties = new Properties();
+      try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
+        if (in == null) {
+          LOG.warn("Beam properties resource not found: {}", PROPERTIES_PATH);
+        } else {
+          properties.load(in);
+        }
+      } catch (IOException e) {
+        LOG.warn("Error loading Beam properties resource: ", e);
       }
-
-      properties.load(in);
-    } catch (IOException e) {
-      LOG.warn("Error loading Beam properties resource: ", e);
-    }
-
-    for (String name : properties.stringPropertyNames()) {
-      put(name, properties.getProperty(name));
+      if (!properties.containsKey("name")) {
+        properties.setProperty("name", DEFAULT_NAME);
+      }
+      if (!properties.containsKey("version")) {
+        properties.setProperty("version", DEFAULT_VERSION);
+      }
+      INSTANCE = new AutoValue_ReleaseInfo(ImmutableMap.copyOf((Map) properties));
     }
   }
 }
