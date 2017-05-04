@@ -1155,14 +1155,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Nullable
     @Override
     public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
-      @SuppressWarnings("unchecked") PubsubCheckpointCoder typedCoder =
-          (PubsubCheckpointCoder) CHECKPOINT_CODER;
-      return typedCoder;
+      return CHECKPOINT_CODER;
     }
 
     @Override
     public Coder<PubsubMessage> getDefaultOutputCoder() {
-      return new PubsubMessageWithAttributesCoder();
+      return outer.getNeedsAttributes()
+          ? PubsubMessageWithAttributesCoder.of()
+          : PubsubMessagePayloadOnlyCoder.of();
     }
 
     @Override
