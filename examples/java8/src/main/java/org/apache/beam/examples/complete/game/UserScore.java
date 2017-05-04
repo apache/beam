@@ -24,6 +24,7 @@ import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -226,13 +227,18 @@ public class UserScore {
     Pipeline pipeline = Pipeline.create(options);
 
     // Read events from a text file and parse them.
-    pipeline.apply(TextIO.read().from(options.getInput()))
-      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
-      // Extract and sum username/score pairs from the event data.
-      .apply("ExtractUserScore", new ExtractAndSumScore("user"))
-      .apply("WriteUserScoreSums",
-          new WriteToBigQuery<KV<String, Integer>>(options.getUserScoreTableName(),
-                                                   configureBigQueryWrite()));
+    pipeline
+        .apply(TextIO.read().from(options.getInput()))
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
+        // Extract and sum username/score pairs from the event data.
+        .apply("ExtractUserScore", new ExtractAndSumScore("user"))
+        .apply(
+            "WriteUserScoreSums",
+            new WriteToBigQuery<KV<String, Integer>>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getUserScoreTableName(),
+                configureBigQueryWrite()));
 
     // Run the batch pipeline.
     pipeline.run().waitUntilFinish();

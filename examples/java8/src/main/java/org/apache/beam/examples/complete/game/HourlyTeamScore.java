@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.TimeZone;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -185,7 +186,10 @@ public class HourlyTeamScore extends UserScore {
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       .apply("WriteTeamScoreSums",
-        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getHourlyTeamScoreTableName(),
+        new WriteWindowedToBigQuery<KV<String, Integer>>(
+            options.as(GcpOptions.class).getProject(),
+            options.getDataset(),
+            options.getHourlyTeamScoreTableName(),
             configureWindowedTableWrite()));
 
 

@@ -135,7 +135,7 @@ public class TrackStreamingSourcesTest {
         Pipeline pipeline,
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
-      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc);
+      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, options, jssc);
       this.evaluator = new SparkRunner.Evaluator(
           new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
       this.transformClassToAssert = transformClassToAssert;

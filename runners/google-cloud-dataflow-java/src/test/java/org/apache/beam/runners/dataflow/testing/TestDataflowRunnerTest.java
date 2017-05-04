@@ -464,8 +464,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
+    options.as(TestPipelineOptions.class).setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
@@ -488,8 +487,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
+    options.as(TestPipelineOptions.class).setOnCreateMatcher(new TestSuccessMatcher(mockJob, 0));
 
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
@@ -515,8 +513,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
+    options.as(TestPipelineOptions.class).setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
@@ -544,8 +541,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
+    options.as(TestPipelineOptions.class).setOnSuccessMatcher(new TestSuccessMatcher(mockJob, 1));
 
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.DONE);
@@ -570,8 +566,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new TestFailureMatcher());
+    options.as(TestPipelineOptions.class).setOnSuccessMatcher(new TestFailureMatcher());
 
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
@@ -606,8 +601,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    p.getOptions().as(TestPipelineOptions.class)
-        .setOnSuccessMatcher(new TestFailureMatcher());
+    options.as(TestPipelineOptions.class).setOnSuccessMatcher(new TestFailureMatcher());
 
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);

@@ -51,7 +51,7 @@ public class CacheTest {
     pCollection.apply(Count.<String>globally());
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
-    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+    EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);
     SparkRunner.CacheVisitor cacheVisitor =
         new SparkRunner.CacheVisitor(new TransformTranslator.Translator(), ctxt);
     pipeline.traverseTopologically(cacheVisitor);
