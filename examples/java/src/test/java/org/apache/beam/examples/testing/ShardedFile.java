@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.util;
+package org.apache.beam.examples.testing;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
