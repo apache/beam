@@ -39,9 +39,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -524,23 +522,13 @@ public class BigQueryIO {
 
               Job extractJob = getBigQueryServices().getJobService(bqOptions).getJob(jobRef);
 
-              Collection<ResourceId> extractFiles = null;
               if (extractJob != null) {
-                extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
-              } else {
-                try {
-                  ResourceId extractDestinationDirResource =
-                      FileSystems.matchSingleFileSpec(extractDestinationDir).resourceId();
-                  extractFiles = ImmutableList.of(
-                      extractDestinationDirResource.resolve("*",
-                          ResolveOptions.StandardResolveOptions.RESOLVE_FILE));
-                } catch (FileNotFoundException e) {
-                  // Ignore if not found.
+                List<ResourceId> extractFiles =
+                    getExtractFilePaths(extractDestinationDir, extractJob);
+                if (extractFiles != null && !extractFiles.isEmpty()) {
+                  FileSystems.delete(extractFiles,
+                      MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
                 }
-              }
-              if (extractFiles != null && !extractFiles.isEmpty()) {
-                FileSystems.delete(extractFiles,
-                    MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
               }
             }
           };
@@ -608,7 +596,7 @@ public class BigQueryIO {
 
     ImmutableList.Builder<ResourceId> paths = ImmutableList.builder();
     ResourceId extractDestinationDirResourceId =
-        FileSystems.matchSingleFileSpec(extractDestinationDir).resourceId();
+        FileSystems.matchNewResource(extractDestinationDir, true /* isDirectory */);
     for (long i = 0; i < filesCount; ++i) {
       ResourceId filePath = extractDestinationDirResourceId.resolve(
           String.format("%012d%s", i, ".avro"),
