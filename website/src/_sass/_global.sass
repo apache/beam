@@ -1,0 +1,31 @@
+html,
+body
+  -webkit-font-smoothing: antialiased
+  font-family: 'Roboto', arial, sans-serif
+  background: #efefef
+  margin: 0
+  padding: 0
+
+.body
+  background: #fff
+  max-width: 1440px
+  margin: 0 auto
+  padding-top: 130px
+
+  &:not(.body--index)
+    .body__contained
+      +contained
+
+.section
+  &:not(.section--wide)
+    padding-right: $pad
+    padding-left: $pad
+    max-width: 1280px
+    margin-right: auto
+    margin-left: auto
+
+  .section__contained
+    +contained
+
+  a
+    color: $color-brand
