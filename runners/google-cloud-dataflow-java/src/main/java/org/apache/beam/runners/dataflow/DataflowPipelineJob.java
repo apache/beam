@@ -164,6 +164,10 @@ public class DataflowPipelineJob implements PipelineResult {
     return dataflowOptions.getProject();
   }
 
+  public DataflowPipelineOptions getDataflowOptions() {
+    return dataflowOptions;
+  }
+
   /**
    * Returns a new {@link DataflowPipelineJob} for the job that replaced this one, if applicable.
    *
