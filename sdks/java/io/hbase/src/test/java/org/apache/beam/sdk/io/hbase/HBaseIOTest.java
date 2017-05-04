@@ -287,11 +287,11 @@ public class HBaseIOTest {
         PCollection<KV<byte[], Iterable<Mutation>>> emptyInput =
                 p.apply(Create.empty(HBaseIO.WRITE_CODER));
 
+        emptyInput.apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
+
         // Exception will be thrown by write.validate() when write is applied.
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(String.format("Table %s does not exist", table));
-
-        emptyInput.apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
         p.run();
     }
 
