@@ -19,10 +19,6 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
-
 import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
@@ -35,23 +31,25 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
-
-
 /**
- *  <a href="https://cloud.google.com/spanner/">Google Cloud Spanner</a> connectors.
+ * {@link PTransform Transforms} for reading from and writing to
+ * <a href="https://cloud.google.com/spanner">Google Cloud Spanner</a>.
  *
  * <h3>Reading from Cloud Spanner</h3>
  * <strong>Status: Not implemented.</strong>
@@ -61,9 +59,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>{@link SpannerIO#writeTo} batches together and concurrently writes a set of {@link Mutation}s.
  * To configure Cloud Spanner sink, you must apply {@link SpannerIO#writeTo} transform to
- * {@link PCollection} and specify instance and database identifiers.
- * For example, following code sketches out a pipeline that imports data from the CSV file to Cloud
- * Spanner.
+ * {@link PCollection} and specify instance and database identifiers. For example, following code
+ * sketches out a pipeline that imports data from the CSV file to Cloud Spanner.
  *
  * <pre>{@code
  *
@@ -77,13 +74,9 @@ import org.slf4j.LoggerFactory;
  * p.run();
  *
  * }</pre>
-
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
-
-  private SpannerIO() {
-  }
 
   @VisibleForTesting
   static final int SPANNER_MUTATIONS_PER_COMMIT_LIMIT = 20000;
@@ -97,10 +90,11 @@ public class SpannerIO {
   }
 
   /**
-   * A {@link PTransform} that writes {@link Mutation} objects to Cloud Spanner.
+   * A {@link PTransform} that writes {@link Mutation} objects to Google Cloud Spanner.
    *
    * @see SpannerIO
    */
+  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static class Writer extends PTransform<PCollection<Mutation>, PDone> {
 
     private final String instanceId;
@@ -130,7 +124,7 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PCollection<Mutation> input) {
+    public void validate(PipelineOptions options) {
       checkNotNull(instanceId, "instanceId");
       checkNotNull(databaseId, "databaseId");
     }
@@ -152,19 +146,17 @@ public class SpannerIO {
           .addIfNotNull(DisplayData.item("databaseId", databaseId)
               .withLabel("Output Database"));
     }
-
   }
 
-
   /**
-   * {@link DoFn} that writes {@link Mutation}s to Cloud Spanner. Mutations are written in
+   * {@link DoFn} that writes {@link Mutation}s to Google Cloud Spanner. Mutations are written in
    * batches, where the maximum batch size is {@link SpannerIO#SPANNER_MUTATIONS_PER_COMMIT_LIMIT}.
    *
-   * <p>See <a href="https://cloud.google.com/spanner"/>
-   *
    * <p>Commits are non-transactional.  If a commit fails, it will be retried (up to
-   * {@link SpannerIO#MAX_RETRIES}. times). This means that the
-   * mutation operation should be idempotent.
+   * {@link SpannerWriterFn#MAX_RETRIES} times). This means that the mutation operation should be
+   * idempotent.
+   *
+   * <p>See <a href="https://cloud.google.com/spanner">Google Cloud Spanner documentation</a>.
    */
   @VisibleForTesting
   static class SpannerWriterFn extends DoFn<Mutation, Void> {
@@ -208,7 +200,7 @@ public class SpannerIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       if (!mutations.isEmpty()) {
         flushBatch();
       }
@@ -269,4 +261,7 @@ public class SpannerIO {
               .withLabel("Database"));
     }
   }
+
+  private SpannerIO() {} // Prevent construction.
+
 }
