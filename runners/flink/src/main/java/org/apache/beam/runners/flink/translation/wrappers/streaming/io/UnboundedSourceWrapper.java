@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -60,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public class UnboundedSourceWrapper<
     OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-    extends RichParallelSourceFunction<WindowedValue<OutputT>>
+    extends RichParallelSourceFunction<WindowedValue<ValueWithRecordId<OutputT>>>
     implements ProcessingTimeCallback, StoppableFunction,
     CheckpointListener, CheckpointedFunction {
 
@@ -113,7 +114,7 @@ public class UnboundedSourceWrapper<
    * Make it a field so that we can access it in {@link #onProcessingTime(long)} for emitting
    * watermarks.
    */
-  private transient SourceContext<WindowedValue<OutputT>> context;
+  private transient SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> context;
 
   /**
    * Pending checkpoints which have not been acknowledged yet.
@@ -210,7 +211,7 @@ public class UnboundedSourceWrapper<
   }
 
   @Override
-  public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
+  public void run(SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx) throws Exception {
 
     context = ctx;
 
@@ -306,17 +307,19 @@ public class UnboundedSourceWrapper<
    * Emit the current element from the given Reader. The reader is guaranteed to have data.
    */
   private void emitElement(
-      SourceContext<WindowedValue<OutputT>> ctx,
+      SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> ctx,
       UnboundedSource.UnboundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
     synchronized (ctx.getCheckpointLock()) {
 
       OutputT item = reader.getCurrent();
+      byte[] recordId = reader.getCurrentRecordId();
       Instant timestamp = reader.getCurrentTimestamp();
 
-      WindowedValue<OutputT> windowedValue =
-          WindowedValue.of(item, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+      WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
+          WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
+              GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
       ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
     }
   }
