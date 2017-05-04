@@ -44,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Instant;
 
 /**
@@ -55,7 +54,7 @@ import org.joda.time.Instant;
  * <p>This implementation relies on implementation details of the Dataflow runner, specifically
  * standard fusion behavior of {@link ParDo} tranforms following a {@link GroupByKey}.
  */
-public class BatchStatefulParDoOverrides {
+class BatchStatefulParDoOverrides {
 
   /**
    * Returns a {@link PTransformOverrideFactory} that replaces a single-output {@link ParDo} with a
@@ -239,35 +238,6 @@ public class BatchStatefulParDoOverrides {
               c.element().getKey(),
               KV.of(
                   c.timestamp(), WindowedValue.of(c.element(), c.timestamp(), window, c.pane()))));
-    }
-  }
-
-  /**
-   * A key-preserving {@link DoFn} that explodes an iterable that has been grouped by key and
-   * window.
-   */
-  public static class BatchStatefulDoFn<K, V, OutputT>
-      extends DoFn<KV<K, Iterable<KV<Instant, WindowedValue<KV<K, V>>>>>, OutputT> {
-
-    private final DoFn<KV<K, V>, OutputT> underlyingDoFn;
-
-    BatchStatefulDoFn(DoFn<KV<K, V>, OutputT> underlyingDoFn) {
-      this.underlyingDoFn = underlyingDoFn;
-    }
-
-    public DoFn<KV<K, V>, OutputT> getUnderlyingDoFn() {
-      return underlyingDoFn;
-    }
-
-    @ProcessElement
-    public void processElement(final ProcessContext c, final BoundedWindow window) {
-      throw new UnsupportedOperationException(
-          "BatchStatefulDoFn.ProcessElement should never be invoked");
-    }
-
-    @Override
-    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-      return underlyingDoFn.getOutputTypeDescriptor();
     }
   }
 

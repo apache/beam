@@ -53,7 +53,7 @@ import org.apache.beam.runners.core.BoundedSourceRunner;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.dataflow.util.DoFnInfo;
+import org.apache.beam.runners.dataflow.DoFnInfo;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

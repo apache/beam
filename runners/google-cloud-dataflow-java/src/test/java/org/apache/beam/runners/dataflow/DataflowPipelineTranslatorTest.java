@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.util.Structs.addObject;
-import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
-import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.runners.dataflow.Structs.addObject;
+import static org.apache.beam.runners.dataflow.Structs.getDictionary;
+import static org.apache.beam.runners.dataflow.Structs.getString;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -69,11 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.runners.dataflow.util.OutputReference;
-import org.apache.beam.runners.dataflow.util.PropertyNames;
-import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;

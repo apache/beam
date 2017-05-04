@@ -32,12 +32,11 @@ import com.google.api.services.dataflow.model.ReportWorkItemStatusResponse;
 import java.io.IOException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 
 /**
  * Wrapper around the generated {@link Dataflow} client to provide common functionality.
  */
-public class DataflowClient {
+class DataflowClient {
 
   public static DataflowClient create(DataflowPipelineOptions options) {
     return new DataflowClient(options.getDataflowClient(), options);

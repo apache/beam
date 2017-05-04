@@ -20,8 +20,6 @@ package org.apache.beam.runners.dataflow;
 import com.google.api.services.dataflow.model.Step;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
