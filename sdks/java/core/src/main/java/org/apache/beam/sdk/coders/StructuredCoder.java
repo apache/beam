@@ -20,6 +20,9 @@ package org.apache.beam.sdk.coders;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -98,6 +101,58 @@ public abstract class StructuredCoder<T> implements Coder<T> {
     return builder.toString();
   }
 
+  public void encode(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Coder.Context.NESTED);
+  }
+
+  @Deprecated
+  public void encodeOuter(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Coder.Context.OUTER);
+  }
+
+  @Deprecated
+  public void encode(T value, OutputStream outStream, Coder.Context context)
+      throws CoderException, IOException {
+    if (context == Coder.Context.NESTED) {
+      encode(value, outStream);
+    } else {
+      encodeOuter(value, outStream);
+    }
+  }
+
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Coder.Context.NESTED);
+  }
+
+  @Deprecated
+  public T decodeOuter(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Coder.Context.OUTER);
+  }
+
+  @Deprecated
+  public T decode(InputStream inStream, Coder.Context context)
+      throws CoderException, IOException {
+    if (context == Coder.Context.NESTED) {
+      return decode(inStream);
+    } else {
+      return decodeOuter(inStream);
+    }
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
+   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
+   *         unless it is overridden. This is considered expensive.
+   */
+  @Override
+  public boolean isRegisterByteSizeObserverCheap(T value) {
+    return isRegisterByteSizeObserverCheap(value, Context.NESTED);
+  }
+
   /**
    * {@inheritDoc}
    *
@@ -122,6 +177,12 @@ public abstract class StructuredCoder<T> implements Coder<T> {
       throw new IllegalArgumentException(
           "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
     }
+  }
+
+  @Override
+  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
+      throws Exception {
+    registerByteSizeObserver(value, observer, Context.NESTED);
   }
 
   /**
