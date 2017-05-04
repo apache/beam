@@ -107,7 +107,6 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
 
       switch (type.getFieldsType().get(idx)) {
-<<<<<<< 88986bb2ed25bae2d5077718bed380f851d8a725
         case INTEGER:
           record.addField(idx, intCoder.decode(inStream, context.nested()));
           break;
@@ -132,32 +131,6 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
 
         default:
           throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
-=======
-      case INTEGER:
-      case SMALLINT:
-      case TINYINT:
-        record.addField(idx, intCoder.decode(inStream, nested));
-        break;
-      case DOUBLE:
-        record.addField(idx, doubleCoder.decode(inStream, nested));
-        break;
-      case FLOAT:
-        record.addField(idx, doubleCoder.decode(inStream, nested).floatValue());
-        break;
-      case BIGINT:
-        record.addField(idx, longCoder.decode(inStream, nested));
-        break;
-      case VARCHAR:
-        record.addField(idx, stringCoder.decode(inStream, nested));
-        break;
-      case TIME:
-      case TIMESTAMP:
-        record.addField(idx, new Date(longCoder.decode(inStream, nested)));
-        break;
-
-      default:
-        throw new UnsupportedDataTypeException(type.getFieldsType().get(idx));
->>>>>>> cleanup
       }
     }
     intCoder.decode(inStream, context);
