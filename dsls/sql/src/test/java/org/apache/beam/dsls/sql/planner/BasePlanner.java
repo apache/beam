@@ -18,17 +18,18 @@
 package org.apache.beam.dsls.sql.planner;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
 /**
@@ -36,50 +37,60 @@ import org.junit.BeforeClass;
  *
  */
 public class BasePlanner {
-  public static BeamSqlRunner runner;
+  public static BeamSqlRunner runner = new BeamSqlRunner();
 
   @BeforeClass
   public static void prepare() {
-    runner = new BeamSqlRunner();
-
     runner.addTable("ORDER_DETAILS", getTable());
     runner.addTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
     runner.addTable("SUB_ORDER_RAM", getTable());
-  }
-
-  @AfterClass
-  public static void close(){
-    runner = null;
   }
 
   private static BaseBeamTable getTable() {
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder()
-            .add("order_id", SqlTypeName.BIGINT)
-            .add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE)
-            .add("shipping", SqlTypeName.FLOAT)
-            .add("notes", SqlTypeName.VARCHAR)
-            .build();
+        return a0.builder().add("order_id", SqlTypeName.BIGINT).add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE).add("order_time", SqlTypeName.TIMESTAMP).build();
       }
     };
 
-    return new MockedBeamSQLTable(protoRowType);
+    BeamSQLRecordType dataType = BeamSQLRecordType.from(
+        protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+    BeamSQLRow row1 = new BeamSQLRow(dataType);
+    row1.addField(0, 12345L);
+    row1.addField(1, 0);
+    row1.addField(2, 10.5);
+    row1.addField(3, new Date());
+
+    BeamSQLRow row2 = new BeamSQLRow(dataType);
+    row2.addField(0, 12345L);
+    row2.addField(1, 1);
+    row2.addField(2, 20.5);
+    row2.addField(3, new Date());
+
+    BeamSQLRow row3 = new BeamSQLRow(dataType);
+    row3.addField(0, 12345L);
+    row3.addField(1, 0);
+    row3.addField(2, 20.5);
+    row3.addField(3, new Date());
+
+    BeamSQLRow row4 = new BeamSQLRow(dataType);
+    row4.addField(0, null);
+    row4.addField(1, null);
+    row4.addField(2, 20.5);
+    row4.addField(3, new Date());
+
+    return new MockedBeamSQLTable(protoRowType).withInputRecords(
+        Arrays.asList(row1, row2, row3, row4));
   }
 
   public static BaseBeamTable getTable(String bootstrapServer, String topic) {
     final RelProtoDataType protoRowType = new RelProtoDataType() {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder()
-            .add("order_id", SqlTypeName.BIGINT)
-            .add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE)
-            .add("shipping", SqlTypeName.FLOAT)
-            .add("notes", SqlTypeName.VARCHAR)
-            .build();
+        return a0.builder().add("order_id", SqlTypeName.BIGINT).add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE).add("order_time", SqlTypeName.TIMESTAMP).build();
       }
     };
 

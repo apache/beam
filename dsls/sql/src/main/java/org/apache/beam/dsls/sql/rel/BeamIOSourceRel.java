@@ -52,7 +52,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline().apply(stageName,
         sourceTable.buildIOReader());
 
-    planCreator.setLatestStream(sourceStream);
+    planCreator.pushUpstream(sourceStream);
 
     return planCreator.getPipeline();
   }

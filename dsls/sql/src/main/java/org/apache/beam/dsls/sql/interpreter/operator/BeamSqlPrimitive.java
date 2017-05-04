@@ -18,6 +18,8 @@
 package org.apache.beam.dsls.sql.interpreter.operator;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
@@ -89,6 +91,14 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
       return value instanceof Character;
     case VARCHAR:
       return value instanceof String;
+    case TIME:
+      return value instanceof GregorianCalendar;
+    case TIMESTAMP:
+      return value instanceof Date;
+    case INTERVAL_HOUR:
+      return value instanceof BigDecimal;
+    case INTERVAL_MINUTE:
+      return value instanceof BigDecimal;
     default:
       throw new BeamSqlUnsupportedException(outputType.name());
     }
