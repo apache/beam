@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.io.CountingSource;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -54,7 +53,6 @@ public class ForceStreamingTest {
 
     // pipeline with a bounded read.
     Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply(GenerateSequence.from(0));
 
     // apply the BoundedReadFromUnboundedSource.
     BoundedReadFromUnboundedSource<?> boundedRead =

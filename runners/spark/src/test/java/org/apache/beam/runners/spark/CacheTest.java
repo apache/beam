@@ -40,7 +40,7 @@ public class CacheTest {
   public void cacheCandidatesUpdaterTest() throws Exception {
     SparkPipelineOptions options =
         PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+    options.setRunner(TestSparkRunner.class);
     Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
