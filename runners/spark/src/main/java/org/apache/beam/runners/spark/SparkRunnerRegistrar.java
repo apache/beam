@@ -54,7 +54,9 @@ public final class SparkRunnerRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(SparkPipelineOptions.class);
+      return ImmutableList.<Class<? extends PipelineOptions>>of(
+          SparkPipelineOptions.class,
+          TestSparkPipelineOptions.class);
     }
   }
 }
