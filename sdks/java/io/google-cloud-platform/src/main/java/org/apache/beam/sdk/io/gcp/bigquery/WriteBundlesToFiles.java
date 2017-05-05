@@ -176,18 +176,20 @@ class WriteBundlesToFiles<DestinationT>
                 c.element().getValue()));
       }
     }
-    try {
-      writer.write(c.element().getValue());
-    } catch (Exception e) {
-      // Discard write result and close the write.
+    if (writer != null) {
       try {
-        writer.close();
-        // The writer does not need to be reset, as this DoFn cannot be reused.
-      } catch (Exception closeException) {
-        // Do not mask the exception that caused the write to fail.
-        e.addSuppressed(closeException);
+        writer.write(c.element().getValue());
+      } catch (Exception e) {
+        // Discard write result and close the write.
+        try {
+          writer.close();
+          // The writer does not need to be reset, as this DoFn cannot be reused.
+        } catch (Exception closeException) {
+          // Do not mask the exception that caused the write to fail.
+          e.addSuppressed(closeException);
+        }
+        throw e;
       }
-      throw e;
     }
   }
 
