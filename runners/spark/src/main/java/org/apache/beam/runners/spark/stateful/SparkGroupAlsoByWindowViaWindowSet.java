@@ -321,12 +321,12 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         long lateDropped = droppedDueToLateness.getCumulative();
         if (lateDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to lateness.", lateDropped));
-          droppedDueToLateness.inc(-droppedDueToLateness.getCumulative());
+          droppedDueToLateness.update(-droppedDueToLateness.getCumulative());
         }
         long closedWindowDropped = droppedDueToClosedWindow.getCumulative();
         if (closedWindowDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to closed window.", closedWindowDropped));
-          droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
+          droppedDueToClosedWindow.update(-droppedDueToClosedWindow.getCumulative());
         }
 
         return scala.collection.JavaConversions.asScalaIterator(outIter);

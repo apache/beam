@@ -47,8 +47,8 @@ public class MetricsContainerTest {
     assertThat("After commit no counters should be dirty",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.inc(5L);
-    c2.inc(4L);
+    c1.update(5L);
+    c2.update(4L);
 
     assertThat(container.getUpdates().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 5L),
@@ -63,7 +63,7 @@ public class MetricsContainerTest {
     assertThat("After commit there are no updates",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.inc(8L);
+    c1.update(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
         metricUpdate("name1", 13L)));
   }
@@ -73,9 +73,9 @@ public class MetricsContainerTest {
     MetricsContainer container = new MetricsContainer("step1");
     CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
     CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
-    c1.inc(2L);
-    c2.inc(4L);
-    c1.inc(3L);
+    c1.update(2L);
+    c2.update(4L);
+    c1.update(3L);
 
     container.getUpdates();
     container.commitUpdates();
@@ -84,7 +84,7 @@ public class MetricsContainerTest {
         metricUpdate("name1", 5L),
         metricUpdate("name2", 4L)));
 
-    c1.inc(8L);
+    c1.update(8L);
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 13L),
         metricUpdate("name2", 4L)));
