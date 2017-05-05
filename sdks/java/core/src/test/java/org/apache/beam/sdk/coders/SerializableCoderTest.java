@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -229,5 +230,15 @@ public class SerializableCoderTest implements Serializable {
     assertThat(
         SerializableCoder.of(MyRecord.class).getEncodedTypeDescriptor(),
         Matchers.equalTo(TypeDescriptor.of(MyRecord.class)));
+  }
+
+  private static class AutoRegistration implements Serializable {
+    private static final long serialVersionUID = 42L;
+  }
+
+  @Test
+  public void testSerializableCoderProviderIsRegistered() throws Exception {
+    assertThat(CoderRegistry.createDefault().getCoder(AutoRegistration.class),
+        instanceOf(SerializableCoder.class));
   }
 }

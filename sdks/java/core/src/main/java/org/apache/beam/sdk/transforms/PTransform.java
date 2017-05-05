@@ -117,7 +117,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * mapping from Java types to the default Coder to use, for a standard
  * set of Java types; users can extend this mapping for additional
  * types, via
- * {@link org.apache.beam.sdk.coders.CoderRegistry#registerCoder}.
+ * {@link org.apache.beam.sdk.coders.CoderRegistry#registerCoderProvider}.
  * If this inference process fails, either because the Java type was
  * not known at run-time (e.g., due to Java's "erasure" of generic
  * types) or there was no default Coder registered, then the Coder
@@ -281,7 +281,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * @throws CannotProvideCoderException if no coder can be inferred
    */
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
-    throw new CannotProvideCoderException("PTransform.getDefaultOutputCoder called.");
+    throw new CannotProvideCoderException("PTransform.getOutputCoder called.");
   }
 
   /**

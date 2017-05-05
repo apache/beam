@@ -21,7 +21,6 @@ import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
@@ -43,13 +42,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
 
   public static ByteArrayCoder of() {
     return INSTANCE;
-  }
-
-  /**
-   * Returns an empty list. {@link ByteArrayCoder} has no components.
-   */
-  public static <T> List<Object> getInstanceComponents(T ignored) {
-    return Collections.emptyList();
   }
 
   /////////////////////////////////////////////////////////////////////////////

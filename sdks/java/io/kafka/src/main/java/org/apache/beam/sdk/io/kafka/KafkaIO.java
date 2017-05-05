@@ -304,7 +304,7 @@ public class KafkaIO {
         Class<T> clazz = (Class<T>) parameter;
 
         try {
-          return NullableCoder.of(coderRegistry.getDefaultCoder(clazz));
+          return NullableCoder.of(coderRegistry.getCoder(clazz));
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException(
                   String.format("Unable to automatically infer a Coder for "

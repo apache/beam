@@ -274,7 +274,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input,
         PCollection<T> output)
         throws CannotProvideCoderException {
-      // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
+      // Similar logic to ParDo.MultiOutput.getOutputCoder.
       @SuppressWarnings("unchecked")
       KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
           (KeyedWorkItemCoder) input.getCoder();
@@ -284,7 +284,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return input
           .getPipeline()
           .getCoderRegistry()
-          .getDefaultCoder(output.getTypeDescriptor(), fn.getInputTypeDescriptor(), inputCoder);
+          .getCoder(output.getTypeDescriptor(), fn.getInputTypeDescriptor(), inputCoder);
     }
   }
 

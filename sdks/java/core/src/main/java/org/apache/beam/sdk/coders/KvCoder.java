@@ -39,13 +39,6 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
     return new KvCoder<>(keyCoder, valueCoder);
   }
 
-  public static <K, V> List<Object> getInstanceComponents(
-      KV<K, V> exampleValue) {
-    return Arrays.asList(
-        exampleValue.getKey(),
-        exampleValue.getValue());
-  }
-
   public Coder<K> getKeyCoder() {
     return keyCoder;
   }

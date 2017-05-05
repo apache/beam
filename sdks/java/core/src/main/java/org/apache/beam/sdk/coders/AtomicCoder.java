@@ -33,20 +33,6 @@ import java.util.List;
  */
 public abstract class AtomicCoder<T> extends StructuredCoder<T> {
   /**
-   * Returns an empty list.
-   *
-   * <p>{@link CoderFactories#fromStaticMethods(Class)} builds a {@link CoderFactory} from the
-   * {@code #of()} method and this method, used to determine the components of an object. Because
-   * {@link AtomicCoder} has no components, always returns an empty list.
-   *
-   * @param exampleValue unused, but part of the latent interface expected by {@link
-   *     CoderFactories#fromStaticMethods}
-   */
-  public static <T> List<Object> getInstanceComponents(T exampleValue) {
-    return Collections.emptyList();
-  }
-
-  /**
    * {@inheritDoc}.
    *
    * @throws NonDeterministicException

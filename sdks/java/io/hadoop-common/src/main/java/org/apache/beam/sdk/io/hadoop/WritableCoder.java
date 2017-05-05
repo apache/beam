@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import com.google.auto.service.AutoService;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -25,9 +26,14 @@ import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
@@ -110,4 +116,54 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
     return type.hashCode();
   }
 
+  /**
+   * Returns a {@link CoderProvider} which uses the {@link WritableCoder} for Hadoop
+   * {@link Writable writable types}.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
+   */
+  public static CoderProvider getCoderProvider() {
+    return new WritableCoderProvider();
+  }
+
+  /**
+   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
+   * {@link Writable writable types}.
+   */
+  @AutoService(CoderProviderRegistrar.class)
+  public static class WritableCoderProviderRegistrar implements CoderProviderRegistrar {
+
+    @Override
+    public List<CoderProvider> getCoderProviders() {
+      return Collections.singletonList(getCoderProvider());
+    }
+  }
+
+  /**
+   * A {@link CoderProvider} for Hadoop {@link Writable writable types}.
+   */
+  private static class WritableCoderProvider extends CoderProvider {
+    private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
+
+    @Override
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (!typeDescriptor.isSubtypeOf(WRITABLE_TYPE)) {
+        throw new CannotProvideCoderException(
+            String.format(
+                "Cannot provide %s because %s does not implement the interface %s",
+                WritableCoder.class.getSimpleName(),
+                typeDescriptor,
+                Writable.class.getName()));
+      }
+
+      try {
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = WritableCoder.of((Class) typeDescriptor.getRawType());
+        return coder;
+      } catch (IllegalArgumentException e) {
+        throw new CannotProvideCoderException(e);
+      }
+    }
+  }
 }

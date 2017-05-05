@@ -87,12 +87,6 @@ public class GlobalWindow extends BoundedWindow {
       return Collections.emptyList();
     }
 
-    /**
-     * Returns an empty list. The Global Window Coder has no components.
-     */
-    public static <T> List<Object> getInstanceComponents(T exampleValue) {
-      return Collections.emptyList();
-    }
     private Coder() {}
   }
 }
