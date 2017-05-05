@@ -22,11 +22,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn.Accumulator;
 
@@ -180,9 +180,8 @@ public class Mean {
     }
   }
 
-  static class CountSumCoder<NumT extends Number>
-  extends CustomCoder<CountSum<NumT>> {
-     private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
+  static class CountSumCoder<NumT extends Number> extends AtomicCoder<CountSum<NumT>> {
+    private static final Coder<Long> LONG_CODER = BigEndianLongCoder.of();
      private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
 
      @Override

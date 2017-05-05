@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -158,7 +159,7 @@ public class PCollectionsTest {
 
     @Override
     public Coder<BoundedWindow> windowCoder() {
-      return new CustomCoder<BoundedWindow>() {
+      return new AtomicCoder<BoundedWindow>() {
         @Override public void verifyDeterministic() {}
 
         @Override

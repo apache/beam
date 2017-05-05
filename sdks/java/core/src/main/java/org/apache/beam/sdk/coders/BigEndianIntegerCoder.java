@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian.
  */
-public class BigEndianIntegerCoder extends CustomCoder<Integer> {
+public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
 
   public static BigEndianIntegerCoder of() {
     return INSTANCE;
@@ -79,7 +79,7 @@ public class BigEndianIntegerCoder extends CustomCoder<Integer> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
+   * @return {@code true}, because {@link Coder#getEncodedElementByteSize} runs in constant time.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
@@ -97,7 +97,7 @@ public class BigEndianIntegerCoder extends CustomCoder<Integer> {
    * @return {@code 4}, the size in bytes of an integer's big endian encoding.
    */
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  protected long getEncodedElementByteSize(Integer value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

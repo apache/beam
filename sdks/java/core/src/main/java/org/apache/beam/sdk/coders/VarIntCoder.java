@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * numbers always take 5 bytes, so {@link BigEndianIntegerCoder} may be preferable for
  * integers that are known to often be large or negative.
  */
-public class VarIntCoder extends CustomCoder<Integer> {
+public class VarIntCoder extends AtomicCoder<Integer> {
 
   public static VarIntCoder of() {
     return INSTANCE;
@@ -80,7 +80,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
+   * @return {@code true}. {@link Coder#getEncodedElementByteSize} is cheap.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
@@ -93,7 +93,7 @@ public class VarIntCoder extends CustomCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  protected long getEncodedElementByteSize(Integer value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

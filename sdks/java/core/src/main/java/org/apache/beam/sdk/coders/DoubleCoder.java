@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link DoubleCoder} encodes {@link Double} values in 8 bytes using Java serialization.
  */
-public class DoubleCoder extends CustomCoder<Double> {
+public class DoubleCoder extends AtomicCoder<Double> {
 
   public static DoubleCoder of() {
     return INSTANCE;
@@ -90,7 +90,7 @@ public class DoubleCoder extends CustomCoder<Double> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link DoubleCoder#getEncodedElementByteSize} returns a constant.
+   * @return {@code true}. {@link Coder#getEncodedElementByteSize} returns a constant.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Double value, Context context) {
@@ -108,7 +108,7 @@ public class DoubleCoder extends CustomCoder<Double> {
    * @return {@code 8}, the byte size of a {@link Double} encoded using Java serialization.
    */
   @Override
-  protected long getEncodedElementByteSize(Double value, Context context)
+  protected long getEncodedElementByteSize(Double value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Double");

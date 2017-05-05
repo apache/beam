@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends CustomCoder<T> {
+public class NullableCoder<T> extends StructuredCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
@@ -93,11 +93,11 @@ public class NullableCoder<T> extends CustomCoder<T> {
   /**
    * {@code NullableCoder} is deterministic if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic("Value coder must be deterministic", valueCoder);
+    verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
   }
 
   /**
@@ -142,7 +142,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  protected long getEncodedElementByteSize(@Nullable T value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(@Nullable T value) throws Exception {
     if (value == null) {
       return 1;
     }
@@ -151,12 +151,12 @@ public class NullableCoder<T> extends CustomCoder<T> {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
       return 1  + ((StructuredCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value, context);
+          .getEncodedElementByteSize(value);
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the null indicator byte.
-    return super.getEncodedElementByteSize(value, context);
+    return super.getEncodedElementByteSize(value);
   }
 
   /**
