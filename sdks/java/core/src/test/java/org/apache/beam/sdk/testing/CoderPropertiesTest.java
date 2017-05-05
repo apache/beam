@@ -187,12 +187,12 @@ public class CoderPropertiesTest {
   /** A coder which closes the underlying stream during encoding and decoding. */
   public static class ClosingCoder extends CustomCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Context context) throws IOException {
+    public void encode(String value, OutputStream outStream) throws IOException {
       outStream.close();
     }
 
     @Override
-    public String decode(InputStream inStream, Context context) throws IOException {
+    public String decode(InputStream inStream) throws IOException {
       inStream.close();
       return null;
     }

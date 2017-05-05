@@ -45,7 +45,7 @@ public class BigEndianLongCoder extends CustomCoder<Long> {
   private BigEndianLongCoder() {}
 
   @Override
-  public void encode(Long value, OutputStream outStream, Context context)
+  public void encode(Long value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
@@ -54,7 +54,7 @@ public class BigEndianLongCoder extends CustomCoder<Long> {
   }
 
   @Override
-  public Long decode(InputStream inStream, Context context)
+  public Long decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readLong();

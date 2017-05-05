@@ -35,7 +35,7 @@ public class TableDestinationCoder extends CustomCoder<TableDestination> {
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream, Context context)
+  public void encode(TableDestination value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
@@ -45,7 +45,7 @@ public class TableDestinationCoder extends CustomCoder<TableDestination> {
   }
 
   @Override
-  public TableDestination decode(InputStream inStream, Context context) throws IOException {
+  public TableDestination decode(InputStream inStream) throws IOException {
     return new TableDestination(
         stringCoder.decode(inStream),
         stringCoder.decode(inStream));

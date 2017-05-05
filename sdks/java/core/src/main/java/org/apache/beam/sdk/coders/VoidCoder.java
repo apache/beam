@@ -40,12 +40,12 @@ public class VoidCoder extends CustomCoder<Void> {
   private VoidCoder() {}
 
   @Override
-  public void encode(Void value, OutputStream outStream, Context context) {
+  public void encode(Void value, OutputStream outStream) {
     // Nothing to write!
   }
 
   @Override
-  public Void decode(InputStream inStream, Context context) {
+  public Void decode(InputStream inStream) {
     // Nothing to read!
     return null;
   }
