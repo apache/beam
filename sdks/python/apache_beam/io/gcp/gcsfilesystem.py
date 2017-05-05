@@ -34,6 +34,12 @@ class GCSFileSystem(FileSystem):
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
 
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    return 'gs'
+
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem
 
