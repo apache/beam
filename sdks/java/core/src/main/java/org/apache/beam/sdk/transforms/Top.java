@@ -558,8 +558,7 @@ public class Top {
     @Override
     public boolean isRegisterByteSizeObserverCheap(
         BoundedHeap<T, ComparatorT> value) {
-      return listCoder.isRegisterByteSizeObserverCheap(
-          value.asList(), context);
+      return listCoder.isRegisterByteSizeObserverCheap(value.asList());
     }
 
     @Override

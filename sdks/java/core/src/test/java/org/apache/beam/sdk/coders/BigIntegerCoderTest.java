@@ -79,7 +79,8 @@ public class BigIntegerCoderTest {
       observer.advance();
       assertThat(
           observer.getSumAndReset(),
-          equalTo((long) CoderUtils.encodeToByteArray(TEST_CODER, value).length));
+          equalTo((long) CoderUtils.encodeToByteArray(
+              TEST_CODER, value, Coder.Context.NESTED).length));
     }
   }
 

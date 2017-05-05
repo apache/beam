@@ -398,7 +398,7 @@ public class CoderProperties {
     try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
       for (T elem : elements) {
         coder.registerByteSizeObserver(elem, observer);
-        coder.encode(elem, os, context);
+        coder.encode(elem, os);
         observer.advance();
       }
       long expectedLength = os.getCount();

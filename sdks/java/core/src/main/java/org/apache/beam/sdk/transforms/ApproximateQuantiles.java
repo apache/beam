@@ -742,21 +742,20 @@ public class ApproximateQuantiles {
         QuantileState<T, ComparatorT> state,
         ElementByteSizeObserver observer)
         throws Exception {
-      Coder.Context nestedContext = context.nested();
       elementCoder.registerByteSizeObserver(
-          state.min, observer, nestedContext);
+          state.min, observer);
       elementCoder.registerByteSizeObserver(
-          state.max, observer, nestedContext);
+          state.max, observer);
       elementListCoder.registerByteSizeObserver(
-          state.unbufferedElements, observer, nestedContext);
+          state.unbufferedElements, observer);
 
       BigEndianIntegerCoder.of().registerByteSizeObserver(
-          state.buffers.size(), observer, nestedContext);
+          state.buffers.size(), observer);
       for (QuantileBuffer<T> buffer : state.buffers) {
         observer.update(4L + 8);
 
         elementListCoder.registerByteSizeObserver(
-            buffer.elements, observer, nestedContext);
+            buffer.elements, observer);
       }
     }
 

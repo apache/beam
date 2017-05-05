@@ -111,8 +111,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
     if (valueCoder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(
-          value, Context.OUTER);
+      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
       return VarInt.getLength(valueSize) + valueSize;
     }
 

@@ -151,10 +151,6 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    long size = 0;
-    if (!context.isWholeStream) {
-      size += VarInt.getLength(value.length);
-    }
-    return size + value.length;
+    return VarInt.getLength(value.length) + value.length;
   }
 }

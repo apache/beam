@@ -109,7 +109,6 @@ public class NullableCoderTest {
     assertEquals(1, varLenCoder.getEncodedElementByteSize(null));
     assertEquals(1, varLenCoder.getEncodedElementByteSize(null));
 
-    assertEquals(5, varLenCoder.getEncodedElementByteSize("spam"));
     assertEquals(6, varLenCoder.getEncodedElementByteSize("spam"));
   }
 
@@ -122,8 +121,7 @@ public class NullableCoderTest {
   @Test
   public void testObserverIsNotCheap() throws Exception {
     NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
-    assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test"), Coder.Context.OUTER));
+    assertFalse(coder.isRegisterByteSizeObserverCheap(ImmutableList.of("hi", "test")));
   }
 
   @Test

@@ -193,7 +193,6 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
     }
-    Context nestedContext = context.nested();
 
     if (iterable instanceof ElementByteSizeObservableIterable) {
       observer.setLazy();
