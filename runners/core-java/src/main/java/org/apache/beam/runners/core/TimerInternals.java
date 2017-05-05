@@ -244,7 +244,7 @@ public interface TimerInternals {
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
-      STRING_CODER.encode(timer.getDomain().name(), outStream, context);
+      STRING_CODER.encode(timer.getDomain().name(), outStream);
     }
 
     @Override
@@ -255,7 +255,7 @@ public interface TimerInternals {
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
-      TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream, context));
+      TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
       return TimerData.of(timerId, namespace, timestamp, domain);
     }
 
