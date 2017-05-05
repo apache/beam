@@ -27,13 +27,14 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ContextSensitiveCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.
  *
- * <p>When this code is used in a nested {@link Coder.Context}, the serialized {@link ByteString}
+ * <p>When this code is used in a nested {@link ContextSensitiveCoder.Context}, the serialized {@link ByteString}
  * objects are first delimited by their size.
  */
 public class ByteStringCoder extends ContextSensitiveCoder<ByteString> {
@@ -95,7 +96,7 @@ public class ByteStringCoder extends ContextSensitiveCoder<ByteString> {
    * {@inheritDoc}
    *
    * <p>Returns true; the encoded output of two invocations of {@link ByteStringCoder} in the same
-   * {@link Coder.Context} will be identical if and only if the original {@link ByteString} objects
+   * {@link ContextSensitiveCoder.Context} will be identical if and only if the original {@link ByteString} objects
    * are equal according to {@link Object#equals}.
    */
   @Override

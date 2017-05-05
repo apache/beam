@@ -37,7 +37,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.coders.InstantCoder;

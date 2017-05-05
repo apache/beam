@@ -104,7 +104,7 @@ public class BigDecimalCoderTest {
       observer.advance();
       assertThat(observer.getSumAndReset(),
           equalTo((long) CoderUtils.encodeToByteArray(
-              TEST_CODER, value, Coder.Context.NESTED).length));
+              TEST_CODER, value, ContextSensitiveCoder.Context.NESTED).length));
     }
   }
 

@@ -65,7 +65,7 @@ public class RandomAccessData {
     }
 
     @Override
-    public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
+    public void encode(RandomAccessData value, OutputStream outStream, ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       if (value == POSITIVE_INFINITY) {
         throw new CoderException("Positive infinity can not be encoded.");
@@ -77,7 +77,7 @@ public class RandomAccessData {
     }
 
     @Override
-    public RandomAccessData decode(InputStream inStream, Coder.Context context)
+    public RandomAccessData decode(InputStream inStream, ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       RandomAccessData rval = new RandomAccessData();
       if (!context.isWholeStream) {

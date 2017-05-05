@@ -26,7 +26,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;

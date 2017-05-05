@@ -17,18 +17,74 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder.Context;
 
 /**
  * An abstract base class to implement a {@link Coder} that has a nested and unnested encoding.
  */
 @Experimental(Kind.CODER_CONTEXT)
 public abstract class ContextSensitiveCoder<T> extends StructuredCoder<T> {
+
+  /** The context in which encoding or decoding is being done. */
+  @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
+  public static class Context {
+    /**
+     * The outer context: the value being encoded or decoded takes
+     * up the remainder of the record/stream contents.
+     */
+    public static final Context OUTER = new Context(true);
+
+    /**
+     * The nested context: the value being encoded or decoded is
+     * (potentially) a part of a larger record/stream contents, and
+     * may have other parts encoded or decoded after it.
+     */
+    public static final Context NESTED = new Context(false);
+
+    /**
+     * Whether the encoded or decoded value fills the remainder of the
+     * output or input (resp.) record/stream contents.  If so, then
+     * the size of the decoded value can be determined from the
+     * remaining size of the record/stream contents, and so explicit
+     * lengths aren't required.
+     */
+    public final boolean isWholeStream;
+
+    public Context(boolean isWholeStream) {
+      this.isWholeStream = isWholeStream;
+    }
+
+    public Context nested() {
+      return NESTED;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof Context)) {
+        return false;
+      }
+      return Objects.equal(isWholeStream, ((Context) obj).isWholeStream);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(isWholeStream);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(Context.class)
+          .addValue(isWholeStream ? "OUTER" : "NESTED").toString();
+    }
+  }
+
   protected ContextSensitiveCoder() {}
 
   /**

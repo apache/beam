@@ -68,7 +68,7 @@ public class SideInputBroadcast<T> implements Serializable {
     T val;
     try {
       val = ContextSensitiveCoder.decode(
-          coder, new ByteArrayInputStream(bcast.value()), Coder.Context.OUTER);
+          coder, new ByteArrayInputStream(bcast.value()), ContextSensitiveCoder.Context.OUTER);
     } catch (IOException ioe) {
       // this should not ever happen, log it if it does.
       LOG.warn(ioe.getMessage());

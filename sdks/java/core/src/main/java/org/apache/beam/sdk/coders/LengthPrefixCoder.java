@@ -31,7 +31,7 @@ import org.apache.beam.sdk.util.VarInt;
 
 /**
  * A {@link Coder} which is able to take any existing coder and wrap it such that it is only
- * invoked in the {@link org.apache.beam.sdk.coders.Coder.Context#OUTER outer context}. The data
+ * invoked in the {@link org.apache.beam.sdk.coders.ContextSensitiveCoder.Context#OUTER outer context}. The data
  * representing the element is prefixed with a length using a variable integer encoding.
  *
  * @param <T> the type of the values being transcoded
@@ -56,7 +56,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   public void encode(T value, OutputStream outStream)
       throws CoderException, IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    ContextSensitiveCoder.encode(valueCoder, value, bos, Context.OUTER);
+    ContextSensitiveCoder.encode(valueCoder, value, bos, ContextSensitiveCoder.Context.OUTER);
     VarInt.encode(bos.size(), outStream);
     bos.writeTo(outStream);
   }
@@ -65,7 +65,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   public T decode(InputStream inStream) throws CoderException, IOException {
     long size = VarInt.decodeLong(inStream);
     return ContextSensitiveCoder.decode(
-        valueCoder, ByteStreams.limit(inStream, size), Context.OUTER);
+        valueCoder, ByteStreams.limit(inStream, size), ContextSensitiveCoder.Context.OUTER);
   }
 
   @Override

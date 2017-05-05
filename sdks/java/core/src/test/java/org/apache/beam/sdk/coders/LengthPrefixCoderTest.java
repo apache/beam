@@ -92,7 +92,7 @@ public class LengthPrefixCoderTest {
   public void testRegisterByteSizeObserver() throws Exception {
     CoderProperties.testByteCount(
         LengthPrefixCoder.of(VarIntCoder.of()),
-        Coder.Context.NESTED,
+        ContextSensitiveCoder.Context.NESTED,
         new Integer[]{0, 10, 1000});
   }
 

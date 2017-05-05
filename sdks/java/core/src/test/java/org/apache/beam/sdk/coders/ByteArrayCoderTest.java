@@ -57,10 +57,10 @@ public class ByteArrayCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), ContextSensitiveCoder.Context.OUTER,
                                    new byte[][]{{ 0xa, 0xb, 0xc }});
 
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), ContextSensitiveCoder.Context.NESTED,
                                    new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 
@@ -97,11 +97,11 @@ public class ByteArrayCoderTest {
 
   private static byte[] encodeToByteArrayAndOwn(ByteArrayCoder coder, byte[] value)
       throws IOException {
-    return encodeToByteArrayAndOwn(coder, value, Coder.Context.OUTER);
+    return encodeToByteArrayAndOwn(coder, value, ContextSensitiveCoder.Context.OUTER);
   }
 
   private static byte[] encodeToByteArrayAndOwn(
-      ByteArrayCoder coder, byte[] value, Coder.Context context) throws IOException {
+      ByteArrayCoder coder, byte[] value, ContextSensitiveCoder.Context context) throws IOException {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     coder.encodeAndOwn(value, os, context);
     return os.toByteArray();
