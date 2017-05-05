@@ -40,15 +40,15 @@ public class TableDestinationCoder extends CustomCoder<TableDestination> {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    stringCoder.encode(value.getTableSpec(), outStream, context.nested());
-    stringCoder.encode(value.getTableDescription(), outStream, context.nested());
+    stringCoder.encode(value.getTableSpec(), outStream);
+    stringCoder.encode(value.getTableDescription(), outStream);
   }
 
   @Override
   public TableDestination decode(InputStream inStream, Context context) throws IOException {
     return new TableDestination(
-        stringCoder.decode(inStream, context.nested()),
-        stringCoder.decode(inStream, context.nested()));
+        stringCoder.decode(inStream),
+        stringCoder.decode(inStream));
   }
 
   @Override

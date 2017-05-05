@@ -543,7 +543,7 @@ public class CombineFns {
       int lastIndex = codersCount - 1;
       Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        coders.get(i).encode(value[i], outStream, nestedContext);
+        coders.get(i).encode(value[i], outStream);
       }
       coders.get(lastIndex).encode(value[lastIndex], outStream, context);
     }
@@ -558,7 +558,7 @@ public class CombineFns {
       int lastIndex = codersCount - 1;
       Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        ret[i] = coders.get(i).decode(inStream, nestedContext);
+        ret[i] = coders.get(i).decode(inStream);
       }
       ret[lastIndex] = coders.get(lastIndex).decode(inStream, context);
       return ret;

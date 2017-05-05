@@ -180,7 +180,7 @@ public class BufferedElementCountingOutputStreamTest {
     do {
       count = VarInt.decodeLong(is);
       for (int i = 0; i < count; ++i) {
-        values.add(ByteArrayCoder.of().decode(is, Context.NESTED));
+        values.add(ByteArrayCoder.of().decode(is));
       }
     } while(count > 0);
 
@@ -198,7 +198,7 @@ public class BufferedElementCountingOutputStreamTest {
 
     for (byte[] value : values) {
       os.markElementStart();
-      ByteArrayCoder.of().encode(value, os, Context.NESTED);
+      ByteArrayCoder.of().encode(value, os);
     }
     return os;
   }

@@ -135,7 +135,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   private static BeamFnApi.Elements messageWithData(byte[] ... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
-      CODER.encode(valueInGlobalWindow(data), output, Context.NESTED);
+      CODER.encode(valueInGlobalWindow(data), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
