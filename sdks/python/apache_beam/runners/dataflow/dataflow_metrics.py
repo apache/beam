@@ -33,9 +33,16 @@ from apache_beam.metrics.metricbase import MetricName
 
 
 def _get_match(proto, filter_fn):
+  """Finds and returns the first element that matches a query.
+
+  If no element matches the query, it throws ValueError.
+  If more than one element matches the query, it returns only the first.
+  """
   query = [elm for elm in proto if filter_fn(elm)]
   if len(query) == 0:
     raise ValueError('Could not find element')
+  elif len(query) > 1:
+    raise ValueError('Too many matches')
 
   return query[0]
 
@@ -95,7 +102,7 @@ class DataflowMetrics(MetricResults):
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
       step = _get_match(metric.name.context.additionalProperties,
-                        lambda xm: x.key == 'step').value
+                        lambda x: x.key == 'step').value
       step = self._translate_step_name(step)
       namespace = _get_match(metric.name.context.additionalProperties,
                              lambda x: x.key == 'namespace').value
