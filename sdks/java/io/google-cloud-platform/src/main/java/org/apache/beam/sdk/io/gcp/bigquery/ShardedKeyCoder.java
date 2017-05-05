@@ -25,7 +25,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 
 
@@ -34,10 +34,13 @@ import org.apache.beam.sdk.coders.VarIntCoder;
  */
 @VisibleForTesting
 class ShardedKeyCoder<KeyT>
-    extends CustomCoder<ShardedKey<KeyT>> {
+    extends StructuredCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }
+
+  private final Coder<KeyT> keyCoder;
+  private final VarIntCoder shardNumberCoder;
 
   protected ShardedKeyCoder(Coder<KeyT> keyCoder) {
     this.keyCoder = keyCoder;
@@ -68,7 +71,4 @@ class ShardedKeyCoder<KeyT>
   public void verifyDeterministic() throws NonDeterministicException {
     keyCoder.verifyDeterministic();
   }
-
-  Coder<KeyT> keyCoder;
-  VarIntCoder shardNumberCoder;
 }

@@ -23,6 +23,7 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -137,6 +138,23 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return TypeDescriptor.of(jaxbClass);
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof JAXBCoder)) {
+      return false;
+    }
+    JAXBCoder<?> that = (JAXBCoder<?>) other;
+    return Objects.equals(this.jaxbClass, that.jaxbClass);
+  }
+
+  @Override
+  public int hashCode() {
+    return jaxbClass.hashCode();
   }
 
   private static class CloseIgnoringInputStream extends FilterInputStream {

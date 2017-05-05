@@ -169,7 +169,7 @@ public class NullableCoderTest {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
-  private static class EntireStreamExpectingCoder extends CustomCoder<String> {
+  private static class EntireStreamExpectingCoder extends AtomicCoder<String> {
     @Override
     public void encode(
         String value, OutputStream outStream, Context context) throws IOException {
