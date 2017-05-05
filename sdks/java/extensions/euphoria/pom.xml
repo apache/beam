@@ -21,7 +21,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>cz.seznam.euphoria</groupId>
   <artifactId>euphoria-parent</artifactId>
-  <version>0.6.0</version>
+  <version>0.6.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <inceptionYear>2016</inceptionYear>
 
@@ -45,7 +45,7 @@
     <connection>scm:git:git@github.com:seznam/euphoria.git</connection>
     <developerConnection>scm:git:git@github.com:seznam/euphoria.git</developerConnection>
     <url>https://github.com/seznam/euphoria/tree/master</url>
-    <tag>v0.6.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <organization>
