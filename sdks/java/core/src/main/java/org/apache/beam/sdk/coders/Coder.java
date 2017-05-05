@@ -29,6 +29,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -243,7 +244,7 @@ public abstract class Coder<T> implements Serializable {
    * constant time (or lazily).
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * {@link PipelineRunner}
    * implementations.
    */
   public abstract boolean isRegisterByteSizeObserverCheap(T value);
@@ -255,7 +256,7 @@ public abstract class Coder<T> implements Serializable {
    * constant time (or lazily).
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * {@link PipelineRunner}
    * implementations.
    */
   @Deprecated
@@ -266,7 +267,7 @@ public abstract class Coder<T> implements Serializable {
    * of the encoded value using this {@code Coder}.
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * {@link PipelineRunner}
    * implementations.
    */
   public abstract void registerByteSizeObserver(
@@ -278,7 +279,7 @@ public abstract class Coder<T> implements Serializable {
    * of the encoded value using this {@code Coder}.
    *
    * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
+   * {@link PipelineRunner}
    * implementations.
    */
   @Deprecated

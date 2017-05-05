@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -36,7 +37,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  *
  * <p>A {@link PCollectionView} should always be the output of a
  * {@link org.apache.beam.sdk.transforms.PTransform}. It is the joint responsibility of
- * this transform and each {@link org.apache.beam.sdk.runners.PipelineRunner} to implement
+ * this transform and each {@link PipelineRunner} to implement
  * the view in a runner-specific manner.
  *
  * <p>The most common case is using the {@link View} transforms to prepare a {@link PCollection}

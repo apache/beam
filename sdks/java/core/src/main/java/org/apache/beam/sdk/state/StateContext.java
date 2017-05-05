@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 public interface StateContext<W extends BoundedWindow> {
   /**
    * Returns the {@code PipelineOptions} specified with the
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}.
+   * {@link PipelineRunner}.
    */
   PipelineOptions getPipelineOptions();
 

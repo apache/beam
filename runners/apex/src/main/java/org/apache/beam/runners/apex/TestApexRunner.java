@@ -19,9 +19,9 @@ package org.apache.beam.runners.apex;
 
 import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.joda.time.Duration;
 
 /**

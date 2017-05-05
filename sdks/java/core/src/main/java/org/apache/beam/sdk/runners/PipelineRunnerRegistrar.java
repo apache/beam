@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners;
 
 import com.google.auto.service.AutoService;
 import java.util.ServiceLoader;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
