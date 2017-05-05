@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,7 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
       InputStream inputStream = t.getData().newInput();
       while (inputStream.available() > 0) {
         counter += 1;
-        WindowedValue<T> value = coder.decode(inputStream, Context.NESTED);
+        WindowedValue<T> value = coder.decode(inputStream);
         consumer.accept(value);
       }
     } catch (Exception e) {

@@ -168,6 +168,12 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   @Override
+  public void encode(T value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(T value, OutputStream outStream, Context context) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null " + protoMessageClass.getSimpleName());
@@ -177,6 +183,11 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     } else {
       value.writeDelimitedTo(outStream);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

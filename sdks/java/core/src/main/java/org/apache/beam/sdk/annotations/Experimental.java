@@ -84,6 +84,9 @@ public @interface Experimental {
     /** Metrics-related experimental APIs. */
     METRICS,
 
+    /** Experimental feature related to alternative, unnested encodings for coders. */
+    CODER_CONTEXT,
+
     /** Experimental runner APIs. Should not be used by pipeline authors. */
     CORE_RUNNERS_ONLY,
 

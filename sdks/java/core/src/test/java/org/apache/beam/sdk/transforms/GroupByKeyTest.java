@@ -469,13 +469,13 @@ public class GroupByKeyTest {
     private DeterministicKeyCoder() {}
 
     @Override
-    public void encode(BadEqualityKey value, OutputStream outStream, Context context)
+    public void encode(BadEqualityKey value, OutputStream outStream)
         throws IOException {
       new DataOutputStream(outStream).writeLong(value.key);
     }
 
     @Override
-    public BadEqualityKey decode(InputStream inStream, Context context)
+    public BadEqualityKey decode(InputStream inStream)
         throws IOException {
       return new BadEqualityKey(new DataInputStream(inStream).readLong());
     }

@@ -162,6 +162,12 @@ public interface ApexStreamTuple<T> {
     }
 
     @Override
+    public void encode(ApexStreamTuple<T> value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(ApexStreamTuple<T> value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       if (value instanceof WatermarkTuple) {
@@ -172,6 +178,11 @@ public interface ApexStreamTuple<T> {
         outStream.write(((DataTuple<?>) value).unionTag);
         valueCoder.encode(value.getValue(), outStream, context);
       }
+    }
+
+    @Override
+    public ApexStreamTuple<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
