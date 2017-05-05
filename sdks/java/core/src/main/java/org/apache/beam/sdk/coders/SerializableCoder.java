@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -63,29 +66,45 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   /**
-   * A {@link CoderProvider} that constructs a {@link SerializableCoder}
-   * for any class that implements serializable.
+   * Returns a {@link CoderFactory} which uses the {@link SerializableCoder} if possible for
+   * all types.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static final CoderProvider PROVIDER = new CoderProvider() {
-    @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor)
-        throws CannotProvideCoderException {
-      Class<?> clazz = typeDescriptor.getRawType();
-      if (Serializable.class.isAssignableFrom(clazz)) {
-        @SuppressWarnings("unchecked")
-        Class<? extends Serializable> serializableClazz =
-            (Class<? extends Serializable>) clazz;
-        @SuppressWarnings("unchecked")
-        Coder<T> coder = (Coder<T>) SerializableCoder.of(serializableClazz);
-        return coder;
-      } else {
-        throw new CannotProvideCoderException(
-            "Cannot provide SerializableCoder because " + typeDescriptor
-            + " does not implement Serializable");
-      }
-    }
-  };
+  @SuppressWarnings("unused")
+  public static CoderFactory getCoderFactory() {
+    return new SerializableCoderFactory();
+  }
 
+  /**
+   * A {@link CoderFactoryRegistrar} which registers a {@link CoderFactory} which can handle
+   * serializable types.
+   */
+  @AutoService(CoderFactoryRegistrar.class)
+  public static class SerializableCoderFactoryRegistrar implements CoderFactoryRegistrar {
+
+    @Override
+    public List<CoderFactory> getCoderFactories() {
+      return ImmutableList.of(getCoderFactory());
+    }
+  }
+
+  /**
+   * A {@link CoderFactory} that constructs a {@link SerializableCoder} for any class that
+   * implements serializable.
+   */
+  static class SerializableCoderFactory implements CoderFactory {
+    @Override
+    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (Serializable.class.isAssignableFrom(typeDescriptor.getRawType())) {
+        return SerializableCoder.of((TypeDescriptor) typeDescriptor);
+      }
+      throw new CannotProvideCoderException(
+          "Cannot provide SerializableCoder because " + typeDescriptor
+              + " does not implement Serializable");
+    }
+  }
 
   private final Class<T> type;
   private final TypeDescriptor<T> typeDescriptor;

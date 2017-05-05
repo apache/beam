@@ -15,26 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.bigquery;
+package org.apache.beam.sdk.io.gcp.pubsub;
 
-import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
+import org.apache.beam.sdk.coders.CoderFactories;
+import org.apache.beam.sdk.coders.CoderFactory;
+import org.apache.beam.sdk.coders.CoderFactoryRegistrar;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
-/**
- * Tests for {@link BigQueryCoderRegistrar}.
- */
-@RunWith(JUnit4.class)
-public class BigQueryCoderRegistrarTest {
-  @Test
-  public void testTableRowCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getDefaultCoder(TableRow.class);
-  }
-
-  @Test
-  public void testTableRowInfoCoderIsRegistered() throws Exception {
-    CoderRegistry.createDefault().getDefaultCoder(TableRowInfo.class);
+/** A {@link CoderFactoryRegistrar} for standard types used with {@link PubsubIO}. */
+@AutoService(CoderFactoryRegistrar.class)
+public class PubsubCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @Override
+  public List<CoderFactory> getCoderFactories() {
+    return ImmutableList.of(
+        CoderFactories.forCoder(TypeDescriptor.of(PubsubMessage.class),
+            PubsubMessageWithAttributesCoder.of()));
   }
 }

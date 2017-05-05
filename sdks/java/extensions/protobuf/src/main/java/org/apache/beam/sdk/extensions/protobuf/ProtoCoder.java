@@ -31,6 +31,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
@@ -38,9 +39,10 @@ import java.util.TreeSet;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderFactory;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -105,13 +107,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class ProtoCoder<T extends Message> extends CustomCoder<T> {
 
-  /**
-   * A {@link CoderProvider} that returns a {@link ProtoCoder} with an empty
-   * {@link ExtensionRegistry}.
-   */
-  public static CoderProvider coderProvider() {
-    return PROVIDER;
-  }
 
   /**
    * Returns a {@link ProtoCoder} for the given Protocol Buffers {@link Message}.
@@ -291,36 +286,47 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     return memoizedParser;
   }
 
-  static final TypeDescriptor<Message> CHECK = new TypeDescriptor<Message>() {};
+  /**
+   * Returns a {@link CoderFactory} which uses the {@link ProtoCoder} for
+   * {@link Message proto messages}.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
+   */
+  public static CoderFactory getCoderFactory() {
+    return new ProtoCoderFactory();
+  }
+
+  static final TypeDescriptor<Message> MESSAGE_TYPE = new TypeDescriptor<Message>() {};
 
   /**
-   * The implementation of the {@link CoderProvider} for this {@link ProtoCoder} returned by
-   * {@link #coderProvider()}.
+   * A {@link CoderFactory} for {@link Message proto messages}.
    */
-  private static final CoderProvider PROVIDER =
-      new CoderProvider() {
-        @Override
-        public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-          if (!type.isSubtypeOf(CHECK)) {
-            throw new CannotProvideCoderException(
-                String.format(
-                    "Cannot provide %s because %s is not a subclass of %s",
-                    ProtoCoder.class.getSimpleName(),
-                    type,
-                    Message.class.getName()));
-          }
+  private static class ProtoCoderFactory implements CoderFactory {
 
-          @SuppressWarnings("unchecked")
-          TypeDescriptor<? extends Message> messageType = (TypeDescriptor<? extends Message>) type;
-          try {
-            @SuppressWarnings("unchecked")
-            Coder<T> coder = (Coder<T>) ProtoCoder.of(messageType);
-            return coder;
-          } catch (IllegalArgumentException e) {
-            throw new CannotProvideCoderException(e);
-          }
-        }
-      };
+    @Override
+    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      if (!typeDescriptor.isSubtypeOf(MESSAGE_TYPE)) {
+        throw new CannotProvideCoderException(
+            String.format(
+                "Cannot provide %s because %s is not a subclass of %s",
+                ProtoCoder.class.getSimpleName(),
+                typeDescriptor,
+                Message.class.getName()));
+      }
+
+      @SuppressWarnings("unchecked")
+      TypeDescriptor<? extends Message> messageType =
+          (TypeDescriptor<? extends Message>) typeDescriptor;
+      try {
+        @SuppressWarnings("unchecked")
+        Coder<T> coder = (Coder<T>) ProtoCoder.of(messageType);
+        return coder;
+      } catch (IllegalArgumentException e) {
+        throw new CannotProvideCoderException(e);
+      }
+    }
+  }
 
   private SortedSet<String> getSortedExtensionClasses() {
     SortedSet<String> ret = new TreeSet<>();

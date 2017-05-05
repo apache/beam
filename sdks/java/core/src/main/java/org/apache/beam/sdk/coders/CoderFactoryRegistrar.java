@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.auto.service.AutoService;
-import java.util.Map;
+import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.annotations.Experimental;
 
@@ -31,15 +31,12 @@ import org.apache.beam.sdk.annotations.Experimental;
  * {@link AutoService} to generate the necessary META-INF files automatically.
  */
 @Experimental
-public interface CoderRegistrar {
+public interface CoderFactoryRegistrar {
   /**
-   * Returns a mapping of {@link Class classes} to {@link CoderFactory coder factories} which
+   * Returns a list of {@link CoderFactory coder factories} which
    * will be registered by default within each {@link CoderRegistry coder registry} instance.
    *
    * <p>See {@link CoderFactories} for convenience methods to construct a {@link CoderFactory}.
-   *
-   * <p>Note that a warning is logged if multiple {@link CoderRegistrar coder registrars} provide
-   * mappings for the same {@link Class}.
    */
-  Map<Class<?>, CoderFactory> getCoderFactoriesToUseForClasses();
+  List<CoderFactory> getCoderFactories();
 }

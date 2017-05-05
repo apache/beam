@@ -258,7 +258,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
-      return (Coder) registry.getCoder(restrictionType);
+      return (Coder) registry.getDefaultCoder(restrictionType);
     }
   }
 

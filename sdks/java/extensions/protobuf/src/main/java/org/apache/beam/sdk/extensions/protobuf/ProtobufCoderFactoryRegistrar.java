@@ -15,20 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.extensions.protobuf;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
+import java.util.List;
+import org.apache.beam.sdk.coders.CoderFactories;
+import org.apache.beam.sdk.coders.CoderFactory;
+import org.apache.beam.sdk.coders.CoderFactoryRegistrar;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderProvider} may create a {@link Coder} for
- * any concrete class.
+ * A {@link CoderFactoryRegistrar} for standard types used with Google Protobuf.
  */
-public interface CoderProvider {
-
-  /**
-   * Provides a coder for a given class, if possible.
-   *
-   * @throws CannotProvideCoderException if no coder can be provided
-   */
-  <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException;
+@AutoService(CoderFactoryRegistrar.class)
+public class ProtobufCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @Override
+  public List<CoderFactory> getCoderFactories() {
+    return ImmutableList.of(
+        CoderFactories.forCoder(TypeDescriptor.of(ByteString.class), ByteStringCoder.of()),
+        ProtoCoder.getCoderFactory());
+  }
 }
+

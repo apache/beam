@@ -218,8 +218,10 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineNullValues() {
-    p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
-    p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
+    p.getCoderRegistry().registerCoder(
+        UserString.class, NullableCoder.of(UserStringCoder.of()));
+    p.getCoderRegistry().registerCoder(
+        String.class, NullableCoder.of(StringUtf8Coder.of()));
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(

@@ -15,21 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsub;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
-import org.apache.beam.sdk.coders.CoderFactories;
-import org.apache.beam.sdk.coders.CoderFactory;
-import org.apache.beam.sdk.coders.CoderRegistrar;
+import com.google.api.services.bigquery.model.TableRow;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
-/** A {@link CoderRegistrar} for standard types used with {@link PubsubIO}. */
-@AutoService(CoderRegistrar.class)
-public class PubsubCoderRegistrar implements CoderRegistrar {
-  @Override
-  public Map<Class<?>, CoderFactory> getCoderFactoriesToUseForClasses() {
-    return ImmutableMap.<Class<?>, CoderFactory>of(
-        PubsubMessage.class, CoderFactories.forCoder(PubsubMessageWithAttributesCoder.of()));
+/**
+ * Tests for {@link BigQueryCoderFactoryRegistrar}.
+ */
+@RunWith(JUnit4.class)
+public class BigQueryCoderFactoryRegistrarTest {
+  @Test
+  public void testTableRowCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getDefaultCoder(TableRow.class);
+  }
+
+  @Test
+  public void testTableRowInfoCoderIsRegistered() throws Exception {
+    CoderRegistry.createDefault().getDefaultCoder(TableRowInfo.class);
   }
 }

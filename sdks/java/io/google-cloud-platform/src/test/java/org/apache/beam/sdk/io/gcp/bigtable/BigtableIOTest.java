@@ -145,7 +145,7 @@ public class BigtableIOTest {
     service = new FakeBigtableService();
     defaultRead = defaultRead.withBigtableService(service);
     defaultWrite = defaultWrite.withBigtableService(service);
-    bigtableCoder = p.getCoderRegistry().getCoder(BIGTABLE_WRITE_TYPE);
+    bigtableCoder = p.getCoderRegistry().getDefaultCoder(BIGTABLE_WRITE_TYPE);
   }
 
   private static ByteKey makeByteKey(ByteString key) {

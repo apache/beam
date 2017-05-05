@@ -19,21 +19,22 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import org.apache.beam.sdk.coders.CoderFactories;
 import org.apache.beam.sdk.coders.CoderFactory;
-import org.apache.beam.sdk.coders.CoderRegistrar;
+import org.apache.beam.sdk.coders.CoderFactoryRegistrar;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderRegistrar} for standard types used with {@link BigQueryIO}.
+ * A {@link CoderFactoryRegistrar} for standard types used with {@link BigQueryIO}.
  */
-@AutoService(CoderRegistrar.class)
-public class BigQueryCoderRegistrar implements CoderRegistrar {
+@AutoService(CoderFactoryRegistrar.class)
+public class BigQueryCoderFactoryRegistrar implements CoderFactoryRegistrar {
   @Override
-  public Map<Class<?>, CoderFactory> getCoderFactoriesToUseForClasses() {
-    return ImmutableMap.of(
-        TableRow.class, CoderFactories.forCoder(TableRowJsonCoder.of()),
-        TableRowInfo.class, CoderFactories.forCoder(TableRowInfoCoder.of()));
+  public List<CoderFactory> getCoderFactories() {
+    return ImmutableList.of(
+        CoderFactories.forCoder(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of()),
+        CoderFactories.forCoder(TypeDescriptor.of(TableRowInfo.class), TableRowInfoCoder.of()));
   }
 }

@@ -17,45 +17,33 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The {@link DefaultCoder} annotation
- * specifies a default {@link Coder} class to handle encoding and decoding
- * instances of the annotated class.
+ * The {@link DefaultCoder} annotation specifies a {@link Coder} class to handle encoding and
+ * decoding instances of the annotated class.
  *
- * <p>The specified {@link Coder} must satisfy the requirements of
- * {@link CoderProviders#fromStaticMethods}. Two classes provided by the SDK that
- * are intended for use with this annotation include {@link SerializableCoder}
- * and {@link AvroCoder}.
+ * <p>The specified {@link Coder} must have the following method:
+ * <pre>
+ * {@code public static CoderFactory getCoderFactory()}.
+ * </pre>
  *
- * <p>To configure the use of Java serialization as the default
- * for a class, annotate the class to use
- * {@link SerializableCoder} as follows:
- *
- * <pre><code>{@literal @}DefaultCoder(SerializableCoder.class)
- * public class MyCustomDataType implements Serializable {
- *   // ...
- * }</code></pre>
- *
- * <p>Similarly, to configure the use of
- * {@link AvroCoder} as the default:
- * <pre><code>{@literal @}DefaultCoder(AvroCoder.class)
- * public class MyCustomDataType {
- *   public MyCustomDataType() {}  // Avro requires an empty constructor.
- *   // ...
- * }</code></pre>
- *
- * <p>Coders specified explicitly via
- * {@link PCollection#setCoder}
- * take precedence, followed by Coders registered at runtime via
- * {@link CoderRegistry#registerCoder}. See {@link CoderRegistry} for a more detailed discussion
- * of the precedence rules.
+ * <p>Coders specified explicitly via {@link PCollection#setCoder} take precedence, followed by
+ * Coders found at runtime via {@link CoderRegistry#getDefaultCoder}.
+ * See {@link CoderRegistry} for a more detailed discussion of the precedence rules.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
@@ -63,4 +51,77 @@ import org.apache.beam.sdk.values.PCollection;
 @SuppressWarnings("rawtypes")
 public @interface DefaultCoder {
   Class<? extends Coder> value();
+
+  /**
+   * A {@link CoderFactoryRegistrar} that registers a {@link CoderFactory} which can use
+   * the {@code @DefaultCoder} annotation to provide {@link CoderFactory coder factories} that
+   * creates {@link Coder}s.
+   */
+  @AutoService(CoderFactoryRegistrar.class)
+  class DefaultCoderFactoryRegistrar implements CoderFactoryRegistrar {
+
+    @Override
+    public List<CoderFactory> getCoderFactories() {
+      return ImmutableList.<CoderFactory>of(new DefaultCoderFactory());
+    }
+
+    /**
+     * A {@link CoderFactory} that uses the {@code @DefaultCoder} annotation to provide
+     * {@link CoderFactory coder factories} that create {@link Coder}s.
+     */
+    static class DefaultCoderFactory implements CoderFactory {
+      private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderFactory.class);
+
+      /**
+       * Returns the {@link Coder} returned according to the {@link CoderFactory} from any
+       * {@link DefaultCoder} annotation on the given class.
+       */
+      @Override
+      public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+          List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+
+        Class<?> clazz = typeDescriptor.getRawType();
+        DefaultCoder defaultAnnotation = clazz.getAnnotation(DefaultCoder.class);
+        if (defaultAnnotation == null) {
+          throw new CannotProvideCoderException(
+              String.format("Class %s does not have a @DefaultCoder annotation.",
+                  clazz.getName()));
+        }
+
+        if (defaultAnnotation.value() == null) {
+          throw new CannotProvideCoderException(
+              String.format("Class %s has a @DefaultCoder annotation with a null value.",
+                  clazz.getName()));
+        }
+
+        LOG.debug("DefaultCoder annotation found for {} with value {}",
+            clazz, defaultAnnotation.value());
+
+        Method coderFactoryMethod;
+        try {
+          coderFactoryMethod = defaultAnnotation.value().getMethod("getCoderFactory");
+        } catch (NoSuchMethodException e) {
+          throw new CannotProvideCoderException(String.format(
+              "Unable to find 'public static CoderFactory getCoderFactory' on %s",
+              defaultAnnotation.value()),
+              e);
+        }
+
+        CoderFactory coderFactory;
+        try {
+          coderFactory = (CoderFactory) coderFactoryMethod.invoke(null);
+        } catch (IllegalAccessException
+            | IllegalArgumentException
+            | InvocationTargetException
+            | NullPointerException
+            | ExceptionInInitializerError e) {
+          throw new CannotProvideCoderException(String.format(
+              "Unable to invoke 'public static CoderFactory getCoderFactory' on %s",
+              defaultAnnotation.value()),
+              e);
+        }
+        return coderFactory.create(typeDescriptor, componentCoders);
+      }
+    }
+  }
 }

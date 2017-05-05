@@ -21,6 +21,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,18 +34,19 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CoderFactoriesTest {
-
-  /**
-   * Ensures that a few of our standard atomic coder classes
-   * can each be built into a factory that works as expected.
-   * It is presumed that testing a few, not all, suffices to
-   * exercise CoderFactoryFromStaticMethods.
-   */
   @Test
-  public void testAtomicCoderClassFactories() {
-    checkAtomicCoderFactory(StringUtf8Coder.class, StringUtf8Coder.of());
-    checkAtomicCoderFactory(DoubleCoder.class, DoubleCoder.of());
-    checkAtomicCoderFactory(ByteArrayCoder.class, ByteArrayCoder.of());
+  public void testCoderFactoriesFromStaticMethodsForParameterlessTypes() throws Exception {
+    CoderFactory factory = CoderFactories.fromStaticMethods(String.class, StringUtf8Coder.class);
+    assertEquals(StringUtf8Coder.of(),
+        factory.create(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderFactories.fromStaticMethods(Double.class, DoubleCoder.class);
+    assertEquals(DoubleCoder.of(),
+        factory.create(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderFactories.fromStaticMethods(byte[].class, ByteArrayCoder.class);
+    assertEquals(ByteArrayCoder.of(),
+        factory.create(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
   }
 
   /**
@@ -49,11 +54,13 @@ public class CoderFactoriesTest {
    * builds a working {@link CoderFactory} from {@link KvCoder KvCoder.class}.
    */
   @Test
-  public void testKvCoderFactory() {
-    CoderFactory kvCoderFactory = CoderFactories.fromStaticMethods(KvCoder.class);
+  public void testKvCoderFactory() throws Exception {
+    TypeDescriptor<KV<Double, Double>> type =
+        TypeDescriptors.kvs(TypeDescriptors.doubles(), TypeDescriptors.doubles());
+    CoderFactory kvCoderFactory = CoderFactories.fromStaticMethods(KV.class, KvCoder.class);
     assertEquals(
         KvCoder.of(DoubleCoder.of(), DoubleCoder.of()),
-        kvCoderFactory.create(Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
+        kvCoderFactory.create(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
   }
 
   /**
@@ -61,12 +68,13 @@ public class CoderFactoriesTest {
    * builds a working {@link CoderFactory} from {@link ListCoder ListCoder.class}.
    */
   @Test
-  public void testListCoderFactory() {
-    CoderFactory listCoderFactory = CoderFactories.fromStaticMethods(ListCoder.class);
+  public void testListCoderFactory() throws Exception {
+    TypeDescriptor<List<Double>> type = TypeDescriptors.lists(TypeDescriptors.doubles());
+    CoderFactory listCoderFactory = CoderFactories.fromStaticMethods(List.class, ListCoder.class);
 
     assertEquals(
         ListCoder.of(DoubleCoder.of()),
-        listCoderFactory.create(Arrays.asList(DoubleCoder.of())));
+        listCoderFactory.create(type, Arrays.asList(DoubleCoder.of())));
   }
 
   /**
@@ -74,27 +82,13 @@ public class CoderFactoriesTest {
    * builds a working {@link CoderFactory} from {@link IterableCoder IterableCoder.class}.
    */
   @Test
-  public void testIterableCoderFactory() {
-    CoderFactory iterableCoderFactory = CoderFactories.fromStaticMethods(IterableCoder.class);
+  public void testIterableCoderFactory() throws Exception {
+    TypeDescriptor<Iterable<Double>> type = TypeDescriptors.iterables(TypeDescriptors.doubles());
+    CoderFactory iterableCoderFactory =
+        CoderFactories.fromStaticMethods(Iterable.class, IterableCoder.class);
 
     assertEquals(
         IterableCoder.of(DoubleCoder.of()),
-        iterableCoderFactory.create(Arrays.asList(DoubleCoder.of())));
-  }
-
-  ///////////////////////////////////////////////////////////////////////
-
-  /**
-   * Checks that an atomic coder class can be converted into
-   * a factory that then yields a coder equal to the example
-   * provided.
-   */
-  private <T> void checkAtomicCoderFactory(
-      Class<? extends Coder<T>> coderClazz,
-      Coder<T> expectedCoder) {
-    CoderFactory factory = CoderFactories.fromStaticMethods(coderClazz);
-    @SuppressWarnings("unchecked")
-    Coder<T> actualCoder = (Coder<T>) factory.create(Collections.<Coder<?>>emptyList());
-    assertEquals(expectedCoder, actualCoder);
+        iterableCoderFactory.create(type, Arrays.asList(DoubleCoder.of())));
   }
 }

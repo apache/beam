@@ -18,27 +18,23 @@
 package org.apache.beam.sdk.coders;
 
 import java.util.List;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderFactory} creates coders and decomposes values.
- * It may operate on a parameterized type, such as {@link List},
- * in which case the {@link #create} method accepts a list of
- * coders to use for the type parameters.
+ * A {@link CoderFactory} creates coders.
+ *
+ * <p>It may operate on a parameterized type, such as {@link List}, in which case the
+ * {@link #create} method accepts a list of coders to use for the type parameters.
  */
 public interface CoderFactory {
 
   /**
-   * Returns a {@code Coder<?>}, given argument coder to use for
-   * values of a particular type, given the Coders for each of
+   * Returns a {@code Coder<T>} to use for values of a particular type, given the Coders for each of
    * the type's generic parameter types.
+   *
+   * <p>Throws {@link CannotProvideCoderException} if this {@link CoderFactory} cannot provide
+   * a coder for this type and components.
    */
-  Coder<?> create(List<? extends Coder<?>> componentCoders);
-
-  /**
-   * Returns a list of objects contained in {@code value}, one per
-   * type argument, or {@code null} if none can be determined.
-   * The list of returned objects should be the same size as the
-   * list of coders required by {@link #create}.
-   */
-  List<Object> getInstanceComponents(Object value);
+  <T> Coder<T> create(TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+      throws CannotProvideCoderException;
 }

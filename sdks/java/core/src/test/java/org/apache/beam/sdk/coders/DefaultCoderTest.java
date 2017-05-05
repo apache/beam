@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -32,15 +33,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests of Coder defaults.
+ * Tests for {@link DefaultCoder}.
  */
 @RunWith(JUnit4.class)
 public class DefaultCoderTest {
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
-  public CoderRegistry registry = CoderRegistry.createDefault();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @DefaultCoder(AvroCoder.class)
   private static class AvroRecord {
@@ -75,6 +73,17 @@ public class DefaultCoderTest {
     protected CustomSerializableCoder() {
       super(CustomRecord.class, TypeDescriptor.of(CustomRecord.class));
     }
+
+    @SuppressWarnings("unused")
+    public static CoderFactory getCoderFactory() {
+      return new CoderFactory() {
+        @Override
+        public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+            List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+          return CustomSerializableCoder.of((TypeDescriptor) typeDescriptor);
+        }
+      };
+    }
   }
 
   private static class OldCustomSerializableCoder extends SerializableCoder<OldCustomRecord> {
@@ -89,13 +98,26 @@ public class DefaultCoderTest {
     protected OldCustomSerializableCoder() {
       super(OldCustomRecord.class, TypeDescriptor.of(OldCustomRecord.class));
     }
+
+    @SuppressWarnings("unused")
+    public static CoderFactory getCoderFactory() {
+      return new CoderFactory() {
+        @Override
+        public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+            List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+          return OldCustomSerializableCoder.of((Class) typeDescriptor.getRawType());
+        }
+      };
+    }
   }
 
   @Test
-  public void testDefaultCoderClasses() throws Exception {
-    assertThat(registry.getDefaultCoder(AvroRecord.class), instanceOf(AvroCoder.class));
-    assertThat(registry.getDefaultCoder(SerializableBase.class),
-        instanceOf(SerializableCoder.class));
+  public void testCodersWithoutComponents() throws Exception {
+    CoderRegistry registry = CoderRegistry.createDefault();
+    registry.registerCoderFactory(
+        new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
+    assertThat(registry.getDefaultCoder(AvroRecord.class),
+        instanceOf(AvroCoder.class));
     assertThat(registry.getDefaultCoder(SerializableRecord.class),
         instanceOf(SerializableCoder.class));
     assertThat(registry.getDefaultCoder(CustomRecord.class),
@@ -106,16 +128,22 @@ public class DefaultCoderTest {
 
   @Test
   public void testDefaultCoderInCollection() throws Exception {
-    assertThat(registry.getDefaultCoder(new TypeDescriptor<List<AvroRecord>>(){}),
-        instanceOf(ListCoder.class));
+    CoderRegistry registry = CoderRegistry.createDefault();
+    registry.registerCoderFactory(
+        new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
+    Coder<List<AvroRecord>> avroRecordCoder =
+        registry.getDefaultCoder(new TypeDescriptor<List<AvroRecord>>(){});
+    assertThat(avroRecordCoder, instanceOf(ListCoder.class));
+    assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
     assertThat(registry.getDefaultCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
-        equalTo((Coder<List<SerializableRecord>>)
+        Matchers.<Coder<List<SerializableRecord>>>equalTo(
             ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
   }
 
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    registry.getDefaultCoder(Unknown.class);
+    new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory().create(
+        TypeDescriptor.of(Unknown.class), Collections.<Coder<?>>emptyList());
   }
 }
