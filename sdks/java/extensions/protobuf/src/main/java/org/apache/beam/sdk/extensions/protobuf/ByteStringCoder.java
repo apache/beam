@@ -76,7 +76,7 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(ByteString value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
 
     if (context.isWholeStream) {

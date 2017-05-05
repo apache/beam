@@ -65,9 +65,7 @@ public class LengthPrefixCoderTest {
   @Test
   public void testEncodedSize() throws Exception {
     assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.NESTED));
-    assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.OUTER));
+        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
   }
 
   @Test

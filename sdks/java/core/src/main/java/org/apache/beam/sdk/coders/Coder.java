@@ -318,10 +318,10 @@ public abstract class Coder<T> implements Serializable {
   /**
    * Returns the size in bytes of the encoded value using this coder.
    */
-  protected long getEncodedElementByteSize(T value, Context context)
+  protected long getEncodedElementByteSize(T value)
       throws Exception {
     try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
-      encode(value, os, context);
+      encode(value, os);
       return os.getCount();
     } catch (Exception exn) {
       throw new IllegalArgumentException(
@@ -357,7 +357,7 @@ public abstract class Coder<T> implements Serializable {
   public void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception {
-    observer.update(getEncodedElementByteSize(value, context));
+    observer.update(getEncodedElementByteSize(value));
   }
 
   /**

@@ -79,7 +79,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}, since {@link #getEncodedElementByteSize} returns a constant.
+   * @return {@code true}, since {@link Coder#getEncodedElementByteSize} returns a constant.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {
@@ -97,7 +97,7 @@ public class BigEndianLongCoder extends AtomicCoder<Long> {
    * @return {@code 8}, the byte size of a big-endian encoded {@code Long}.
    */
   @Override
-  protected long getEncodedElementByteSize(Long value, Context context)
+  protected long getEncodedElementByteSize(Long value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

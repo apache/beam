@@ -190,7 +190,7 @@ public class Count {
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
         }
       };

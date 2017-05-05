@@ -93,7 +93,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link #getEncodedElementByteSize} is cheap.
+   * @return {@code true}. {@link Coder#getEncodedElementByteSize} is cheap.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {
@@ -106,7 +106,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Long value, Context context)
+  protected long getEncodedElementByteSize(Long value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

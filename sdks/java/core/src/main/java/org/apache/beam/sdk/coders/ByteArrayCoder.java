@@ -130,7 +130,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true} since {@link #getEncodedElementByteSize} runs in
+   * @return {@code true} since {@link Coder#getEncodedElementByteSize} runs in
    * constant time using the {@code length} of the provided array.
    */
   @Override
@@ -144,7 +144,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(byte[] value, Context context)
+  protected long getEncodedElementByteSize(byte[] value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");

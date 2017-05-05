@@ -88,7 +88,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code true}. {@link ByteCoder#getEncodedElementByteSize} returns a constant.
+   * @return {@code true}. {@link Coder#getEncodedElementByteSize} returns a constant.
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(Byte value, Context context) {
@@ -106,7 +106,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
    * @return {@code 1}, the byte size of a {@link Byte} encoded using Java serialization.
    */
   @Override
-  protected long getEncodedElementByteSize(Byte value, Context context)
+  protected long getEncodedElementByteSize(Byte value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot estimate size for unsupported null value");

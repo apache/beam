@@ -709,7 +709,7 @@ public class IsmFormat {
     }
 
     @Override
-    public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
+    public long getEncodedElementByteSize(KeyPrefix value)
         throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
@@ -791,7 +791,7 @@ public class IsmFormat {
     }
 
     @Override
-    public long getEncodedElementByteSize(Footer value, Coder.Context context)
+    public long getEncodedElementByteSize(Footer value)
         throws Exception {
       return Footer.FIXED_LENGTH;
     }

@@ -98,19 +98,8 @@ public class NullableCoderTest {
   @Test
   public void testEncodedSize() throws Exception {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertEquals(1, coder.getEncodedElementByteSize(null, Coder.Context.OUTER));
-    assertEquals(9, coder.getEncodedElementByteSize(5.0, Coder.Context.OUTER));
-  }
-
-  @Test
-  public void testEncodedSizeNested() throws Exception {
-    NullableCoder<String> varLenCoder = NullableCoder.of(StringUtf8Coder.of());
-
-    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.OUTER));
-    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.NESTED));
-
-    assertEquals(5, varLenCoder.getEncodedElementByteSize("spam", Context.OUTER));
-    assertEquals(6, varLenCoder.getEncodedElementByteSize("spam", Context.NESTED));
+    assertEquals(1, coder.getEncodedElementByteSize(null));
+    assertEquals(9, coder.getEncodedElementByteSize(5.0));
   }
 
   @Test
