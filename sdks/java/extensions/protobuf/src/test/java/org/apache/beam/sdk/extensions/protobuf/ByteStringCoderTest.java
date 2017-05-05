@@ -119,7 +119,7 @@ public class ByteStringCoderTest {
     for (Context context : CoderProperties.ALL_CONTEXTS) {
       for (ByteString value : TEST_VALUES) {
         byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, value, context);
-        assertEquals(encoded.length, TEST_CODER.getEncodedElementByteSize(value, context));
+        assertEquals(encoded.length, TEST_CODER.getEncodedElementByteSize(value));
       }
     }
   }

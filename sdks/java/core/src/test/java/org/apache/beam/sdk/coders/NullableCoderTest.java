@@ -98,38 +98,34 @@ public class NullableCoderTest {
   @Test
   public void testEncodedSize() throws Exception {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertEquals(1, coder.getEncodedElementByteSize(null, Coder.Context.OUTER));
-    assertEquals(9, coder.getEncodedElementByteSize(5.0, Coder.Context.OUTER));
+    assertEquals(1, coder.getEncodedElementByteSize(null));
+    assertEquals(9, coder.getEncodedElementByteSize(5.0));
   }
 
   @Test
   public void testEncodedSizeNested() throws Exception {
     NullableCoder<String> varLenCoder = NullableCoder.of(StringUtf8Coder.of());
-
-    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.OUTER));
-    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.NESTED));
-
-    assertEquals(5, varLenCoder.getEncodedElementByteSize("spam", Context.OUTER));
-    assertEquals(6, varLenCoder.getEncodedElementByteSize("spam", Context.NESTED));
+    assertEquals(1, varLenCoder.getEncodedElementByteSize(null));
+    assertEquals(6, varLenCoder.getEncodedElementByteSize("spam"));
   }
 
   @Test
   public void testObserverIsCheap() throws Exception {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0, Coder.Context.OUTER));
+    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0));
   }
 
   @Test
   public void testObserverIsNotCheap() throws Exception {
     NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
     assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test"), Coder.Context.OUTER));
+        ImmutableList.of("hi", "test")));
   }
 
   @Test
   public void testObserverIsAlwaysCheapForNullValues() throws Exception {
     NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
-    assertTrue(coder.isRegisterByteSizeObserverCheap(null, Coder.Context.OUTER));
+    assertTrue(coder.isRegisterByteSizeObserverCheap(null));
   }
 
   @Test

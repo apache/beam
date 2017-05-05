@@ -64,23 +64,22 @@ public class LengthPrefixCoderTest {
 
   @Test
   public void testEncodedSize() throws Exception {
-    assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.NESTED));
-    assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.OUTER));
+    assertEquals(5L,
+        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
   }
 
   @Test
   public void testObserverIsCheap() throws Exception {
-    NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0, Coder.Context.OUTER));
+    LengthPrefixCoder<Double> coder = LengthPrefixCoder.of(DoubleCoder.of());
+    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0));
   }
 
   @Test
   public void testObserverIsNotCheap() throws Exception {
-    NullableCoder<List<String>> coder = NullableCoder.of(ListCoder.of(StringUtf8Coder.of()));
+    LengthPrefixCoder<List<String>> coder =
+        LengthPrefixCoder.of(ListCoder.of(StringUtf8Coder.of()));
     assertFalse(coder.isRegisterByteSizeObserverCheap(
-        ImmutableList.of("hi", "test"), Coder.Context.OUTER));
+        ImmutableList.of("hi", "test")));
   }
 
   @Test
@@ -92,11 +91,10 @@ public class LengthPrefixCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(TEST_CODER, Coder.Context.OUTER,
-        new byte[][]{{ 0xa, 0xb, 0xc }});
-
-    CoderProperties.testByteCount(TEST_CODER, Coder.Context.NESTED,
-        new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+    CoderProperties.testByteCount(
+        LengthPrefixCoder.of(VarIntCoder.of()),
+        Coder.Context.NESTED,
+        new Integer[]{0, 10, 1000});
   }
 
   @Test
