@@ -878,14 +878,14 @@ public class CombineTest implements Serializable {
       @Override
       public void encode(CountSum value, OutputStream outStream,
           Context context) throws CoderException, IOException {
-        LONG_CODER.encode(value.count, outStream, context.nested());
+        LONG_CODER.encode(value.count, outStream);
         DOUBLE_CODER.encode(value.sum, outStream, context);
       }
 
       @Override
       public CountSum decode(InputStream inStream, Coder.Context context)
           throws CoderException, IOException {
-        long count = LONG_CODER.decode(inStream, context.nested());
+        long count = LONG_CODER.decode(inStream);
         double sum = DOUBLE_CODER.decode(inStream, context);
         return new CountSum(count, sum);
       }

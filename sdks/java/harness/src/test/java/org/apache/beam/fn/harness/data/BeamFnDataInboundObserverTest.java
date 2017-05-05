@@ -108,7 +108,7 @@ public class BeamFnDataInboundObserverTest {
             .setName("Test"));
     ByteString.Output output = ByteString.newOutput();
     for (String value : values) {
-      CODER.encode(valueInGlobalWindow(value), output, Context.NESTED);
+      CODER.encode(valueInGlobalWindow(value), output);
     }
     builder.setData(output.toByteString());
     return builder.build();

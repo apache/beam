@@ -110,7 +110,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
 
   @Override
   public void accept(WindowedValue<T> t) throws IOException {
-    coder.encode(t, bufferedElements, Context.NESTED);
+    coder.encode(t, bufferedElements);
     counter += 1;
     if (bufferedElements.size() >= bufferLimit) {
       outboundObserver.onNext(convertBufferForTransmission().build());

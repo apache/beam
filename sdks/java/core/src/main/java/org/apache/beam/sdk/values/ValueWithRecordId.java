@@ -103,7 +103,7 @@ public class ValueWithRecordId<ValueT> {
     @Override
     public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream, Context context)
         throws IOException {
-      valueCoder.encode(value.value, outStream, context.nested());
+      valueCoder.encode(value.value, outStream);
       idCoder.encode(value.id, outStream, context);
     }
 
@@ -111,7 +111,7 @@ public class ValueWithRecordId<ValueT> {
     public ValueWithRecordId<ValueT> decode(InputStream inStream, Context context)
         throws IOException {
       return new ValueWithRecordId<ValueT>(
-          valueCoder.decode(inStream, context.nested()),
+          valueCoder.decode(inStream),
           idCoder.decode(inStream, context));
     }
 

@@ -106,16 +106,16 @@ class WriteBundlesToFiles<DestinationT>
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      stringCoder.encode(value.filename, outStream, context.nested());
-      longCoder.encode(value.fileByteSize, outStream, context.nested());
-      destinationCoder.encode(value.destination, outStream, context.nested());
+      stringCoder.encode(value.filename, outStream);
+      longCoder.encode(value.fileByteSize, outStream);
+      destinationCoder.encode(value.destination, outStream);
     }
 
     @Override
     public Result<DestinationT> decode(InputStream inStream, Context context) throws IOException {
-      String filename = stringCoder.decode(inStream, context.nested());
-      long fileByteSize = longCoder.decode(inStream, context.nested());
-      DestinationT destination = destinationCoder.decode(inStream, context.nested());
+      String filename = stringCoder.decode(inStream);
+      long fileByteSize = longCoder.decode(inStream);
+      DestinationT destination = destinationCoder.decode(inStream);
       return new Result<>(filename, fileByteSize, destination);
     }
 

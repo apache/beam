@@ -210,14 +210,14 @@ public class CreateTest {
           OutputStream outStream,
           org.apache.beam.sdk.coders.Coder.Context context)
           throws CoderException, IOException {
-        stringCoder.encode(value.myString, outStream, context.nested());
+        stringCoder.encode(value.myString, outStream);
       }
 
       @Override
       public UnserializableRecord decode(
           InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
           throws CoderException, IOException {
-        return new UnserializableRecord(stringCoder.decode(inStream, context.nested()));
+        return new UnserializableRecord(stringCoder.decode(inStream));
       }
     }
   }

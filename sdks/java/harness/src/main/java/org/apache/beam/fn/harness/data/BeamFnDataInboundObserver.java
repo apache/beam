@@ -71,7 +71,7 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
       InputStream inputStream = t.getData().newInput();
       while (inputStream.available() > 0) {
         counter += 1;
-        WindowedValue<T> value = coder.decode(inputStream, Context.NESTED);
+        WindowedValue<T> value = coder.decode(inputStream);
         consumer.accept(value);
       }
     } catch (Exception e) {

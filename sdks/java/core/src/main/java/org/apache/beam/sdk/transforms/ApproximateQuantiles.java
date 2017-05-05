@@ -682,10 +682,10 @@ public class ApproximateQuantiles {
         QuantileState<T, ComparatorT> state, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       Coder.Context nestedContext = context.nested();
-      intCoder.encode(state.numQuantiles, outStream, nestedContext);
-      intCoder.encode(state.bufferSize, outStream, nestedContext);
-      elementCoder.encode(state.min, outStream, nestedContext);
-      elementCoder.encode(state.max, outStream, nestedContext);
+      intCoder.encode(state.numQuantiles, outStream);
+      intCoder.encode(state.bufferSize, outStream);
+      elementCoder.encode(state.min, outStream);
+      elementCoder.encode(state.max, outStream);
       elementListCoder.encode(
           state.unbufferedElements, outStream, nestedContext);
       BigEndianIntegerCoder.of().encode(
@@ -699,14 +699,14 @@ public class ApproximateQuantiles {
     public QuantileState<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
         throws CoderException, IOException {
       Coder.Context nestedContext = context.nested();
-      int numQuantiles = intCoder.decode(inStream, nestedContext);
-      int bufferSize = intCoder.decode(inStream, nestedContext);
-      T min = elementCoder.decode(inStream, nestedContext);
-      T max = elementCoder.decode(inStream, nestedContext);
+      int numQuantiles = intCoder.decode(inStream);
+      int bufferSize = intCoder.decode(inStream);
+      T min = elementCoder.decode(inStream);
+      T max = elementCoder.decode(inStream);
       List<T> unbufferedElements =
-          elementListCoder.decode(inStream, nestedContext);
+          elementListCoder.decode(inStream);
       int numBuffers =
-          BigEndianIntegerCoder.of().decode(inStream, nestedContext);
+          BigEndianIntegerCoder.of().decode(inStream);
       List<QuantileBuffer<T>> buffers = new ArrayList<>(numBuffers);
       for (int i = 0; i < numBuffers; i++) {
         buffers.add(decodeBuffer(inStream, nestedContext));

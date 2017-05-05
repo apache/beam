@@ -223,7 +223,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       @Override
       public void encode(Checkpoint<T> value, OutputStream outStream, Context context)
           throws CoderException, IOException {
-        elemsCoder.encode(value.residualElements, outStream, context.nested());
+        elemsCoder.encode(value.residualElements, outStream);
         sourceCoder.encode(value.residualSource, outStream, context);
       }
 
@@ -232,7 +232,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       public Checkpoint<T> decode(InputStream inStream, Context context)
           throws CoderException, IOException {
         return new Checkpoint<>(
-            elemsCoder.decode(inStream, context.nested()),
+            elemsCoder.decode(inStream),
             sourceCoder.decode(inStream, context));
       }
 

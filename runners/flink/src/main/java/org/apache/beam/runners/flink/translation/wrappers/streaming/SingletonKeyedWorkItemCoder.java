@@ -70,14 +70,14 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
                      OutputStream outStream,
                      Context context)
       throws CoderException, IOException {
-    keyCoder.encode(value.key(), outStream, context.nested());
+    keyCoder.encode(value.key(), outStream);
     valueCoder.encode(value.value, outStream, context);
   }
 
   @Override
   public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream, Context context)
       throws CoderException, IOException {
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     WindowedValue<ElemT> value = valueCoder.decode(inStream, context);
     return new SingletonKeyedWorkItem<>(key, value);
   }

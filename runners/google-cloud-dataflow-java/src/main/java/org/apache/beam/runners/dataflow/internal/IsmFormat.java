@@ -239,12 +239,12 @@ public class IsmFormat {
             keyComponentCoders.size(), value.getKeyComponents()));
       }
       for (int i = 0; i < keyComponentCoders.size(); ++i) {
-        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream, context.nested());
+        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream);
       }
       if (isMetadataKey(value.getKeyComponents())) {
-        ByteArrayCoder.of().encode(value.getMetadata(), outStream, context.nested());
+        ByteArrayCoder.of().encode(value.getMetadata(), outStream);
       } else {
-        valueCoder.encode(value.getValue(), outStream, context.nested());
+        valueCoder.encode(value.getValue(), outStream);
       }
     }
 
@@ -253,13 +253,13 @@ public class IsmFormat {
         throws CoderException, IOException {
       List<Object> keyComponents = new ArrayList<>(keyComponentCoders.size());
       for (Coder<?> keyCoder : keyComponentCoders) {
-        keyComponents.add(keyCoder.decode(inStream, context.nested()));
+        keyComponents.add(keyCoder.decode(inStream));
       }
       if (isMetadataKey(keyComponents)) {
         return IsmRecord.<V>meta(
-            keyComponents, ByteArrayCoder.of().decode(inStream, context.nested()));
+            keyComponents, ByteArrayCoder.of().decode(inStream));
       } else {
-        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream, context.nested()));
+        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream));
       }
     }
 
@@ -499,7 +499,7 @@ public class IsmFormat {
         outStream.write(0);
       } else {
         outStream.write(1);
-        keyCoder.encode(value, outStream, context.nested());
+        keyCoder.encode(value, outStream);
       }
     }
 
@@ -510,7 +510,7 @@ public class IsmFormat {
       if (marker == 0) {
         return (K) getMetadataKey();
       } else if (marker == 1) {
-        return keyCoder.decode(inStream, context.nested());
+        return keyCoder.decode(inStream);
       } else {
         throw new CoderException(String.format("Expected marker but got %s.", marker));
       }
@@ -626,8 +626,8 @@ public class IsmFormat {
       checkState(value.getIndexOffset() >= 0,
           "%s attempting to be written without index offset.",
           value);
-      VarIntCoder.of().encode(value.getId(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getBlockOffset(), outStream, context.nested());
+      VarIntCoder.of().encode(value.getId(), outStream);
+      VarLongCoder.of().encode(value.getBlockOffset(), outStream);
       VarLongCoder.of().encode(value.getIndexOffset(), outStream, context);
     }
 
@@ -635,8 +635,8 @@ public class IsmFormat {
     public IsmShard decode(
         InputStream inStream, Coder.Context context) throws CoderException, IOException {
       return IsmShard.of(
-          VarIntCoder.of().decode(inStream, context.nested()),
-          VarLongCoder.of().decode(inStream, context.nested()),
+          VarIntCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream),
           VarLongCoder.of().decode(inStream, context));
     }
 

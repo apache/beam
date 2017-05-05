@@ -43,7 +43,7 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    tableRowCoder.encode(value.tableRow, outStream, context.nested());
+    tableRowCoder.encode(value.tableRow, outStream);
     idCoder.encode(value.uniqueId, outStream, context);
   }
 
@@ -51,7 +51,7 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   public TableRowInfo decode(InputStream inStream, Context context)
       throws IOException {
     return new TableRowInfo(
-        tableRowCoder.decode(inStream, context.nested()),
+        tableRowCoder.decode(inStream),
         idCoder.decode(inStream, context));
   }
 

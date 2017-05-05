@@ -55,14 +55,14 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
     if (value == null) {
       throw new CoderException("cannot encode a null ElementAndRestriction");
     }
-    elementCoder.encode(value.element(), outStream, context.nested());
+    elementCoder.encode(value.element(), outStream);
     restrictionCoder.encode(value.restriction(), outStream, context);
   }
 
   @Override
   public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
       throws IOException {
-    ElementT key = elementCoder.decode(inStream, context.nested());
+    ElementT key = elementCoder.decode(inStream);
     RestrictionT value = restrictionCoder.decode(inStream, context);
     return ElementAndRestriction.of(key, value);
   }
