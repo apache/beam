@@ -20,8 +20,8 @@ package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
  * A {@link PipelineRunner} that applies no overrides and throws an exception on calls to

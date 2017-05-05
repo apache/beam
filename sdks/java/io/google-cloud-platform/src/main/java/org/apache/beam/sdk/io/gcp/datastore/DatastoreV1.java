@@ -69,6 +69,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -192,7 +193,7 @@ import org.slf4j.LoggerFactory;
  * by providing the host port information through {@code withLocalhost("host:port"} for all the
  * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
- * @see org.apache.beam.sdk.runners.PipelineRunner
+ * @see PipelineRunner
  */
 public class DatastoreV1 {
 

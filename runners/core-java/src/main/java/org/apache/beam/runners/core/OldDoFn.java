@@ -18,9 +18,9 @@
 package org.apache.beam.runners.core;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -71,7 +71,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
 
     /**
      * Returns the {@code PipelineOptions} specified with the
-     * {@link org.apache.beam.sdk.runners.PipelineRunner}
+     * {@link PipelineRunner}
      * invoking this {@code OldDoFn}.  The {@code PipelineOptions} will
      * be the default running via {@link DoFnTester}.
      */

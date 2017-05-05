@@ -88,7 +88,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
      * PipelineOptions} will be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();
@@ -100,7 +100,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class FinishBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
      * PipelineOptions} will be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();
@@ -136,7 +136,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class WindowedContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.runners.PipelineRunner} invoking this {@code DoFn}. The {@code
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
      * PipelineOptions} will be the default running via {@link DoFnTester}.
      */
     public abstract PipelineOptions getPipelineOptions();

@@ -27,7 +27,7 @@
  * the PTransforms consume and produce.
  *
  * <p>Each Pipeline has a
- * {@link org.apache.beam.sdk.runners.PipelineRunner} to specify
+ * {@link org.apache.beam.sdk.PipelineRunner} to specify
  * where and how it should run after pipeline construction is complete.
  *
  */
