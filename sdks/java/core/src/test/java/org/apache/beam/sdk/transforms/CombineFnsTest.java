@@ -104,7 +104,7 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombine() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -156,7 +156,7 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineWithContext() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p
         .apply(Create.of("I"))
@@ -218,9 +218,9 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineNullValues() {
-    p.getCoderRegistry().registerCoder(
+    p.getCoderRegistry().registerCoderForClass(
         UserString.class, NullableCoder.of(UserStringCoder.of()));
-    p.getCoderRegistry().registerCoder(
+    p.getCoderRegistry().registerCoderForClass(
         String.class, NullableCoder.of(StringUtf8Coder.of()));
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(

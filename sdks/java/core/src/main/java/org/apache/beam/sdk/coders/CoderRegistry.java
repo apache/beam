@@ -196,7 +196,7 @@ public class CoderRegistry {
    * <p>Note that this is equivalent to {@code registerCoderForType(TypeDescriptor.of(clazz))}. See
    * {@link #registerCoderForType(TypeDescriptor, Coder)} for further details.
    */
-  public void registerCoder(Class<?> clazz, Coder<?> coder) {
+  public void registerCoderForClass(Class<?> clazz, Coder<?> coder) {
     registerCoderForType(TypeDescriptor.of(clazz), coder);
   }
 
