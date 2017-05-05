@@ -218,11 +218,6 @@
       <artifactId>google-api-services-bigquery</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>gcsio</artifactId>
-    </dependency>
-
     <!-- Extra libraries -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

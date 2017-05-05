@@ -18,14 +18,19 @@
 package org.apache.beam.integration.nexmark;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
+import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
  * Command line flags.
  */
-public interface NexmarkOptions extends PubsubOptions {
+public interface NexmarkOptions
+    extends ApplicationNameOptions, GcpOptions, PipelineOptions, StreamingOptions {
   @Description("Which suite to run. Default is to use command line arguments for one job.")
   @Default.Enum("DEFAULT")
   NexmarkSuite getSuite();
