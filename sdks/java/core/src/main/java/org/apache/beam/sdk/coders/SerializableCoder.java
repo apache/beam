@@ -95,7 +95,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
    */
   static class SerializableCoderFactory implements CoderFactory {
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
       if (Serializable.class.isAssignableFrom(typeDescriptor.getRawType())) {
         return SerializableCoder.of((TypeDescriptor) typeDescriptor);

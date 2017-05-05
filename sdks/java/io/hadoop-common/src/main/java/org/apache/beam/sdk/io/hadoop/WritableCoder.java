@@ -128,7 +128,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
     private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
 
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
       if (!typeDescriptor.isSubtypeOf(WRITABLE_TYPE)) {
         throw new CannotProvideCoderException(

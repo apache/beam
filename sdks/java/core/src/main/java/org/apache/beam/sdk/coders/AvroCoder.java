@@ -162,7 +162,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    */
   static class AvroCoderFactory implements CoderFactory {
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
       try {
         return AvroCoder.of(typeDescriptor);

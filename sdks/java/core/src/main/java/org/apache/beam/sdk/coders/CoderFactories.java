@@ -61,7 +61,7 @@ public final class CoderFactories {
   private static class CoderFactoryFromStaticMethods implements CoderFactory {
 
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
+    public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
       if (!this.rawType.equals(type.getRawType())) {
         throw new CannotProvideCoderException(String.format(
@@ -174,7 +174,7 @@ public final class CoderFactories {
     }
 
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
+    public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {
       if (!this.type.equals(type)) {
         throw new CannotProvideCoderException(String.format(

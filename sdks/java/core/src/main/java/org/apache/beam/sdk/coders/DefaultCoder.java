@@ -77,7 +77,7 @@ public @interface DefaultCoder {
        * {@link DefaultCoder} annotation on the given class.
        */
       @Override
-      public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+      public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
           List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
 
         Class<?> clazz = typeDescriptor.getRawType();
@@ -120,7 +120,7 @@ public @interface DefaultCoder {
               defaultAnnotation.value()),
               e);
         }
-        return coderFactory.create(typeDescriptor, componentCoders);
+        return coderFactory.coderFor(typeDescriptor, componentCoders);
       }
     }
   }

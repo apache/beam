@@ -38,15 +38,15 @@ public class CoderFactoriesTest {
   public void testCoderFactoriesFromStaticMethodsForParameterlessTypes() throws Exception {
     CoderFactory factory = CoderFactories.fromStaticMethods(String.class, StringUtf8Coder.class);
     assertEquals(StringUtf8Coder.of(),
-        factory.create(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
+        factory.coderFor(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
 
     factory = CoderFactories.fromStaticMethods(Double.class, DoubleCoder.class);
     assertEquals(DoubleCoder.of(),
-        factory.create(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
+        factory.coderFor(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
 
     factory = CoderFactories.fromStaticMethods(byte[].class, ByteArrayCoder.class);
     assertEquals(ByteArrayCoder.of(),
-        factory.create(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
+        factory.coderFor(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
   }
 
   /**
@@ -60,7 +60,7 @@ public class CoderFactoriesTest {
     CoderFactory kvCoderFactory = CoderFactories.fromStaticMethods(KV.class, KvCoder.class);
     assertEquals(
         KvCoder.of(DoubleCoder.of(), DoubleCoder.of()),
-        kvCoderFactory.create(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
+        kvCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
   }
 
   /**
@@ -74,7 +74,7 @@ public class CoderFactoriesTest {
 
     assertEquals(
         ListCoder.of(DoubleCoder.of()),
-        listCoderFactory.create(type, Arrays.asList(DoubleCoder.of())));
+        listCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 
   /**
@@ -89,6 +89,6 @@ public class CoderFactoriesTest {
 
     assertEquals(
         IterableCoder.of(DoubleCoder.of()),
-        iterableCoderFactory.create(type, Arrays.asList(DoubleCoder.of())));
+        iterableCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 }

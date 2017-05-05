@@ -304,7 +304,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   private static class ProtoCoderFactory implements CoderFactory {
 
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
       if (!typeDescriptor.isSubtypeOf(MESSAGE_TYPE)) {
         throw new CannotProvideCoderException(

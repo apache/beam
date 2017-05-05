@@ -127,14 +127,14 @@ public class CoderRegistry {
     }
 
     @Override
-    public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
       CoderFactory factory = commonTypesToCoderFactories.get(typeDescriptor.getRawType());
       if (factory == null) {
         throw new CannotProvideCoderException(
             String.format("%s is not one of the common types.", typeDescriptor));
       }
-      return factory.create(typeDescriptor, componentCoders);
+      return factory.coderFor(typeDescriptor, componentCoders);
     }
   }
 
@@ -632,7 +632,7 @@ public class CoderRegistry {
     List<CannotProvideCoderException> suppressedExceptions = new ArrayList<>();
     for (CoderFactory coderFactory : coderFactories) {
       try {
-        return coderFactory.create(typeDescriptor, typeArgumentCoders);
+        return coderFactory.coderFor(typeDescriptor, typeArgumentCoders);
       } catch (CannotProvideCoderException e) {
         // Add all failures as suppressed exceptions.
         suppressedExceptions.add(e);

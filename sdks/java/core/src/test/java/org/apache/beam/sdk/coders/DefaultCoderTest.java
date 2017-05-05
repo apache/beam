@@ -78,7 +78,7 @@ public class DefaultCoderTest {
     public static CoderFactory getCoderFactory() {
       return new CoderFactory() {
         @Override
-        public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+        public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
             List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
           return CustomSerializableCoder.of((TypeDescriptor) typeDescriptor);
         }
@@ -103,7 +103,7 @@ public class DefaultCoderTest {
     public static CoderFactory getCoderFactory() {
       return new CoderFactory() {
         @Override
-        public <T> Coder<T> create(TypeDescriptor<T> typeDescriptor,
+        public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
             List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
           return OldCustomSerializableCoder.of((Class) typeDescriptor.getRawType());
         }
@@ -143,7 +143,7 @@ public class DefaultCoderTest {
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory().create(
+    new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory().coderFor(
         TypeDescriptor.of(Unknown.class), Collections.<Coder<?>>emptyList());
   }
 }
