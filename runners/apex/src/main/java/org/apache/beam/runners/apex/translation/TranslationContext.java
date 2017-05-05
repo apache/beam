@@ -39,6 +39,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -217,36 +218,27 @@ class TranslationContext {
     List<InputPortInfo> sinks = streamEntry.getValue().getRight();
     OutputPortInfo source = streamEntry.getValue().getLeft();
     PTransform sourceTransform = source.transform.getTransform();
-    if (sourceTransform instanceof ParDo.Bound
-        || sourceTransform instanceof ParDo.BoundMulti) {
-      // Source is ParDo.. Check sink(s)
+    if (sourceTransform instanceof ParDo.MultiOutput
+        || sourceTransform instanceof Window.Assign) {
+      // source qualifies for chaining, check sink(s)
       for (InputPortInfo sink : sinks) {
         PTransform transform = sink.transform.getTransform();
-        if (transform instanceof ParDo.Bound) {
-          ParDo.Bound t = (ParDo.Bound) transform;
+        if (transform instanceof ParDo.MultiOutput) {
+          ParDo.MultiOutput t = (ParDo.MultiOutput) transform;
           if (t.getSideInputs().size() > 0) {
             loc = DAG.Locality.CONTAINER_LOCAL;
             break;
           } else {
             loc = DAG.Locality.THREAD_LOCAL;
           }
-        } else if (transform instanceof ParDo.BoundMulti) {
-          ParDo.BoundMulti t = (ParDo.BoundMulti) transform;
-          if (t.getSideInputs().size() > 0) {
-            loc = DAG.Locality.CONTAINER_LOCAL;
-            break;
-          } else {
-            loc = DAG.Locality.THREAD_LOCAL;
-          }
+        } else if (transform instanceof Window.Assign) {
+          loc = DAG.Locality.THREAD_LOCAL;
         } else {
-          // Sink is not ParDo.. set null locality.
+          // cannot chain, if there is any other sink
           loc = null;
           break;
         }
       }
-    } else {
-      // Source is not ParDo... set null locality
-      loc = null;
     }
 
     streamMeta.setLocality(loc);
