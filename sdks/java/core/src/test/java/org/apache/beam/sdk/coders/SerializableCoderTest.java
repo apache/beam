@@ -216,9 +216,9 @@ public class SerializableCoderTest implements Serializable {
 
     try (ByteArrayInputStream is = new ByteArrayInputStream(encodedBytes)) {
       assertNull(coder.decode(is));
-      assertEquals("TestValue", coder.decode(is,  Coder.Context.NESTED));
+      assertEquals("TestValue", coder.decode(is));
       assertNull(coder.decode(is));
-      assertEquals("TestValue2", coder.decode(is,  Coder.Context.NESTED));
+      assertEquals("TestValue2", coder.decode(is));
       assertNull(coder.decode(is));
       assertEquals(0, is.available());
     }

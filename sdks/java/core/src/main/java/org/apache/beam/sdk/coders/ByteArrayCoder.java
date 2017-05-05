@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * encoded via a {@link VarIntCoder}.</li>
  * </ul>
  */
-public class ByteArrayCoder extends StructuredCoder<byte[]> {
+public class ByteArrayCoder extends ContextSensitiveCoder<byte[]> {
 
   @JsonCreator
   public static ByteArrayCoder of() {

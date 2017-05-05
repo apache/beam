@@ -40,6 +40,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UnownedInputStream;
@@ -354,7 +355,7 @@ public class CoderProperties {
     Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
-    deserializedCoder.encode(value, new UnownedOutputStream(os), context);
+    ContextSensitiveCoder.encode(deserializedCoder, value, new UnownedOutputStream(os), context);
     return os.toByteArray();
   }
 
@@ -374,7 +375,7 @@ public class CoderProperties {
     }
 
     CountingInputStream cis = new CountingInputStream(new ByteArrayInputStream(buffer));
-    T value = deserializedCoder.decode(new UnownedInputStream(cis), context);
+    T value = ContextSensitiveCoder.decode(deserializedCoder, new UnownedInputStream(cis), context);
     assertThat("consumed bytes equal to encoded bytes", cis.getCount(),
         equalTo((long) bytes.length));
     return value;

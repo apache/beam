@@ -67,10 +67,10 @@ public class GlobalWindow extends BoundedWindow {
     public static final Coder INSTANCE = new Coder();
 
     @Override
-    public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
+    public void encode(GlobalWindow window, OutputStream outStream) {}
 
     @Override
-    public GlobalWindow decode(InputStream inStream, Context context) {
+    public GlobalWindow decode(InputStream inStream) {
       return GlobalWindow.INSTANCE;
     }
 

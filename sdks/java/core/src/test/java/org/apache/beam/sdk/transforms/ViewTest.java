@@ -39,7 +39,6 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -507,15 +506,15 @@ public class ViewTest implements Serializable {
 
   private static class NonDeterministicStringCoder extends CustomCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Coder.Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
-      StringUtf8Coder.of().encode(value, outStream, context);
+      StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Coder.Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override

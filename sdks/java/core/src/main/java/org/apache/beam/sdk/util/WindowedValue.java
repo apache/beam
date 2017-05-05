@@ -34,8 +34,8 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CollectionCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -572,7 +572,7 @@ public abstract class WindowedValue<T> {
    * Abstract class for {@code WindowedValue} coder.
    */
   public abstract static class WindowedValueCoder<T>
-      extends StructuredCoder<WindowedValue<T>> {
+      extends ContextSensitiveCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
 
     WindowedValueCoder(Coder<T> valueCoder) {
@@ -640,23 +640,20 @@ public abstract class WindowedValue<T> {
                        OutputStream outStream,
                        Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
-      InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream, nestedContext);
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
       PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
-      valueCoder.encode(windowedElem.getValue(), outStream, context);
+      ContextSensitiveCoder.encode(valueCoder, windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
-      T value = valueCoder.decode(inStream, context);
+      T value = ContextSensitiveCoder.decode(valueCoder, inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }
 
@@ -714,13 +711,13 @@ public abstract class WindowedValue<T> {
     @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      valueCoder.encode(windowedElem.getValue(), outStream, context);
+      ContextSensitiveCoder.encode(valueCoder, windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      T value = valueCoder.decode(inStream, context);
+      T value = ContextSensitiveCoder.decode(valueCoder, inStream, context);
       return WindowedValue.valueInGlobalWindow(value);
     }
 

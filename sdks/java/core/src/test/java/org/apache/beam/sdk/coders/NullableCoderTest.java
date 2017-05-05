@@ -145,7 +145,7 @@ public class NullableCoderTest {
         + "or 1 (present), got 5"));
 
     InputStream input = new ByteArrayInputStream(new byte[] {5});
-    TEST_CODER.decode(input, Coder.Context.OUTER);
+    TEST_CODER.decode(input);
   }
 
   @Test
@@ -167,7 +167,7 @@ public class NullableCoderTest {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
-  private static class EntireStreamExpectingCoder extends CustomCoder<String> {
+  private static class EntireStreamExpectingCoder extends ContextSensitiveCoder<String> {
     @Override
     public void encode(
         String value, OutputStream outStream, Context context) throws IOException {

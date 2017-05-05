@@ -56,7 +56,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   public void encode(T value, OutputStream outStream)
       throws CoderException, IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    valueCoder.encode(value, bos, Context.OUTER);
+    ContextSensitiveCoder.encode(valueCoder, value, bos, Context.OUTER);
     VarInt.encode(bos.size(), outStream);
     bos.writeTo(outStream);
   }
@@ -64,7 +64,8 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   @Override
   public T decode(InputStream inStream) throws CoderException, IOException {
     long size = VarInt.decodeLong(inStream);
-    return valueCoder.decode(ByteStreams.limit(inStream, size), Context.OUTER);
+    return ContextSensitiveCoder.decode(
+        valueCoder, ByteStreams.limit(inStream, size), Context.OUTER);
   }
 
   @Override

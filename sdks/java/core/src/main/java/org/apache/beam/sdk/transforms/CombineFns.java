@@ -534,33 +534,27 @@ public class CombineFns {
     }
 
     @Override
-    public void encode(Object[] value, OutputStream outStream, Context context)
+    public void encode(Object[] value, OutputStream outStream)
         throws CoderException, IOException {
       checkArgument(value.length == codersCount);
       if (value.length == 0) {
         return;
       }
-      int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
-      for (int i = 0; i < lastIndex; ++i) {
+      for (int i = 0; i < codersCount; ++i) {
         coders.get(i).encode(value[i], outStream);
       }
-      coders.get(lastIndex).encode(value[lastIndex], outStream, context);
     }
 
     @Override
-    public Object[] decode(InputStream inStream, Context context)
+    public Object[] decode(InputStream inStream)
         throws CoderException, IOException {
       Object[] ret = new Object[codersCount];
       if (codersCount == 0) {
         return ret;
       }
-      int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
-      for (int i = 0; i < lastIndex; ++i) {
+      for (int i = 0; i < codersCount; ++i) {
         ret[i] = coders.get(i).decode(inStream);
       }
-      ret[lastIndex] = coders.get(lastIndex).decode(inStream, context);
       return ret;
     }
 

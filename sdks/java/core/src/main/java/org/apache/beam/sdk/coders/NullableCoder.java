@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends CustomCoder<T> {
+public class NullableCoder<T> extends ContextSensitiveCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
@@ -67,7 +67,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
       outStream.write(ENCODE_NULL);
     } else {
       outStream.write(ENCODE_PRESENT);
-      valueCoder.encode(value, outStream, context);
+      ContextSensitiveCoder.encode(valueCoder, value, outStream, context);
     }
   }
 
@@ -82,7 +82,7 @@ public class NullableCoder<T> extends CustomCoder<T> {
             "NullableCoder expects either a byte valued %s (null) or %s (present), got %s",
             ENCODE_NULL, ENCODE_PRESENT, b));
     }
-    return valueCoder.decode(inStream, context);
+    return ContextSensitiveCoder.decode(valueCoder, inStream, context);
   }
 
   @Override

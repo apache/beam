@@ -24,7 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -56,7 +56,7 @@ public abstract class ValueInSingleWindow<T> {
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
-  public static class Coder<T> extends CustomCoder<ValueInSingleWindow<T>> {
+  public static class Coder<T> extends ContextSensitiveCoder<ValueInSingleWindow<T>> {
     private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
 
@@ -77,20 +77,18 @@ public abstract class ValueInSingleWindow<T> {
     @Override
     public void encode(ValueInSingleWindow<T> windowedElem, OutputStream outStream, Context context)
         throws IOException {
-      Context nestedContext = context.nested();
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
       PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
-      valueCoder.encode(windowedElem.getValue(), outStream, context);
+      ContextSensitiveCoder.encode(valueCoder, windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public ValueInSingleWindow<T> decode(InputStream inStream, Context context) throws IOException {
-      Context nestedContext = context.nested();
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
-      T value = valueCoder.decode(inStream, context);
+      T value = ContextSensitiveCoder.decode(valueCoder, inStream, context);
       return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
     }
 

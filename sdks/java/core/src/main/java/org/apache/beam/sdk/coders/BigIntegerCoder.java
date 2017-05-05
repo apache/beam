@@ -23,12 +23,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a byte array containing the big endian
  * two's-complement representation, encoded via {@link ByteArrayCoder}.
  */
-public class BigIntegerCoder extends CustomCoder<BigInteger> {
+public class BigIntegerCoder extends ContextSensitiveCoder<BigInteger> {
 
   public static BigIntegerCoder of() {
     return INSTANCE;
@@ -52,6 +54,15 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
   public BigInteger decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     return new BigInteger(BYTE_ARRAY_CODER.decode(inStream, context));
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
   }
 
   @Override

@@ -531,21 +531,21 @@ public class Combine {
     }
 
     @Override
-    public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
+    public void encode(Holder<V> accumulator, OutputStream outStream)
         throws CoderException, IOException {
       if (accumulator.present) {
         outStream.write(1);
-        valueCoder.encode(accumulator.value, outStream, context);
+        valueCoder.encode(accumulator.value, outStream);
       } else {
         outStream.write(0);
       }
     }
 
     @Override
-    public Holder<V> decode(InputStream inStream, Context context)
+    public Holder<V> decode(InputStream inStream)
         throws CoderException, IOException {
       if (inStream.read() == 1) {
-        return new Holder<>(valueCoder.decode(inStream, context));
+        return new Holder<>(valueCoder.decode(inStream));
       } else {
         return new Holder<>();
       }
@@ -1966,24 +1966,24 @@ public class Combine {
 
         @Override
         public void encode(
-            InputOrAccum<InputT, AccumT> value, OutputStream outStream, Coder.Context context)
+            InputOrAccum<InputT, AccumT> value, OutputStream outStream)
             throws CoderException, IOException {
           if (value.input != null) {
             outStream.write(0);
-            inputCoder.encode(value.input, outStream, context);
+            inputCoder.encode(value.input, outStream);
           } else {
             outStream.write(1);
-            accumCoder.encode(value.accum, outStream, context);
+            accumCoder.encode(value.accum, outStream);
           }
         }
 
         @Override
-        public InputOrAccum<InputT, AccumT> decode(InputStream inStream, Coder.Context context)
+        public InputOrAccum<InputT, AccumT> decode(InputStream inStream)
             throws CoderException, IOException {
           if (inStream.read() == 0) {
-            return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream, context));
+            return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream));
           } else {
-            return InputOrAccum.<InputT, AccumT>accum(accumCoder.decode(inStream, context));
+            return InputOrAccum.<InputT, AccumT>accum(accumCoder.decode(inStream));
           }
         }
 

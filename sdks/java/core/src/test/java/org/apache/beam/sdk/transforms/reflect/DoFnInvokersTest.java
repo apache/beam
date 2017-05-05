@@ -276,10 +276,10 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public void encode(SomeRestriction value, OutputStream outStream, Context context) {}
+    public void encode(SomeRestriction value, OutputStream outStream) {}
 
     @Override
-    public SomeRestriction decode(InputStream inStream, Context context) {
+    public SomeRestriction decode(InputStream inStream) {
       return null;
     }
   }
@@ -399,10 +399,10 @@ public class DoFnInvokersTest {
 
     @Override
     public void encode(
-        RestrictionWithDefaultTracker value, OutputStream outStream, Context context) {}
+        RestrictionWithDefaultTracker value, OutputStream outStream) {}
 
     @Override
-    public RestrictionWithDefaultTracker decode(InputStream inStream, Context context) {
+    public RestrictionWithDefaultTracker decode(InputStream inStream) {
       return null;
     }
   }

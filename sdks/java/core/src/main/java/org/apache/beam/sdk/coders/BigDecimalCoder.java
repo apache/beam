@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link BigDecimalCoder} encodes a {@link BigDecimal} as an integer scale encoded with
@@ -32,7 +34,7 @@ import java.math.MathContext;
  * {@link BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}),
  * yields the expected {@link BigDecimal}.
  */
-public class BigDecimalCoder extends CustomCoder<BigDecimal> {
+public class BigDecimalCoder extends ContextSensitiveCoder<BigDecimal> {
 
   public static BigDecimalCoder of() {
     return INSTANCE;
@@ -61,6 +63,15 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
     int scale = VAR_INT_CODER.decode(inStream);
     BigInteger bigInteger = BIG_INT_CODER.decode(inStream, context);
     return new BigDecimal(bigInteger, scale);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
   }
 
   @Override

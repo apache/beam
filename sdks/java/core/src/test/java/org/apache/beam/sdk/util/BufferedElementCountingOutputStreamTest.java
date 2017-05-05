@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
 import org.junit.Test;

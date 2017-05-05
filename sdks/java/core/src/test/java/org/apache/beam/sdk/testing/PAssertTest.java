@@ -98,12 +98,12 @@ public class PAssertTest implements Serializable {
     }
 
     @Override
-    public void encode(NotSerializableObject value, OutputStream outStream, Context context)
+    public void encode(NotSerializableObject value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public NotSerializableObject decode(InputStream inStream, Context context)
+    public NotSerializableObject decode(InputStream inStream)
         throws CoderException, IOException {
       return new NotSerializableObject();
     }

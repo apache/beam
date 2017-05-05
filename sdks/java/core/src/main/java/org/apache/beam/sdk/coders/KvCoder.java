@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
+public class KvCoder<K, V> extends ContextSensitiveCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
@@ -71,14 +71,14 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
       throw new CoderException("cannot encode a null KV");
     }
     keyCoder.encode(kv.getKey(), outStream);
-    valueCoder.encode(kv.getValue(), outStream, context);
+    encode(valueCoder, kv.getValue(), outStream, context);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     K key = keyCoder.decode(inStream);
-    V value = valueCoder.decode(inStream, context);
+    V value = decode(valueCoder, inStream, context);
     return KV.of(key, value);
   }
 

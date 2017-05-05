@@ -72,7 +72,7 @@ public class CoderUtilsTest {
     Coder<String> crashingCoder = mock(Coder.class);
     doThrow(new CoderException("testing exception"))
         .when(crashingCoder)
-        .encode(anyString(), any(OutputStream.class), any(Coder.Context.class));
+        .encode(anyString(), any(OutputStream.class));
 
     expectedException.expect(CoderException.class);
     expectedException.expectMessage("testing exception");

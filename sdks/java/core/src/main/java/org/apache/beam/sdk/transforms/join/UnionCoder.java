@@ -58,8 +58,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   @Override
   public void encode(
       RawUnionValue union,
-      OutputStream outStream,
-      Context context)
+      OutputStream outStream)
       throws IOException, CoderException  {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -67,17 +66,14 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
 
     // Write out the actual value.
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.encode(
-        union.getValue(),
-        outStream,
-        context);
+    coder.encode(union.getValue(), outStream);
   }
 
   @Override
-  public RawUnionValue decode(InputStream inStream, Context context)
+  public RawUnionValue decode(InputStream inStream)
       throws IOException, CoderException {
     int index = VarInt.decodeInt(inStream);
-    Object value = elementCoders.get(index).decode(inStream, context);
+    Object value = elementCoders.get(index).decode(inStream);
     return new RawUnionValue(index, value);
   }
 

@@ -60,8 +60,7 @@ public class StructuredCoderTest {
 
     @Override
     @Nullable
-    public Boolean decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+    public Boolean decode(InputStream inStream)
         throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {
@@ -124,7 +123,7 @@ public class StructuredCoderTest {
     @Override
     @Nullable
     public ObjectIdentityBoolean decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       int value = inStream.read();
       if (value == 0) {

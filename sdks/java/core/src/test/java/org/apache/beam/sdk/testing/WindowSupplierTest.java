@@ -75,14 +75,14 @@ public class WindowSupplierTest {
   private static class FailingCoder extends CustomCoder<BoundedWindow>  {
     @Override
     public void encode(
-        BoundedWindow value, OutputStream outStream, Context context)
+        BoundedWindow value, OutputStream outStream)
         throws CoderException, IOException {
       throw new CoderException("Test Enccode Exception");
     }
 
     @Override
     public BoundedWindow decode(
-        InputStream inStream, Context context) throws CoderException, IOException {
+        InputStream inStream) throws CoderException, IOException {
       throw new CoderException("Test Decode Exception");
     }
   }

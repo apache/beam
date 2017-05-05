@@ -56,16 +56,16 @@ public class TextualIntegerCoderTest {
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "LTEx",
-      "LTM",
-      "LTE",
-      "MA",
-      "MQ",
-      "NQ",
-      "MTM",
-      "Mjk",
-      "MjE0NzQ4MzY0Nw",
-      "LTIxNDc0ODM2NDg");
+      "Ay0xMQ",
+      "Ai0z",
+      "Ai0x",
+      "ATA",
+      "ATE",
+      "ATU",
+      "AjEz",
+      "AjI5",
+      "CjIxNDc0ODM2NDc",
+      "Cy0yMTQ3NDgzNjQ4");
 
   @Test
   public void testWireFormatEncode() throws Exception {

@@ -81,10 +81,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
   }
 
   @Override
-  public void encode(
-      Map<K, V> map,
-      OutputStream outStream,
-      Context context)
+  public void encode(Map<K, V> map, OutputStream outStream)
       throws IOException, CoderException  {
     if (map == null) {
       throw new CoderException("cannot encode a null Map");
@@ -93,26 +90,15 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
     int size = map.size();
     dataOutStream.writeInt(size);
-    if (size == 0) {
-      return;
-    }
 
-    // Since we handled size == 0 above, entry is guaranteed to exist before and after loop
-    Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
-    Entry<K, V> entry = iterator.next();
-    while (iterator.hasNext()) {
+    for (Entry<K, V> entry : map.entrySet()) {
       keyCoder.encode(entry.getKey(), outStream);
       valueCoder.encode(entry.getValue(), outStream);
-      entry = iterator.next();
     }
-
-    keyCoder.encode(entry.getKey(), outStream);
-    valueCoder.encode(entry.getValue(), outStream, context);
-    // no flush needed as DataOutputStream does not buffer
   }
 
   @Override
-  public Map<K, V> decode(InputStream inStream, Context context)
+  public Map<K, V> decode(InputStream inStream)
       throws IOException, CoderException {
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
@@ -121,15 +107,11 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     }
 
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
-    for (int i = 0; i < size - 1; ++i) {
+    for (int i = 0; i < size; ++i) {
       K key = keyCoder.decode(inStream);
       V value = valueCoder.decode(inStream);
       retval.put(key, value);
     }
-
-    K key = keyCoder.decode(inStream);
-    V value = valueCoder.decode(inStream, context);
-    retval.put(key, value);
     return retval;
   }
 
