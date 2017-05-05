@@ -997,13 +997,13 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(TestDummy value, Context context) {
+    public boolean isRegisterByteSizeObserverCheap(TestDummy value) {
       return true;
     }
 
     @Override
     public void registerByteSizeObserver(
-        TestDummy value, ElementByteSizeObserver observer, Context context)
+        TestDummy value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }

@@ -52,10 +52,10 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(TableRow value, Context context)
+  protected long getEncodedElementByteSize(TableRow value)
       throws Exception {
     String strValue = MAPPER.writeValueAsString(value);
-    return StringUtf8Coder.of().getEncodedElementByteSize(strValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(strValue);
   }
 
   /////////////////////////////////////////////////////////////////////////////

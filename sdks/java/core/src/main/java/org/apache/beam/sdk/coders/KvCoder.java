@@ -105,9 +105,9 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    * Returns whether both keyCoder and valueCoder are considered not expensive.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv, Context context) {
-    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(), context.nested())
-        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(), context);
+  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv) {
+    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey())
+        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue());
   }
 
   /**
@@ -116,13 +116,13 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    */
   @Override
   public void registerByteSizeObserver(
-      KV<K, V> kv, ElementByteSizeObserver observer, Context context)
+      KV<K, V> kv, ElementByteSizeObserver observer)
       throws Exception {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(kv.getKey(), observer);
+    valueCoder.registerByteSizeObserver(kv.getValue(), observer);
   }
 
   @Override

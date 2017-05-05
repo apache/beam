@@ -89,14 +89,14 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
    * @return {@code true}, because it is cheap to ascertain the byte size of a long.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ReadableDuration value, Context context) {
-    return LONG_CODER.isRegisterByteSizeObserverCheap(toLong(value), context);
+  public boolean isRegisterByteSizeObserverCheap(ReadableDuration value) {
+    return LONG_CODER.isRegisterByteSizeObserverCheap(toLong(value));
   }
 
   @Override
   public void registerByteSizeObserver(
-      ReadableDuration value, ElementByteSizeObserver observer, Context context) throws Exception {
-    LONG_CODER.registerByteSizeObserver(toLong(value), observer, context);
+      ReadableDuration value, ElementByteSizeObserver observer) throws Exception {
+    LONG_CODER.registerByteSizeObserver(toLong(value), observer);
   }
 
   @Override
