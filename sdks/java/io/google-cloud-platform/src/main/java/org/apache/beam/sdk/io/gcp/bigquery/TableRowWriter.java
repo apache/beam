@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 class TableRowWriter {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
 
-  private static final Coder<TableRow> CODER = TableRowJsonCoder.of();
+  private static final TableRowJsonCoder CODER = TableRowJsonCoder.of();
   private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
   private final String tempFilePrefix;
   private String id;

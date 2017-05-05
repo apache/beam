@@ -22,6 +22,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
@@ -66,7 +67,8 @@ public class SideInputBroadcast<T> implements Serializable {
   private T deserialize() {
     T val;
     try {
-      val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+      val = ContextSensitiveCoder.decode(
+          coder, new ByteArrayInputStream(bcast.value()), Coder.Context.OUTER);
     } catch (IOException ioe) {
       // this should not ever happen, log it if it does.
       LOG.warn(ioe.getMessage());

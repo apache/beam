@@ -22,9 +22,11 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -34,7 +36,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>When this code is used in a nested {@link Coder.Context}, the serialized {@link ByteString}
  * objects are first delimited by their size.
  */
-public class ByteStringCoder extends CustomCoder<ByteString> {
+public class ByteStringCoder extends ContextSensitiveCoder<ByteString> {
 
   public static ByteStringCoder of() {
     return INSTANCE;
@@ -78,11 +80,12 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   @Override
   protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
-
-    if (context.isWholeStream) {
-      return size;
-    }
     return VarInt.getLength(size) + size;
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
   }
 
   @Override

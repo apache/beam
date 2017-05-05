@@ -31,6 +31,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
@@ -40,7 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -103,7 +105,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the Protocol Buffers {@link Message} handled by this {@link Coder}.
  */
-public class ProtoCoder<T extends Message> extends CustomCoder<T> {
+public class ProtoCoder<T extends Message> extends ContextSensitiveCoder<T> {
 
   /**
    * A {@link CoderProvider} that returns a {@link ProtoCoder} with an empty
@@ -210,6 +212,11 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(protoMessageClass, extensionHostClasses);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
   }
 
   @Override

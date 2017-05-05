@@ -45,7 +45,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     this.iterableCoder = IterableCoder.of(coder);
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     try {
-      iterableCoder.encode(values, bos, Context.OUTER);
+      iterableCoder.encode(values, bos);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
@@ -63,7 +63,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
       @Nullable CheckpointMark checkpointMark) {
     ByteArrayInputStream bis = new ByteArrayInputStream(codedValues);
     try {
-      Iterable<T> values = this.iterableCoder.decode(bis, Context.OUTER);
+      Iterable<T> values = this.iterableCoder.decode(bis);
       return new ValuesReader<>(values, this);
     } catch (IOException ex) {
       throw new RuntimeException(ex);

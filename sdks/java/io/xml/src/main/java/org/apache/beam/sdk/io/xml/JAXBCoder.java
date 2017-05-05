@@ -23,12 +23,15 @@ import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -39,7 +42,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
-public class JAXBCoder<T> extends CustomCoder<T> {
+public class JAXBCoder<T> extends ContextSensitiveCoder<T> {
 
   private final Class<T> jaxbClass;
   private transient volatile JAXBContext jaxbContext;
@@ -121,6 +124,23 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NonDeterministicException a {@link CustomCoder} is presumed
+   * nondeterministic.
+   */
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    throw new NonDeterministicException(this,
+        "JAXBContext is presumed nondeterministic.");
   }
 
   private JAXBContext getContext() throws JAXBException {

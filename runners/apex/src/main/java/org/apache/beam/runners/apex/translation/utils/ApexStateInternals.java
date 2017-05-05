@@ -39,6 +39,7 @@ import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -184,7 +185,7 @@ public class ApexStateInternals<K> implements StateInternals {
         // TODO: reuse input
         Input input = new Input(buf);
         try {
-          return coder.decode(input, Context.OUTER);
+          return ContextSensitiveCoder.decode(coder, input, Context.OUTER);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -195,7 +196,7 @@ public class ApexStateInternals<K> implements StateInternals {
     public void writeValue(T input) {
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       try {
-        coder.encode(input, output, Context.OUTER);
+        ContextSensitiveCoder.encode(coder, input, output, Context.OUTER);
         stateTable.put(namespace.stringKey(), address.getId(), output.toByteArray());
       } catch (IOException e) {
         throw new RuntimeException(e);

@@ -69,19 +69,19 @@ public class KeyedWorkItemCoder<K, ElemT> extends CustomCoder<KeyedWorkItem<K, E
   }
 
   @Override
-  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream, Coder.Context context)
+  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream)
       throws CoderException, IOException {
     keyCoder.encode(value.key(), outStream);
     timersCoder.encode(value.timersIterable(), outStream);
-    elemsCoder.encode(value.elementsIterable(), outStream, context);
+    elemsCoder.encode(value.elementsIterable(), outStream);
   }
 
   @Override
-  public KeyedWorkItem<K, ElemT> decode(InputStream inStream, Coder.Context context)
+  public KeyedWorkItem<K, ElemT> decode(InputStream inStream)
       throws CoderException, IOException {
     K key = keyCoder.decode(inStream);
     Iterable<TimerData> timers = timersCoder.decode(inStream);
-    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream, context);
+    Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream);
     return KeyedWorkItems.workItem(key, timers, elems);
   }
 

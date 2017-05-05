@@ -38,21 +38,21 @@ class TableRowInfoCoder extends CustomCoder<TableRowInfo> {
   }
 
   @Override
-  public void encode(TableRowInfo value, OutputStream outStream, Context context)
+  public void encode(TableRowInfo value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
     tableRowCoder.encode(value.tableRow, outStream);
-    idCoder.encode(value.uniqueId, outStream, context);
+    idCoder.encode(value.uniqueId, outStream);
   }
 
   @Override
-  public TableRowInfo decode(InputStream inStream, Context context)
+  public TableRowInfo decode(InputStream inStream)
       throws IOException {
     return new TableRowInfo(
         tableRowCoder.decode(inStream),
-        idCoder.decode(inStream, context));
+        idCoder.decode(inStream));
   }
 
   @Override

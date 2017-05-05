@@ -30,6 +30,7 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
@@ -52,7 +53,7 @@ public final class CoderHelpers {
   public static <T> byte[] toByteArray(T value, Coder<T> coder) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
-      coder.encode(value, baos, new Coder.Context(true));
+      ContextSensitiveCoder.encode(coder, value, baos, Coder.Context.OUTER);
     } catch (IOException e) {
       throw new IllegalStateException("Error encoding value: " + value, e);
     }
@@ -86,7 +87,7 @@ public final class CoderHelpers {
   public static <T> T fromByteArray(byte[] serialized, Coder<T> coder) {
     ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
     try {
-      return coder.decode(bais, new Coder.Context(true));
+      return ContextSensitiveCoder.decode(coder, bais, Coder.Context.OUTER);
     } catch (IOException e) {
       throw new IllegalStateException("Error decoding bytes for coder: " + coder, e);
     }
