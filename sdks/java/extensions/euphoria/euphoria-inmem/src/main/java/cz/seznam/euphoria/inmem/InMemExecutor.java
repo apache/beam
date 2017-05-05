@@ -704,9 +704,7 @@ public class InMemExecutor implements Executor {
             Datum.watermark(maxElementTimestamp.get()),
             ret, readerId, clocks, true);
       };
-      if (emitStrategies != null) {
-        emitStrategies[readerId].schedule(emitWatermark);
-      }
+      emitStrategies[readerId].schedule(emitWatermark);
       executor.execute(() -> {
         try {
           for (;;) {
@@ -717,7 +715,7 @@ public class InMemExecutor implements Executor {
               break;
             }
 
-            if (eventTimeAssigner.isPresent() && datum.isElement()) {
+            if (hasTimeAssignment && datum.isElement()) {
               ExtractEventTime assigner = eventTimeAssigner.get();
               datum.setTimestamp(assigner.extractTimestamp(datum.getElement()));
             }
