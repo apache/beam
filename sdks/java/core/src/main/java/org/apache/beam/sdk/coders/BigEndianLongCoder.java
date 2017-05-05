@@ -84,7 +84,7 @@ public class BigEndianLongCoder extends CustomCoder<Long> {
    * @return {@code true}, since {@link #getEncodedElementByteSize} returns a constant.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Long value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Long value) {
     return true;
   }
 
@@ -99,7 +99,7 @@ public class BigEndianLongCoder extends CustomCoder<Long> {
    * @return {@code 8}, the byte size of a big-endian encoded {@code Long}.
    */
   @Override
-  protected long getEncodedElementByteSize(Long value, Context context)
+  protected long getEncodedElementByteSize(Long value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");

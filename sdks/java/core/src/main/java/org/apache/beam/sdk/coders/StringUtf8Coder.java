@@ -128,7 +128,7 @@ public class StringUtf8Coder extends CustomCoder<String> {
    * the byte size of the encoding plus the encoded length prefix.
    */
   @Override
-  public long getEncodedElementByteSize(String value, Context context)
+  public long getEncodedElementByteSize(String value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");

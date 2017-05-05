@@ -65,15 +65,15 @@ public class LengthPrefixCoderTest {
   @Test
   public void testEncodedSize() throws Exception {
     assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.NESTED));
+        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
     assertEquals(4L,
-        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0), Coder.Context.OUTER));
+        TEST_CODER.getEncodedElementByteSize(TEST_VALUES.get(0)));
   }
 
   @Test
   public void testObserverIsCheap() throws Exception {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
-    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0, Coder.Context.OUTER));
+    assertTrue(coder.isRegisterByteSizeObserverCheap(5.0));
   }
 
   @Test

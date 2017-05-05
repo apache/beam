@@ -678,12 +678,12 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
+    public long getEncodedElementByteSize(KeyPrefix value)
         throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
@@ -760,12 +760,12 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(Footer value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(Footer value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(Footer value, Coder.Context context)
+    public long getEncodedElementByteSize(Footer value)
         throws Exception {
       return Footer.FIXED_LENGTH;
     }

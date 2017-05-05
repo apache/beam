@@ -102,7 +102,7 @@ public class RandomAccessData {
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value, Coder.Context context)
+    protected long getEncodedElementByteSize(RandomAccessData value)
         throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");

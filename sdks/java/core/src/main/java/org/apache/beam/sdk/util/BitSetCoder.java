@@ -58,4 +58,3 @@ public class BitSetCoder extends CustomCoder<BitSet> {
         "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
   }
 }
-

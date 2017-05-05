@@ -76,7 +76,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(ByteString value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
 
     if (context.isWholeStream) {
@@ -106,7 +106,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
    * <p>Returns true. {@link ByteString#size} returns the size of an array and a {@link VarInt}.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(ByteString value) {
     return true;
   }
 

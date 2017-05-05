@@ -75,7 +75,7 @@ public class BigIntegerCoderTest {
   public void testGetEncodedElementByteSize() throws Exception {
     TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
     for (BigInteger value : TEST_VALUES) {
-      TEST_CODER.registerByteSizeObserver(value, observer, Coder.Context.OUTER);
+      TEST_CODER.registerByteSizeObserver(value, observer);
       observer.advance();
       assertThat(
           observer.getSumAndReset(),

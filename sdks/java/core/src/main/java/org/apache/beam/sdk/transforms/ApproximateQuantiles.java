@@ -740,8 +740,7 @@ public class ApproximateQuantiles {
     @Override
     public void registerByteSizeObserver(
         QuantileState<T, ComparatorT> state,
-        ElementByteSizeObserver observer,
-        Coder.Context context)
+        ElementByteSizeObserver observer)
         throws Exception {
       Coder.Context nestedContext = context.nested();
       elementCoder.registerByteSizeObserver(

@@ -69,7 +69,7 @@ public class VoidCoder extends CustomCoder<Void> {
    * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Void value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Void value) {
     return true;
   }
 
@@ -79,7 +79,7 @@ public class VoidCoder extends CustomCoder<Void> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Void value, Context context)
+  protected long getEncodedElementByteSize(Void value)
       throws Exception {
     return 0;
   }

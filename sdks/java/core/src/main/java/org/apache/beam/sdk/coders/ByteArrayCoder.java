@@ -136,7 +136,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
    * constant time using the {@code length} of the provided array.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(byte[] value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(byte[] value) {
     return true;
   }
 
@@ -146,7 +146,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(byte[] value, Context context)
+  protected long getEncodedElementByteSize(byte[] value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");

@@ -557,16 +557,16 @@ public class Top {
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(
-        BoundedHeap<T, ComparatorT> value, Context context) {
+        BoundedHeap<T, ComparatorT> value) {
       return listCoder.isRegisterByteSizeObserverCheap(
           value.asList(), context);
     }
 
     @Override
     public void registerByteSizeObserver(
-        BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer, Context context)
+        BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer)
             throws Exception {
-      listCoder.registerByteSizeObserver(value.asList(), observer, context);
+      listCoder.registerByteSizeObserver(value.asList(), observer);
     }
   }
 }
