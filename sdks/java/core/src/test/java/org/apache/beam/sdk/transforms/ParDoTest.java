@@ -985,11 +985,6 @@ public class ParDoTest implements Serializable {
       return INSTANCE;
     }
 
-    @SuppressWarnings("unused") // used to create a CoderFactory
-    public static List<Object> getInstanceComponents(TestDummy exampleValue) {
-      return Collections.emptyList();
-    }
-
     @Override
     public void encode(TestDummy value, OutputStream outStream, Context context)
         throws CoderException, IOException {

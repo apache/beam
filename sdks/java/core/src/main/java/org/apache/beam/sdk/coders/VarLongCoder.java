@@ -37,13 +37,6 @@ public class VarLongCoder extends StructuredCoder<Long> {
     return INSTANCE;
   }
 
-  /**
-   * Returns an empty list. {@link VarLongCoder} has no components.
-   */
-  public static <T> List<Object> getInstanceComponents(T ignored) {
-    return Collections.emptyList();
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   private static final VarLongCoder INSTANCE = new VarLongCoder();
