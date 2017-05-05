@@ -52,10 +52,10 @@ public class BitSetCoderTest {
 
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.OUTER,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), ContextSensitiveCoder.Context.OUTER,
         new byte[][]{{ 0xa, 0xb, 0xc }});
 
-    CoderProperties.testByteCount(ByteArrayCoder.of(), Coder.Context.NESTED,
+    CoderProperties.testByteCount(ByteArrayCoder.of(), ContextSensitiveCoder.Context.NESTED,
         new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 

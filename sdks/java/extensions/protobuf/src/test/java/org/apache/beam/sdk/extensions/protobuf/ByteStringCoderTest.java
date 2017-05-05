@@ -27,7 +27,7 @@ import com.google.protobuf.ByteString;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -119,7 +119,7 @@ public class ByteStringCoderTest {
     for (Context context : CoderProperties.ALL_CONTEXTS) {
       for (ByteString value : TEST_VALUES) {
         byte[] encoded = CoderUtils.encodeToByteArray(TEST_CODER, value, context);
-        assertEquals(encoded.length, TEST_CODER.getEncodedElementByteSize(value, context));
+        assertEquals(encoded.length, TEST_CODER.getEncodedElementByteSize(value));
       }
     }
   }

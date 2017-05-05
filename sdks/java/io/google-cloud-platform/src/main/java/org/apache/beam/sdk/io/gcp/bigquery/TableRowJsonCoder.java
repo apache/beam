@@ -23,15 +23,17 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} that encodes BigQuery {@link TableRow} objects in their native JSON format.
  */
-public class TableRowJsonCoder extends CustomCoder<TableRow> {
+public class TableRowJsonCoder extends ContextSensitiveCoder<TableRow> {
 
   public static TableRowJsonCoder of() {
     return INSTANCE;
@@ -52,10 +54,15 @@ public class TableRowJsonCoder extends CustomCoder<TableRow> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(TableRow value, Context context)
+  protected long getEncodedElementByteSize(TableRow value)
       throws Exception {
     String strValue = MAPPER.writeValueAsString(value);
-    return StringUtf8Coder.of().getEncodedElementByteSize(strValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(strValue);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.common.base.Utf8;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -28,6 +26,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * If in a nested context, prefixes the string with an integer length field,
  * encoded via a {@link VarIntCoder}.
  */
-public class StringUtf8Coder extends CustomCoder<String> {
+public class StringUtf8Coder extends ContextSensitiveCoder<String> {
 
   public static StringUtf8Coder of() {
     return INSTANCE;
@@ -104,6 +104,15 @@ public class StringUtf8Coder extends CustomCoder<String> {
   }
 
   @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
+  }
+
+  @Override
   public void verifyDeterministic() {}
 
   /**
@@ -128,20 +137,12 @@ public class StringUtf8Coder extends CustomCoder<String> {
    * the byte size of the encoding plus the encoded length prefix.
    */
   @Override
-  public long getEncodedElementByteSize(String value, Context context)
+  public long getEncodedElementByteSize(String value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
     }
-    if (context.isWholeStream) {
-      return Utf8.encodedLength(value);
-    } else {
-      try (CountingOutputStream countingStream =
-          new CountingOutputStream(ByteStreams.nullOutputStream())) {
-        DataOutputStream stream = new DataOutputStream(countingStream);
-        writeString(value, stream);
-        return countingStream.getCount();
-      }
-    }
+    int size = Utf8.encodedLength(value);
+    return VarInt.getLength(size) + size;
   }
 }

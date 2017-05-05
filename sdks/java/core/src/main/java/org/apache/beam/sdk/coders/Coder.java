@@ -57,59 +57,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public abstract class Coder<T> implements Serializable {
-  /** The context in which encoding or decoding is being done. */
-  @Deprecated
-  public static class Context {
-    /**
-     * The outer context: the value being encoded or decoded takes
-     * up the remainder of the record/stream contents.
-     */
-    public static final Context OUTER = new Context(true);
-
-    /**
-     * The nested context: the value being encoded or decoded is
-     * (potentially) a part of a larger record/stream contents, and
-     * may have other parts encoded or decoded after it.
-     */
-    public static final Context NESTED = new Context(false);
-
-    /**
-     * Whether the encoded or decoded value fills the remainder of the
-     * output or input (resp.) record/stream contents.  If so, then
-     * the size of the decoded value can be determined from the
-     * remaining size of the record/stream contents, and so explicit
-     * lengths aren't required.
-     */
-    public final boolean isWholeStream;
-
-    public Context(boolean isWholeStream) {
-      this.isWholeStream = isWholeStream;
-    }
-
-    public Context nested() {
-      return NESTED;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof Context)) {
-        return false;
-      }
-      return Objects.equal(isWholeStream, ((Context) obj).isWholeStream);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(isWholeStream);
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(Context.class)
-          .addValue(isWholeStream ? "OUTER" : "NESTED").toString();
-    }
-  }
+public interface Coder<T> extends Serializable {
 
   /**
    * Encodes the given value of type {@code T} onto the given output stream.
@@ -122,61 +70,14 @@ public abstract class Coder<T> implements Serializable {
       throws CoderException, IOException;
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream
-   * in the outer context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException;
-
-  /**
-   * Encodes the given value of type {@code T} onto the given output stream
-   * in the given context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
+   * Decodes a value of type {@code T} from the given input stream.
+   * Returns the decoded value.
    *
    * @throws IOException if reading from the {@code InputStream} fails
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
   public abstract T decode(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the outer context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decodeOuter(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decode(InputStream inStream, Context context)
-      throws CoderException, IOException;
 
   /**
    * If this is a {@code Coder} for a parameterized type, returns the
@@ -249,19 +150,6 @@ public abstract class Coder<T> implements Serializable {
   public abstract boolean isRegisterByteSizeObserverCheap(T value);
 
   /**
-   * Returns whether {@link #registerByteSizeObserver} cheap enough to
-   * call for every element, that is, if this {@code Coder} can
-   * calculate the byte size of the element to be coded in roughly
-   * constant time (or lazily).
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
-   * implementations.
-   */
-  @Deprecated
-  public abstract boolean isRegisterByteSizeObserverCheap(T value, Context context);
-
-  /**
    * Notifies the {@code ElementByteSizeObserver} about the byte size
    * of the encoded value using this {@code Coder}.
    *
@@ -271,19 +159,6 @@ public abstract class Coder<T> implements Serializable {
    */
   public abstract void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer)
-      throws Exception;
-
-  /**
-   * Notifies the {@code ElementByteSizeObserver} about the byte size
-   * of the encoded value using this {@code Coder}.
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link org.apache.beam.sdk.runners.PipelineRunner}
-   * implementations.
-   */
-  @Deprecated
-  public abstract void registerByteSizeObserver(
-      T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
 
   /**

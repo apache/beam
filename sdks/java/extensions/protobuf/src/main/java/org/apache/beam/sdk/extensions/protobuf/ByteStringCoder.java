@@ -22,19 +22,22 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.
  *
- * <p>When this code is used in a nested {@link Coder.Context}, the serialized {@link ByteString}
+ * <p>When this code is used in a nested {@link ContextSensitiveCoder.Context}, the serialized {@link ByteString}
  * objects are first delimited by their size.
  */
-public class ByteStringCoder extends CustomCoder<ByteString> {
+public class ByteStringCoder extends ContextSensitiveCoder<ByteString> {
 
   public static ByteStringCoder of() {
     return INSTANCE;
@@ -76,13 +79,14 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(ByteString value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
-
-    if (context.isWholeStream) {
-      return size;
-    }
     return VarInt.getLength(size) + size;
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
   }
 
   @Override
@@ -92,7 +96,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
    * {@inheritDoc}
    *
    * <p>Returns true; the encoded output of two invocations of {@link ByteStringCoder} in the same
-   * {@link Coder.Context} will be identical if and only if the original {@link ByteString} objects
+   * {@link ContextSensitiveCoder.Context} will be identical if and only if the original {@link ByteString} objects
    * are equal according to {@link Object#equals}.
    */
   @Override
@@ -106,7 +110,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
    * <p>Returns true. {@link ByteString#size} returns the size of an array and a {@link VarInt}.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(ByteString value) {
     return true;
   }
 

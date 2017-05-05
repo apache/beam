@@ -101,18 +101,18 @@ public class ValueWithRecordId<ValueT> {
     }
 
     @Override
-    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream, Context context)
+    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream)
         throws IOException {
-      valueCoder.encode(value.value, outStream, context.nested());
-      idCoder.encode(value.id, outStream, context);
+      valueCoder.encode(value.value, outStream);
+      idCoder.encode(value.id, outStream);
     }
 
     @Override
-    public ValueWithRecordId<ValueT> decode(InputStream inStream, Context context)
+    public ValueWithRecordId<ValueT> decode(InputStream inStream)
         throws IOException {
       return new ValueWithRecordId<ValueT>(
-          valueCoder.decode(inStream, context.nested()),
-          idCoder.decode(inStream, context));
+          valueCoder.decode(inStream),
+          idCoder.decode(inStream));
     }
 
     @Override

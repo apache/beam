@@ -23,12 +23,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a byte array containing the big endian
  * two's-complement representation, encoded via {@link ByteArrayCoder}.
  */
-public class BigIntegerCoder extends CustomCoder<BigInteger> {
+public class BigIntegerCoder extends ContextSensitiveCoder<BigInteger> {
 
   public static BigIntegerCoder of() {
     return INSTANCE;
@@ -55,6 +57,15 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
   }
 
   @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
+  }
+
+  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     BYTE_ARRAY_CODER.verifyDeterministic();
   }
@@ -75,7 +86,7 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(BigInteger value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(BigInteger value) {
     return true;
   }
 
@@ -85,8 +96,8 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
    * @return the size of the encoding as a byte array according to {@link ByteArrayCoder}
    */
   @Override
-  protected long getEncodedElementByteSize(BigInteger value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(BigInteger value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-    return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray(), context);
+    return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
   }
 }

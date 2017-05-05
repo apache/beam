@@ -591,14 +591,14 @@ public class UnboundedReadEvaluatorFactoryTest {
       public void encode(
           TestCheckpointMark value,
           OutputStream outStream,
-          org.apache.beam.sdk.coders.Coder.Context context)
+          org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
           throws IOException {
         VarInt.encode(value.index, outStream);
       }
 
       @Override
       public TestCheckpointMark decode(
-          InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+          InputStream inStream, org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
           throws IOException {
         TestCheckpointMark decoded = new TestCheckpointMark(VarInt.decodeInt(inStream));
         decoded.decoded = true;

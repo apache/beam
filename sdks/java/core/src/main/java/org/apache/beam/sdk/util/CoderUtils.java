@@ -28,6 +28,7 @@ import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -57,10 +58,10 @@ public final class CoderUtils {
    * {@link Coder}.
    */
   public static <T> byte[] encodeToByteArray(Coder<T> coder, T value) throws CoderException {
-    return encodeToByteArray(coder, value, Coder.Context.OUTER);
+    return encodeToByteArray(coder, value, ContextSensitiveCoder.Context.OUTER);
   }
 
-  public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, Coder.Context context)
+  public static <T> byte[] encodeToByteArray(Coder<T> coder, T value, ContextSensitiveCoder.Context context)
       throws CoderException {
     if (threadLocalOutputStreamInUse.get()) {
       // encodeToByteArray() is called recursively and the thread local stream is in use,
@@ -86,9 +87,9 @@ public final class CoderUtils {
    * {@link ExposedByteArrayOutputStream}.
    */
   private static <T> void encodeToSafeStream(
-      Coder<T> coder, T value, OutputStream stream, Coder.Context context) throws CoderException {
+      Coder<T> coder, T value, OutputStream stream, ContextSensitiveCoder.Context context) throws CoderException {
     try {
-      coder.encode(value, new UnownedOutputStream(stream), context);
+      ContextSensitiveCoder.encode(coder, value, new UnownedOutputStream(stream), context);
     } catch (IOException exn) {
       Throwables.propagateIfPossible(exn, CoderException.class);
       throw new IllegalArgumentException(
@@ -102,11 +103,11 @@ public final class CoderUtils {
    */
   public static <T> T decodeFromByteArray(Coder<T> coder, byte[] encodedValue)
       throws CoderException {
-    return decodeFromByteArray(coder, encodedValue, Coder.Context.OUTER);
+    return decodeFromByteArray(coder, encodedValue, ContextSensitiveCoder.Context.OUTER);
   }
 
   public static <T> T decodeFromByteArray(
-      Coder<T> coder, byte[] encodedValue, Coder.Context context) throws CoderException {
+      Coder<T> coder, byte[] encodedValue, ContextSensitiveCoder.Context context) throws CoderException {
     try (ExposedByteArrayInputStream stream = new ExposedByteArrayInputStream(encodedValue)) {
       T result = decodeFromSafeStream(coder, stream, context);
       if (stream.available() != 0) {
@@ -123,9 +124,9 @@ public final class CoderUtils {
    * {@link ExposedByteArrayInputStream}.
    */
   private static <T> T decodeFromSafeStream(
-      Coder<T> coder, InputStream stream, Coder.Context context) throws CoderException {
+      Coder<T> coder, InputStream stream, ContextSensitiveCoder.Context context) throws CoderException {
     try {
-      return coder.decode(new UnownedInputStream(stream), context);
+      return ContextSensitiveCoder.decode(coder, new UnownedInputStream(stream), context);
     } catch (IOException exn) {
       Throwables.propagateIfPossible(exn, CoderException.class);
       throw new IllegalArgumentException(
@@ -151,7 +152,7 @@ public final class CoderUtils {
    * {@link Coder}.
    */
   public static <T> T clone(Coder<T> coder, T value) throws CoderException {
-    return decodeFromByteArray(coder, encodeToByteArray(coder, value, Coder.Context.OUTER));
+    return decodeFromByteArray(coder, encodeToByteArray(coder, value, ContextSensitiveCoder.Context.OUTER));
   }
 
   /**
@@ -171,7 +172,7 @@ public final class CoderUtils {
    */
   public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) throws CoderException {
     return decodeFromSafeStream(
-        coder, new ByteArrayInputStream(Base64.decodeBase64(encodedValue)), Coder.Context.OUTER);
+        coder, new ByteArrayInputStream(Base64.decodeBase64(encodedValue)), ContextSensitiveCoder.Context.OUTER);
   }
 
   /**

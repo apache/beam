@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.testing.CoderPropertiesTest.ClosingCoder;
@@ -50,12 +50,12 @@ public class CoderUtilsTest {
     }
 
     @Override
-    public void encode(Integer value, OutputStream outStream, Context context) {
+    public void encode(Integer value, OutputStream outStream) {
       throw new RuntimeException("not expecting to be called");
     }
 
     @Override
-    public Integer decode(InputStream inStream, Context context) {
+    public Integer decode(InputStream inStream) {
       throw new RuntimeException("not expecting to be called");
     }
 
@@ -72,7 +72,7 @@ public class CoderUtilsTest {
     Coder<String> crashingCoder = mock(Coder.class);
     doThrow(new CoderException("testing exception"))
         .when(crashingCoder)
-        .encode(anyString(), any(OutputStream.class), any(Coder.Context.class));
+        .encode(anyString(), any(OutputStream.class));
 
     expectedException.expect(CoderException.class);
     expectedException.expectMessage("testing exception");

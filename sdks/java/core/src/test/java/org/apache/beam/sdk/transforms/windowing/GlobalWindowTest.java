@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,9 +32,7 @@ public class GlobalWindowTest {
   @Test
   public void testCoderBinaryRepresentation() throws Exception {
     CountingOutputStream out = new CountingOutputStream(ByteStreams.nullOutputStream());
-    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.OUTER);
-    assertEquals(0, out.getCount());
-    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out, Context.NESTED);
+    GlobalWindow.Coder.INSTANCE.encode(GlobalWindow.INSTANCE, out);
     assertEquals(0, out.getCount());
   }
 

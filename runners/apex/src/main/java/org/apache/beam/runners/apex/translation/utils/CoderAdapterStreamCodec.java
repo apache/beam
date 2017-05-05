@@ -24,7 +24,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 
 /**
  * The Apex {@link StreamCodec} adapter for using Beam {@link Coder}.
@@ -42,7 +43,7 @@ public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializabl
     ByteArrayInputStream bis = new ByteArrayInputStream(fragment.buffer, fragment.offset,
         fragment.length);
     try {
-      return coder.decode(bis, Context.OUTER);
+      return ContextSensitiveCoder.decode(coder, bis, Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -52,7 +53,7 @@ public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializabl
   public Slice toByteArray(Object wv) {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     try {
-      coder.encode(wv, bos, Context.OUTER);
+      ContextSensitiveCoder.encode(coder, wv, bos, Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

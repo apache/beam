@@ -26,7 +26,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,7 +45,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     this.iterableCoder = IterableCoder.of(coder);
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     try {
-      iterableCoder.encode(values, bos, Context.OUTER);
+      iterableCoder.encode(values, bos);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
@@ -63,7 +63,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
       @Nullable CheckpointMark checkpointMark) {
     ByteArrayInputStream bis = new ByteArrayInputStream(codedValues);
     try {
-      Iterable<T> values = this.iterableCoder.decode(bis, Context.OUTER);
+      Iterable<T> values = this.iterableCoder.decode(bis);
       return new ValuesReader<>(values, this);
     } catch (IOException ex) {
       throw new RuntimeException(ex);

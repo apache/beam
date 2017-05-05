@@ -25,6 +25,8 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A {@link BigDecimalCoder} encodes a {@link BigDecimal} as an integer scale encoded with
@@ -32,7 +34,7 @@ import java.math.MathContext;
  * {@link BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}),
  * yields the expected {@link BigDecimal}.
  */
-public class BigDecimalCoder extends CustomCoder<BigDecimal> {
+public class BigDecimalCoder extends ContextSensitiveCoder<BigDecimal> {
 
   public static BigDecimalCoder of() {
     return INSTANCE;
@@ -51,16 +53,25 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
   public void encode(BigDecimal value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    VAR_INT_CODER.encode(value.scale(), outStream, context.nested());
+    VAR_INT_CODER.encode(value.scale(), outStream);
     BIG_INT_CODER.encode(value.unscaledValue(), outStream, context);
   }
 
   @Override
   public BigDecimal decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    int scale = VAR_INT_CODER.decode(inStream, context.nested());
+    int scale = VAR_INT_CODER.decode(inStream);
     BigInteger bigInteger = BIG_INT_CODER.decode(inStream, context);
     return new BigDecimal(bigInteger, scale);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
   }
 
   @Override
@@ -85,7 +96,7 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(BigDecimal value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(BigDecimal value) {
     return true;
   }
 
@@ -97,9 +108,9 @@ public class BigDecimalCoder extends CustomCoder<BigDecimal> {
    * representation of the {@link BigInteger} that, when scaled, equals the given value.
    */
   @Override
-  protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(BigDecimal value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    return VAR_INT_CODER.getEncodedElementByteSize(value.scale(), context.nested())
-        + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue(), context);
+    return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
+        + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
   }
 }

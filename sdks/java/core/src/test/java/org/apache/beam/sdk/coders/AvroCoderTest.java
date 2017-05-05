@@ -57,7 +57,6 @@ import org.apache.avro.reflect.Stringable;
 import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -348,16 +347,15 @@ public class AvroCoderTest {
 
     ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 
-    Context context = Context.NESTED;
-    coder.encode(before, outStream, context);
-    intCoder.encode(10, outStream, context);
+    coder.encode(before, outStream);
+    intCoder.encode(10, outStream);
 
     ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
 
-    Pojo after = coder.decode(inStream, context);
+    Pojo after = coder.decode(inStream);
     Assert.assertEquals(before, after);
 
-    Integer intAfter = intCoder.decode(inStream, context);
+    Integer intAfter = intCoder.decode(inStream);
     Assert.assertEquals(new Integer(10), intAfter);
   }
 
@@ -724,9 +722,8 @@ public class AvroCoderTest {
     ByteArrayOutputStream outStream1 = new ByteArrayOutputStream();
     ByteArrayOutputStream outStream2 = new ByteArrayOutputStream();
 
-    Context context = Context.NESTED;
-    coder.encode(size1, outStream1, context);
-    coder.encode(size2, outStream2, context);
+    coder.encode(size1, outStream1);
+    coder.encode(size2, outStream2);
 
     assertTrue(Arrays.equals(
         outStream1.toByteArray(), outStream2.toByteArray()));

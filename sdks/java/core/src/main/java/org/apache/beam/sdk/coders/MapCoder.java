@@ -81,10 +81,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
   }
 
   @Override
-  public void encode(
-      Map<K, V> map,
-      OutputStream outStream,
-      Context context)
+  public void encode(Map<K, V> map, OutputStream outStream)
       throws IOException, CoderException  {
     if (map == null) {
       throw new CoderException("cannot encode a null Map");
@@ -93,26 +90,15 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
     int size = map.size();
     dataOutStream.writeInt(size);
-    if (size == 0) {
-      return;
-    }
 
-    // Since we handled size == 0 above, entry is guaranteed to exist before and after loop
-    Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
-    Entry<K, V> entry = iterator.next();
-    while (iterator.hasNext()) {
-      keyCoder.encode(entry.getKey(), outStream, context.nested());
-      valueCoder.encode(entry.getValue(), outStream, context.nested());
-      entry = iterator.next();
+    for (Entry<K, V> entry : map.entrySet()) {
+      keyCoder.encode(entry.getKey(), outStream);
+      valueCoder.encode(entry.getValue(), outStream);
     }
-
-    keyCoder.encode(entry.getKey(), outStream, context.nested());
-    valueCoder.encode(entry.getValue(), outStream, context);
-    // no flush needed as DataOutputStream does not buffer
   }
 
   @Override
-  public Map<K, V> decode(InputStream inStream, Context context)
+  public Map<K, V> decode(InputStream inStream)
       throws IOException, CoderException {
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
@@ -121,15 +107,11 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     }
 
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
-    for (int i = 0; i < size - 1; ++i) {
-      K key = keyCoder.decode(inStream, context.nested());
-      V value = valueCoder.decode(inStream, context.nested());
+    for (int i = 0; i < size; ++i) {
+      K key = keyCoder.decode(inStream);
+      V value = valueCoder.decode(inStream);
       retval.put(key, value);
     }
-
-    K key = keyCoder.decode(inStream, context.nested());
-    V value = valueCoder.decode(inStream, context);
-    retval.put(key, value);
     return retval;
   }
 
@@ -158,7 +140,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
   @Override
   public void registerByteSizeObserver(
-      Map<K, V> map, ElementByteSizeObserver observer, Context context)
+      Map<K, V> map, ElementByteSizeObserver observer)
       throws Exception {
     observer.update(4L);
     if (map.isEmpty()) {
@@ -167,12 +149,12 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     Iterator<Entry<K, V>> entries = map.entrySet().iterator();
     Entry<K, V> entry = entries.next();
     while (entries.hasNext()) {
-      keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(entry.getValue(), observer, context.nested());
+      keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+      valueCoder.registerByteSizeObserver(entry.getValue(), observer);
       entry = entries.next();
     }
-    keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+    valueCoder.registerByteSizeObserver(entry.getValue(), observer);
   }
 
   @Override

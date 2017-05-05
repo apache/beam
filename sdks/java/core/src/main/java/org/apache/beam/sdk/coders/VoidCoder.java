@@ -40,12 +40,12 @@ public class VoidCoder extends CustomCoder<Void> {
   private VoidCoder() {}
 
   @Override
-  public void encode(Void value, OutputStream outStream, Context context) {
+  public void encode(Void value, OutputStream outStream) {
     // Nothing to write!
   }
 
   @Override
-  public Void decode(InputStream inStream, Context context) {
+  public Void decode(InputStream inStream) {
     // Nothing to read!
     return null;
   }
@@ -69,7 +69,7 @@ public class VoidCoder extends CustomCoder<Void> {
    * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Void value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Void value) {
     return true;
   }
 
@@ -79,7 +79,7 @@ public class VoidCoder extends CustomCoder<Void> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Void value, Context context)
+  protected long getEncodedElementByteSize(Void value)
       throws Exception {
     return 0;
   }

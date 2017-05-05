@@ -67,18 +67,17 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
 
   @Override
   public void encode(SingletonKeyedWorkItem<K, ElemT> value,
-                     OutputStream outStream,
-                     Context context)
+                     OutputStream outStream)
       throws CoderException, IOException {
-    keyCoder.encode(value.key(), outStream, context.nested());
-    valueCoder.encode(value.value, outStream, context);
+    keyCoder.encode(value.key(), outStream);
+    valueCoder.encode(value.value, outStream);
   }
 
   @Override
-  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream, Context context)
+  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream)
       throws CoderException, IOException {
-    K key = keyCoder.decode(inStream, context.nested());
-    WindowedValue<ElemT> value = valueCoder.decode(inStream, context);
+    K key = keyCoder.decode(inStream);
+    WindowedValue<ElemT> value = valueCoder.decode(inStream);
     return new SingletonKeyedWorkItem<>(key, value);
   }
 

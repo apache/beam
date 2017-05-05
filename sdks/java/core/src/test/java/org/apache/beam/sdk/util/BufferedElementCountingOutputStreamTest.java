@@ -32,7 +32,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Rule;
 import org.junit.Test;
@@ -180,7 +179,7 @@ public class BufferedElementCountingOutputStreamTest {
     do {
       count = VarInt.decodeLong(is);
       for (int i = 0; i < count; ++i) {
-        values.add(ByteArrayCoder.of().decode(is, Context.NESTED));
+        values.add(ByteArrayCoder.of().decode(is));
       }
     } while(count > 0);
 
@@ -198,7 +197,7 @@ public class BufferedElementCountingOutputStreamTest {
 
     for (byte[] value : values) {
       os.markElementStart();
-      ByteArrayCoder.of().encode(value, os, Context.NESTED);
+      ByteArrayCoder.of().encode(value, os);
     }
     return os;
   }

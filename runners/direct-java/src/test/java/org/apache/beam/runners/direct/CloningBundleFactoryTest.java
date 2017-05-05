@@ -179,14 +179,14 @@ public class CloningBundleFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws IOException {
       return null;
     }
@@ -197,12 +197,12 @@ public class CloningBundleFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws IOException {
       throw new CoderException("Decode not allowed");
     }
@@ -213,12 +213,12 @@ public class CloningBundleFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       return new Record() {
         @Override
@@ -245,12 +245,12 @@ public class CloningBundleFactoryTest {
     public void encode(
         Record value,
         OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream, org.apache.beam.sdk.coders.ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       return new Record() {
         @Override

@@ -40,6 +40,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UnownedInputStream;
@@ -59,28 +60,28 @@ public class CoderProperties {
   /**
    * All the contexts, for use in test cases.
    */
-   public static final List<Coder.Context> ALL_CONTEXTS = ImmutableList.of(
-       Coder.Context.OUTER, Coder.Context.NESTED);
+   public static final List<ContextSensitiveCoder.Context> ALL_CONTEXTS = ImmutableList.of(
+       ContextSensitiveCoder.Context.OUTER, ContextSensitiveCoder.Context.NESTED);
 
   /**
    * Verifies that for the given {@code Coder<T>}, and values of
    * type {@code T}, if the values are equal then the encoded bytes are equal, in any
-   * {@code Coder.Context}.
+   * {@code ContextSensitiveCoder.Context}.
    */
   public static <T> void coderDeterministic(
       Coder<T> coder, T value1, T value2)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       coderDeterministicInContext(coder, context, value1, value2);
     }
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and values of
+   * Verifies that for the given {@code Coder<T>}, {@code ContextSensitiveCoder.Context}, and values of
    * type {@code T}, if the values are equal then the encoded bytes are equal.
    */
   public static <T> void coderDeterministicInContext(
-      Coder<T> coder, Coder.Context context, T value1, T value2)
+      Coder<T> coder, ContextSensitiveCoder.Context context, T value1, T value2)
       throws Exception {
     try {
       coder.verifyDeterministic();
@@ -96,23 +97,23 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<T>},
    * and value of type {@code T}, encoding followed by decoding yields an
-   * equal value of type {@code T}, in any {@code Coder.Context}.
+   * equal value of type {@code T}, in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T> void coderDecodeEncodeEqual(
       Coder<T> coder, T value)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       coderDecodeEncodeEqualInContext(coder, context, value);
     }
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context},
+   * Verifies that for the given {@code Coder<T>}, {@code ContextSensitiveCoder.Context},
    * and value of type {@code T}, encoding followed by decoding yields an
    * equal value of type {@code T}.
    */
   public static <T> void coderDecodeEncodeEqualInContext(
-      Coder<T> coder, Coder.Context context, T value)
+      Coder<T> coder, ContextSensitiveCoder.Context context, T value)
       throws Exception {
     assertThat(decodeEncode(coder, context, value), equalTo(value));
   }
@@ -120,12 +121,12 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in any {@code Coder.Context}.
+   * equal value of type {@code Collection<T>}, in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqual(
       Coder<CollectionT> coder, CollectionT value)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       coderDecodeEncodeContentsEqualInContext(coder, context, value);
     }
   }
@@ -133,11 +134,11 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in the given {@code Coder.Context}.
+   * equal value of type {@code Collection<T>}, in the given {@code ContextSensitiveCoder.Context}.
    */
   @SuppressWarnings("unchecked")
   public static <T, CollectionT extends Collection<T>> void coderDecodeEncodeContentsEqualInContext(
-      Coder<CollectionT> coder, Coder.Context context, CollectionT value)
+      Coder<CollectionT> coder, ContextSensitiveCoder.Context context, CollectionT value)
       throws Exception {
     // Matchers.containsInAnyOrder() requires at least one element
     Collection<T> result = decodeEncode(coder, context, value);
@@ -152,12 +153,12 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Collection<T>>},
    * and value of type {@code Collection<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in any {@code Coder.Context}.
+   * equal value of type {@code Collection<T>}, in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T, IterableT extends Iterable<T>> void coderDecodeEncodeContentsInSameOrder(
       Coder<IterableT> coder, IterableT value)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T, IterableT>coderDecodeEncodeContentsInSameOrderInContext(
           coder, context, value);
     }
@@ -166,12 +167,12 @@ public class CoderProperties {
   /**
    * Verifies that for the given {@code Coder<Iterable<T>>},
    * and value of type {@code Iterable<T>}, encoding followed by decoding yields an
-   * equal value of type {@code Collection<T>}, in the given {@code Coder.Context}.
+   * equal value of type {@code Collection<T>}, in the given {@code ContextSensitiveCoder.Context}.
    */
   @SuppressWarnings("unchecked")
   public static <T, IterableT extends Iterable<T>> void
       coderDecodeEncodeContentsInSameOrderInContext(
-          Coder<IterableT> coder, Coder.Context context, IterableT value)
+          Coder<IterableT> coder, ContextSensitiveCoder.Context context, IterableT value)
       throws Exception {
     Iterable<T> result = decodeEncode(coder, context, value);
     // Matchers.contains() requires at least one element
@@ -199,18 +200,18 @@ public class CoderProperties {
   public static <T> void coderConsistentWithEquals(
       Coder<T> coder, T value1, T value2)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T>coderConsistentWithEqualsInContext(coder, context, value1, value2);
     }
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and
+   * Verifies that for the given {@code Coder<T>}, {@code ContextSensitiveCoder.Context}, and
    * values of type {@code T}, the values are equal if and only if the
-   * encoded bytes are equal, in any {@code Coder.Context}.
+   * encoded bytes are equal, in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T> void coderConsistentWithEqualsInContext(
-      Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
+      Coder<T> coder, ContextSensitiveCoder.Context context, T value1, T value2) throws Exception {
     assertEquals(
         value1.equals(value2),
         Arrays.equals(
@@ -226,19 +227,19 @@ public class CoderProperties {
   public static <T> void structuralValueConsistentWithEquals(
       Coder<T> coder, T value1, T value2)
       throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T>structuralValueConsistentWithEqualsInContext(
           coder, context, value1, value2);
     }
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context}, and
+   * Verifies that for the given {@code Coder<T>}, {@code ContextSensitiveCoder.Context}, and
    * values of type {@code T}, the structural values are equal if and only if the
-   * encoded bytes are equal, in any {@code Coder.Context}.
+   * encoded bytes are equal, in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T> void structuralValueConsistentWithEqualsInContext(
-      Coder<T> coder, Coder.Context context, T value1, T value2) throws Exception {
+      Coder<T> coder, ContextSensitiveCoder.Context context, T value1, T value2) throws Exception {
     assertEquals(
         coder.structuralValue(value1).equals(coder.structuralValue(value2)),
         Arrays.equals(
@@ -257,20 +258,20 @@ public class CoderProperties {
   public static <T> void structuralValueDecodeEncodeEqual(
           Coder<T> coder, T value)
           throws Exception {
-    for (Coder.Context context : ALL_CONTEXTS) {
+    for (ContextSensitiveCoder.Context context : ALL_CONTEXTS) {
       CoderProperties.<T>structuralValueDecodeEncodeEqualInContext(
               coder, context, value);
     }
   }
 
   /**
-   * Verifies that for the given {@code Coder<T>}, {@code Coder.Context},
+   * Verifies that for the given {@code Coder<T>}, {@code ContextSensitiveCoder.Context},
    * and value of type {@code T}, the structural value is equal to the
    * structural value yield by encoding and decoding the original value,
-   * in any {@code Coder.Context}.
+   * in any {@code ContextSensitiveCoder.Context}.
    */
   public static <T> void structuralValueDecodeEncodeEqualInContext(
-          Coder<T> coder, Coder.Context context, T value) throws Exception {
+          Coder<T> coder, ContextSensitiveCoder.Context context, T value) throws Exception {
     assertEquals(
             coder.structuralValue(value),
             coder.structuralValue(decodeEncode(coder, context, value)));
@@ -349,23 +350,23 @@ public class CoderProperties {
 
   @VisibleForTesting
   static <T> byte[] encode(
-      Coder<T> coder, Coder.Context context, T value) throws CoderException, IOException {
+      Coder<T> coder, ContextSensitiveCoder.Context context, T value) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
-    deserializedCoder.encode(value, new UnownedOutputStream(os), context);
+    ContextSensitiveCoder.encode(deserializedCoder, value, new UnownedOutputStream(os), context);
     return os.toByteArray();
   }
 
   @VisibleForTesting
   static <T> T decode(
-      Coder<T> coder, Coder.Context context, byte[] bytes) throws CoderException, IOException {
+      Coder<T> coder, ContextSensitiveCoder.Context context, byte[] bytes) throws CoderException, IOException {
     @SuppressWarnings("unchecked")
     Coder<T> deserializedCoder = SerializableUtils.clone(coder);
 
     byte[] buffer;
-    if (context == Coder.Context.NESTED) {
+    if (context == ContextSensitiveCoder.Context.NESTED) {
       buffer = new byte[bytes.length + 1];
       System.arraycopy(bytes, 0, buffer, 0, bytes.length);
       buffer[bytes.length] = 1;
@@ -374,13 +375,13 @@ public class CoderProperties {
     }
 
     CountingInputStream cis = new CountingInputStream(new ByteArrayInputStream(buffer));
-    T value = deserializedCoder.decode(new UnownedInputStream(cis), context);
+    T value = ContextSensitiveCoder.decode(deserializedCoder, new UnownedInputStream(cis), context);
     assertThat("consumed bytes equal to encoded bytes", cis.getCount(),
         equalTo((long) bytes.length));
     return value;
   }
 
-  private static <T> T decodeEncode(Coder<T> coder, Coder.Context context, T value)
+  private static <T> T decodeEncode(Coder<T> coder, ContextSensitiveCoder.Context context, T value)
       throws CoderException, IOException {
     return decode(coder, context, encode(coder, context, value));
   }
@@ -391,14 +392,14 @@ public class CoderProperties {
    * they are mutually consistent. This is useful for testing coder
    * implementations.
    */
-  public static <T> void testByteCount(Coder<T> coder, Coder.Context context, T[] elements)
+  public static <T> void testByteCount(Coder<T> coder, ContextSensitiveCoder.Context context, T[] elements)
       throws Exception {
     TestElementByteSizeObserver observer = new TestElementByteSizeObserver();
 
     try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
       for (T elem : elements) {
-        coder.registerByteSizeObserver(elem, observer, context);
-        coder.encode(elem, os, context);
+        coder.registerByteSizeObserver(elem, observer);
+        coder.encode(elem, os);
         observer.advance();
       }
       long expectedLength = os.getCount();

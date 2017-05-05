@@ -58,8 +58,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   @Override
   public void encode(
       RawUnionValue union,
-      OutputStream outStream,
-      Context context)
+      OutputStream outStream)
       throws IOException, CoderException  {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -67,17 +66,14 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
 
     // Write out the actual value.
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.encode(
-        union.getValue(),
-        outStream,
-        context);
+    coder.encode(union.getValue(), outStream);
   }
 
   @Override
-  public RawUnionValue decode(InputStream inStream, Context context)
+  public RawUnionValue decode(InputStream inStream)
       throws IOException, CoderException {
     int index = VarInt.decodeInt(inStream);
-    Object value = elementCoders.get(index).decode(inStream, context);
+    Object value = elementCoders.get(index).decode(inStream);
     return new RawUnionValue(index, value);
   }
 
@@ -100,11 +96,11 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
    * time, we defer the return value to that coder.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union) {
     int index = getIndexForEncoding(union);
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    return coder.isRegisterByteSizeObserverCheap(union.getValue(), context);
+    return coder.isRegisterByteSizeObserverCheap(union.getValue());
   }
 
   /**
@@ -112,7 +108,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
    */
   @Override
   public void registerByteSizeObserver(
-      RawUnionValue union, ElementByteSizeObserver observer, Context context)
+      RawUnionValue union, ElementByteSizeObserver observer)
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -120,7 +116,7 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
     // Write out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.registerByteSizeObserver(union.getValue(), observer, context);
+    coder.registerByteSizeObserver(union.getValue(), observer);
   }
 
   /////////////////////////////////////////////////////////////////////////////

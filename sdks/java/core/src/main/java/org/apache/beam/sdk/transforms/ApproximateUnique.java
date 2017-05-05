@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.PriorityQueue;
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -438,7 +437,7 @@ public class ApproximateUnique {
     static <T> long hash(T element, Coder<T> coder) throws CoderException, IOException {
       try (HashingOutputStream stream =
               new HashingOutputStream(Hashing.murmur3_128(), ByteStreams.nullOutputStream())) {
-        coder.encode(element, stream, Context.OUTER);
+        coder.encode(element, stream);
         return stream.hash().asLong();
       }
     }

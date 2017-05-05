@@ -34,14 +34,14 @@ public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
   }
 
   @Override
-  public void encode(PubsubMessage value, OutputStream outStream, Context context)
+  public void encode(PubsubMessage value, OutputStream outStream)
       throws IOException {
-    PAYLOAD_CODER.encode(value.getPayload(), outStream, context);
+    PAYLOAD_CODER.encode(value.getPayload(), outStream);
   }
 
   @Override
-  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
+  public PubsubMessage decode(InputStream inStream) throws IOException {
     return new PubsubMessage(
-        PAYLOAD_CODER.decode(inStream, context), ImmutableMap.<String, String>of());
+        PAYLOAD_CODER.decode(inStream), ImmutableMap.<String, String>of());
   }
 }

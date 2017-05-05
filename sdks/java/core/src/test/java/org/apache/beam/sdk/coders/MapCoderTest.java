@@ -87,7 +87,7 @@ public class MapCoderTest {
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
       "AAAAAA",
-      "AAAAAv____8PA2ZvbwFoZWxsbw");
+      "AAAAAv____8PA2ZvbwEFaGVsbG8");
 
   @Test
   public void testWireFormatEncode() throws Exception {

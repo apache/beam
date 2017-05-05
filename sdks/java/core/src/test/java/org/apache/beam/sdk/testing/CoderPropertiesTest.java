@@ -24,7 +24,7 @@ import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -49,15 +49,15 @@ public class CoderPropertiesTest {
   /** A coder that says it is not deterministic but actually is. */
   public static class NonDeterministicCoder extends CustomCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
-      StringUtf8Coder.of().encode(value, outStream, context);
+      StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
   }
 
@@ -89,15 +89,15 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws IOException, CoderException {
-      StringUtf8Coder.of().encode(value + System.nanoTime(), outStream, context);
+      StringUtf8Coder.of().encode(value + System.nanoTime(), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override
@@ -129,16 +129,16 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
       changedState += 1;
-      StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream, context);
+      StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      String decodedValue = StringUtf8Coder.of().decode(inStream, context);
+      String decodedValue = StringUtf8Coder.of().decode(inStream);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
   }
@@ -162,18 +162,18 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
       if (lostState == 0) {
         throw new RuntimeException("I forgot something...");
       }
-      StringUtf8Coder.of().encode(value, outStream, context);
+      StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
   }
 
@@ -187,12 +187,12 @@ public class CoderPropertiesTest {
   /** A coder which closes the underlying stream during encoding and decoding. */
   public static class ClosingCoder extends CustomCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Context context) throws IOException {
+    public void encode(String value, OutputStream outStream) throws IOException {
       outStream.close();
     }
 
     @Override
-    public String decode(InputStream inStream, Context context) throws IOException {
+    public String decode(InputStream inStream) throws IOException {
       inStream.close();
       return null;
     }
@@ -216,8 +216,8 @@ public class CoderPropertiesTest {
   public static class BadCoderThatConsumesMoreBytes extends NonDeterministicCoder {
 
     @Override
-    public String decode(InputStream inStream, Context context) throws IOException {
-      String value = super.decode(inStream, context);
+    public String decode(InputStream inStream) throws IOException {
+      String value = super.decode(inStream);
       inStream.read();
       return value;
     }

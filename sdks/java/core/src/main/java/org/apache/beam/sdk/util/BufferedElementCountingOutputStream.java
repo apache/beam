@@ -21,13 +21,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 
 /**
  * Provides an efficient encoding for {@link Iterable}s containing small values by
  * buffering up to {@code bufferSize} bytes of data before prefixing the count.
  * Note that each element needs to be encoded in a nested context. See
- * {@link Context Coder.Context} for more details.
+ * {@link Context ContextSensitiveCoder.Context} for more details.
  *
  * <p>To use this stream:
  * <pre><code>

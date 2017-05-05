@@ -29,7 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Arrays;
 import org.apache.beam.runners.dataflow.util.RandomAccessData.RandomAccessDataCoder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Rule;
@@ -61,10 +61,10 @@ public class RandomAccessDataTest {
     CoderProperties.coderSerializable(RandomAccessDataCoder.of());
     CoderProperties.structuralValueConsistentWithEquals(
         RandomAccessDataCoder.of(), streamA, streamB);
-    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA, Context.NESTED));
-    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA, Context.OUTER));
-    assertEquals(4, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA, Context.NESTED));
-    assertEquals(3, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA, Context.OUTER));
+    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA));
+    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA));
+    assertEquals(4, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA));
+    assertEquals(3, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA));
   }
 
   @Test

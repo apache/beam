@@ -28,12 +28,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -55,7 +57,7 @@ public class RandomAccessData {
    *
    * <p>This coder does not support encoding positive infinity.
    */
-  public static class RandomAccessDataCoder extends CustomCoder<RandomAccessData> {
+  public static class RandomAccessDataCoder extends ContextSensitiveCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
 
     public static RandomAccessDataCoder of() {
@@ -63,7 +65,7 @@ public class RandomAccessData {
     }
 
     @Override
-    public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
+    public void encode(RandomAccessData value, OutputStream outStream, ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       if (value == POSITIVE_INFINITY) {
         throw new CoderException("Positive infinity can not be encoded.");
@@ -75,7 +77,7 @@ public class RandomAccessData {
     }
 
     @Override
-    public RandomAccessData decode(InputStream inStream, Coder.Context context)
+    public RandomAccessData decode(InputStream inStream, ContextSensitiveCoder.Context context)
         throws CoderException, IOException {
       RandomAccessData rval = new RandomAccessData();
       if (!context.isWholeStream) {
@@ -88,6 +90,11 @@ public class RandomAccessData {
     }
 
     @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
+
+    @Override
     public void verifyDeterministic() {}
 
     @Override
@@ -96,22 +103,17 @@ public class RandomAccessData {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(
-        RandomAccessData value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(RandomAccessData value) {
       return true;
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value, Coder.Context context)
+    protected long getEncodedElementByteSize(RandomAccessData value)
         throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      long size = 0;
-      if (!context.isWholeStream) {
-        size += VarInt.getLength(value.size);
-      }
-      return size + value.size;
+      return VarInt.getLength(value.size) + value.size;
     }
   }
 

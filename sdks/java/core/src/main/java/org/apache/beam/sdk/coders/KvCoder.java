@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
+public class KvCoder<K, V> extends ContextSensitiveCoder<KV<K, V>> {
   public static <K, V> KvCoder<K, V> of(Coder<K> keyCoder,
                                         Coder<V> valueCoder) {
     return new KvCoder<>(keyCoder, valueCoder);
@@ -70,15 +70,15 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.encode(kv.getKey(), outStream, context.nested());
-    valueCoder.encode(kv.getValue(), outStream, context);
+    keyCoder.encode(kv.getKey(), outStream);
+    encode(valueCoder, kv.getValue(), outStream, context);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    K key = keyCoder.decode(inStream, context.nested());
-    V value = valueCoder.decode(inStream, context);
+    K key = keyCoder.decode(inStream);
+    V value = decode(valueCoder, inStream, context);
     return KV.of(key, value);
   }
 
@@ -112,9 +112,9 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    * Returns whether both keyCoder and valueCoder are considered not expensive.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv, Context context) {
-    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(), context.nested())
-        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(), context);
+  public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv) {
+    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey())
+        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue());
   }
 
   /**
@@ -123,13 +123,13 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
    */
   @Override
   public void registerByteSizeObserver(
-      KV<K, V> kv, ElementByteSizeObserver observer, Context context)
+      KV<K, V> kv, ElementByteSizeObserver observer)
       throws Exception {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(kv.getKey(), observer);
+    valueCoder.registerByteSizeObserver(kv.getValue(), observer);
   }
 
   @Override

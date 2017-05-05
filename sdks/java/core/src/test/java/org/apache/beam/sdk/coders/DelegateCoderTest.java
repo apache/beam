@@ -111,12 +111,12 @@ public class DelegateCoderTest implements Serializable {
   private static class TestAllowedEncodingsCoder extends CustomCoder<Integer> {
 
     @Override
-    public void encode(Integer value, OutputStream outstream, Context context) {
+    public void encode(Integer value, OutputStream outstream) {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public Integer decode(InputStream instream, Context context) {
+    public Integer decode(InputStream instream) {
       throw new UnsupportedOperationException();
     }
 

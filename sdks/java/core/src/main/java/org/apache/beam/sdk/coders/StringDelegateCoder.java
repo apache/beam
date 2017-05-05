@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -46,7 +47,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> The type of objects coded.
  */
-public final class StringDelegateCoder<T> extends CustomCoder<T> {
+public final class StringDelegateCoder<T> extends ContextSensitiveCoder<T> {
   public static <T> StringDelegateCoder<T> of(Class<T> clazz) {
     return StringDelegateCoder.<T>of(clazz, TypeDescriptor.of(clazz));
   }
@@ -111,6 +112,11 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return null;
+  }
+
+  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     delegateCoder.verifyDeterministic();
   }
@@ -125,4 +131,3 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
     return delegateCoder.getEncodedTypeDescriptor();
   }
 }
-

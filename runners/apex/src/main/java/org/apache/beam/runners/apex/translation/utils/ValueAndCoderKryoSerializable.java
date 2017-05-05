@@ -24,7 +24,8 @@ import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 
 
 /**
@@ -54,7 +55,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
     try {
       kryo.writeClass(output, coder.getClass());
       kryo.writeObject(output, coder, JAVA_SERIALIZER);
-      coder.encode(value, output, Context.OUTER);
+      ContextSensitiveCoder.encode(coder, value, output, Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -66,7 +67,7 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
       @SuppressWarnings("unchecked")
       Class<Coder<T>> type = kryo.readClass(input).getType();
       coder = kryo.readObject(input, type, JAVA_SERIALIZER);
-      value = coder.decode(input, Context.OUTER);
+      value = ContextSensitiveCoder.decode(coder, input, Context.OUTER);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -21,15 +21,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.BitSet;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder.Context;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ContextSensitiveCoder;
 
 /**
  * Coder for the BitSet used to track child-trigger finished states.
  */
 @Deprecated
-public class BitSetCoder extends CustomCoder<BitSet> {
+public class BitSetCoder extends ContextSensitiveCoder<BitSet> {
 
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
@@ -53,9 +57,17 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   }
 
   @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return Collections.emptyList();
+  }
+
+  public static <T> List<Object> getInstanceComponents(T exampleValue) {
+    return Collections.emptyList();
+  }
+
+  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
         "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
   }
 }
-

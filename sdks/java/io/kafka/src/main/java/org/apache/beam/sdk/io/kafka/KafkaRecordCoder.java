@@ -50,26 +50,24 @@ public class KafkaRecordCoder<K, V> extends CustomCoder<KafkaRecord<K, V>> {
   }
 
   @Override
-  public void encode(KafkaRecord<K, V> value, OutputStream outStream, Context context)
+  public void encode(KafkaRecord<K, V> value, OutputStream outStream)
                          throws CoderException, IOException {
-    Context nested = context.nested();
-    stringCoder.encode(value.getTopic(), outStream, nested);
-    intCoder.encode(value.getPartition(), outStream, nested);
-    longCoder.encode(value.getOffset(), outStream, nested);
-    longCoder.encode(value.getTimestamp(), outStream, nested);
-    kvCoder.encode(value.getKV(), outStream, context);
+    stringCoder.encode(value.getTopic(), outStream);
+    intCoder.encode(value.getPartition(), outStream);
+    longCoder.encode(value.getOffset(), outStream);
+    longCoder.encode(value.getTimestamp(), outStream);
+    kvCoder.encode(value.getKV(), outStream);
   }
 
   @Override
-  public KafkaRecord<K, V> decode(InputStream inStream, Context context)
+  public KafkaRecord<K, V> decode(InputStream inStream)
                                       throws CoderException, IOException {
-    Context nested = context.nested();
     return new KafkaRecord<K, V>(
-        stringCoder.decode(inStream, nested),
-        intCoder.decode(inStream, nested),
-        longCoder.decode(inStream, nested),
-        longCoder.decode(inStream, nested),
-        kvCoder.decode(inStream, context));
+        stringCoder.decode(inStream),
+        intCoder.decode(inStream),
+        longCoder.decode(inStream),
+        longCoder.decode(inStream),
+        kvCoder.decode(inStream));
   }
 
   @Override
@@ -83,8 +81,8 @@ public class KafkaRecordCoder<K, V> extends CustomCoder<KafkaRecord<K, V>> {
   }
 
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value, Context context) {
-    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV(), context);
+  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
+    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
     //TODO : do we have to implement getEncodedSize()?
   }
 

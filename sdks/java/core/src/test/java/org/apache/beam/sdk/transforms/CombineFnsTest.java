@@ -334,15 +334,15 @@ public class  CombineFnsTest {
     private static final UserStringCoder INSTANCE = new UserStringCoder();
 
     @Override
-    public void encode(UserString value, OutputStream outStream, Context context)
+    public void encode(UserString value, OutputStream outStream)
         throws CoderException, IOException {
-      StringUtf8Coder.of().encode(value.strValue, outStream, context);
+      StringUtf8Coder.of().encode(value.strValue, outStream);
     }
 
     @Override
-    public UserString decode(InputStream inStream, Context context)
+    public UserString decode(InputStream inStream)
         throws CoderException, IOException {
-      return UserString.of(StringUtf8Coder.of().decode(inStream, context));
+      return UserString.of(StringUtf8Coder.of().decode(inStream));
     }
 
     @Override
