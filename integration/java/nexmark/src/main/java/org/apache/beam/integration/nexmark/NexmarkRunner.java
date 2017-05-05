@@ -157,9 +157,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
     this.options = options;
   }
 
-  // ================================================================================
-  // Overridden by each runner.
-  // ================================================================================
 
   /**
    * Is this query running in streaming mode?
@@ -414,7 +411,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
       perf.shutdownDelaySec = (now - resultEnd) / 1000.0;
     }
 
-    perf.jobId = getJobId(result);
     // As soon as available, try to capture cumulative cost at this point too.
 
     NexmarkPerf.ProgressSnapshot snapshot = new NexmarkPerf.ProgressSnapshot();
@@ -428,105 +424,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
 
     return perf;
   }
-
-  private String getJobId(PipelineResult job) {
-    return "";
-  }
-
-  // TODO specific to dataflow, see if we can find an equivalent
-/*
-  protected MetricType getMetricType(MetricUpdate metric) {
-    String metricName = metric.getKey().metricName().name();
-    if (metricName.endsWith("windmill-system-watermark")) {
-      return MetricType.SYSTEM_WATERMARK;
-    } else if (metricName.endsWith("windmill-data-watermark")) {
-      return MetricType.DATA_WATERMARK;
-    } else {
-      return MetricType.OTHER;
-    }
-  }
-*/
-
-  /**
-   * Check that watermarks are not too far behind.
-   *
-   * <p>Returns a list of errors detected.
-   */
-  // TODO specific to dataflow, see if we can find an equivalent
-  /*
-  private List<String> checkWatermarks(DataflowPipelineJob job, long startMsSinceEpoch) {
-    long now = System.currentTimeMillis();
-    List<String> errors = new ArrayList<>();
-    try {
-      JobMetrics metricResponse = job.getDataflowClient()
-                                     .projects()
-                                     .jobs()
-                                     .getMetrics(job.getProjectId(), job.getJobId())
-                                     .execute();
-          List<MetricUpdate> metrics = metricResponse.getMetrics();
-
-
-
-      if (metrics != null) {
-        boolean foundWatermarks = false;
-        for (MetricUpdate metric : metrics) {
-          MetricType type = getMetricType(metric);
-          if (type == MetricType.OTHER) {
-            continue;
-          }
-          foundWatermarks = true;
-          @SuppressWarnings("unchecked")
-          BigDecimal scalar = (BigDecimal) metric.getScalar();
-          if (scalar.signum() < 0) {
-            continue;
-          }
-          Instant value =
-                  new Instant(scalar.divideToIntegralValue(new BigDecimal(1000)).longValueExact());
-          Instant updateTime = Instant.parse(metric.getUpdateTime());
-
-          if (options.getWatermarkValidationDelaySeconds() == null
-                  || now > startMsSinceEpoch
-                  + Duration.standardSeconds(options.getWatermarkValidationDelaySeconds())
-                  .getMillis()) {
-            Duration threshold = null;
-            if (type == MetricType.SYSTEM_WATERMARK && options.getMaxSystemLagSeconds() != null) {
-              threshold = Duration.standardSeconds(options.getMaxSystemLagSeconds());
-            } else if (type == MetricType.DATA_WATERMARK
-                    && options.getMaxDataLagSeconds() != null) {
-              threshold = Duration.standardSeconds(options.getMaxDataLagSeconds());
-            }
-
-            if (threshold != null && value.isBefore(updateTime.minus(threshold))) {
-              String msg = String.format("High lag for %s: %s vs %s (allowed lag of %s)",
-                      metric.getKey().metricName().name(), value, updateTime, threshold);
-              errors.add(msg);
-              NexmarkUtils.console(msg);
-            }
-          }
-        }
-        if (!foundWatermarks) {
-          NexmarkUtils.console("No known watermarks in update: " + metrics);
-          if (now > startMsSinceEpoch + Duration.standardMinutes(5).getMillis()) {
-            errors.add("No known watermarks found.  Metrics were " + metrics);
-          }
-        }
-      }
-    } catch (IOException e) {
-      NexmarkUtils.console("Warning: failed to get JobMetrics: " + e);
-    }
-
-    return errors;
-  }
-*/
-
-  // TODO specific to dataflow, see if we can find an equivalent
-/*
-  enum MetricType {
-    SYSTEM_WATERMARK,
-    DATA_WATERMARK,
-    OTHER
-  }
-*/
 
   /**
    * Build and run a pipeline using specified options.
@@ -642,9 +539,6 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
           errors.add(
               String.format("Streaming query was stuck for %d min", quietFor.getStandardMinutes()));
         }
-
-        // TODO specific to dataflow, see if we can find an equivalent
-//        errors.addAll(checkWatermarks(job, startMsSinceEpoch));
 
         if (waitingForShutdown) {
           try {
