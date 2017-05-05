@@ -99,7 +99,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
 
   /**
-   * For other {@link SqlTypeName#NUMERIC_TYPES} & VARCHAR calculation of '+', '-', '*', '/'.
+   * For other {@link SqlTypeName#NUMERIC_TYPES} and VARCHAR calculation of '+', '-', '*', '/'.
    */
   public abstract Double calc(Number left, Number right);
 }
