@@ -220,7 +220,7 @@ public class GcpOptionsTest {
       when(mockGcsUtil.bucketOwner(any(GcsPath.class))).thenReturn(1L);
 
       String bucket = GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
-      assertEquals("gs://dataflow-staging-us-north1-1", bucket);
+      assertEquals("gs://dataflow-staging-us-north1-1/temp/", bucket);
     }
 
     @Test
