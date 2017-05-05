@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -433,7 +434,10 @@ public class ProcessBundleHandlerTest {
     additionalOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("FinishBundle")));
+    assertThat(
+        mainOutputValues,
+        contains(
+            timestampedValueInGlobalWindow("FinishBundle", GlobalWindow.INSTANCE.maxTimestamp())));
     mainOutputValues.clear();
   }
 
