@@ -77,8 +77,6 @@
                     org.apache.beam.runners.spark.UsesCheckpointRecovery
                   </groups>
                   <excludedGroups>
-                    org.apache.beam.sdk.testing.UsesStatefulParDo,
-                    org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
                     org.apache.beam.sdk.testing.UsesTestStream
