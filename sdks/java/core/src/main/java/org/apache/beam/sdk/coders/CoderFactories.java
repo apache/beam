@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.MoreObjects;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -70,7 +72,12 @@ public final class CoderFactories {
    * will produce a {@code Coder<List<X>>} for any {@code Coder Coder<X>}.
    */
   public static <T> CoderFactory fromStaticMethods(Class<T> clazz) {
-    return new CoderFactoryFromStaticMethods(clazz);
+    checkArgument(
+        Coder.class.isAssignableFrom(clazz),
+        "%s is not a subtype of %s",
+        clazz.getName(),
+        Coder.class.getSimpleName());
+    return new CoderFactoryFromStaticMethods((Class<? extends Coder>) clazz);
   }
 
   /**
@@ -142,7 +149,7 @@ public final class CoderFactories {
      * Returns a CoderFactory that invokes the given static factory method
      * to create the Coder.
      */
-    private CoderFactoryFromStaticMethods(Class<?> coderClazz) {
+    private CoderFactoryFromStaticMethods(Class<? extends Coder> coderClazz) {
       this.factoryMethod = getFactoryMethod(coderClazz);
       this.getComponentsMethod = getInstanceComponentsMethod(coderClazz);
     }
@@ -203,8 +210,8 @@ public final class CoderFactories {
      * each corresponding to an argument of the {@code of}
      * method.
      */
-    private <T> Method getInstanceComponentsMethod(Class<?> coderClazz) {
-      TypeDescriptor<?> coderType = TypeDescriptor.of(coderClazz);
+    private <T, CoderT extends Coder> Method getInstanceComponentsMethod(Class<CoderT> coderClazz) {
+      TypeDescriptor<CoderT> coderType = TypeDescriptor.of(coderClazz);
       TypeDescriptor<T> argumentType = getCodedType(coderType);
 
       // getInstanceComponents may be implemented in a superclass,
@@ -235,19 +242,13 @@ public final class CoderFactories {
      * If {@code coderType} is a subclass of {@link Coder} for a specific
      * type {@code T}, returns {@code T.class}. Otherwise, raises IllegalArgumentException.
      */
-    private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<?> coderType) {
-      for (TypeDescriptor<?> ifaceType : coderType.getInterfaces()) {
-        if (ifaceType.getRawType().equals(Coder.class)) {
-          ParameterizedType coderIface = (ParameterizedType) ifaceType.getType();
-          @SuppressWarnings("unchecked")
-          TypeDescriptor<T> token =
-              (TypeDescriptor<T>) TypeDescriptor.of(coderIface.getActualTypeArguments()[0]);
-          return token;
-        }
-      }
-      throw new IllegalArgumentException(
-          "cannot build CoderFactory from class " + coderType
-          + ": does not implement Coder<T> for any T.");
+    private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<? extends Coder> coderType) {
+      TypeDescriptor<?> coderSupertype = coderType.getSupertype(Coder.class);
+      ParameterizedType coderIface = (ParameterizedType) coderSupertype.getType();
+      @SuppressWarnings("unchecked")
+      TypeDescriptor<T> token =
+          (TypeDescriptor<T>) TypeDescriptor.of(coderIface.getActualTypeArguments()[0]);
+      return token;
     }
 
     @Override

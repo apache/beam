@@ -57,10 +57,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public interface Coder<T> extends Serializable {
+public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
   @Deprecated
-  class Context {
+  public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes
      * up the remainder of the record/stream contents.
@@ -118,7 +118,7 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be encoded for some reason
    */
-  void encode(T value, OutputStream outStream)
+  public abstract void encode(T value, OutputStream outStream)
       throws CoderException, IOException;
 
   /**
@@ -130,7 +130,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   @Deprecated
-  void encodeOuter(T value, OutputStream outStream)
+  public abstract void encodeOuter(T value, OutputStream outStream)
       throws CoderException, IOException;
 
   /**
@@ -142,7 +142,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   @Deprecated
-  void encode(T value, OutputStream outStream, Context context)
+  public abstract void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException;
 
   /**
@@ -153,7 +153,7 @@ public interface Coder<T> extends Serializable {
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
-  T decode(InputStream inStream) throws CoderException, IOException;
+  public abstract T decode(InputStream inStream) throws CoderException, IOException;
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
@@ -164,7 +164,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   @Deprecated
-  T decodeOuter(InputStream inStream) throws CoderException, IOException;
+  public abstract T decodeOuter(InputStream inStream) throws CoderException, IOException;
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
@@ -175,7 +175,7 @@ public interface Coder<T> extends Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   @Deprecated
-  T decode(InputStream inStream, Context context)
+  public abstract T decode(InputStream inStream, Context context)
       throws CoderException, IOException;
 
   /**
@@ -184,7 +184,7 @@ public interface Coder<T> extends Serializable {
    * returns {@code null} if this cannot be done or this is not a
    * parameterized type.
    */
-  List<? extends Coder<?>> getCoderArguments();
+  public abstract List<? extends Coder<?>> getCoderArguments();
 
   /**
    * Throw {@link NonDeterministicException} if the coding is not deterministic.
@@ -202,7 +202,7 @@ public interface Coder<T> extends Serializable {
    *
    * @throws Coder.NonDeterministicException if this coder is not deterministic.
    */
-  void verifyDeterministic() throws Coder.NonDeterministicException;
+  public abstract void verifyDeterministic() throws Coder.NonDeterministicException;
 
   /**
    * Returns {@code true} if this {@link Coder} is injective with respect to {@link Objects#equals}.
@@ -214,7 +214,7 @@ public interface Coder<T> extends Serializable {
    * whenever {@code equals()} compares object identity, rather than performing a
    * semantic/structural comparison.
    */
-  boolean consistentWithEquals();
+  public abstract boolean consistentWithEquals();
 
   /**
    * Returns an object with an {@code Object.equals()} method that represents structural equality
@@ -234,7 +234,7 @@ public interface Coder<T> extends Serializable {
    *
    * <p>See also {@link #consistentWithEquals()}.
    */
-  Object structuralValue(T value);
+  public abstract Object structuralValue(T value);
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
@@ -246,7 +246,7 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
-  boolean isRegisterByteSizeObserverCheap(T value);
+  public abstract boolean isRegisterByteSizeObserverCheap(T value);
 
   /**
    * Returns whether {@link #registerByteSizeObserver} cheap enough to
@@ -259,7 +259,7 @@ public interface Coder<T> extends Serializable {
    * implementations.
    */
   @Deprecated
-  boolean isRegisterByteSizeObserverCheap(T value, Context context);
+  public abstract boolean isRegisterByteSizeObserverCheap(T value, Context context);
 
   /**
    * Notifies the {@code ElementByteSizeObserver} about the byte size
@@ -269,7 +269,7 @@ public interface Coder<T> extends Serializable {
    * {@link org.apache.beam.sdk.runners.PipelineRunner}
    * implementations.
    */
-  void registerByteSizeObserver(
+  public abstract void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer)
       throws Exception;
 
@@ -282,7 +282,7 @@ public interface Coder<T> extends Serializable {
    * implementations.
    */
   @Deprecated
-  void registerByteSizeObserver(
+  public abstract void registerByteSizeObserver(
       T value, ElementByteSizeObserver observer, Context context)
       throws Exception;
 
@@ -290,13 +290,13 @@ public interface Coder<T> extends Serializable {
    * Returns the {@link TypeDescriptor} for the type encoded.
    */
   @Experimental(Kind.CODER_TYPE_ENCODING)
-  TypeDescriptor<T> getEncodedTypeDescriptor();
+  public abstract TypeDescriptor<T> getEncodedTypeDescriptor();
 
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
    */
-  class NonDeterministicException extends Exception {
+  public static class NonDeterministicException extends Exception {
     private Coder<?> coder;
     private List<String> reasons;
 

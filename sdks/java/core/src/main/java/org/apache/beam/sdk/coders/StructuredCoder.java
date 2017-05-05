@@ -43,7 +43,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *       expensive.</li>
  * </ul>
  */
-public abstract class StructuredCoder<T> implements Coder<T> {
+public abstract class StructuredCoder<T> extends Coder<T> {
   protected StructuredCoder() {}
 
   /**
