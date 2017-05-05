@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -138,9 +139,10 @@ public class CoderRegistry {
   }
 
   static {
-    // Register the standard coders first so they are chosen as the default
+    // Register the standard coders first so they are chosen over ServiceLoader ones
     List<CoderFactory> codersToRegister = new ArrayList<>();
     codersToRegister.add(new CommonTypes());
+
     // Enumerate all the CoderRegistrars in a deterministic order, adding all coders to register
     Set<CoderFactoryRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
@@ -210,19 +212,31 @@ public class CoderRegistry {
   }
 
   /**
-   * Returns the {@link Coder} to use by default for values of the given class.
+   * Returns the {@link Coder} to use for values of the given class.
+
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
-  public <T> Coder<T> getDefaultCoder(Class<T> clazz)
-      throws CannotProvideCoderException {
+  public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
     return getDefaultCoder(TypeDescriptor.of(clazz));
   }
 
   /**
-   * Returns the {@link Coder} to use by default for values of the given type, where the given input
+   * Returns the {@link Coder} to use for values of the given type.
+   *
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   */
+  public <T> Coder<T> getDefaultCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
+    return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
+  }
+
+  /**
+   * Returns the {@link Coder} for values of the given type, where the given input
    * type uses the given {@link Coder}.
    *
-   * @throws CannotProvideCoderException if there is no default Coder.
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  @Deprecated
+  @Internal
   public <InputT, OutputT> Coder<OutputT> getDefaultCoder(
       TypeDescriptor<OutputT> typeDescriptor,
       TypeDescriptor<InputT> inputTypeDescriptor,
@@ -238,7 +252,11 @@ public class CoderRegistry {
   /**
    * Returns the {@link Coder} to use on elements produced by this function, given the {@link Coder}
    * used for its input elements.
+   *
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  @Deprecated
+  @Internal
   public <InputT, OutputT> Coder<OutputT> getDefaultOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
@@ -257,8 +275,10 @@ public class CoderRegistry {
    * Returns the {@link Coder} to use for the specified type parameter specialization of the
    * subclass, given {@link Coder Coders} to use for all other type parameters (if any).
    *
-   * @throws CannotProvideCoderException if there is no default Coder.
+   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
+  @Deprecated
+  @Internal
   public <T, OutputT> Coder<OutputT> getDefaultCoder(
       Class<? extends T> subClass,
       Class<T> baseClass,
@@ -278,21 +298,11 @@ public class CoderRegistry {
     }
   }
 
-  /**
-   * Returns the {@link Coder} to use by default for values of the given type.
-   *
-   * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
-   */
-  public <T> Coder<T> getDefaultCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-    return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
    * Returns a {@code Map} from each of {@code baseClass}'s type parameters to the {@link Coder} to
-   * use by default for it, in the context of {@code subClass}'s specialization of
-   * {@code baseClass}.
+   * use for it, in the context of {@code subClass}'s specialization of {@code baseClass}.
    *
    * <p>If no {@link Coder} can be inferred for a particular type parameter, then that type variable
    * will be absent from the returned {@code Map}.
@@ -342,8 +352,7 @@ public class CoderRegistry {
 
   /**
    * Returns an array listing, for each of {@code baseClass}'s type parameters, the {@link Coder} to
-   * use by default for it, in the context of {@code subClass}'s specialization of
-   * {@code baseClass}.
+   * use for it, in the context of {@code subClass}'s specialization of {@code baseClass}.
    *
    * <p>If a {@link Coder} cannot be inferred for a type variable, its slot in the resulting array
    * will be {@code null}.
@@ -542,13 +551,12 @@ public class CoderRegistry {
   }
 
   /**
-   * The map of classes to the CoderFactories to use to create their
-   * default Coders.
+   * The list of {@link CoderFactory coder factories} to use to provide Coders.
    */
   private LinkedList<CoderFactory> coderFactories;
 
   /**
-   * Returns a {@link Coder} to use by default for values of the given type,
+   * Returns a {@link Coder} to use for values of the given type,
    * in a context where the given types use the given coders.
    *
    * @throws CannotProvideCoderException if a coder cannot be provided
@@ -567,7 +575,7 @@ public class CoderRegistry {
     } else if (type instanceof TypeVariable) {
       coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
     } else if (type instanceof WildcardType) {
-      // No default coder for an unknown generic type.
+      // No coder for an unknown generic type.
       throw new CannotProvideCoderException(
           String.format("Cannot provide a coder for type variable %s"
           + " (declared by %s) because the actual type is unknown due to erasure.",
@@ -579,7 +587,7 @@ public class CoderRegistry {
           "Internal error: unexpected kind of Type: " + type);
     }
 
-    LOG.debug("Default coder for {}: {}", typeDescriptor, coder);
+    LOG.debug("Coder for {}: {}", typeDescriptor, coder);
     @SuppressWarnings("unchecked")
     Coder<T> result = (Coder<T>) coder;
     return result;

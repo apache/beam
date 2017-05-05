@@ -38,11 +38,11 @@ public final class CoderFactories {
    * {@code static <T> Coder<T> of(TypeDescriptor<T>, List<Coder<?>>}) method.
    */
   public static CoderFactory fromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
-      checkArgument(
-          Coder.class.isAssignableFrom(coderClazz),
-          "%s is not a subtype of %s",
-          coderClazz.getName(),
-          Coder.class.getSimpleName());
+    checkArgument(
+        Coder.class.isAssignableFrom(coderClazz),
+        "%s is not a subtype of %s",
+        coderClazz.getName(),
+        Coder.class.getSimpleName());
     return new CoderFactoryFromStaticMethods(rawType, coderClazz);
   }
 
