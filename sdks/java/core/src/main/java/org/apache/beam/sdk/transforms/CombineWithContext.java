@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -36,7 +37,7 @@ public class CombineWithContext {
   public abstract static class Context {
     /**
      * Returns the {@code PipelineOptions} specified with the
-     * {@link org.apache.beam.sdk.runners.PipelineRunner}
+     * {@link PipelineRunner}
      * invoking this {@code KeyedCombineFn}.
      */
     public abstract PipelineOptions getPipelineOptions();

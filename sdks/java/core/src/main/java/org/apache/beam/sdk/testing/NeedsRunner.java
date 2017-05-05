@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.PipelineRunner;
 
 /**
  * Category tag for validation tests which utilize {@link TestPipeline} for execution and expect

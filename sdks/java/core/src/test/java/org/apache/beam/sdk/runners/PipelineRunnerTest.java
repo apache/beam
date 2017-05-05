@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners;
 
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
