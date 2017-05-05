@@ -24,6 +24,13 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -39,13 +46,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.commons.io.IOUtils;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 /**
  * Storage provider for batch processing.
@@ -140,22 +140,28 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
 
     @Override
     public Iterable<T> get() {
+      return this::iter;
+    }
 
+    private Iterator<T> iter() {
       Input input;
       try {
-        input = serializedElements != null
-                ? new Input(IOUtils.toBufferedInputStream(new FileInputStream(serializedElements)))
-                : null;
+        input = serializedElements == null
+            ? null
+            : new Input(new BufferedInputStream(new FileInputStream(serializedElements)));
       } catch (Exception ex) {
         throw new RuntimeException(ex);
       }
 
       Iterator<T> dataIterator = data.iterator();
-      return () -> new Iterator<T>() {
+      return new Iterator<T>() {
         @Override
         public boolean hasNext() {
-          return  input != null && !input.eof()
-              || dataIterator.hasNext();
+          boolean n = input != null && !input.eof() || dataIterator.hasNext();
+          if (!n && input != null) {
+            input.close();
+          }
+          return n;
         }
 
         @Override
@@ -169,8 +175,12 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
             }
             return read;
           }
-          if (dataIterator.hasNext())
+          if (dataIterator.hasNext()) {
             return dataIterator.next();
+          }
+          if (input != null) {
+            input.close();
+          }
           throw new NoSuchElementException();
         }
       };

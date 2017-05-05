@@ -16,12 +16,11 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
@@ -54,7 +53,11 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   static final String CFG_DESCRIPTORS_CACHE_SIZE_MAX_KEY = "euphoria.flink.streaming.descriptors.cache.max.size";
   static final int CFG_DESCRIPTORS_CACHE_MAX_SIZE_DEFAULT = 1000;
 
+  static final String CFG_ALLOW_EARLY_EMITTING_KEY = "euphoria.flink.streaming.allow.early.emitting";
+  static final boolean CFG_ALLOW_EARLY_EMITTING_DEFAULT = false;
+
   private boolean valueOfAfterShuffle;
+  private boolean allowEarlyEmitting;
   private int descriptorsCacheMaxSize;
 
   public ReduceStateByKeyTranslator(Settings settings) {
@@ -62,6 +65,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
             settings.getBoolean(CFG_VALUE_OF_AFTER_SHUFFLE_KEY, CFG_VALUE_OF_AFTER_SHUFFLE_DEFAULT);
     this.descriptorsCacheMaxSize =
             settings.getInt(CFG_DESCRIPTORS_CACHE_SIZE_MAX_KEY, CFG_DESCRIPTORS_CACHE_MAX_SIZE_DEFAULT);
+    this.allowEarlyEmitting =
+            settings.getBoolean(CFG_ALLOW_EARLY_EMITTING_KEY, CFG_ALLOW_EARLY_EMITTING_DEFAULT);
   }
 
   @Override
@@ -100,7 +105,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
                      .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
                                 new StreamingElementWindowOperator(
                                         elMapper, windowing, stateFactory, stateCombiner,
-                                        context.isLocalMode(), descriptorsCacheMaxSize))
+                                        context.isLocalMode(), descriptorsCacheMaxSize,
+                                        allowEarlyEmitting))
                      .setParallelism(operator.getParallelism());
     } else {
       // assign windows
@@ -115,7 +121,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
               .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
                       new KeyedMultiWindowedElementWindowOperator(
                               windowing, stateFactory, stateCombiner,
-                              context.isLocalMode(), descriptorsCacheMaxSize))
+                              context.isLocalMode(), descriptorsCacheMaxSize,
+                              allowEarlyEmitting))
               .setParallelism(operator.getParallelism());
     }
 

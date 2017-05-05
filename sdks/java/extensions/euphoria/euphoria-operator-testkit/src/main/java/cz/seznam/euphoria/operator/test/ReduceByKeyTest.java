@@ -61,7 +61,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -531,11 +533,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   // ~ ------------------------------------------------------------------------------
 
-  static class SumState extends State<Integer, Integer> {
+  static class SumState implements State<Integer, Integer> {
     private final ValueStorage<Integer> sum;
 
-    SumState(Context<Integer> context, StorageProvider storageProvider) {
-      super(context);
+    SumState(StorageProvider storageProvider, Context<Integer> context) {
       sum = storageProvider.getValueStorage(
           ValueStorageDescriptor.of("sum-state", Integer.class, 0));
     }
@@ -546,8 +547,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     }
 
     @Override
-    public void flush() {
-      getContext().collect(sum.get());
+    public void flush(Context<Integer> context) {
+      context.collect(sum.get());
     }
 
     @Override

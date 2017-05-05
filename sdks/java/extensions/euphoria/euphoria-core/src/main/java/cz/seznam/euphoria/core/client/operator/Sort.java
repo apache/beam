@@ -36,8 +36,8 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
-import javax.annotation.Nullable;
 
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Comparator;
@@ -94,8 +94,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<IN, IN, IN, Integer, IN, W, Sort<IN, S, W>> {
   
   private static final class Sorted<V>
-      extends State<V, V>
-      implements StateSupport.MergeFrom<Sorted<V>> {
+      implements State<V, V>, StateSupport.MergeFrom<Sorted<V>> {
 
     @SuppressWarnings("unchecked")
     static final ListStorageDescriptor SORT_STATE_DESCR =
@@ -105,8 +104,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     final Comparator<V> cmp;
     
     @SuppressWarnings("unchecked")
-    Sorted(Context<V> context, StorageProvider storageProvider, Comparator<V> cmp) {
-      super(context);
+    Sorted(StorageProvider storageProvider, Comparator<V> cmp) {
       this.curr = (ListStorage<V>) storageProvider.getListStorage(SORT_STATE_DESCR);
       this.cmp = cmp;
     }
@@ -117,17 +115,17 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     }
     
     @Override
-    public void flush() {
+    public void flush(Context<V> ctx) {
       List<V> toSort = Lists.newArrayList(curr.get());
       Collections.sort(toSort, cmp);
-      toSort.forEach(getContext()::collect);
+      toSort.forEach(ctx::collect);
     }
-    
+
     @Override
     public void close() {
       curr.clear();
     }
-    
+
     @Override
     public void mergeFrom(Sorted<V> other) {
       for (V v : other.curr.get()) {
@@ -329,7 +327,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
                 windowing,
                 eventTimeAssigner,
                 (StateFactory<IN, IN, Sorted<IN>>)
-                    (ctx, provider) -> new Sorted<>(ctx, provider, comparator),
+                    (provider, ctx) -> new Sorted<>(provider, comparator),
                 stateCombiner,
                 partitioning);
 
