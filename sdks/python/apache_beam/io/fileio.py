@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import time
+import uuid
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
@@ -155,8 +156,7 @@ class FileSink(iobase.Sink):
                          'at least two components.',
                          file_path_prefix)
     path_components = [base_path,
-                       'beam-temp-' + last_component + time.strftime(
-                           '-%Y-%m-%d_%H-%M-%S')]
+                       'beam-temp-' + last_component + '-' + uuid.uuid1().hex]
     return FileSystems.join(*path_components)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
