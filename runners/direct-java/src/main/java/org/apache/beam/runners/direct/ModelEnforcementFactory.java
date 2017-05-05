@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
  * Creates {@link ModelEnforcement} instances for an {@link AppliedPTransform} on an input

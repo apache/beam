@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
