@@ -81,15 +81,18 @@
   </build>
 
   <dependencies>
+    <!-- List here all Apache Beam modules that the archetype's source pom.xml
+         depends on. This ensures that those modules are up-to-date before the
+         starter archetype is compiled and tested. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
+      <artifactId>beam-runners-direct-java</artifactId>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
       <scope>runtime</scope>
     </dependency>
   </dependencies>
