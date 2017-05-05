@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
@@ -54,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * transform will take care of writing it to a file.
  */
 class WriteBundlesToFiles<DestinationT>
-    extends DoFn<KV<DestinationT, TableRow>, WriteBundlesToFiles.Result<DestinationT>> {
+    extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
@@ -157,49 +159,59 @@ class WriteBundlesToFiles<DestinationT>
       writer = null;
     }
     if (writer == null) {
-      // Only create a new writer if we have fewer than maxNumWritersPerBundle already in thi
+      // Only create a new writer if we have fewer than maxNumWritersPerBundle already in this
       // bundle.
       if (writers.size() <= maxNumWritersPerBundle) {
         writer = new TableRowWriter(tempFilePrefix);
         writer.open(UUID.randomUUID().toString());
         writers.put(c.element().getKey(), writer);
+        writerWindows.put(c.element().getKey(), window);
         LOG.debug("Done opening writer {}", writer);
+      } else {
+        // This means that we already had too many writers open in this bundle. "spill" this record
+        // into the output. It will be grouped and written to a file in a subsequent stage.
+        c.output(unwrittedRecordsTag,
+            KV.of(ShardedKey.of(c.element().getKey(),
+                ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR)),
+                c.element().getValue()));
       }
     }
-    if (writer != null) {
+    try {
+      writer.write(c.element().getValue());
+    } catch (Exception e) {
+      // Discard write result and close the write.
       try {
-        writer.write(c.element().getValue());
-      } catch (Exception e) {
-        // Discard write result and close the write.
-        try {
-          writer.close();
-          // The writer does not need to be reset, as this DoFn cannot be reused.
-        } catch (Exception closeException) {
-          // Do not mask the exception that caused the write to fail.
-          e.addSuppressed(closeException);
-        }
-        throw e;
+        writer.close();
+        // The writer does not need to be reset, as this DoFn cannot be reused.
+      } catch (Exception closeException) {
+        // Do not mask the exception that caused the write to fail.
+        e.addSuppressed(closeException);
       }
-    } else {
-      // This means that we already had too many writers open in this bundle. "spill" this record
-      // into the output. It will be grouped and written to a file in a subsequent stage.
-      c.output(unwrittedRecordsTag,
-          KV.of(ShardedKey.of(c.element().getKey(),
-              ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR)),
-              c.element().getValue()));
+      throw e;
     }
   }
 
   @FinishBundle
   public void finishBundle(FinishBundleContext c) throws Exception {
+    List<Exception> exceptionList = Lists.newArrayList();
     for (Map.Entry<DestinationT, TableRowWriter> entry : writers.entrySet()) {
-      TableRowWriter.Result result = entry.getValue().close();
-      c.output(
-          new Result<>(result.resourceId.toString(), result.byteSize, entry.getKey()),
-          writerWindows.get(entry.getKey()).maxTimestamp(),
-          writerWindows.get(entry.getKey()));
+      try {
+        TableRowWriter.Result result = entry.getValue().close();
+        c.output(new Result<>(result.resourceId.toString(), result.byteSize, entry.getKey()),
+            writerWindows.get(entry.getKey()).maxTimestamp(),
+            writerWindows.get(entry.getKey()));
+      } catch (Exception e) {
+        exceptionList.add(e);
+      }
     }
     writers.clear();
-    writerWindows.clear();
+
+    if (!exceptionList.isEmpty()) {
+      Exception e = new RuntimeException("Exceptions thrown while finishing bundle");
+      for (Exception thrown : exceptionList) {
+        e.addSuppressed(thrown);
+      }
+      throw e;
+    }
   }
 }

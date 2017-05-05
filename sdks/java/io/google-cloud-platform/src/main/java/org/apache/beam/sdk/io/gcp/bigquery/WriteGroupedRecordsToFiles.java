@@ -41,30 +41,22 @@ class WriteGroupedRecordsToFiles<DestinationT>
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
     TableRowWriter writer = createWriter();
-    for (TableRow tableRow : c.element().getValue()) {
-      if (writer.getByteSize() > Write.MAX_FILE_SIZE) {
-        TableRowWriter.Result result = writer.close();
-        c.output(new WriteBundlesToFiles.Result<>(
-            result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
-        writer = createWriter();
-      }
-      try {
-        writer.write(tableRow);
-      } catch (Exception e) {
-        // Discard write result and close the write.
-        try {
-          writer.close();
-          // The writer does not need to be reset, as this DoFn cannot be reused.
-        } catch (Exception closeException) {
-          // Do not mask the exception that caused the write to fail.
-          e.addSuppressed(closeException);
+    try {
+      for (TableRow tableRow : c.element().getValue()) {
+        if (writer.getByteSize() > Write.MAX_FILE_SIZE) {
+          TableRowWriter.Result result = writer.close();
+          c.output(new WriteBundlesToFiles.Result<>(
+              result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
+          writer = createWriter();
         }
-        throw e;
+        writer.write(tableRow);
       }
+      TableRowWriter.Result result = writer.close();
+      c.output(new WriteBundlesToFiles.Result<>(
+          result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
+    } finally {
+      writer.close();
     }
-    TableRowWriter.Result result = writer.close();
-    c.output(new WriteBundlesToFiles.Result<>(
-        result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
   }
 
   TableRowWriter createWriter() throws Exception {
