@@ -986,12 +986,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(TestDummy value, OutputStream outStream, Context context)
+    public void encode(TestDummy value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public TestDummy decode(InputStream inStream, Context context)
+    public TestDummy decode(InputStream inStream)
         throws CoderException, IOException {
       return new TestDummy();
     }
@@ -1090,15 +1090,15 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream, Context context)
+    public void encode(MyInteger value, OutputStream outStream)
         throws CoderException, IOException {
-      delegate.encode(value.getValue(), outStream, context);
+      delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+    public MyInteger decode(InputStream inStream) throws CoderException,
         IOException {
-      return new MyInteger(delegate.decode(inStream, context));
+      return new MyInteger(delegate.decode(inStream));
     }
   }
 

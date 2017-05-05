@@ -68,18 +68,18 @@ public class InstantCoder extends AtomicCoder<Instant> {
   }
 
   @Override
-  public void encode(Instant value, OutputStream outStream, Context context)
+  public void encode(Instant value, OutputStream outStream)
       throws CoderException, IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Instant");
     }
-    LONG_CODER.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream, context);
+    LONG_CODER.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream);
   }
 
   @Override
-  public Instant decode(InputStream inStream, Context context)
+  public Instant decode(InputStream inStream)
       throws CoderException, IOException {
-    return ORDER_PRESERVING_CONVERTER.reverse().convert(LONG_CODER.decode(inStream, context));
+    return ORDER_PRESERVING_CONVERTER.reverse().convert(LONG_CODER.decode(inStream));
   }
 
   @Override

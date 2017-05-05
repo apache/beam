@@ -27,7 +27,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
@@ -347,7 +346,7 @@ public final class PaneInfo {
     private PaneInfoCoder() {}
 
     @Override
-    public void encode(PaneInfo value, final OutputStream outStream, Coder.Context context)
+    public void encode(PaneInfo value, final OutputStream outStream)
         throws CoderException, IOException {
       Encoding encoding = chooseEncoding(value);
       switch (chooseEncoding(value)) {
@@ -369,7 +368,7 @@ public final class PaneInfo {
     }
 
     @Override
-    public PaneInfo decode(final InputStream inStream, Coder.Context context)
+    public PaneInfo decode(final InputStream inStream)
         throws CoderException, IOException {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F));

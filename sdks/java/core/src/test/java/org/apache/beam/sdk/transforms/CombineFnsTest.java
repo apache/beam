@@ -336,9 +336,20 @@ public class  CombineFnsTest {
     private static final UserStringCoder INSTANCE = new UserStringCoder();
 
     @Override
+    public void encode(UserString value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(UserString value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       StringUtf8Coder.of().encode(value.strValue, outStream, context);
+    }
+
+    @Override
+    public UserString decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

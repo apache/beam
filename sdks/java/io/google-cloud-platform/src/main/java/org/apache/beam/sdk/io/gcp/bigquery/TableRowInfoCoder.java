@@ -38,20 +38,31 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   }
 
   @Override
+  public void encode(TableRowInfo value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(TableRowInfo value, OutputStream outStream, Context context)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    tableRowCoder.encode(value.tableRow, outStream, context.nested());
+    tableRowCoder.encode(value.tableRow, outStream);
     idCoder.encode(value.uniqueId, outStream, context);
+  }
+
+  @Override
+  public TableRowInfo decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
   public TableRowInfo decode(InputStream inStream, Context context)
       throws IOException {
     return new TableRowInfo(
-        tableRowCoder.decode(inStream, context.nested()),
+        tableRowCoder.decode(inStream),
         idCoder.decode(inStream, context));
   }
 

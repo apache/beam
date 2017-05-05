@@ -45,15 +45,26 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage>
     return new PubsubMessageWithAttributesCoder();
   }
 
+  @Override
+  public void encode(PubsubMessage value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
   public void encode(PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
-    PAYLOAD_CODER.encode(value.getPayload(), outStream, context.nested());
+    PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
   }
 
   @Override
+  public PubsubMessage decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
-    byte[] payload = PAYLOAD_CODER.decode(inStream, context.nested());
+    byte[] payload = PAYLOAD_CODER.decode(inStream);
     Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context);
     return new PubsubMessage(payload, attributes);
   }

@@ -38,19 +38,19 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream, Context context)
+  public void encode(TableDestination value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    tableSpecCoder.encode(value.getTableSpec(), outStream, context.nested());
-    tableDescriptionCoder.encode(value.getTableDescription(), outStream, context);
+    tableSpecCoder.encode(value.getTableSpec(), outStream);
+    tableDescriptionCoder.encode(value.getTableDescription(), outStream);
   }
 
   @Override
-  public TableDestination decode(InputStream inStream, Context context) throws IOException {
-    String tableSpec = tableSpecCoder.decode(inStream, context.nested());
-    String tableDescription = tableDescriptionCoder.decode(inStream, context);
+  public TableDestination decode(InputStream inStream) throws IOException {
+    String tableSpec = tableSpecCoder.decode(inStream);
+    String tableDescription = tableDescriptionCoder.decode(inStream);
     return new TableDestination(tableSpec, tableDescription);
   }
 
