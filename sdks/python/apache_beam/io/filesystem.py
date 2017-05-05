@@ -425,6 +425,22 @@ class FileSystem(object):
                       'was %s' % type(compression_type))
     return compression_type
 
+  @classmethod
+  def get_all_subclasses(cls):
+    """Get all the subclasses of the FileSystem class
+    """
+    all_subclasses = []
+    for subclass in cls.__subclasses__():
+      all_subclasses.append(subclass)
+      all_subclasses.extend(subclass.get_all_subclasses())
+    return all_subclasses
+
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    raise NotImplementedError
+
   @abc.abstractmethod
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem
