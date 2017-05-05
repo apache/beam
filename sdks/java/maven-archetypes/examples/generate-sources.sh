@@ -29,7 +29,9 @@ EXAMPLES_ROOT="${HERE}/../../../../examples/java"
 # The root of the examples archetype
 ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
 
+rm -r "${ARCHETYPE_ROOT}/src/main/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
+rm -r "${ARCHETYPE_ROOT}/src/test/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
 #

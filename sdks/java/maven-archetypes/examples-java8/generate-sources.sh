@@ -31,8 +31,10 @@ JAVA8_EXAMPLES_ROOT="${HERE}/../../../../examples/java8"
 # The root of the examples archetype
 ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
 
-mkdir -p "$ARCHETYPE_ROOT/src/main/java"
-mkdir -p "$ARCHETYPE_ROOT/src/test/java"
+rm -r "${ARCHETYPE_ROOT}/src/main/java"
+mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
+rm -r "${ARCHETYPE_ROOT}/src/test/java"
+mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
 #
 # Copy the Java 7 subset of the examples project verbatim. 
