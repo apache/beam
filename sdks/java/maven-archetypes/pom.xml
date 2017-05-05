@@ -70,6 +70,7 @@
       </plugins>
     </pluginManagement>
   </build>
+
   <profiles>
     <!--
       The builds for the example archetypes use unix scripting, so are enabled only on

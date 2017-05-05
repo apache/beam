@@ -25,7 +25,7 @@
   <version>0.1</version>
 
   <properties>
-    <beam.version>2.1.0-SNAPSHOT</beam.version>
+    <beam.version>@project.version@</beam.version>
   </properties>
 
   <repositories>
