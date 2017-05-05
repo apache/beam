@@ -23,6 +23,7 @@ import org.apache.beam.dsls.sql.exception.BeamInvalidOperatorException;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.NlsString;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
@@ -86,9 +87,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
     case BOOLEAN:
       return value instanceof Boolean;
     case CHAR:
-      return value instanceof Character;
     case VARCHAR:
-      return value instanceof String;
+      return value instanceof String || value instanceof NlsString;
     default:
       throw new BeamSqlUnsupportedException(outputType.name());
     }
