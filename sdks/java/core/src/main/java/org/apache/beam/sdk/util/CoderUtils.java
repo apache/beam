@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.api.client.util.Base64;
 import com.google.common.base.Throwables;
-import com.google.common.io.BaseEncoding;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -163,7 +163,7 @@ public final class CoderUtils {
   public static <T> String encodeToBase64(Coder<T> coder, T value)
       throws CoderException {
     byte[] rawValue = encodeToByteArray(coder, value);
-    return BaseEncoding.base64Url().omitPadding().encode(rawValue);
+    return Base64.encodeBase64URLSafeString(rawValue);
   }
 
   /**
@@ -171,9 +171,7 @@ public final class CoderUtils {
    */
   public static <T> T decodeFromBase64(Coder<T> coder, String encodedValue) throws CoderException {
     return decodeFromSafeStream(
-        coder,
-        new ByteArrayInputStream(BaseEncoding.base64Url().omitPadding().decode(encodedValue)),
-        Coder.Context.OUTER);
+        coder, new ByteArrayInputStream(Base64.decodeBase64(encodedValue)), Coder.Context.OUTER);
   }
 
   /**

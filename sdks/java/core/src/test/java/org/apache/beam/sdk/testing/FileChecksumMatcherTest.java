@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.testing;
+package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.examples.testing;
+package org.apache.beam.sdk.util;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -35,7 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
-import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

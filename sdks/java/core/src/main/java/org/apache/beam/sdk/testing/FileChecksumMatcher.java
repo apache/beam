@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.examples.testing;
+package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -31,8 +31,9 @@ import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.NumberedShardedFile;
+import org.apache.beam.sdk.util.ShardedFile;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
