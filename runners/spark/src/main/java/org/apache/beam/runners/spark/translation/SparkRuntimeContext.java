@@ -52,6 +52,16 @@ public class SparkRuntimeContext implements Serializable {
         ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   }
 
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static ObjectMapper createMapper() {
+    return new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+  }
+
   private String serializePipelineOptions(PipelineOptions pipelineOptions) {
     try {
       return createMapper().writeValueAsString(pipelineOptions);
