@@ -77,14 +77,14 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
   @Override
   public void serialize(T t, DataOutputView dataOutputView) throws IOException {
     DataOutputViewWrapper outputWrapper = new DataOutputViewWrapper(dataOutputView);
-    coder.encode(t, outputWrapper, Coder.Context.NESTED);
+    coder.encode(t, outputWrapper);
   }
 
   @Override
   public T deserialize(DataInputView dataInputView) throws IOException {
     try {
       DataInputViewWrapper inputWrapper = new DataInputViewWrapper(dataInputView);
-      return coder.decode(inputWrapper, Coder.Context.NESTED);
+      return coder.decode(inputWrapper);
     } catch (CoderException e) {
       Throwable cause = e.getCause();
       if (cause instanceof EOFException) {

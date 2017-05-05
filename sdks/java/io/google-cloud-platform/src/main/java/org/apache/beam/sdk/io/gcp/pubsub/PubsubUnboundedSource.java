@@ -380,7 +380,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public PubsubCheckpoint decode(InputStream inStream, Context context) throws IOException {
-      String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
+      String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
       List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
       return new PubsubCheckpoint(path, null, null, notYetReadIds);
     }

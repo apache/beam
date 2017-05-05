@@ -104,7 +104,7 @@ public class TimestampedValue<V> {
                        OutputStream outStream,
                        Context context)
         throws IOException {
-      valueCoder.encode(windowedElem.getValue(), outStream, context.nested());
+      valueCoder.encode(windowedElem.getValue(), outStream);
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, context);
     }
@@ -112,7 +112,7 @@ public class TimestampedValue<V> {
     @Override
     public TimestampedValue<T> decode(InputStream inStream, Context context)
         throws IOException {
-      T value = valueCoder.decode(inStream, context.nested());
+      T value = valueCoder.decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream, context);
       return TimestampedValue.of(value, timestamp);
     }

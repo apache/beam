@@ -253,7 +253,7 @@ public class CoGbkResult {
       }
       int lastIndex = schema.size() - 1;
       for (int unionTag = 0; unionTag < lastIndex; unionTag++) {
-        tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, context.nested());
+        tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream);
       }
       tagListCoder(lastIndex).encode(value.valueMap.get(lastIndex), outStream, context);
     }

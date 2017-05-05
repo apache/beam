@@ -63,14 +63,14 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.encode(kv.getKey(), outStream, context.nested());
+    keyCoder.encode(kv.getKey(), outStream);
     valueCoder.encode(kv.getValue(), outStream, context);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     return KV.of(key, value);
   }
