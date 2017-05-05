@@ -56,8 +56,6 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
   /**
    * https://dev.mysql.com/doc/refman/5.7/en/arithmetic-functions.html.
-   * @param inputRecord
-   * @return
    */
   @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamSQLRow inputRecord) {
     BeamSqlExpression leftOp = operands.get(0);
@@ -96,18 +94,12 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
   /**
    * For {@link SqlTypeName#INT_TYPES} calculation of '+', '-', '*'.
-   * @param left
-   * @param right
-   * @return
    */
   public abstract Long calc(Long left, Long right);
 
 
   /**
    * For other {@link SqlTypeName#NUMERIC_TYPES} & VARCHAR calculation of '+', '-', '*', '/'.
-   * @param left
-   * @param right
-   * @return
    */
   public abstract Double calc(Number left, Number right);
 }
