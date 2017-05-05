@@ -57,7 +57,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public interface Coder<T> extends Serializable {
+public abstract class Coder<T> implements Serializable {
 
   /**
    * Encodes the given value of type {@code T} onto the given output stream.
