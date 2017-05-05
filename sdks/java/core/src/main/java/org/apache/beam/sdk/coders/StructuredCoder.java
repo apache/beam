@@ -150,39 +150,21 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(T value) {
-    return isRegisterByteSizeObserverCheap(value, Context.NESTED);
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
-   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
-   *         unless it is overridden. This is considered expensive.
-   */
-  @Override
-  public boolean isRegisterByteSizeObserverCheap(T value, Context context) {
     return false;
   }
 
   /**
    * Returns the size in bytes of the encoded value using this coder.
    */
-  protected long getEncodedElementByteSize(T value, Context context)
+  protected long getEncodedElementByteSize(T value)
       throws Exception {
     try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
-      encode(value, os, context);
+      encode(value, os);
       return os.getCount();
     } catch (Exception exn) {
       throw new IllegalArgumentException(
           "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
     }
-  }
-
-  @Override
-  public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
-      throws Exception {
-    registerByteSizeObserver(value, observer, Context.NESTED);
   }
 
   /**
@@ -193,9 +175,9 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    */
   @Override
   public void registerByteSizeObserver(
-      T value, ElementByteSizeObserver observer, Context context)
+      T value, ElementByteSizeObserver observer)
       throws Exception {
-    observer.update(getEncodedElementByteSize(value, context));
+    observer.update(getEncodedElementByteSize(value));
   }
 
   protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)
