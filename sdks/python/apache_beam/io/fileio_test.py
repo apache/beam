@@ -31,7 +31,6 @@ import mock
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
-from apache_beam.io.filesystem import BeamIOError
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
@@ -216,7 +215,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
       self.run_temp_dir_check(
           'gs://aaa/bbb', 'gs://aaa/bbb/', 'gs://aaa', 'gs://aaa/', 'gs://',
           '/')
-    except BeamIOError:
+    except ValueError:
       logging.debug('Ignoring test since GCP module is not installed')
 
   @mock.patch('apache_beam.io.localfilesystem.os')

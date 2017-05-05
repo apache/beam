@@ -33,6 +33,11 @@ from apache_beam.io.filesystem import MatchResult
 class LocalFileSystem(FileSystem):
   """A Local ``FileSystem`` implementation for accessing files on disk.
   """
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    return None
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem

@@ -17,24 +17,54 @@
 
 """FileSystems interface class for accessing the correct filesystem"""
 
+import re
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.filesystems_util import get_filesystem
+from apache_beam.io.filesystem import FileSystem
+
+# All filesystem implements should be added here
+# pylint: disable=wrong-import-position, unused-import
+from apache_beam.io.localfilesystem import LocalFileSystem
+
+try:
+  from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+except ImportError:
+  pass
+# pylint: enable=wrong-import-position, unused-import
 
 
 class FileSystems(object):
   """A class that defines the functions that can be performed on a filesystem.
   All methods are static and access the underlying registered filesystems.
   """
+  URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
+
+  @staticmethod
+  def get_scheme(path):
+    match_result = FileSystems.URI_SCHEMA_PATTERN.match(path.strip())
+    if match_result is None:
+      return None
+    return match_result.groupdict()['scheme']
 
   @staticmethod
   def get_filesystem(path):
     """Get the correct filesystem for the specified path
     """
     try:
-      return get_filesystem(path)
+      path_scheme = FileSystems.get_scheme(path)
+      systems = [fs for fs in FileSystem.get_all_subclasses()
+                 if fs.scheme() == path_scheme]
+      if len(systems) == 0:
+        raise ValueError('Unable to get the Filesystem for path %s' % path)
+      elif len(systems) == 1:
+        return systems[0]()
+      else:
+        raise ValueError('Found more than one filesystem for path %s' % path)
+    except ValueError:
+      raise
     except Exception as e:
-      raise BeamIOError('Enable to get the Filesystem', {path: e})
+      raise BeamIOError('Unable to get the Filesystem', {path: e})
 
   @staticmethod
   def join(basepath, *paths):
