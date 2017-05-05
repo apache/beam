@@ -41,15 +41,6 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
     return decodedElements;
   }
 
-  /**
-   * Returns the first element in this iterable if it is non-empty,
-   * otherwise returns {@code null}.
-   */
-  public static <T> List<Object> getInstanceComponents(
-      Iterable<T> exampleValue) {
-    return getInstanceComponentsHelper(exampleValue);
-  }
-
   protected IterableCoder(Coder<T> elemCoder) {
     super(elemCoder, "Iterable");
   }

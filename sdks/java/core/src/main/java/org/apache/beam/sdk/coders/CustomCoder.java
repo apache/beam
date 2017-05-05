@@ -94,14 +94,6 @@ public abstract class CustomCoder<T> extends Coder<T>
   }
 
   /**
-   * Returns an empty list. A {@link CustomCoder} by default will not have component coders that are
-   * used for inference.
-   */
-  public static <T> List<Object> getInstanceComponents(T exampleValue) {
-    return Collections.emptyList();
-  }
-
-  /**
    * {@inheritDoc}
    *
    * @throws NonDeterministicException a {@link CustomCoder} is presumed

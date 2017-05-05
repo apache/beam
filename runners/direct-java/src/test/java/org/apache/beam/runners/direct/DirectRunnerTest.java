@@ -577,14 +577,4 @@ public class DirectRunnerTest implements Serializable {
       return underlying.getDefaultOutputCoder();
     }
   }
-
-  @Test
-  public void fallbackCoderProviderAllowsInference() {
-    // See https://issues.apache.org/jira/browse/BEAM-1642
-    Pipeline p = getPipeline();
-    p.getCoderRegistry().setFallbackCoderProvider(
-        org.apache.beam.sdk.coders.AvroCoder.PROVIDER);
-    p.apply(Create.of(Arrays.asList(100, 200))).apply(Count.<Integer>globally());
-    p.run().waitUntilFinish();
-  }
 }

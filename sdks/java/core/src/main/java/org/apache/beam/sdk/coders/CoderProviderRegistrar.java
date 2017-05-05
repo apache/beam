@@ -17,28 +17,26 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.auto.service.AutoService;
 import java.util.List;
+import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * A {@link CoderFactory} creates coders and decomposes values.
- * It may operate on a parameterized type, such as {@link List},
- * in which case the {@link #create} method accepts a list of
- * coders to use for the type parameters.
+ * {@link Coder} creators have the ability to automatically have their
+ * {@link Coder coders} registered with this SDK by creating a {@link ServiceLoader} entry
+ * and a concrete implementation of this interface.
+ *
+ * <p>It is optional but recommended to use one of the many build time tools such as
+ * {@link AutoService} to generate the necessary META-INF files automatically.
  */
-public interface CoderFactory {
-
+@Experimental
+public interface CoderProviderRegistrar {
   /**
-   * Returns a {@code Coder<?>}, given argument coder to use for
-   * values of a particular type, given the Coders for each of
-   * the type's generic parameter types.
+   * Returns a list of {@link CoderProvider coder providers} which
+   * will be registered by default within each {@link CoderRegistry coder registry} instance.
+   *
+   * <p>See {@link CoderProviders} for convenience methods to construct a {@link CoderProvider}.
    */
-  Coder<?> create(List<? extends Coder<?>> componentCoders);
-
-  /**
-   * Returns a list of objects contained in {@code value}, one per
-   * type argument, or {@code null} if none can be determined.
-   * The list of returned objects should be the same size as the
-   * list of coders required by {@link #create}.
-   */
-  List<Object> getInstanceComponents(Object value);
+  List<CoderProvider> getCoderProviders();
 }

@@ -178,13 +178,6 @@ public class IntervalWindow extends BoundedWindow
       return INSTANCE;
     }
 
-    /**
-     * Returns an empty list. {@link IntervalWindowCoder} has no components.
-     */
-    public static <T> List<Object> getInstanceComponents(T value) {
-      return Collections.emptyList();
-    }
-
     @Override
     public void encode(IntervalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {

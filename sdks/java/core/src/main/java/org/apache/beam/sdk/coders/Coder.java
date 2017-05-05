@@ -51,9 +51,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * <p>{@link Coder} classes for compound types are often composed from coder classes for types
  * contains therein. The composition of {@link Coder} instances into a coder for the compound
- * class is the subject of the {@link CoderFactory} type, which enables automatic generic
+ * class is the subject of the {@link CoderProvider} type, which enables automatic generic
  * composition of {@link Coder} classes within the {@link CoderRegistry}. With particular
- * static methods on a compound {@link Coder} class, a {@link CoderFactory} can be automatically
+ * static methods on a compound {@link Coder} class, a {@link CoderProvider} can be automatically
  * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
  * automatic composition in the {@link CoderRegistry}.
  *

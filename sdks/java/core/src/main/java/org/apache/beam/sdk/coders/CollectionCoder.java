@@ -46,15 +46,6 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
     return decodedElements;
   }
 
-  /**
-   * Returns the first element in this collection if it is non-empty,
-   * otherwise returns {@code null}.
-   */
-  public static <T> List<Object> getInstanceComponents(
-      Collection<T> exampleValue) {
-    return getInstanceComponentsHelper(exampleValue);
-  }
-
   protected CollectionCoder(Coder<T> elemCoder) {
     super(elemCoder, "Collection");
   }

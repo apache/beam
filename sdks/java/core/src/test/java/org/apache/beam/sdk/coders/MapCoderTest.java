@@ -18,14 +18,11 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -62,23 +59,6 @@ public class MapCoderTest {
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
     CoderProperties.coderSerializable(
         MapCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
-  }
-
-  @Test
-  public void testGetInstanceComponentsNonempty() {
-    Map<Integer, String> map = new HashMap<>();
-    map.put(17, "foozle");
-    List<Object> components = MapCoder.getInstanceComponents(map);
-    assertEquals(2, components.size());
-    assertEquals(17, components.get(0));
-    assertEquals("foozle", components.get(1));
-  }
-
-  @Test
-  public void testGetInstanceComponentsEmpty() {
-    Map<Integer, String> map = new HashMap<>();
-    List<Object> components = MapCoder.getInstanceComponents(map);
-    assertNull(components);
   }
 
   /**

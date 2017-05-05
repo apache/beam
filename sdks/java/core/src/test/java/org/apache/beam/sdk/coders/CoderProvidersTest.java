@@ -17,54 +17,78 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
-import java.util.Map;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.junit.Rule;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link CoderFactories}.
+ * Tests for {@link CoderProviders}.
  */
 @RunWith(JUnit4.class)
 public class CoderProvidersTest {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
-
   @Test
-  public void testAvroThenSerializableStringMap() throws Exception {
-    CoderProvider provider = CoderProviders.firstOf(AvroCoder.PROVIDER, SerializableCoder.PROVIDER);
-    Coder<Map<String, String>> coder =
-        provider.getCoder(new TypeDescriptor<Map<String, String>>(){});
-    assertThat(coder, instanceOf(AvroCoder.class));
+  public void testCoderProvidersFromStaticMethodsForParameterlessTypes() throws Exception {
+    CoderProvider factory = CoderProviders.fromStaticMethods(String.class, StringUtf8Coder.class);
+    assertEquals(StringUtf8Coder.of(),
+        factory.coderFor(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class);
+    assertEquals(DoubleCoder.of(),
+        factory.coderFor(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
+
+    factory = CoderProviders.fromStaticMethods(byte[].class, ByteArrayCoder.class);
+    assertEquals(ByteArrayCoder.of(),
+        factory.coderFor(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
   }
 
+  /**
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link KvCoder KvCoder.class}.
+   */
   @Test
-  public void testThrowingThenSerializable() throws Exception {
-    CoderProvider provider =
-        CoderProviders.firstOf(new ThrowingCoderProvider(), SerializableCoder.PROVIDER);
-    Coder<Integer> coder = provider.getCoder(new TypeDescriptor<Integer>(){});
-    assertThat(coder, instanceOf(SerializableCoder.class));
+  public void testKvCoderProvider() throws Exception {
+    TypeDescriptor<KV<Double, Double>> type =
+        TypeDescriptors.kvs(TypeDescriptors.doubles(), TypeDescriptors.doubles());
+    CoderProvider kvCoderProvider = CoderProviders.fromStaticMethods(KV.class, KvCoder.class);
+    assertEquals(
+        KvCoder.of(DoubleCoder.of(), DoubleCoder.of()),
+        kvCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
   }
 
+  /**
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link ListCoder ListCoder.class}.
+   */
   @Test
-  public void testNullThrows() throws Exception {
-    CoderProvider provider = CoderProviders.firstOf(new ThrowingCoderProvider());
-    thrown.expect(CannotProvideCoderException.class);
-    thrown.expectMessage("ThrowingCoderProvider");
-    provider.getCoder(new TypeDescriptor<Integer>(){});
+  public void testListCoderProvider() throws Exception {
+    TypeDescriptor<List<Double>> type = TypeDescriptors.lists(TypeDescriptors.doubles());
+    CoderProvider listCoderProvider = CoderProviders.fromStaticMethods(List.class, ListCoder.class);
+
+    assertEquals(
+        ListCoder.of(DoubleCoder.of()),
+        listCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 
-  private static class ThrowingCoderProvider implements CoderProvider {
-    @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-      throw new CannotProvideCoderException("ThrowingCoderProvider cannot ever provide a Coder");
-    }
+  /**
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link IterableCoder IterableCoder.class}.
+   */
+  @Test
+  public void testIterableCoderProvider() throws Exception {
+    TypeDescriptor<Iterable<Double>> type = TypeDescriptors.iterables(TypeDescriptors.doubles());
+    CoderProvider iterableCoderProvider =
+        CoderProviders.fromStaticMethods(Iterable.class, IterableCoder.class);
+
+    assertEquals(
+        IterableCoder.of(DoubleCoder.of()),
+        iterableCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 }

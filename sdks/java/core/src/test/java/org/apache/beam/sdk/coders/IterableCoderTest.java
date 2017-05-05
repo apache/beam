@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.util.Arrays;
@@ -59,21 +57,6 @@ public class IterableCoderTest {
       CoderProperties.<Integer, Iterable<Integer>>coderDecodeEncodeContentsInSameOrder(
           TEST_CODER, value);
     }
-  }
-
-  @Test
-  public void testGetInstanceComponentsNonempty() {
-    Iterable<Integer> iterable = Arrays.asList(2, 58, 99, 5);
-    List<Object> components = IterableCoder.getInstanceComponents(iterable);
-    assertEquals(1, components.size());
-    assertEquals(2, components.get(0));
-  }
-
-  @Test
-  public void testGetInstanceComponentsEmpty() {
-    Iterable<Integer> iterable = Arrays.asList();
-    List<Object> components = IterableCoder.getInstanceComponents(iterable);
-    assertNull(components);
   }
 
   @Test
