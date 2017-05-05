@@ -390,8 +390,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   /**
    * An implementation of the join state which produces results, i.e. emits
-   * output, as soon as possible. It has at least the following short commings
-   * and should be used with care:
+   * output, as soon as possible. It has at least the following short comings
+   * and should be used with care (see https://github.com/seznam/euphoria/issues/118
+   * for more information):
    *
    * <ul>
    *   <li>This implementation will break the join operator if used with a
@@ -405,6 +406,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
    *        thus, marking earlier - but actually still not too late time-sliding
    *        windows as late comers.</li>
    * </ul>
+   *
    *
    */
   @Experimental
