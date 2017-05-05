@@ -29,17 +29,33 @@ import org.apache.beam.sdk.annotations.Experimental;
  * of indirection.
  */
 @Experimental(Experimental.Kind.METRICS)
-public class GaugeCell implements MetricCell<GaugeData> {
+public class GaugeCell implements MetricCell<Gauge, GaugeData> {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicReference<GaugeData> gaugeValue = new AtomicReference<>(GaugeData.empty());
 
+  /** Set the gauge to the given value. */
   public void set(long value) {
+    update(GaugeData.create(value));
+  }
+
+  @Override
+  public void update(GaugeData data) {
     GaugeData original;
     do {
       original = gaugeValue.get();
-    } while (!gaugeValue.compareAndSet(original, original.combine(GaugeData.create(value))));
+    } while (!gaugeValue.compareAndSet(original, original.combine(data)));
     dirty.afterModification();
+  }
+
+  @Override
+  public void update(MetricCell<Gauge, GaugeData> other) {
+    GaugeData original;
+    do {
+      original = gaugeValue.get();
+    } while (!gaugeValue.compareAndSet(original, original.combine(other.getCumulative())));
+    dirty.afterModification();
+    update(other.getCumulative());
   }
 
   @Override

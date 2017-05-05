@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -24,10 +25,21 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
  * specific metric name in a single context.
  *
+ * @param <UserT> The type of the user interface for reporting changes to this cell.
  * @param <DataT> The type of metric data stored (and extracted) from this cell.
  */
 @Experimental(Kind.METRICS)
-public interface MetricCell<DataT> {
+public interface MetricCell<UserT extends Metric, DataT> extends Serializable {
+
+  /**
+   * Update value of this cell.
+   */
+  void update(DataT data);
+
+  /**
+   * Update value of this cell by merging the value of another cell.
+   */
+  void update(MetricCell<UserT, DataT> other);
 
   /**
    * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.

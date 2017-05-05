@@ -26,12 +26,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Accumulator;
@@ -65,7 +65,7 @@ public class SourceRDD {
     private final SparkRuntimeContext runtimeContext;
     private final int numPartitions;
     private final String stepName;
-    private final Accumulator<SparkMetricsContainer> metricsAccum;
+    private final Accumulator<MetricsContainerStepMap> metricsAccum;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
