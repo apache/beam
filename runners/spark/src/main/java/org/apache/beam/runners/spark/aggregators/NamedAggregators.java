@@ -207,7 +207,7 @@ public class NamedAggregators implements Serializable {
       oos.writeObject(inCoder);
       try {
         combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .encode(state, oos, Coder.Context.NESTED);
+            .encode(state, oos);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }
@@ -220,7 +220,7 @@ public class NamedAggregators implements Serializable {
       inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .decode(ois, Coder.Context.NESTED);
+            .decode(ois);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }

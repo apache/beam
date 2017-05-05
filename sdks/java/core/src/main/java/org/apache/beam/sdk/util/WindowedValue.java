@@ -643,8 +643,8 @@ public abstract class WindowedValue<T> {
       Context nestedContext = context.nested();
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, nestedContext);
-      windowsCoder.encode(windowedElem.getWindows(), outStream, nestedContext);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, nestedContext);
+      windowsCoder.encode(windowedElem.getWindows(), outStream);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -652,10 +652,10 @@ public abstract class WindowedValue<T> {
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
+      Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows =
-          windowsCoder.decode(inStream, nestedContext);
-      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+          windowsCoder.decode(inStream);
+      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }

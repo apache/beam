@@ -241,9 +241,9 @@ public interface TimerInternals {
     public void encode(TimerData timer, OutputStream outStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      STRING_CODER.encode(timer.getTimerId(), outStream, nestedContext);
-      STRING_CODER.encode(timer.getNamespace().stringKey(), outStream, nestedContext);
-      INSTANT_CODER.encode(timer.getTimestamp(), outStream, nestedContext);
+      STRING_CODER.encode(timer.getTimerId(), outStream);
+      STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
+      INSTANT_CODER.encode(timer.getTimestamp(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream, context);
     }
 
@@ -251,10 +251,10 @@ public interface TimerInternals {
     public TimerData decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      String timerId = STRING_CODER.decode(inStream, nestedContext);
+      String timerId = STRING_CODER.decode(inStream);
       StateNamespace namespace =
-          StateNamespaces.fromString(STRING_CODER.decode(inStream, nestedContext), windowCoder);
-      Instant timestamp = INSTANT_CODER.decode(inStream, nestedContext);
+          StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
+      Instant timestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream, context));
       return TimerData.of(timerId, namespace, timestamp, domain);
     }

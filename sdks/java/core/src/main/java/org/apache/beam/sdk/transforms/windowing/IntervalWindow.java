@@ -181,14 +181,14 @@ public class IntervalWindow extends BoundedWindow
     @Override
     public void encode(IntervalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
-      instantCoder.encode(window.end, outStream, context.nested());
+      instantCoder.encode(window.end, outStream);
       durationCoder.encode(new Duration(window.start, window.end), outStream, context);
     }
 
     @Override
     public IntervalWindow decode(InputStream inStream, Context context)
         throws IOException, CoderException {
-      Instant end = instantCoder.decode(inStream, context.nested());
+      Instant end = instantCoder.decode(inStream);
       ReadableDuration duration = durationCoder.decode(inStream, context);
       return new IntervalWindow(end.minus(duration), end);
     }

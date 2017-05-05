@@ -97,7 +97,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       Collection<T> collection = (Collection<T>) iterable;
       dataOutStream.writeInt(collection.size());
       for (T elem : collection) {
-        elementCoder.encode(elem, dataOutStream, nestedContext);
+        elementCoder.encode(elem, dataOutStream);
       }
     } else {
       // We don't know the size without traversing it so use a fixed size buffer
@@ -108,7 +108,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           new BufferedElementCountingOutputStream(dataOutStream);
       for (T elem : iterable) {
         countingOutputStream.markElementStart();
-        elementCoder.encode(elem, countingOutputStream, nestedContext);
+        elementCoder.encode(elem, countingOutputStream);
       }
       countingOutputStream.finish();
     }
@@ -125,7 +125,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (size >= 0) {
       List<T> elements = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
-        elements.add(elementCoder.decode(dataInStream, nestedContext));
+        elements.add(elementCoder.decode(dataInStream));
       }
       return decodeToIterable(elements);
     }
@@ -134,7 +134,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     // each block of elements.
     long count = VarInt.decodeLong(dataInStream);
     while (count > 0L) {
-      elements.add(elementCoder.decode(dataInStream, nestedContext));
+      elements.add(elementCoder.decode(dataInStream));
       --count;
       if (count == 0L) {
           count = VarInt.decodeLong(dataInStream);
