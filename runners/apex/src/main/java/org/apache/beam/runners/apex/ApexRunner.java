@@ -70,11 +70,11 @@ import org.apache.hadoop.conf.Configuration;
  * pipeline to an Apex DAG and executes it on an Apex cluster.
  *
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
 public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private final ApexPipelineOptions options;
   public static final String CLASSPATH_SCHEME = "classpath";
+  protected boolean translateOnly = false;
 
   /**
    * TODO: this isn't thread safe and may cause issues when tests run in parallel
@@ -93,6 +93,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     return new ApexRunner(apexPipelineOptions);
   }
 
+  @SuppressWarnings({"rawtypes"})
   private List<PTransformOverride> getOverrides() {
     return ImmutableList.<PTransformOverride>builder()
         .add(
@@ -156,7 +157,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     if (options.isEmbeddedExecution()) {
-      Launcher<AppHandle> launcher = Launcher.getLauncher(LaunchMode.EMBEDDED);
+      EmbeddedAppLauncher<?> launcher = Launcher.getLauncher(LaunchMode.EMBEDDED);
       Attribute.AttributeMap launchAttributes = new Attribute.AttributeMap.DefaultAttributeMap();
       launchAttributes.put(EmbeddedAppLauncher.RUN_ASYNC, true);
       if (options.isEmbeddedExecutionDebugMode()) {
@@ -166,11 +167,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       Configuration conf = new Configuration(false);
       ApexYarnLauncher.addProperties(conf, configProperties);
       try {
+        if (translateOnly) {
+          launcher.prepareDAG(apexApp, conf);
+          return new ApexRunnerResult(launcher.getDAG(), null);
+        }
         ApexRunner.ASSERTION_ERROR.set(null);
         AppHandle apexAppResult = launcher.launchApp(apexApp, conf, launchAttributes);
         return new ApexRunnerResult(apexDAG.get(), apexAppResult);
       } catch (Exception e) {
-        Throwables.propagateIfPossible(e);
+        Throwables.throwIfUnchecked(e);
         throw new RuntimeException(e);
       }
     } else {
