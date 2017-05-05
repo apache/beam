@@ -301,7 +301,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   /**
    * A {@link CoderFactory} for {@link Message proto messages}.
    */
-  private static class ProtoCoderFactory implements CoderFactory {
+  private static class ProtoCoderFactory extends CoderFactory {
 
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,

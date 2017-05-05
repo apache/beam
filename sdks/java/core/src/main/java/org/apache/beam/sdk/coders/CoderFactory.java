@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>It may operate on a parameterized type, such as {@link List}, in which case the
  * {@link #coderFor} method accepts a list of coders to use for the type parameters.
  */
-public interface CoderFactory {
+public abstract class CoderFactory {
 
   /**
    * Returns a {@code Coder<T>} to use for values of a particular type, given the Coders for each of
@@ -35,6 +35,7 @@ public interface CoderFactory {
    * <p>Throws {@link CannotProvideCoderException} if this {@link CoderFactory} cannot provide
    * a coder for this type and components.
    */
-  <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+  public abstract <T> Coder<T> coderFor(
+      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
       throws CannotProvideCoderException;
 }

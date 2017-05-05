@@ -58,7 +58,7 @@ public final class CoderFactories {
    * See {@link #fromStaticMethods} for a detailed description
    * of the characteristics of this {@link CoderFactory}.
    */
-  private static class CoderFactoryFromStaticMethods implements CoderFactory {
+  private static class CoderFactoryFromStaticMethods extends CoderFactory {
 
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
@@ -164,7 +164,7 @@ public final class CoderFactories {
   /**
    * See {@link #forCoder} for a detailed description of this {@link CoderFactory}.
    */
-  private static class CoderFactoryForCoder implements CoderFactory {
+  private static class CoderFactoryForCoder extends CoderFactory {
     private final Coder<?> coder;
     private final TypeDescriptor<?> type;
 

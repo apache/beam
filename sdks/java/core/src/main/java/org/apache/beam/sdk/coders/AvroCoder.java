@@ -160,7 +160,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>It is unsafe to register this as a {@link CoderFactory} because Avro will reflectively
    * accept dangerous types such as {@link Object}.
    */
-  static class AvroCoderFactory implements CoderFactory {
+  static class AvroCoderFactory extends CoderFactory {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {

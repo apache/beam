@@ -69,7 +69,7 @@ public @interface DefaultCoder {
      * A {@link CoderFactory} that uses the {@code @DefaultCoder} annotation to provide
      * {@link CoderFactory coder factories} that create {@link Coder}s.
      */
-    static class DefaultCoderFactory implements CoderFactory {
+    static class DefaultCoderFactory extends CoderFactory {
       private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderFactory.class);
 
       /**

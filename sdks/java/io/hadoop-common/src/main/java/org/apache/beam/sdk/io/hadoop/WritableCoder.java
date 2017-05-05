@@ -124,7 +124,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   /**
    * A {@link CoderFactory} for Hadoop {@link Writable writable types}.
    */
-  private static class WritableCoderFactory implements CoderFactory {
+  private static class WritableCoderFactory extends CoderFactory {
     private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
 
     @Override

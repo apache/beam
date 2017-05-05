@@ -84,7 +84,7 @@ public class CoderRegistry {
   private static final List<CoderFactory> REGISTERED_CODER_FACTORIES;
 
   /** A {@link CoderFactory} for common Java SDK and Apache Beam SDK types. */
-  private static class CommonTypes implements CoderFactory {
+  private static class CommonTypes extends CoderFactory {
     private final Map<Class<?>, CoderFactory> commonTypesToCoderFactories;
 
     private CommonTypes() {

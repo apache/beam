@@ -93,7 +93,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
    * A {@link CoderFactory} that constructs a {@link SerializableCoder} for any class that
    * implements serializable.
    */
-  static class SerializableCoderFactory implements CoderFactory {
+  static class SerializableCoderFactory extends CoderFactory {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
