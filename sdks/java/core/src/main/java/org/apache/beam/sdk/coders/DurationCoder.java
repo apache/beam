@@ -29,7 +29,7 @@ import org.joda.time.ReadableDuration;
  * A {@link Coder} that encodes a joda {@link Duration} as a {@link Long} using the format of
  * {@link VarLongCoder}.
  */
-public class DurationCoder extends CustomCoder<ReadableDuration> {
+public class DurationCoder extends AtomicCoder<ReadableDuration> {
 
   public static DurationCoder of() {
     return INSTANCE;

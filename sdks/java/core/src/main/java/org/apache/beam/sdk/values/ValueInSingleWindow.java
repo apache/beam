@@ -24,8 +24,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.joda.time.Instant;
@@ -56,7 +56,7 @@ public abstract class ValueInSingleWindow<T> {
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
-  public static class Coder<T> extends CustomCoder<ValueInSingleWindow<T>> {
+  public static class Coder<T> extends StructuredCoder<ValueInSingleWindow<T>> {
     private final org.apache.beam.sdk.coders.Coder<T> valueCoder;
     private final org.apache.beam.sdk.coders.Coder<BoundedWindow> windowCoder;
 

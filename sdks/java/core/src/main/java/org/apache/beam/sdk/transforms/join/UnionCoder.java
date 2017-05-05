@@ -23,14 +23,14 @@ import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * A UnionCoder encodes RawUnionValues.
  */
-public class UnionCoder extends CustomCoder<RawUnionValue> {
+public class UnionCoder extends StructuredCoder<RawUnionValue> {
   // TODO: Think about how to integrate this with a schema object (i.e.
   // a tuple of tuple tags).
   /**
@@ -134,7 +134,6 @@ public class UnionCoder extends CustomCoder<RawUnionValue> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
-        "UnionCoder is only deterministic if all element coders are",
-        elementCoders);
+        this, "UnionCoder is only deterministic if all element coders are", elementCoders);
   }
 }
