@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -133,11 +132,13 @@ public class Query10 extends NexmarkQuery {
    */
   private WritableByteChannel openWritableGcsFile(GcsOptions options, String filename)
       throws IOException {
-    WritableByteChannel channel =
-            GcsIOChannelFactory.fromOptions(options).create(filename, "text/plain");
-    checkState(channel instanceof GoogleCloudStorageWriteChannel);
-    ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(CHANNEL_BUFFER);
-    return channel;
+    //TODO Decide what to do about this one
+//    WritableByteChannel channel =
+//            GcsIOChannelFactory.fromOptions(options).create(filename, "text/plain");
+//    checkState(channel instanceof GoogleCloudStorageWriteChannel);
+//    ((GoogleCloudStorageWriteChannel) channel).setUploadBufferSize(CHANNEL_BUFFER);
+//    return channel;
+    throw new UnsupportedOperationException("Disabled after removal of GcsIOChannelFactory");
   }
 
   /** Return a short string to describe {@code timing}. */
