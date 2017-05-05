@@ -301,37 +301,7 @@ public abstract class Coder<T> implements Serializable {
    *         unless it is overridden. This is considered expensive.
    */
   public boolean isRegisterByteSizeObserverCheap(T value) {
-    return isRegisterByteSizeObserverCheap(value, Context.NESTED);
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
-   * implementations.
-   *
-   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
-   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
-   *         unless it is overridden. This is considered expensive.
-   */
-  @Deprecated
-  public boolean isRegisterByteSizeObserverCheap(T value, Context context) {
     return false;
-  }
-
-  /**
-   * Returns the size in bytes of the encoded value using this coder.
-   */
-  protected long getEncodedElementByteSize(T value, Context context)
-      throws Exception {
-    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
-      encode(value, os, context);
-      return os.getCount();
-    } catch (Exception exn) {
-      throw new IllegalArgumentException(
-          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
-    }
   }
 
   /**
@@ -347,22 +317,20 @@ public abstract class Coder<T> implements Serializable {
    */
   public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
       throws Exception {
-    registerByteSizeObserver(value, observer, Context.NESTED);
+    observer.update(getEncodedElementByteSize(value));
   }
 
   /**
-   * Notifies the {@code ElementByteSizeObserver} about the byte size
-   * of the encoded value using this {@code Coder}.
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
-   * implementations.
+   * Returns the size in bytes of the encoded value using this coder.
    */
-  @Deprecated
-  public void registerByteSizeObserver(
-      T value, ElementByteSizeObserver observer, Context context)
-      throws Exception {
-    observer.update(getEncodedElementByteSize(value, context));
+  protected long getEncodedElementByteSize(T value) throws Exception {
+    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
+      encode(value, os);
+      return os.getCount();
+    } catch (Exception exn) {
+      throw new IllegalArgumentException(
+          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+    }
   }
 
   /**
