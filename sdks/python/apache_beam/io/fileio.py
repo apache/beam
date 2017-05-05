@@ -156,8 +156,7 @@ class FileSink(iobase.Sink):
                          'at least two components.',
                          file_path_prefix)
     path_components = [base_path,
-                       'beam-temp-' + last_component + time.strftime(
-                           '-%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid1().hex]
+                       'beam-temp-' + last_component + '-' + uuid.uuid1().hex]
     return FileSystems.join(*path_components)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
