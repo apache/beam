@@ -146,7 +146,7 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
 
   @Override
   public void registerByteSizeObserver(
-      Map<K, V> map, ElementByteSizeObserver observer, Context context)
+      Map<K, V> map, ElementByteSizeObserver observer)
       throws Exception {
     observer.update(4L);
     if (map.isEmpty()) {
@@ -155,12 +155,12 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     Iterator<Entry<K, V>> entries = map.entrySet().iterator();
     Entry<K, V> entry = entries.next();
     while (entries.hasNext()) {
-      keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(entry.getValue(), observer, context.nested());
+      keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+      valueCoder.registerByteSizeObserver(entry.getValue(), observer);
       entry = entries.next();
     }
-    keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+    valueCoder.registerByteSizeObserver(entry.getValue(), observer);
   }
 
   @Override
