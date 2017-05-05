@@ -278,7 +278,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
       final String bucketName =
           "dataflow-staging-" + region + "-" + projectNumber;
-      LOG.info("No temp location provided, attempting to use default bucket: {}",
+      LOG.info("No tempLocation specified, attempting to use default bucket: {}",
           bucketName);
       Bucket bucket = new Bucket()
           .setName(bucketName)

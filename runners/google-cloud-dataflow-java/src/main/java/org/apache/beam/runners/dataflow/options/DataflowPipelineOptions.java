@@ -124,7 +124,7 @@ public interface DataflowPipelineOptions
     @Override
     public String create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-      LOG.info("No staging location provided, falling back to temp location.");
+      LOG.info("No stagingLocation provided, falling back to gcpTempLocation");
       String gcpTempLocation;
       try {
         gcpTempLocation = gcsOptions.getGcpTempLocation();
