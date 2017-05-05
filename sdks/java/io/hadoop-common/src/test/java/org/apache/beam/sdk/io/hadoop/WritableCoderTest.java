@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.hadoop;
 
+import static org.hamcrest.Matchers.instanceOf;
+import static org.junit.Assert.assertThat;
+
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -41,5 +45,11 @@ public class WritableCoderTest {
     WritableCoder<NullWritable> coder = WritableCoder.of(NullWritable.class);
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
+  }
+
+  @Test
+  public void testAutomaticRegistrationOfCoderProvider() throws Exception {
+    assertThat(CoderRegistry.createDefault().getCoder(NullWritable.class),
+        instanceOf(WritableCoder.class));
   }
 }

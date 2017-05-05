@@ -15,21 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.gcp.pubsub;
+package org.apache.beam.sdk.extensions.protobuf;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
-import org.apache.beam.sdk.coders.CoderFactories;
-import org.apache.beam.sdk.coders.CoderFactory;
-import org.apache.beam.sdk.coders.CoderRegistrar;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
+import java.util.List;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
+import org.apache.beam.sdk.coders.CoderProviders;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A {@link CoderRegistrar} for standard types used with {@link PubsubIO}. */
-@AutoService(CoderRegistrar.class)
-public class PubsubCoderRegistrar implements CoderRegistrar {
+/**
+ * A {@link CoderProviderRegistrar} for standard types used with Google Protobuf.
+ */
+@AutoService(CoderProviderRegistrar.class)
+public class ProtobufCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
-  public Map<Class<?>, CoderFactory> getCoderFactoriesToUseForClasses() {
-    return ImmutableMap.<Class<?>, CoderFactory>of(
-        PubsubMessage.class, CoderFactories.forCoder(PubsubMessageWithAttributesCoder.of()));
+  public List<CoderProvider> getCoderProviders() {
+    return ImmutableList.of(
+        CoderProviders.forCoder(TypeDescriptor.of(ByteString.class), ByteStringCoder.of()),
+        ProtoCoder.getCoderProvider());
   }
 }
+

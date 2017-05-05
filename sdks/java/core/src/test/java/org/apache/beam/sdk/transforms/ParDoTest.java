@@ -985,11 +985,6 @@ public class ParDoTest implements Serializable {
       return INSTANCE;
     }
 
-    @SuppressWarnings("unused") // used to create a CoderFactory
-    public static List<Object> getInstanceComponents(TestDummy exampleValue) {
-      return Collections.emptyList();
-    }
-
     @Override
     public void encode(TestDummy value, OutputStream outStream, Context context)
         throws CoderException, IOException {
@@ -1657,7 +1652,7 @@ public class ParDoTest implements Serializable {
   public void testValueStateCoderInference() {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, MyInteger> fn =
         new DoFn<KV<String, Integer>, MyInteger>() {
@@ -1750,7 +1745,7 @@ public class ParDoTest implements Serializable {
   public void testCoderInferenceOfList() {
     final String stateId = "foo";
     MyIntegerCoder myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, List<MyInteger>> fn =
         new DoFn<KV<String, Integer>, List<MyInteger>>() {
@@ -1966,7 +1961,7 @@ public class ParDoTest implements Serializable {
   public void testBagStateCoderInference() {
     final String stateId = "foo";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, List<MyInteger>> fn =
         new DoFn<KV<String, Integer>, List<MyInteger>>() {
@@ -2085,7 +2080,7 @@ public class ParDoTest implements Serializable {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, Integer>, Set<MyInteger>> fn =
         new DoFn<KV<String, Integer>, Set<MyInteger>>() {
@@ -2217,7 +2212,7 @@ public class ParDoTest implements Serializable {
     final String stateId = "foo";
     final String countStateId = "count";
     Coder<MyInteger> myIntegerCoder = MyIntegerCoder.of();
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, myIntegerCoder);
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, myIntegerCoder);
 
     DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>> fn =
         new DoFn<KV<String, KV<String, Integer>>, KV<String, MyInteger>>() {
@@ -2345,7 +2340,7 @@ public class ParDoTest implements Serializable {
   @Test
   @Category({ValidatesRunner.class, UsesStatefulParDo.class})
   public void testCombiningStateCoderInference() {
-    pipeline.getCoderRegistry().registerCoder(MyInteger.class, MyIntegerCoder.of());
+    pipeline.getCoderRegistry().registerCoderForClass(MyInteger.class, MyIntegerCoder.of());
 
     final String stateId = "foo";
 

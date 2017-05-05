@@ -229,7 +229,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CoderRegistry reg = pipeline.getCoderRegistry();
     StateTag<CombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
-            sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
+            sumLongFn.getAccumulatorCoder(reg, reg.getCoder(Long.class)), sumLongFn);
     GroupingState<Long, Long> underlyingValue = underlying.state(namespace, stateTag);
     assertThat(underlyingValue.read(), equalTo(0L));
 
