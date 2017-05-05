@@ -90,6 +90,7 @@
       <excludepackage name="org.apache.beam.runners.spark.examples.*"/>
       <excludepackage name="org.apache.beam.runners.spark.translation.*"/>
       <excludepackage name="org.apache.beam.sdk.transforms.reflect.*"/>
+      <excludepackage name="org.apache.beam.sdk.runners.*"/>
       <excludepackage name="org.apache.beam.sdk.util.*"/>
     </javadoc>
     <!-- make a jar file to push to central -->
