@@ -385,7 +385,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("my-id");
     thrown.expectMessage("myfield1");
     thrown.expectMessage("myfield2");
-    thrown.expectMessage(not(mentionsState()));
+    thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -407,7 +407,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("Timer declarations must be final");
     thrown.expectMessage("Non-final field");
     thrown.expectMessage("myfield");
-    thrown.expectMessage(not(mentionsState()));
+    thrown.expectMessage(not(containsString("State"))); // lowercase "state" is in the package name
     thrown.expectMessage(mentionsTimers());
     DoFnSignature sig =
         DoFnSignatures.getSignature(
