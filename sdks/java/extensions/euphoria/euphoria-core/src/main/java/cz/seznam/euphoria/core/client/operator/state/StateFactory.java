@@ -37,7 +37,7 @@ public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Ser
    * @return a newly created state
    */
   STATE createState(StorageProvider storageProvider,
-                    @Experimental("may break merging windowing and downstream watermarking")
+                    @Experimental("https://github.com/seznam/euphoria/issues/118")
                     @Nullable Context<OUT> context);
 
 }
