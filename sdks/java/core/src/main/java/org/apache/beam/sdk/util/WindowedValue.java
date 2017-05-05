@@ -663,11 +663,9 @@ public abstract class WindowedValue<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          "FullWindowedValueCoder requires a deterministic valueCoder",
-          valueCoder);
+          this, "FullWindowedValueCoder requires a deterministic valueCoder", valueCoder);
       verifyDeterministic(
-          "FullWindowedValueCoder requires a deterministic windowCoder",
-          windowCoder);
+          this, "FullWindowedValueCoder requires a deterministic windowCoder", windowCoder);
     }
 
     @Override
@@ -728,6 +726,7 @@ public abstract class WindowedValue<T> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
+          this,
           "ValueOnlyWindowedValueCoder requires a deterministic valueCoder",
           valueCoder);
     }

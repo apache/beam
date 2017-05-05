@@ -17,18 +17,20 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 
 /** A {@link Coder} for {@link ElementAndRestriction}. */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class ElementAndRestrictionCoder<ElementT, RestrictionT>
-    extends CustomCoder<ElementAndRestriction<ElementT, RestrictionT>> {
+    extends StructuredCoder<ElementAndRestriction<ElementT, RestrictionT>> {
   private final Coder<ElementT> elementCoder;
   private final Coder<RestrictionT> restrictionCoder;
 
@@ -63,6 +65,17 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
     ElementT key = elementCoder.decode(inStream, context.nested());
     RestrictionT value = restrictionCoder.decode(inStream, context);
     return ElementAndRestriction.of(key, value);
+  }
+
+  @Override
+  public List<? extends Coder<?>> getCoderArguments() {
+    return ImmutableList.of(elementCoder, restrictionCoder);
+  }
+
+  @Override
+  public void verifyDeterministic() throws NonDeterministicException {
+    elementCoder.verifyDeterministic();
+    restrictionCoder.verifyDeterministic();
   }
 
   public Coder<ElementT> getElementCoder() {

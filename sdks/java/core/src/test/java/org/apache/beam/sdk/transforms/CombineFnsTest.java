@@ -28,10 +28,10 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -326,7 +326,7 @@ public class  CombineFnsTest {
     }
   }
 
-  private static class UserStringCoder extends CustomCoder<UserString> {
+  private static class UserStringCoder extends AtomicCoder<UserString> {
     public static UserStringCoder of() {
       return INSTANCE;
     }

@@ -58,8 +58,7 @@ public class ListCoder<T> extends IterableLikeCoder<T, List<T>> {
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(
-        "ListCoder.elemCoder must be deterministic", getElemCoder());
+    verifyDeterministic(this, "ListCoder.elemCoder must be deterministic", getElemCoder());
   }
 
   @Override

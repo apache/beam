@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,9 +39,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * encoded via a {@link VarIntCoder}.</li>
  * </ul>
  */
-public class ByteArrayCoder extends StructuredCoder<byte[]> {
+public class ByteArrayCoder extends AtomicCoder<byte[]> {
 
-  @JsonCreator
   public static ByteArrayCoder of() {
     return INSTANCE;
   }
@@ -117,7 +115,7 @@ public class ByteArrayCoder extends StructuredCoder<byte[]> {
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {}
+  public void verifyDeterministic() {}
 
   /**
    * {@inheritDoc}

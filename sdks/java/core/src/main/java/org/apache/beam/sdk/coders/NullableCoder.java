@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> the type of the values being transcoded
  */
-public class NullableCoder<T> extends CustomCoder<T> {
+public class NullableCoder<T> extends StructuredCoder<T> {
   public static <T> NullableCoder<T> of(Coder<T> valueCoder) {
     if (valueCoder instanceof NullableCoder) {
       return (NullableCoder<T>) valueCoder;
@@ -93,11 +93,11 @@ public class NullableCoder<T> extends CustomCoder<T> {
   /**
    * {@code NullableCoder} is deterministic if the nested {@code Coder} is.
    *
-   * {@inheritDoc}
+   * <p>{@inheritDoc}
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic("Value coder must be deterministic", valueCoder);
+    verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
   }
 
   /**

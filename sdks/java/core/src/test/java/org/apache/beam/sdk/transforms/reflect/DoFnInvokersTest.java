@@ -35,8 +35,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -270,7 +270,7 @@ public class DoFnInvokersTest {
   private abstract static class SomeRestrictionTracker
       implements RestrictionTracker<SomeRestriction> {}
 
-  private static class SomeRestrictionCoder extends CustomCoder<SomeRestriction> {
+  private static class SomeRestrictionCoder extends AtomicCoder<SomeRestriction> {
     public static SomeRestrictionCoder of() {
       return new SomeRestrictionCoder();
     }
@@ -392,7 +392,7 @@ public class DoFnInvokersTest {
     public void checkDone() throws IllegalStateException {}
   }
 
-  private static class CoderForDefaultTracker extends CustomCoder<RestrictionWithDefaultTracker> {
+  private static class CoderForDefaultTracker extends AtomicCoder<RestrictionWithDefaultTracker> {
     public static CoderForDefaultTracker of() {
       return new CoderForDefaultTracker();
     }

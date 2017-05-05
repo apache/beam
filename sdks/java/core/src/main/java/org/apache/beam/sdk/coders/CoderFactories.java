@@ -239,11 +239,12 @@ public final class CoderFactories {
     }
 
     /**
-     * If {@code coderType} is a subclass of {@link Coder} for a specific
-     * type {@code T}, returns {@code T.class}. Otherwise, raises IllegalArgumentException.
+     * If {@code coderType} is a subclass of {@link Coder} for a specific type {@code T}, returns
+     * {@code T.class}. Otherwise, raises IllegalArgumentException.
      */
-    private <T> TypeDescriptor<T> getCodedType(TypeDescriptor<? extends Coder> coderType) {
-      TypeDescriptor<?> coderSupertype = coderType.getSupertype(Coder.class);
+    private <T, CoderT extends Coder> TypeDescriptor<T> getCodedType(
+        TypeDescriptor<CoderT> coderType) {
+      TypeDescriptor<? super CoderT> coderSupertype = coderType.getSupertype(Coder.class);
       ParameterizedType coderIface = (ParameterizedType) coderSupertype.getType();
       @SuppressWarnings("unchecked")
       TypeDescriptor<T> token =

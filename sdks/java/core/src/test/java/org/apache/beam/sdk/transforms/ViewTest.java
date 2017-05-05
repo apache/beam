@@ -39,9 +39,9 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -505,7 +505,7 @@ public class ViewTest implements Serializable {
     pipeline.run();
   }
 
-  private static class NonDeterministicStringCoder extends CustomCoder<String> {
+  private static class NonDeterministicStringCoder extends AtomicCoder<String> {
     @Override
     public void encode(String value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {

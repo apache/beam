@@ -26,12 +26,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -71,7 +73,7 @@ class WriteBundlesToFiles<DestinationT>
   }
 
   /** a coder for the {@link Result} class. */
-  public static class ResultCoder<DestinationT> extends CustomCoder<Result<DestinationT>> {
+  public static class ResultCoder<DestinationT> extends StructuredCoder<Result<DestinationT>> {
     private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
     private static final VarLongCoder longCoder = VarLongCoder.of();
     private final Coder<DestinationT> destinationCoder;
@@ -102,6 +104,11 @@ class WriteBundlesToFiles<DestinationT>
       long fileByteSize = longCoder.decode(inStream, context.nested());
       DestinationT destination = destinationCoder.decode(inStream, context.nested());
       return new Result<>(filename, fileByteSize, destination);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.singletonList(destinationCoder);
     }
 
     @Override

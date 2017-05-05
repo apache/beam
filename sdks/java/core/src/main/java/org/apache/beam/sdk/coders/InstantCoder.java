@@ -29,7 +29,7 @@ import org.joda.time.Instant;
  * A {@link Coder} for joda {@link Instant} that encodes it as a big endian {@link Long}
  * shifted such that lexicographic ordering of the bytes corresponds to chronological order.
  */
-public class InstantCoder extends CustomCoder<Instant> {
+public class InstantCoder extends AtomicCoder<Instant> {
   public static InstantCoder of() {
     return INSTANCE;
   }

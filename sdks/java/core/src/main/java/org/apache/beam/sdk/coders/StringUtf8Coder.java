@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * If in a nested context, prefixes the string with an integer length field,
  * encoded via a {@link VarIntCoder}.
  */
-public class StringUtf8Coder extends CustomCoder<String> {
+public class StringUtf8Coder extends AtomicCoder<String> {
 
   public static StringUtf8Coder of() {
     return INSTANCE;

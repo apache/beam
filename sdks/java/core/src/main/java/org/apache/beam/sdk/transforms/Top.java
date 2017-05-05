@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -551,8 +552,7 @@ public class Top {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(
-          "HeapCoder requires a deterministic list coder", listCoder);
+      verifyDeterministic(this, "HeapCoder requires a deterministic list coder", listCoder);
     }
 
     @Override
@@ -567,6 +567,25 @@ public class Top {
         BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer, Context context)
             throws Exception {
       listCoder.registerByteSizeObserver(value.asList(), observer, context);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other == this) {
+        return true;
+      }
+      if (!(other instanceof BoundedHeapCoder)) {
+        return false;
+      }
+      BoundedHeapCoder<?, ?> that = (BoundedHeapCoder<?, ?>) other;
+      return Objects.equals(this.compareFn, that.compareFn)
+          && Objects.equals(this.listCoder, that.listCoder)
+          && this.maximumSize == that.maximumSize;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(compareFn, listCoder, maximumSize);
     }
   }
 }

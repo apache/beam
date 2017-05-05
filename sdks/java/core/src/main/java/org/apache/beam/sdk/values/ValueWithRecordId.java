@@ -27,7 +27,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -85,7 +85,7 @@ public class ValueWithRecordId<ValueT> {
    * A {@link Coder} for {@code ValueWithRecordId}, using a wrapped value {@code Coder}.
    */
   public static class ValueWithRecordIdCoder<ValueT>
-      extends CustomCoder<ValueWithRecordId<ValueT>> {
+      extends StructuredCoder<ValueWithRecordId<ValueT>> {
     public static <ValueT> ValueWithRecordIdCoder<ValueT> of(Coder<ValueT> valueCoder) {
       return new ValueWithRecordIdCoder<>(valueCoder);
     }

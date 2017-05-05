@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -32,7 +32,7 @@ import org.joda.time.Instant;
 /**
  * A {@link Coder} for {@link KinesisRecord}.
  */
-class KinesisRecordCoder extends CustomCoder<KinesisRecord> {
+class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();

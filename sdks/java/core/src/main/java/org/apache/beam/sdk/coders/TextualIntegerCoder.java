@@ -26,7 +26,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * A {@link Coder} that encodes {@code Integer Integers} as the ASCII bytes of
  * their textual, decimal, representation.
  */
-public class TextualIntegerCoder extends CustomCoder<Integer> {
+public class TextualIntegerCoder extends AtomicCoder<Integer> {
 
   public static TextualIntegerCoder of() {
     return new TextualIntegerCoder();

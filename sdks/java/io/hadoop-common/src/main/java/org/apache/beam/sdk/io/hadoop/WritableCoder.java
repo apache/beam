@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -90,6 +91,23 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Hadoop Writable may be non-deterministic.");
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof WritableCoder)) {
+      return false;
+    }
+    WritableCoder<?> that = (WritableCoder<?>) other;
+    return Objects.equals(this.type, that.type);
+  }
+
+  @Override
+  public int hashCode() {
+    return type.hashCode();
   }
 
 }
