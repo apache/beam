@@ -74,15 +74,6 @@ class BigtableServiceImpl implements BigtableService {
 
   @Override
   public boolean tableExists(String tableId) throws IOException {
-    if (!BigtableSession.isAlpnProviderEnabled()) {
-      LOG.info(
-          "Skipping existence check for table {} (BigtableOptions {}) because ALPN is not"
-              + " configured.",
-          tableId,
-          options);
-      return true;
-    }
-
     try (BigtableSession session = new BigtableSession(options)) {
       GetTableRequest getTable =
           GetTableRequest.newBuilder()

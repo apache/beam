@@ -67,7 +67,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A bounded source and sink for Google Cloud Bigtable.
+ * {@link PTransform Transforms} for reading from and writing to Google Cloud Bigtable.
  *
  * <p>For more information about Cloud Bigtable, see the online documentation at
  * <a href="https://cloud.google.com/bigtable/">Google Cloud Bigtable</a>.
