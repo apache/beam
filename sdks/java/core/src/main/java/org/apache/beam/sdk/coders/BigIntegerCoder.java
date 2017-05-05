@@ -28,7 +28,7 @@ import java.math.BigInteger;
  * A {@link BigIntegerCoder} encodes a {@link BigInteger} as a byte array containing the big endian
  * two's-complement representation, encoded via {@link ByteArrayCoder}.
  */
-public class BigIntegerCoder extends CustomCoder<BigInteger> {
+public class BigIntegerCoder extends AtomicCoder<BigInteger> {
 
   public static BigIntegerCoder of() {
     return INSTANCE;
@@ -55,7 +55,7 @@ public class BigIntegerCoder extends CustomCoder<BigInteger> {
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {
+  public void verifyDeterministic() {
     BYTE_ARRAY_CODER.verifyDeterministic();
   }
 

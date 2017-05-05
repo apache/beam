@@ -23,11 +23,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
@@ -85,7 +86,7 @@ public class TimestampedValue<V> {
   /////////////////////////////////////////////////////////////////////////////
 
   /** A {@link Coder} for {@link TimestampedValue}. */
-  public static class TimestampedValueCoder<T> extends CustomCoder<TimestampedValue<T>> {
+  public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
     private final Coder<T> valueCoder;
 
@@ -119,8 +120,7 @@ public class TimestampedValue<V> {
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
-          "TimestampedValueCoder requires a deterministic valueCoder",
-          valueCoder);
+          this, "TimestampedValueCoder requires a deterministic valueCoder", valueCoder);
     }
 
     @Override
@@ -140,6 +140,11 @@ public class TimestampedValue<V> {
     public TypeDescriptor<TimestampedValue<T>> getEncodedTypeDescriptor() {
       return new TypeDescriptor<TimestampedValue<T>>() {}.where(
           new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
+    }
+
+    @Override
+    public List<? extends Coder<?>> getComponents() {
+      return Collections.singletonList(valueCoder);
     }
   }
 

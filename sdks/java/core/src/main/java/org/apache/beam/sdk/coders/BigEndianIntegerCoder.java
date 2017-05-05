@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian.
  */
-public class BigEndianIntegerCoder extends CustomCoder<Integer> {
+public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
 
   public static BigEndianIntegerCoder of() {
     return INSTANCE;

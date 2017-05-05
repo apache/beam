@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -680,5 +681,23 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
       throw new IllegalArgumentException("Unable to get field " + name + " from " + originalClazz);
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof AvroCoder)) {
+      return false;
+    }
+    AvroCoder<?> that = (AvroCoder<?>) other;
+    return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schemaSupplier.get(), typeDescriptor);
   }
 }

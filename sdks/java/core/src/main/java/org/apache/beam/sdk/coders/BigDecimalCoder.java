@@ -32,7 +32,7 @@ import java.math.MathContext;
  * {@link BigInteger}, when scaled (with unlimited precision, aka {@link MathContext#UNLIMITED}),
  * yields the expected {@link BigDecimal}.
  */
-public class BigDecimalCoder extends CustomCoder<BigDecimal> {
+public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
 
   public static BigDecimalCoder of() {
     return INSTANCE;
