@@ -348,7 +348,7 @@ public class HadoopInputFormatIO {
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
       try {
-        return (Coder<T>) coderRegistry.getDefaultCoder(typeDesc);
+        return (Coder<T>) coderRegistry.getCoder(typeDesc);
       } catch (CannotProvideCoderException e) {
         if (Writable.class.isAssignableFrom(classType)) {
           return (Coder<T>) WritableCoder.of(classType);

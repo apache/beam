@@ -75,7 +75,7 @@ public class CoderRegistryTest {
   public void testRegisterInstantiatedCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     registry.registerCoderForClass(MyValue.class, MyValueCoder.of());
-    assertEquals(registry.getDefaultCoder(MyValue.class), MyValueCoder.of());
+    assertEquals(registry.getCoder(MyValue.class), MyValueCoder.of());
   }
 
   @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
@@ -103,7 +103,7 @@ public class CoderRegistryTest {
   @Test
   public void testSimpleDefaultCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    assertEquals(StringUtf8Coder.of(), registry.getDefaultCoder(String.class));
+    assertEquals(StringUtf8Coder.of(), registry.getCoder(String.class));
   }
 
   @Test
@@ -113,7 +113,7 @@ public class CoderRegistryTest {
     thrown.expectMessage(allOf(
         containsString(UnknownType.class.getName()),
         containsString("Unable to provide a Coder for")));
-    registry.getDefaultCoder(UnknownType.class);
+    registry.getCoder(UnknownType.class);
   }
 
   @Test
@@ -121,7 +121,7 @@ public class CoderRegistryTest {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<List<Integer>> listToken = new TypeDescriptor<List<Integer>>() {};
     assertEquals(ListCoder.of(VarIntCoder.of()),
-                 registry.getDefaultCoder(listToken));
+                 registry.getCoder(listToken));
 
     registry.registerCoderFactory(
         CoderFactories.fromStaticMethods(MyValue.class, MyValueCoder.class));
@@ -129,7 +129,7 @@ public class CoderRegistryTest {
         new TypeDescriptor<KV<String, List<MyValue>>>() {};
     assertEquals(KvCoder.of(StringUtf8Coder.of(),
                             ListCoder.of(MyValueCoder.of())),
-                 registry.getDefaultCoder(kvToken));
+                 registry.getCoder(kvToken));
 
   }
 
@@ -138,7 +138,7 @@ public class CoderRegistryTest {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<Map<Integer, String>> mapToken = new TypeDescriptor<Map<Integer, String>>() {};
     assertEquals(MapCoder.of(VarIntCoder.of(), StringUtf8Coder.of()),
-                 registry.getDefaultCoder(mapToken));
+                 registry.getCoder(mapToken));
   }
 
   @Test
@@ -148,21 +148,21 @@ public class CoderRegistryTest {
         new TypeDescriptor<Map<Integer, Map<String, Double>>>() {};
     assertEquals(
         MapCoder.of(VarIntCoder.of(), MapCoder.of(StringUtf8Coder.of(), DoubleCoder.of())),
-        registry.getDefaultCoder(mapToken));
+        registry.getCoder(mapToken));
   }
 
   @Test
   public void testParameterizedDefaultSetCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<Set<Integer>> setToken = new TypeDescriptor<Set<Integer>>() {};
-    assertEquals(SetCoder.of(VarIntCoder.of()), registry.getDefaultCoder(setToken));
+    assertEquals(SetCoder.of(VarIntCoder.of()), registry.getCoder(setToken));
   }
 
   @Test
   public void testParameterizedDefaultNestedSetCoder() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     TypeDescriptor<Set<Set<Integer>>> setToken = new TypeDescriptor<Set<Set<Integer>>>() {};
-    assertEquals(SetCoder.of(SetCoder.of(VarIntCoder.of())), registry.getDefaultCoder(setToken));
+    assertEquals(SetCoder.of(SetCoder.of(VarIntCoder.of())), registry.getCoder(setToken));
   }
 
   @Test
@@ -176,7 +176,7 @@ public class CoderRegistryTest {
         listUnknownToken,
         UnknownType.class.getName()));
 
-    registry.getDefaultCoder(listUnknownToken);
+    registry.getCoder(listUnknownToken);
   }
 
   @Test
@@ -185,7 +185,7 @@ public class CoderRegistryTest {
     MyGenericClass<MyValue, List<MyValue>> instance =
         new MyGenericClass<MyValue, List<MyValue>>() {};
 
-    Coder<?> bazCoder = registry.getDefaultCoder(
+    Coder<?> bazCoder = registry.getCoder(
         instance.getClass(),
         MyGenericClass.class,
         Collections.<Type, Coder<?>>singletonMap(
@@ -201,7 +201,7 @@ public class CoderRegistryTest {
     MyGenericClass<MyValue, List<MyValue>> instance =
         new MyGenericClass<MyValue, List<MyValue>>() {};
 
-    Coder<?> fooCoder = registry.getDefaultCoder(
+    Coder<?> fooCoder = registry.getCoder(
         instance.getClass(),
         MyGenericClass.class,
         Collections.<Type, Coder<?>>singletonMap(
@@ -263,7 +263,7 @@ public class CoderRegistryTest {
   public void testDefaultCoderAnnotationGenericRawtype() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertEquals(
-        registry.getDefaultCoder(MySerializableGeneric.class),
+        registry.getCoder(MySerializableGeneric.class),
         SerializableCoder.of(MySerializableGeneric.class));
   }
 
@@ -271,7 +271,7 @@ public class CoderRegistryTest {
   public void testDefaultCoderAnnotationGeneric() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     assertEquals(
-        registry.getDefaultCoder(new TypeDescriptor<MySerializableGeneric<String>>() {}),
+        registry.getCoder(new TypeDescriptor<MySerializableGeneric<String>>() {}),
         SerializableCoder.of(MySerializableGeneric.class));
   }
 
@@ -300,7 +300,7 @@ public class CoderRegistryTest {
 
     thrown.expect(CannotProvideCoderException.class);
     thrown.expectMessage("Unable to provide a Coder");
-    registry.getDefaultCoder(TypeDescriptor.of(
+    registry.getCoder(TypeDescriptor.of(
         TestGenericClass.class.getTypeParameters()[0]));
   }
 
@@ -313,7 +313,7 @@ public class CoderRegistryTest {
 
     TypeDescriptor type = TypeDescriptor.of(
         TestSerializableGenericClass.class.getTypeParameters()[0]);
-    assertEquals(SerializableCoder.of(type), registry.getDefaultCoder(type));
+    assertEquals(SerializableCoder.of(type), registry.getCoder(type));
   }
 
   private static class TestSerializableGenericClass<TestGenericT extends Serializable> {}
@@ -443,7 +443,7 @@ public class CoderRegistryTest {
   @Test
   public void testAutomaticRegistrationOfCoderFactories() throws Exception {
     assertEquals(AutoRegistrationClassCoder.INSTANCE,
-        CoderRegistry.createDefault().getDefaultCoder(AutoRegistrationClass.class));
+        CoderRegistry.createDefault().getCoder(AutoRegistrationClass.class));
   }
 
   /**

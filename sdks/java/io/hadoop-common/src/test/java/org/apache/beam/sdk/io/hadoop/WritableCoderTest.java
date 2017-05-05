@@ -49,7 +49,7 @@ public class WritableCoderTest {
 
   @Test
   public void testAutomaticRegistrationOfCoderFactory() throws Exception {
-    assertThat(CoderRegistry.createDefault().getDefaultCoder(NullWritable.class),
+    assertThat(CoderRegistry.createDefault().getCoder(NullWritable.class),
         instanceOf(WritableCoder.class));
   }
 }

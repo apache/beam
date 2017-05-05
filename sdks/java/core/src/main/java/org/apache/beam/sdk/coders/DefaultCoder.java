@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * <p>Coders specified explicitly via {@link PCollection#setCoder} take precedence, followed by
- * Coders found at runtime via {@link CoderRegistry#getDefaultCoder}.
+ * Coders found at runtime via {@link CoderRegistry#getCoder}.
  * See {@link CoderRegistry} for a more detailed discussion of the precedence rules.
  */
 @Documented

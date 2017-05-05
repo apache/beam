@@ -116,13 +116,13 @@ public class DefaultCoderTest {
     CoderRegistry registry = CoderRegistry.createDefault();
     registry.registerCoderFactory(
         new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
-    assertThat(registry.getDefaultCoder(AvroRecord.class),
+    assertThat(registry.getCoder(AvroRecord.class),
         instanceOf(AvroCoder.class));
-    assertThat(registry.getDefaultCoder(SerializableRecord.class),
+    assertThat(registry.getCoder(SerializableRecord.class),
         instanceOf(SerializableCoder.class));
-    assertThat(registry.getDefaultCoder(CustomRecord.class),
+    assertThat(registry.getCoder(CustomRecord.class),
         instanceOf(CustomSerializableCoder.class));
-    assertThat(registry.getDefaultCoder(OldCustomRecord.class),
+    assertThat(registry.getCoder(OldCustomRecord.class),
         instanceOf(OldCustomSerializableCoder.class));
   }
 
@@ -132,10 +132,10 @@ public class DefaultCoderTest {
     registry.registerCoderFactory(
         new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
     Coder<List<AvroRecord>> avroRecordCoder =
-        registry.getDefaultCoder(new TypeDescriptor<List<AvroRecord>>(){});
+        registry.getCoder(new TypeDescriptor<List<AvroRecord>>(){});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
     assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
-    assertThat(registry.getDefaultCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
+    assertThat(registry.getCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
         Matchers.<Coder<List<SerializableRecord>>>equalTo(
             ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
   }

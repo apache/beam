@@ -325,7 +325,7 @@ public class Create<T> {
       if (coder.isPresent()) {
         return coder.get();
       } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
+        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
       } else {
         return getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), elems);
       }
@@ -574,7 +574,7 @@ public class Create<T> {
       if (elementCoder.isPresent()) {
         return elementCoder.get();
       } else if (typeDescriptor.isPresent()) {
-        return input.getPipeline().getCoderRegistry().getDefaultCoder(typeDescriptor.get());
+        return input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
       } else {
         Iterable<T> rawElements =
             Iterables.transform(
@@ -619,7 +619,7 @@ public class Create<T> {
     if (elementClazz.getTypeParameters().length == 0) {
       try {
         @SuppressWarnings("unchecked") // elementClazz is a wildcard type
-        Coder<T> coder = (Coder<T>) registry.getDefaultCoder(TypeDescriptor.of(elementClazz));
+        Coder<T> coder = (Coder<T>) registry.getCoder(TypeDescriptor.of(elementClazz));
         return coder;
       } catch (CannotProvideCoderException exc) {
         // Can't get a coder from the class of the elements, try with the elements next
@@ -691,7 +691,7 @@ public class Create<T> {
           inferCoderFromObject(registry, ((KV) o).getKey()),
           inferCoderFromObject(registry, ((KV) o).getValue()));
     } else {
-      return registry.getDefaultCoder(o.getClass());
+      return registry.getCoder(o.getClass());
     }
   }
 }

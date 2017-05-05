@@ -94,8 +94,8 @@ public class FlatMapElementsTest implements Serializable {
 
     assertThat(output.getTypeDescriptor(),
         equalTo((TypeDescriptor<String>) new TypeDescriptor<String>() {}));
-    assertThat(pipeline.getCoderRegistry().getDefaultCoder(output.getTypeDescriptor()),
-        equalTo(pipeline.getCoderRegistry().getDefaultCoder(new TypeDescriptor<String>() {})));
+    assertThat(pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor()),
+        equalTo(pipeline.getCoderRegistry().getCoder(new TypeDescriptor<String>() {})));
 
     // Make sure the pipeline runs
     pipeline.run();

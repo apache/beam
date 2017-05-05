@@ -216,8 +216,8 @@ public class CoderRegistry {
 
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
-  public <T> Coder<T> getDefaultCoder(Class<T> clazz) throws CannotProvideCoderException {
-    return getDefaultCoder(TypeDescriptor.of(clazz));
+  public <T> Coder<T> getCoder(Class<T> clazz) throws CannotProvideCoderException {
+    return getCoder(TypeDescriptor.of(clazz));
   }
 
   /**
@@ -225,7 +225,7 @@ public class CoderRegistry {
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
-  public <T> Coder<T> getDefaultCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
+  public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
     return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
   }
 
@@ -237,7 +237,7 @@ public class CoderRegistry {
    */
   @Deprecated
   @Internal
-  public <InputT, OutputT> Coder<OutputT> getDefaultCoder(
+  public <InputT, OutputT> Coder<OutputT> getCoder(
       TypeDescriptor<OutputT> typeDescriptor,
       TypeDescriptor<InputT> inputTypeDescriptor,
       Coder<InputT> inputCoder)
@@ -257,14 +257,14 @@ public class CoderRegistry {
    */
   @Deprecated
   @Internal
-  public <InputT, OutputT> Coder<OutputT> getDefaultOutputCoder(
+  public <InputT, OutputT> Coder<OutputT> getOutputCoder(
       SerializableFunction<InputT, OutputT> fn, Coder<InputT> inputCoder)
       throws CannotProvideCoderException {
 
     ParameterizedType fnType = (ParameterizedType)
         TypeDescriptor.of(fn.getClass()).getSupertype(SerializableFunction.class).getType();
 
-    return getDefaultCoder(
+    return getCoder(
         fn.getClass(),
         SerializableFunction.class,
         ImmutableMap.of(fnType.getActualTypeArguments()[0], inputCoder),
@@ -279,7 +279,7 @@ public class CoderRegistry {
    */
   @Deprecated
   @Internal
-  public <T, OutputT> Coder<OutputT> getDefaultCoder(
+  public <T, OutputT> Coder<OutputT> getCoder(
       Class<? extends T> subClass,
       Class<T> baseClass,
       Map<Type, ? extends Coder<?>> knownCoders,
