@@ -41,6 +41,18 @@ public abstract class BeamSqlExpression implements Serializable{
     this.outputType = outputType;
   }
 
+  public BeamSqlExpression op(int idx) {
+    return operands.get(idx);
+  }
+
+  public SqlTypeName opType(int idx) {
+    return op(idx).getOutputType();
+  }
+
+  public <T> T opValueEvaluated(int idx, BeamSQLRow row) {
+    return (T) op(idx).evaluate(row).getValue();
+  }
+
   /**
    * assertion to make sure the input and output are supported in this expression.
    */
