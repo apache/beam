@@ -87,6 +87,9 @@ public @interface Experimental {
     /** Experimental runner APIs. Should not be used by pipeline authors. */
     CORE_RUNNERS_ONLY,
 
+    /** Experimental feature related to alternative, unnested encodings for coders. */
+    CODER_CONTEXT,
+
     /** Experimental feature related to making the encoded element type available from a Coder. */
     CODER_TYPE_ENCODING
   }

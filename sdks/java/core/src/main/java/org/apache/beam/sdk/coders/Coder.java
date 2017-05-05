@@ -122,61 +122,14 @@ public abstract class Coder<T> implements Serializable {
       throws CoderException, IOException;
 
   /**
-   * Encodes the given value of type {@code T} onto the given output stream
-   * in the outer context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException;
-
-  /**
-   * Encodes the given value of type {@code T} onto the given output stream
-   * in the given context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
+   * Decodes a value of type {@code T} from the given input stream.
+   * Returns the decoded value.
    *
    * @throws IOException if reading from the {@code InputStream} fails
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
    */
   public abstract T decode(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the outer context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decodeOuter(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
-   * the given context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decode(InputStream inStream, Context context)
-      throws CoderException, IOException;
 
   /**
    * If this is a {@code Coder} for a parameterized type, returns the
