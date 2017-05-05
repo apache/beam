@@ -125,4 +125,3 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
     return delegateCoder.getEncodedTypeDescriptor();
   }
 }
-

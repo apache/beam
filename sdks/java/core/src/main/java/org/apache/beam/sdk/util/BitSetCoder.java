@@ -59,4 +59,3 @@ public class BitSetCoder extends AtomicCoder<BitSet> {
     BYTE_ARRAY_CODER.verifyDeterministic();
   }
 }
-

@@ -185,12 +185,12 @@ public class Count {
         }
 
         @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        public boolean isRegisterByteSizeObserverCheap(long[] value) {
           return true;
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
         }
       };

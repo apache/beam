@@ -70,11 +70,11 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(Integer value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
     String textualValue = value.toString();
-    return StringUtf8Coder.of().getEncodedElementByteSize(textualValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(textualValue);
   }
 }

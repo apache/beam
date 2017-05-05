@@ -103,16 +103,16 @@ public class InstantCoder extends AtomicCoder<Instant> {
    * @return {@code true}. The byte size for a big endian long is a constant.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Instant value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Instant value) {
     return LONG_CODER.isRegisterByteSizeObserverCheap(
-        ORDER_PRESERVING_CONVERTER.convert(value), context);
+        ORDER_PRESERVING_CONVERTER.convert(value));
   }
 
   @Override
   public void registerByteSizeObserver(
-      Instant value, ElementByteSizeObserver observer, Context context) throws Exception {
+      Instant value, ElementByteSizeObserver observer) throws Exception {
     LONG_CODER.registerByteSizeObserver(
-        ORDER_PRESERVING_CONVERTER.convert(value), observer, context);
+        ORDER_PRESERVING_CONVERTER.convert(value), observer);
   }
 
   @Override
