@@ -670,12 +670,11 @@ public abstract class WindowedValue<T> {
 
     @Override
     public void registerByteSizeObserver(WindowedValue<T> value,
-                                         ElementByteSizeObserver observer,
-                                         Context context) throws Exception {
-      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context.nested());
-      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context.nested());
-      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
+                                         ElementByteSizeObserver observer) throws Exception {
+      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
+      windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
+      valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
     @Override
@@ -733,9 +732,9 @@ public abstract class WindowedValue<T> {
 
     @Override
     public void registerByteSizeObserver(
-        WindowedValue<T> value, ElementByteSizeObserver observer, Context context)
+        WindowedValue<T> value, ElementByteSizeObserver observer)
         throws Exception {
-      valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
+      valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
     @Override

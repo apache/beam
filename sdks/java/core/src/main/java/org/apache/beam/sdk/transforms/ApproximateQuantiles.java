@@ -741,24 +741,16 @@ public class ApproximateQuantiles {
     @Override
     public void registerByteSizeObserver(
         QuantileState<T, ComparatorT> state,
-        ElementByteSizeObserver observer,
-        Coder.Context context)
+        ElementByteSizeObserver observer)
         throws Exception {
-      Coder.Context nestedContext = context.nested();
-      elementCoder.registerByteSizeObserver(
-          state.min, observer, nestedContext);
-      elementCoder.registerByteSizeObserver(
-          state.max, observer, nestedContext);
-      elementListCoder.registerByteSizeObserver(
-          state.unbufferedElements, observer, nestedContext);
+      elementCoder.registerByteSizeObserver(state.min, observer);
+      elementCoder.registerByteSizeObserver(state.max, observer);
+      elementListCoder.registerByteSizeObserver(state.unbufferedElements, observer);
 
-      BigEndianIntegerCoder.of().registerByteSizeObserver(
-          state.buffers.size(), observer, nestedContext);
+      BigEndianIntegerCoder.of().registerByteSizeObserver(state.buffers.size(), observer);
       for (QuantileBuffer<T> buffer : state.buffers) {
         observer.update(4L + 8);
-
-        elementListCoder.registerByteSizeObserver(
-            buffer.elements, observer, nestedContext);
+        elementListCoder.registerByteSizeObserver(buffer.elements, observer);
       }
     }
 

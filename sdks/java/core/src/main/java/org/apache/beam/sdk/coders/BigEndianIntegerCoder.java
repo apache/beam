@@ -82,7 +82,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Integer value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Integer value) {
     return true;
   }
 
@@ -97,7 +97,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
    * @return {@code 4}, the size in bytes of an integer's big endian encoding.
    */
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context)
+  protected long getEncodedElementByteSize(Integer value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");

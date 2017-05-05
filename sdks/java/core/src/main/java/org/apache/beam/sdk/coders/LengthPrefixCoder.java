@@ -107,18 +107,17 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  protected long getEncodedElementByteSize(T value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(T value) throws Exception {
     if (valueCoder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(
-          value, Context.OUTER);
+      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
       return VarInt.getLength(valueSize) + valueSize;
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the length prefix.
-    return super.getEncodedElementByteSize(value, context);
+    return super.getEncodedElementByteSize(value);
   }
 
   /**
@@ -127,7 +126,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
-    return valueCoder.isRegisterByteSizeObserverCheap(value, Context.OUTER);
+  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
+    return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 }

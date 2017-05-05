@@ -895,16 +895,16 @@ public class CombineTest implements Serializable {
 
       @Override
       public boolean isRegisterByteSizeObserverCheap(
-          CountSum value, Context context) {
+          CountSum value) {
         return true;
       }
 
       @Override
       public void registerByteSizeObserver(
-          CountSum value, ElementByteSizeObserver observer, Context context)
+          CountSum value, ElementByteSizeObserver observer)
           throws Exception {
-        LONG_CODER.registerByteSizeObserver(value.count, observer, context.nested());
-        DOUBLE_CODER.registerByteSizeObserver(value.sum, observer, context);
+        LONG_CODER.registerByteSizeObserver(value.count, observer);
+        DOUBLE_CODER.registerByteSizeObserver(value.sum, observer);
       }
     }
   }

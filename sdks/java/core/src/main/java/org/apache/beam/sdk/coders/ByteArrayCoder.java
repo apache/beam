@@ -126,7 +126,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
    * constant time using the {@code length} of the provided array.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(byte[] value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(byte[] value) {
     return true;
   }
 
@@ -136,15 +136,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(byte[] value, Context context)
+  protected long getEncodedElementByteSize(byte[] value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    long size = 0;
-    if (!context.isWholeStream) {
-      size += VarInt.getLength(value.length);
-    }
-    return size + value.length;
+    return VarInt.getLength(value.length) + value.length;
   }
 }
