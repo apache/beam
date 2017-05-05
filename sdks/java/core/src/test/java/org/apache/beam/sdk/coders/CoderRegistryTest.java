@@ -399,13 +399,13 @@ public class CoderRegistryTest {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(MyValue value, Context context) {
+    public boolean isRegisterByteSizeObserverCheap(MyValue value) {
       return true;
     }
 
     @Override
     public void registerByteSizeObserver(
-        MyValue value, ElementByteSizeObserver observer, Context context)
+        MyValue value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }

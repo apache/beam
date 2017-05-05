@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.common.base.Utf8;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -128,20 +126,12 @@ public class StringUtf8Coder extends AtomicCoder<String> {
    * the byte size of the encoding plus the encoded length prefix.
    */
   @Override
-  public long getEncodedElementByteSize(String value, Context context)
+  public long getEncodedElementByteSize(String value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null String");
     }
-    if (context.isWholeStream) {
-      return Utf8.encodedLength(value);
-    } else {
-      try (CountingOutputStream countingStream =
-          new CountingOutputStream(ByteStreams.nullOutputStream())) {
-        DataOutputStream stream = new DataOutputStream(countingStream);
-        writeString(value, stream);
-        return countingStream.getCount();
-      }
-    }
+    int size = Utf8.encodedLength(value);
+    return VarInt.getLength(size) + size;
   }
 }
