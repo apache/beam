@@ -22,12 +22,29 @@ service.
 """
 
 from collections import defaultdict
-from warnings import warn
+import numbers
 
+from apache_beam.metrics.cells import DistributionData
+from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
+
+
+def _get_match(proto, filter_fn):
+  """Finds and returns the first element that matches a query.
+
+  If no element matches the query, it throws ValueError.
+  If more than one element matches the query, it returns only the first.
+  """
+  query = [elm for elm in proto if filter_fn(elm)]
+  if len(query) == 0:
+    raise ValueError('Could not find element')
+  elif len(query) > 1:
+    raise ValueError('Too many matches')
+
+  return query[0]
 
 
 class DataflowMetrics(MetricResults):
@@ -51,18 +68,25 @@ class DataflowMetrics(MetricResults):
     self._cached_metrics = None
     self._job_graph = job_graph
 
+  @staticmethod
+  def _is_counter(metric_result):
+    return isinstance(metric_result.attempted, numbers.Number)
+
+  @staticmethod
+  def _is_distribution(metric_result):
+    return isinstance(metric_result.attempted, DistributionResult)
+
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
       raise ValueError('Could not translate the internal step name.')
 
     try:
-      [step] = [step
-                for step in self._job_graph.proto.steps
-                if step.name == internal_name]
-      [user_step_name] = [prop.value.string_value
-                          for prop in step.properties.additionalProperties
-                          if prop.key == 'user_name']
+      step = _get_match(self._job_graph.proto.steps,
+                        lambda x: x.name == internal_name)
+      user_step_name = _get_match(
+          step.properties.additionalProperties,
+          lambda x: x.key == 'user_name').value.string_value
     except ValueError:
       raise ValueError('Could not translate the internal step name.')
     return user_step_name
@@ -77,19 +101,15 @@ class DataflowMetrics(MetricResults):
       #   step name (only happens for unstructured-named metrics).
       # 2. Unable to unpack [step] or [namespace]; which should only happen
       #   for unstructured names.
-      [step] = [prop.value
-                for prop in metric.name.context.additionalProperties
-                if prop.key == 'step']
+      step = _get_match(metric.name.context.additionalProperties,
+                        lambda x: x.key == 'step').value
       step = self._translate_step_name(step)
-      [namespace] = [prop.value
-                     for prop in metric.name.context.additionalProperties
-                     if prop.key == 'namespace']
+      namespace = _get_match(metric.name.context.additionalProperties,
+                             lambda x: x.key == 'namespace').value
       name = metric.name.name
     except ValueError:
-      # An unstructured metric name is "step/namespace/name", but step names
-      # can (and often do) contain slashes. Must only split on the right-most
-      # two slashes, to preserve the full step name.
-      [step, namespace, name] = metric.name.name.rsplit('/', 2)
+      return None
+
     return MetricKey(step, MetricName(namespace, name))
 
   def _populate_metric_results(self, response):
@@ -101,14 +121,17 @@ class DataflowMetrics(MetricResults):
     # Get the tentative/committed versions of every metric together.
     metrics_by_name = defaultdict(lambda: {})
     for metric in user_metrics:
-      if (metric.name.name.endswith('(DIST)') or
-          metric.name.name.endswith('[MIN]') or
+      if (metric.name.name.endswith('[MIN]') or
           metric.name.name.endswith('[MAX]') or
           metric.name.name.endswith('[MEAN]') or
           metric.name.name.endswith('[COUNT]')):
-        warn('Distribution metrics will be ignored in the MetricsResult.query'
-             'method. You can see them in the Dataflow User Interface.')
-        # Distributions are not yet fully supported in this runner
+        # The Dataflow Service presents distribution metrics in two ways:
+        # One way is as a single distribution object with all its fields, and
+        # another way is as four different scalar metrics labeled as [MIN],
+        # [MAX], [COUNT], [MEAN].
+        # TODO(pabloem) remove these when distributions are not being broken up
+        #  in the service.
+        # The second way is only useful for the UI, and should be ignored.
         continue
       is_tentative = [prop
                       for prop in metric.name.context.additionalProperties
@@ -116,21 +139,48 @@ class DataflowMetrics(MetricResults):
       tentative_or_committed = 'tentative' if is_tentative else 'committed'
 
       metric_key = self._get_metric_key(metric)
+      if metric_key is None:
+        continue
       metrics_by_name[metric_key][tentative_or_committed] = metric
 
     # Now we create the MetricResult elements.
     result = []
     for metric_key, metric in metrics_by_name.iteritems():
-      if (metric['tentative'].scalar is None or
-          metric['committed'].scalar is None):
+      attempted = self._get_metric_value(metric['tentative'])
+      committed = self._get_metric_value(metric['committed'])
+      if attempted is None or committed is None:
         continue
-      attempted = metric['tentative'].scalar.integer_value
-      committed = metric['committed'].scalar.integer_value
       result.append(MetricResult(metric_key,
                                  attempted=attempted,
                                  committed=committed))
 
     return result
+
+  def _get_metric_value(self, metric):
+    """Get a metric result object from a MetricUpdate from Dataflow API."""
+    if metric is None:
+      return None
+
+    if metric.scalar is not None:
+      return metric.scalar.integer_value
+    elif metric.distribution is not None:
+      dist_count = _get_match(metric.distribution.object_value.properties,
+                              lambda x: x.key == 'count').value.integer_value
+      dist_min = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'min').value.integer_value
+      dist_max = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'max').value.integer_value
+      dist_mean = _get_match(metric.distribution.object_value.properties,
+                             lambda x: x.key == 'mean').value.integer_value
+      # Calculating dist_sum with a hack, as distribution sum is not yet
+      # available in the Dataflow API.
+      # TODO(pabloem) Switch to "sum" field once it's available in the API
+      dist_sum = dist_count * dist_mean
+      return DistributionResult(
+          DistributionData(
+              dist_sum, dist_count, dist_min, dist_max))
+    else:
+      return None
 
   def _get_metrics_from_dataflow(self):
     """Return cached metrics or query the dataflow service."""
@@ -152,7 +202,11 @@ class DataflowMetrics(MetricResults):
 
   def query(self, filter=None):
     response = self._get_metrics_from_dataflow()
-    counters = self._populate_metric_results(response)
-    # TODO(pabloem): Populate distributions once they are available.
-    return {'counters': [c for c in counters if self.matches(filter, c.key)],
-            'distributions': []}
+    metric_results = self._populate_metric_results(response)
+    return {'counters': [elm for elm in metric_results
+                         if self.matches(filter, elm.key)
+                         and DataflowMetrics._is_counter(elm)],
+            'distributions': [elm for elm in metric_results
+                              if self.matches(filter, elm.key)
+                              and DataflowMetrics._is_distribution(elm)],
+            'gauges': []} # Gauges are not currently supported by dataflow

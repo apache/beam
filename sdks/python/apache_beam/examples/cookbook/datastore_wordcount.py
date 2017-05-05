@@ -88,6 +88,7 @@ class WordExtractingDoFn(beam.DoFn):
     self.empty_line_counter = Metrics.counter('main', 'empty_lines')
     self.word_length_counter = Metrics.counter('main', 'word_lengths')
     self.word_counter = Metrics.counter('main', 'total_words')
+    self.word_lengths_dist = Metrics.distribution('main', 'word_len_dist')
 
   def process(self, element):
     """Returns an iterator over words in contents of Cloud Datastore entity.
@@ -107,6 +108,7 @@ class WordExtractingDoFn(beam.DoFn):
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
       self.word_length_counter.inc(len(w))
+      self.word_len_dis.update(len(w))
       self.word_counter.inc()
     return words
 
@@ -254,7 +256,16 @@ def run(argv=None):
   if query_result['counters']:
     empty_lines_counter = query_result['counters'][0]
     logging.info('number of empty lines: %d', empty_lines_counter.committed)
-  # TODO(pabloem)(BEAM-1366): Add querying of MEAN metrics.
+  else:
+    logging.warn('unable to retrieve counter metrics from runner')
+
+  word_lengths_filter = MetricsFilter().with_name('word_len_dist')
+  query_result = result.metrics().query(word_lengths_filter)
+  if query_result['distributions']:
+    word_lengths_dist = query_result['distributions'][0]
+    logging.info('average word length: %d', word_lengths_dist.committed.mean)
+  else:
+    logging.warn('unable to retrieve distribution metrics from runner')
 
 
 if __name__ == '__main__':
