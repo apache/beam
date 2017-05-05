@@ -54,7 +54,7 @@ public class ProtoCoderTest {
 
     assertEquals(
         ProtoCoder.of(new TypeDescriptor<MessageA>() {}),
-        ProtoCoder.getCoderFactory().coderFor(
+        ProtoCoder.getCoderProvider().coderFor(
             new TypeDescriptor<MessageA>() {}, Collections.<Coder<?>>emptyList()));
   }
 
@@ -63,7 +63,7 @@ public class ProtoCoderTest {
     thrown.expect(CannotProvideCoderException.class);
     thrown.expectMessage("java.lang.Integer is not a subclass of com.google.protobuf.Message");
 
-    ProtoCoder.getCoderFactory().coderFor(
+    ProtoCoder.getCoderProvider().coderFor(
         new TypeDescriptor<Integer>() {}, Collections.<Coder<?>>emptyList());
   }
 

@@ -21,7 +21,7 @@ import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderProvider} creates coders.
+ * A {@link CoderProvider} provides {@link Coder}s.
  *
  * <p>It may operate on a parameterized type, such as {@link List}, in which case the
  * {@link #coderFor} method accepts a list of coders to use for the type parameters.

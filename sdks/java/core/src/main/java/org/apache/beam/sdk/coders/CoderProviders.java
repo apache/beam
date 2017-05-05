@@ -28,7 +28,7 @@ import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Static utility methods for creating and working with {@link Coder}s.
+ * Static utility methods for creating and working with {@link CoderProvider}s.
  */
 public final class CoderProviders {
   private CoderProviders() { } // Static utility class

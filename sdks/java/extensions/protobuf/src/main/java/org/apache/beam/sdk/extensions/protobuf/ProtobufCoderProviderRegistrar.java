@@ -35,7 +35,7 @@ public class ProtobufCoderProviderRegistrar implements CoderProviderRegistrar {
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
         CoderProviders.forCoder(TypeDescriptor.of(ByteString.class), ByteStringCoder.of()),
-        ProtoCoder.getCoderFactory());
+        ProtoCoder.getCoderProvider());
   }
 }
 

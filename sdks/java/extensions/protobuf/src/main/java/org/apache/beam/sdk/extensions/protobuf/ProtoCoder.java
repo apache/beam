@@ -292,7 +292,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static CoderProvider getCoderFactory() {
+  public static CoderProvider getCoderProvider() {
     return new ProtoCoderProvider();
   }
 

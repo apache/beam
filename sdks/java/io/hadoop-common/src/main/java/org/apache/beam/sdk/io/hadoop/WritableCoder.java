@@ -104,7 +104,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static CoderProvider getCoderFactory() {
+  public static CoderProvider getCoderProvider() {
     return new WritableCoderProvider();
   }
 
@@ -117,7 +117,7 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
 
     @Override
     public List<CoderProvider> getCoderProviders() {
-      return Collections.singletonList(getCoderFactory());
+      return Collections.singletonList(getCoderProvider());
     }
   }
 
