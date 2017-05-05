@@ -30,65 +30,65 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link CoderFactories}.
+ * Tests for {@link CoderProviders}.
  */
 @RunWith(JUnit4.class)
-public class CoderFactoriesTest {
+public class CoderProvidersTest {
   @Test
-  public void testCoderFactoriesFromStaticMethodsForParameterlessTypes() throws Exception {
-    CoderFactory factory = CoderFactories.fromStaticMethods(String.class, StringUtf8Coder.class);
+  public void testCoderProvidersFromStaticMethodsForParameterlessTypes() throws Exception {
+    CoderProvider factory = CoderProviders.fromStaticMethods(String.class, StringUtf8Coder.class);
     assertEquals(StringUtf8Coder.of(),
         factory.coderFor(TypeDescriptors.strings(), Collections.<Coder<?>>emptyList()));
 
-    factory = CoderFactories.fromStaticMethods(Double.class, DoubleCoder.class);
+    factory = CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class);
     assertEquals(DoubleCoder.of(),
         factory.coderFor(TypeDescriptors.doubles(), Collections.<Coder<?>>emptyList()));
 
-    factory = CoderFactories.fromStaticMethods(byte[].class, ByteArrayCoder.class);
+    factory = CoderProviders.fromStaticMethods(byte[].class, ByteArrayCoder.class);
     assertEquals(ByteArrayCoder.of(),
         factory.coderFor(TypeDescriptor.of(byte[].class), Collections.<Coder<?>>emptyList()));
   }
 
   /**
-   * Checks that {#link CoderFactories.fromStaticMethods} successfully
-   * builds a working {@link CoderFactory} from {@link KvCoder KvCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link KvCoder KvCoder.class}.
    */
   @Test
-  public void testKvCoderFactory() throws Exception {
+  public void testKvCoderProvider() throws Exception {
     TypeDescriptor<KV<Double, Double>> type =
         TypeDescriptors.kvs(TypeDescriptors.doubles(), TypeDescriptors.doubles());
-    CoderFactory kvCoderFactory = CoderFactories.fromStaticMethods(KV.class, KvCoder.class);
+    CoderProvider kvCoderProvider = CoderProviders.fromStaticMethods(KV.class, KvCoder.class);
     assertEquals(
         KvCoder.of(DoubleCoder.of(), DoubleCoder.of()),
-        kvCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
+        kvCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of(), DoubleCoder.of())));
   }
 
   /**
-   * Checks that {#link CoderFactories.fromStaticMethods} successfully
-   * builds a working {@link CoderFactory} from {@link ListCoder ListCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link ListCoder ListCoder.class}.
    */
   @Test
-  public void testListCoderFactory() throws Exception {
+  public void testListCoderProvider() throws Exception {
     TypeDescriptor<List<Double>> type = TypeDescriptors.lists(TypeDescriptors.doubles());
-    CoderFactory listCoderFactory = CoderFactories.fromStaticMethods(List.class, ListCoder.class);
+    CoderProvider listCoderProvider = CoderProviders.fromStaticMethods(List.class, ListCoder.class);
 
     assertEquals(
         ListCoder.of(DoubleCoder.of()),
-        listCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of())));
+        listCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 
   /**
-   * Checks that {#link CoderFactories.fromStaticMethods} successfully
-   * builds a working {@link CoderFactory} from {@link IterableCoder IterableCoder.class}.
+   * Checks that {#link CoderProviders.fromStaticMethods} successfully
+   * builds a working {@link CoderProvider} from {@link IterableCoder IterableCoder.class}.
    */
   @Test
-  public void testIterableCoderFactory() throws Exception {
+  public void testIterableCoderProvider() throws Exception {
     TypeDescriptor<Iterable<Double>> type = TypeDescriptors.iterables(TypeDescriptors.doubles());
-    CoderFactory iterableCoderFactory =
-        CoderFactories.fromStaticMethods(Iterable.class, IterableCoder.class);
+    CoderProvider iterableCoderProvider =
+        CoderProviders.fromStaticMethods(Iterable.class, IterableCoder.class);
 
     assertEquals(
         IterableCoder.of(DoubleCoder.of()),
-        iterableCoderFactory.coderFor(type, Arrays.asList(DoubleCoder.of())));
+        iterableCoderProvider.coderFor(type, Arrays.asList(DoubleCoder.of())));
   }
 }

@@ -123,8 +123,8 @@ public class CoderRegistryTest {
     assertEquals(ListCoder.of(VarIntCoder.of()),
                  registry.getCoder(listToken));
 
-    registry.registerCoderFactory(
-        CoderFactories.fromStaticMethods(MyValue.class, MyValueCoder.class));
+    registry.registerCoderProvider(
+        CoderProviders.fromStaticMethods(MyValue.class, MyValueCoder.class));
     TypeDescriptor<KV<String, List<MyValue>>> kvToken =
         new TypeDescriptor<KV<String, List<MyValue>>>() {};
     assertEquals(KvCoder.of(StringUtf8Coder.of(),
@@ -417,7 +417,7 @@ public class CoderRegistryTest {
   }
 
   /**
-   * This type is incompatible with all known coder factories such as Serializable,
+   * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing scenarios where coder lookup fails.
    */
   private static class UnknownType {
@@ -430,7 +430,7 @@ public class CoderRegistryTest {
   }
 
   /**
-   * This type is incompatible with all known coder factories such as Serializable,
+   * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing the automatic registration mechanism.
    */
   private static class AutoRegistrationClass {
@@ -441,20 +441,20 @@ public class CoderRegistryTest {
   }
 
   @Test
-  public void testAutomaticRegistrationOfCoderFactories() throws Exception {
+  public void testAutomaticRegistrationOfCoderProviders() throws Exception {
     assertEquals(AutoRegistrationClassCoder.INSTANCE,
         CoderRegistry.createDefault().getCoder(AutoRegistrationClass.class));
   }
 
   /**
-   * A {@link CoderFactoryRegistrar} to demonstrate default {@link Coder} registration.
+   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
    */
-  @AutoService(CoderFactoryRegistrar.class)
-  public static class RegisteredTestCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @AutoService(CoderProviderRegistrar.class)
+  public static class RegisteredTestCoderProviderRegistrar implements CoderProviderRegistrar {
     @Override
-    public List<CoderFactory> getCoderFactories() {
+    public List<CoderProvider> getCoderProviders() {
       return ImmutableList.of(
-          CoderFactories.forCoder(
+          CoderProviders.forCoder(
               TypeDescriptor.of(AutoRegistrationClass.class),
               AutoRegistrationClassCoder.INSTANCE));
     }

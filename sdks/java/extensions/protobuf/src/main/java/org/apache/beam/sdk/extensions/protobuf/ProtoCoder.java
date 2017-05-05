@@ -39,7 +39,7 @@ import java.util.TreeSet;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderFactory;
+import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -287,21 +287,21 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link CoderFactory} which uses the {@link ProtoCoder} for
+   * Returns a {@link CoderProvider} which uses the {@link ProtoCoder} for
    * {@link Message proto messages}.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static CoderFactory getCoderFactory() {
-    return new ProtoCoderFactory();
+  public static CoderProvider getCoderFactory() {
+    return new ProtoCoderProvider();
   }
 
   static final TypeDescriptor<Message> MESSAGE_TYPE = new TypeDescriptor<Message>() {};
 
   /**
-   * A {@link CoderFactory} for {@link Message proto messages}.
+   * A {@link CoderProvider} for {@link Message proto messages}.
    */
-  private static class ProtoCoderFactory extends CoderFactory {
+  private static class ProtoCoderProvider extends CoderProvider {
 
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,

@@ -78,7 +78,7 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("Building a Coder using a registered CoderFactory failed");
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
     Coder<?> coder = tuple.get(untypedOutputTag).getCoder();
     System.out.println(coder);
@@ -93,7 +93,7 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage("Building a Coder using a registered CoderFactory failed");
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
     tuple.get(untypedOutputTag).getCoder();
   }
@@ -119,7 +119,7 @@ public class TypedPValueTest {
   }
 
   /**
-   * This type is incompatible with all known coder factories such as Serializable,
+   * This type is incompatible with all known coder providers such as Serializable,
    * {@code @DefaultCoder} which allows testing coder registry lookup failure cases.
    */
   static class EmptyClass {
@@ -144,7 +144,7 @@ public class TypedPValueTest {
     thrown.expectMessage(not(containsString("erasure")));
     thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
     // Instead, expect output suggesting other possible fixes.
-    thrown.expectMessage(containsString("Building a Coder using a registered CoderFactory failed"));
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
     input.getCoder();
   }

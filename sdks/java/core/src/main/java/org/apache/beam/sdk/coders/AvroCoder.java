@@ -141,26 +141,26 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link CoderFactory} which uses the {@link AvroCoder} if possible for
+   * Returns a {@link CoderProvider} which uses the {@link AvroCoder} if possible for
    * all types.
    *
-   * <p>It is unsafe to register this as a {@link CoderFactory} because Avro will reflectively
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
    * accept dangerous types such as {@link Object}.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
   @SuppressWarnings("unused")
-  public static CoderFactory getCoderFactory() {
-    return new AvroCoderFactory();
+  public static CoderProvider getCoderProvider() {
+    return new AvroCoderProvider();
   }
 
   /**
-   * A {@link CoderFactory} that constructs an {@link AvroCoder} for Avro compatible classes.
+   * A {@link CoderProvider} that constructs an {@link AvroCoder} for Avro compatible classes.
    *
-   * <p>It is unsafe to register this as a {@link CoderFactory} because Avro will reflectively
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
    * accept dangerous types such as {@link Object}.
    */
-  static class AvroCoderFactory extends CoderFactory {
+  static class AvroCoderProvider extends CoderProvider {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {

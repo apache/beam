@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -75,8 +76,8 @@ public class DefaultCoderTest {
     }
 
     @SuppressWarnings("unused")
-    public static CoderFactory getCoderFactory() {
-      return new CoderFactory() {
+    public static CoderProvider getCoderProvider() {
+      return new CoderProvider() {
         @Override
         public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
             List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
@@ -100,8 +101,8 @@ public class DefaultCoderTest {
     }
 
     @SuppressWarnings("unused")
-    public static CoderFactory getCoderFactory() {
-      return new CoderFactory() {
+    public static CoderProvider getCoderProvider() {
+      return new CoderProvider() {
         @Override
         public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
             List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
@@ -114,8 +115,8 @@ public class DefaultCoderTest {
   @Test
   public void testCodersWithoutComponents() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    registry.registerCoderFactory(
-        new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
+    registry.registerCoderProvider(
+        new DefaultCoderProvider());
     assertThat(registry.getCoder(AvroRecord.class),
         instanceOf(AvroCoder.class));
     assertThat(registry.getCoder(SerializableRecord.class),
@@ -129,8 +130,8 @@ public class DefaultCoderTest {
   @Test
   public void testDefaultCoderInCollection() throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    registry.registerCoderFactory(
-        new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory());
+    registry.registerCoderProvider(
+        new DefaultCoderProvider());
     Coder<List<AvroRecord>> avroRecordCoder =
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>(){});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
@@ -143,7 +144,7 @@ public class DefaultCoderTest {
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    new DefaultCoder.DefaultCoderFactoryRegistrar.DefaultCoderFactory().coderFor(
+    new DefaultCoderProvider().coderFor(
         TypeDescriptor.of(Unknown.class), Collections.<Coder<?>>emptyList());
   }
 }

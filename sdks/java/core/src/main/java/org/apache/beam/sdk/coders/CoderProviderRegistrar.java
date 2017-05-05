@@ -15,27 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.protobuf;
+package org.apache.beam.sdk.coders;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
-import com.google.protobuf.ByteString;
 import java.util.List;
-import org.apache.beam.sdk.coders.CoderFactories;
-import org.apache.beam.sdk.coders.CoderFactory;
-import org.apache.beam.sdk.coders.CoderFactoryRegistrar;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import java.util.ServiceLoader;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * A {@link CoderFactoryRegistrar} for standard types used with Google Protobuf.
+ * {@link Coder} creators have the ability to automatically have their
+ * {@link Coder coders} registered with this SDK by creating a {@link ServiceLoader} entry
+ * and a concrete implementation of this interface.
+ *
+ * <p>It is optional but recommended to use one of the many build time tools such as
+ * {@link AutoService} to generate the necessary META-INF files automatically.
  */
-@AutoService(CoderFactoryRegistrar.class)
-public class ProtobufCoderFactoryRegistrar implements CoderFactoryRegistrar {
-  @Override
-  public List<CoderFactory> getCoderFactories() {
-    return ImmutableList.of(
-        CoderFactories.forCoder(TypeDescriptor.of(ByteString.class), ByteStringCoder.of()),
-        ProtoCoder.getCoderFactory());
-  }
+@Experimental
+public interface CoderProviderRegistrar {
+  /**
+   * Returns a list of {@link CoderProvider coder providers} which
+   * will be registered by default within each {@link CoderRegistry coder registry} instance.
+   *
+   * <p>See {@link CoderProviders} for convenience methods to construct a {@link CoderProvider}.
+   */
+  List<CoderProvider> getCoderProviders();
 }
-

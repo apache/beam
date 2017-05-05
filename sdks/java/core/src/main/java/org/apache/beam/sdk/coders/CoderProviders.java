@@ -30,35 +30,35 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * Static utility methods for creating and working with {@link Coder}s.
  */
-public final class CoderFactories {
-  private CoderFactories() { } // Static utility class
+public final class CoderProviders {
+  private CoderProviders() { } // Static utility class
 
   /**
-   * Creates a {@link CoderFactory} from a class's
+   * Creates a {@link CoderProvider} from a class's
    * {@code static <T> Coder<T> of(TypeDescriptor<T>, List<Coder<?>>}) method.
    */
-  public static CoderFactory fromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
+  public static CoderProvider fromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
     checkArgument(
         Coder.class.isAssignableFrom(coderClazz),
         "%s is not a subtype of %s",
         coderClazz.getName(),
         Coder.class.getSimpleName());
-    return new CoderFactoryFromStaticMethods(rawType, coderClazz);
+    return new CoderProviderFromStaticMethods(rawType, coderClazz);
   }
 
   /**
-   * Creates a {@link CoderFactory} that always returns the
+   * Creates a {@link CoderProvider} that always returns the
    * given coder for the specified type.
    */
-  public static CoderFactory forCoder(TypeDescriptor<?> type, Coder<?> coder) {
-    return new CoderFactoryForCoder(type, coder);
+  public static CoderProvider forCoder(TypeDescriptor<?> type, Coder<?> coder) {
+    return new CoderProviderForCoder(type, coder);
   }
 
   /**
    * See {@link #fromStaticMethods} for a detailed description
-   * of the characteristics of this {@link CoderFactory}.
+   * of the characteristics of this {@link CoderProvider}.
    */
-  private static class CoderFactoryFromStaticMethods extends CoderFactory {
+  private static class CoderProviderFromStaticMethods extends CoderProvider {
 
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
@@ -94,10 +94,10 @@ public final class CoderFactories {
     private final Method factoryMethod;
 
     /**
-     * Returns a CoderFactory that invokes the given static factory method
+     * Returns a CoderProvider that invokes the given static factory method
      * to create the Coder.
      */
-    private CoderFactoryFromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
+    private CoderProviderFromStaticMethods(Class<?> rawType, Class<?> coderClazz) {
       this.rawType = rawType;
       this.factoryMethod = getFactoryMethod(coderClazz);
     }
@@ -162,13 +162,13 @@ public final class CoderFactories {
   }
 
   /**
-   * See {@link #forCoder} for a detailed description of this {@link CoderFactory}.
+   * See {@link #forCoder} for a detailed description of this {@link CoderProvider}.
    */
-  private static class CoderFactoryForCoder extends CoderFactory {
+  private static class CoderProviderForCoder extends CoderProvider {
     private final Coder<?> coder;
     private final TypeDescriptor<?> type;
 
-    public CoderFactoryForCoder(TypeDescriptor<?> type, Coder<?> coder){
+    public CoderProviderForCoder(TypeDescriptor<?> type, Coder<?> coder){
       this.type = type;
       this.coder = coder;
     }

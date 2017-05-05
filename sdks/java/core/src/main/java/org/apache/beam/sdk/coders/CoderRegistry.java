@@ -60,76 +60,76 @@ import org.slf4j.LoggerFactory;
  * {@link TypeDescriptor type descriptor}.
  *
  * <p>Creation of the {@link Coder} is delegated to one of the many registered
- * {@link CoderFactory coder factories} based upon the registration order.
+ * {@link CoderProvider coder providers} based upon the registration order.
  *
- * <p>By default, the {@link CoderFactory coder factory} precedence order is as follows:
+ * <p>By default, the {@link CoderProvider coder provider} precedence order is as follows:
  * <ul>
- *   <li>Coder factories registered programmatically with
- *       {@link CoderRegistry#registerCoderFactory(CoderFactory)}.</li>
- *   <li>Standard coder factories for common Java (Byte, Double, List, ...) and
+ *   <li>Coder providers registered programmatically with
+ *       {@link CoderRegistry#registerCoderProvider(CoderProvider)}.</li>
+ *   <li>A default coder provider for common Java (Byte, Double, List, ...) and
  *       Apache Beam (KV, ...) types.</li>
- *   <li>Coder factories registered automatically through a {@link CoderFactoryRegistrar} using
+ *   <li>Coder providers registered automatically through a {@link CoderProviderRegistrar} using
  *       a {@link ServiceLoader}. Note that the {@link ServiceLoader} registration order is
  *       consistent but may change due to the addition or removal of libraries exposed
- *       to the application. This can impact the coder returned if multiple coder factories
+ *       to the application. This can impact the coder returned if multiple coder providers
  *       are capable of supplying a coder for the specified type.</li>
  * </ul>
  *
- * <p>Note that if multiple {@link CoderFactory coder factories} can provide a {@link Coder} for
- * a given type, the precedence order above defines which {@link CoderFactory} is chosen.
+ * <p>Note that if multiple {@link CoderProvider coder providers} can provide a {@link Coder} for
+ * a given type, the precedence order above defines which {@link CoderProvider} is chosen.
  */
 public class CoderRegistry {
 
   private static final Logger LOG = LoggerFactory.getLogger(CoderRegistry.class);
-  private static final List<CoderFactory> REGISTERED_CODER_FACTORIES;
+  private static final List<CoderProvider> REGISTERED_CODER_FACTORIES;
 
-  /** A {@link CoderFactory} for common Java SDK and Apache Beam SDK types. */
-  private static class CommonTypes extends CoderFactory {
-    private final Map<Class<?>, CoderFactory> commonTypesToCoderFactories;
+  /** A {@link CoderProvider} for common Java SDK and Apache Beam SDK types. */
+  private static class CommonTypes extends CoderProvider {
+    private final Map<Class<?>, CoderProvider> commonTypesToCoderProviders;
 
     private CommonTypes() {
-      ImmutableMap.Builder<Class<?>, CoderFactory> builder = ImmutableMap.builder();
+      ImmutableMap.Builder<Class<?>, CoderProvider> builder = ImmutableMap.builder();
       builder.put(Byte.class,
-          CoderFactories.fromStaticMethods(Byte.class, ByteCoder.class));
+          CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
-          CoderFactories.fromStaticMethods(BitSet.class, BitSetCoder.class));
+          CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
       builder.put(Double.class,
-          CoderFactories.fromStaticMethods(Double.class, DoubleCoder.class));
+          CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(Instant.class,
-          CoderFactories.fromStaticMethods(Instant.class, InstantCoder.class));
+          CoderProviders.fromStaticMethods(Instant.class, InstantCoder.class));
       builder.put(Integer.class,
-          CoderFactories.fromStaticMethods(Integer.class, VarIntCoder.class));
+          CoderProviders.fromStaticMethods(Integer.class, VarIntCoder.class));
       builder.put(Iterable.class,
-          CoderFactories.fromStaticMethods(Iterable.class, IterableCoder.class));
+          CoderProviders.fromStaticMethods(Iterable.class, IterableCoder.class));
       builder.put(KV.class,
-          CoderFactories.fromStaticMethods(KV.class, KvCoder.class));
+          CoderProviders.fromStaticMethods(KV.class, KvCoder.class));
       builder.put(List.class,
-          CoderFactories.fromStaticMethods(List.class, ListCoder.class));
+          CoderProviders.fromStaticMethods(List.class, ListCoder.class));
       builder.put(Long.class,
-          CoderFactories.fromStaticMethods(Long.class, VarLongCoder.class));
+          CoderProviders.fromStaticMethods(Long.class, VarLongCoder.class));
       builder.put(Map.class,
-          CoderFactories.fromStaticMethods(Map.class, MapCoder.class));
+          CoderProviders.fromStaticMethods(Map.class, MapCoder.class));
       builder.put(Set.class,
-          CoderFactories.fromStaticMethods(Set.class, SetCoder.class));
+          CoderProviders.fromStaticMethods(Set.class, SetCoder.class));
       builder.put(String.class,
-          CoderFactories.fromStaticMethods(String.class, StringUtf8Coder.class));
+          CoderProviders.fromStaticMethods(String.class, StringUtf8Coder.class));
       builder.put(TimestampedValue.class,
-          CoderFactories.fromStaticMethods(
+          CoderProviders.fromStaticMethods(
               TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class));
       builder.put(Void.class,
-          CoderFactories.fromStaticMethods(Void.class, VoidCoder.class));
+          CoderProviders.fromStaticMethods(Void.class, VoidCoder.class));
       builder.put(byte[].class,
-          CoderFactories.fromStaticMethods(byte[].class, ByteArrayCoder.class));
+          CoderProviders.fromStaticMethods(byte[].class, ByteArrayCoder.class));
       builder.put(IntervalWindow.class,
-          CoderFactories.forCoder(
+          CoderProviders.forCoder(
               TypeDescriptor.of(IntervalWindow.class), IntervalWindow.getCoder()));
-      commonTypesToCoderFactories = builder.build();
+      commonTypesToCoderProviders = builder.build();
     }
 
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
-      CoderFactory factory = commonTypesToCoderFactories.get(typeDescriptor.getRawType());
+      CoderProvider factory = commonTypesToCoderProviders.get(typeDescriptor.getRawType());
       if (factory == null) {
         throw new CannotProvideCoderException(
             String.format("%s is not one of the common types.", typeDescriptor));
@@ -140,15 +140,15 @@ public class CoderRegistry {
 
   static {
     // Register the standard coders first so they are chosen over ServiceLoader ones
-    List<CoderFactory> codersToRegister = new ArrayList<>();
+    List<CoderProvider> codersToRegister = new ArrayList<>();
     codersToRegister.add(new CommonTypes());
 
     // Enumerate all the CoderRegistrars in a deterministic order, adding all coders to register
-    Set<CoderFactoryRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
+    Set<CoderProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(CoderFactoryRegistrar.class, ReflectHelpers.findClassLoader())));
-    for (CoderFactoryRegistrar registrar : registrars) {
-        codersToRegister.addAll(registrar.getCoderFactories());
+        ServiceLoader.load(CoderProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+    for (CoderProviderRegistrar registrar : registrars) {
+        codersToRegister.addAll(registrar.getCoderProviders());
     }
 
     REGISTERED_CODER_FACTORIES = ImmutableList.copyOf(codersToRegister);
@@ -157,16 +157,16 @@ public class CoderRegistry {
   /**
    * Creates a CoderRegistry containing registrations for all standard coders part of the core Java
    * Apache Beam SDK and also any registrations provided by
-   * {@link CoderFactoryRegistrar coder registrars}.
+   * {@link CoderProviderRegistrar coder registrars}.
    *
    * <p>Multiple registrations which can produce a coder for a given type result in a Coder created
    * by the (in order of precedence):
    * <ul>
-   *   <li>{@link CoderFactory coder factory} registered programmatically through
-   *   {@link CoderRegistry#registerCoderFactory}.</li>
-   *   <li>{@link CoderFactory coder factory} for core types found within the Apache Beam Java SDK
-   *   being used.</li>
-   *   <li>The {@link CoderFactory coder factory} from the {@link CoderFactoryRegistrar}
+   *   <li>{@link CoderProvider coder providers} registered programmatically through
+   *   {@link CoderRegistry#registerCoderProvider}.</li>
+   *   <li>{@link CoderProvider coder providers} for core types found within the Apache Beam Java
+   *   SDK being used.</li>
+   *   <li>The {@link CoderProvider coder providers} from the {@link CoderProviderRegistrar}
    *   with the lexicographically smallest {@link Class#getName() class name} being used.</li>
    * </ul>
    */
@@ -175,19 +175,19 @@ public class CoderRegistry {
   }
 
   private CoderRegistry() {
-    coderFactories = new LinkedList<>(REGISTERED_CODER_FACTORIES);
+    coderProviders = new LinkedList<>(REGISTERED_CODER_FACTORIES);
   }
 
   /**
-   * Registers {@code coderFactory} as a potential {@link CoderFactory} which can produce
+   * Registers {@code coderProvider} as a potential {@link CoderProvider} which can produce
    * {@code Coder} instances.
    *
-   * <p>This method prioritizes this {@link CoderFactory} over all prior registered coders.
+   * <p>This method prioritizes this {@link CoderProvider} over all prior registered coders.
    *
-   * <p>See {@link CoderFactories} for common {@link CoderFactory} patterns.
+   * <p>See {@link CoderProviders} for common {@link CoderProvider} patterns.
    */
-  public void registerCoderFactory(CoderFactory coderFactory) {
-    coderFactories.addFirst(coderFactory);
+  public void registerCoderProvider(CoderProvider coderProvider) {
+    coderProviders.addFirst(coderProvider);
   }
 
   /**
@@ -204,11 +204,11 @@ public class CoderRegistry {
    * Registers the provided {@link Coder} for the given type.
    *
    * <p>Note that this is equivalent to
-   * {@code registerCoderFactory(CoderFactories.forCoder(type, coder))}. See
-   * {@link #registerCoderFactory} and {@link CoderFactories#forCoder} for further details.
+   * {@code registerCoderProvider(CoderProviders.forCoder(type, coder))}. See
+   * {@link #registerCoderProvider} and {@link CoderProviders#forCoder} for further details.
    */
   public void registerCoderForType(TypeDescriptor<?> type, Coder<?> coder) {
-    registerCoderFactory(CoderFactories.forCoder(type, coder));
+    registerCoderProvider(CoderProviders.forCoder(type, coder));
   }
 
   /**
@@ -551,9 +551,9 @@ public class CoderRegistry {
   }
 
   /**
-   * The list of {@link CoderFactory coder factories} to use to provide Coders.
+   * The list of {@link CoderProvider coder providers} to use to provide Coders.
    */
-  private LinkedList<CoderFactory> coderFactories;
+  private LinkedList<CoderProvider> coderProviders;
 
   /**
    * Returns a {@link Coder} to use for values of the given type,
@@ -623,16 +623,16 @@ public class CoderRegistry {
   }
 
   /**
-   * Attempts to create a {@link Coder} from any registered {@link CoderFactory} returning
+   * Attempts to create a {@link Coder} from any registered {@link CoderProvider} returning
    * the first successfully created instance.
    */
   private Coder<?> getCoderFromFactories(
       TypeDescriptor<?> typeDescriptor, List<Coder<?>> typeArgumentCoders)
       throws CannotProvideCoderException {
     List<CannotProvideCoderException> suppressedExceptions = new ArrayList<>();
-    for (CoderFactory coderFactory : coderFactories) {
+    for (CoderProvider coderProvider : coderProviders) {
       try {
-        return coderFactory.coderFor(typeDescriptor, typeArgumentCoders);
+        return coderProvider.coderFor(typeDescriptor, typeArgumentCoders);
       } catch (CannotProvideCoderException e) {
         // Add all failures as suppressed exceptions.
         suppressedExceptions.add(e);
@@ -642,7 +642,7 @@ public class CoderRegistry {
     // Build up the error message and list of causes.
     StringBuilder messageBuilder = new StringBuilder()
         .append("Unable to provide a Coder for ").append(typeDescriptor).append(".\n")
-        .append("  Building a Coder using a registered CoderFactory failed.\n")
+        .append("  Building a Coder using a registered CoderProvider failed.\n")
         .append("  See suppressed exceptions for detailed failures.");
     CannotProvideCoderException exceptionOnFailure =
         new CannotProvideCoderException(messageBuilder.toString());

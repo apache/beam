@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The specified {@link Coder} must have the following method:
  * <pre>
- * {@code public static CoderFactory getCoderFactory()}.
+ * {@code public static CoderProvider getCoderProvider()}.
  * </pre>
  *
  * <p>Coders specified explicitly via {@link PCollection#setCoder} take precedence, followed by
@@ -53,27 +53,27 @@ public @interface DefaultCoder {
   Class<? extends Coder> value();
 
   /**
-   * A {@link CoderFactoryRegistrar} that registers a {@link CoderFactory} which can use
-   * the {@code @DefaultCoder} annotation to provide {@link CoderFactory coder factories} that
+   * A {@link CoderProviderRegistrar} that registers a {@link CoderProvider} which can use
+   * the {@code @DefaultCoder} annotation to provide {@link CoderProvider coder providers} that
    * creates {@link Coder}s.
    */
-  @AutoService(CoderFactoryRegistrar.class)
-  class DefaultCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @AutoService(CoderProviderRegistrar.class)
+  class DefaultCoderProviderRegistrar implements CoderProviderRegistrar {
 
     @Override
-    public List<CoderFactory> getCoderFactories() {
-      return ImmutableList.<CoderFactory>of(new DefaultCoderFactory());
+    public List<CoderProvider> getCoderProviders() {
+      return ImmutableList.<CoderProvider>of(new DefaultCoderProvider());
     }
 
     /**
-     * A {@link CoderFactory} that uses the {@code @DefaultCoder} annotation to provide
-     * {@link CoderFactory coder factories} that create {@link Coder}s.
+     * A {@link CoderProvider} that uses the {@code @DefaultCoder} annotation to provide
+     * {@link CoderProvider coder providers} that create {@link Coder}s.
      */
-    static class DefaultCoderFactory extends CoderFactory {
-      private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderFactory.class);
+    static class DefaultCoderProvider extends CoderProvider {
+      private static final Logger LOG = LoggerFactory.getLogger(DefaultCoderProvider.class);
 
       /**
-       * Returns the {@link Coder} returned according to the {@link CoderFactory} from any
+       * Returns the {@link Coder} returned according to the {@link CoderProvider} from any
        * {@link DefaultCoder} annotation on the given class.
        */
       @Override
@@ -97,30 +97,30 @@ public @interface DefaultCoder {
         LOG.debug("DefaultCoder annotation found for {} with value {}",
             clazz, defaultAnnotation.value());
 
-        Method coderFactoryMethod;
+        Method coderProviderMethod;
         try {
-          coderFactoryMethod = defaultAnnotation.value().getMethod("getCoderFactory");
+          coderProviderMethod = defaultAnnotation.value().getMethod("getCoderProvider");
         } catch (NoSuchMethodException e) {
           throw new CannotProvideCoderException(String.format(
-              "Unable to find 'public static CoderFactory getCoderFactory' on %s",
+              "Unable to find 'public static CoderProvider getCoderProvider()' on %s",
               defaultAnnotation.value()),
               e);
         }
 
-        CoderFactory coderFactory;
+        CoderProvider coderProvider;
         try {
-          coderFactory = (CoderFactory) coderFactoryMethod.invoke(null);
+          coderProvider = (CoderProvider) coderProviderMethod.invoke(null);
         } catch (IllegalAccessException
             | IllegalArgumentException
             | InvocationTargetException
             | NullPointerException
             | ExceptionInInitializerError e) {
           throw new CannotProvideCoderException(String.format(
-              "Unable to invoke 'public static CoderFactory getCoderFactory' on %s",
+              "Unable to invoke 'public static CoderProvider getCoderProvider()' on %s",
               defaultAnnotation.value()),
               e);
         }
-        return coderFactory.coderFor(typeDescriptor, componentCoders);
+        return coderProvider.coderFor(typeDescriptor, componentCoders);
       }
     }
   }

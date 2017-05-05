@@ -28,8 +28,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderFactory;
-import org.apache.beam.sdk.coders.CoderFactoryRegistrar;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -99,32 +99,32 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link CoderFactory} which uses the {@link WritableCoder} for Hadoop
+   * Returns a {@link CoderProvider} which uses the {@link WritableCoder} for Hadoop
    * {@link Writable writable types}.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
-  public static CoderFactory getCoderFactory() {
-    return new WritableCoderFactory();
+  public static CoderProvider getCoderFactory() {
+    return new WritableCoderProvider();
   }
 
   /**
-   * A {@link CoderFactoryRegistrar} which registers a {@link CoderFactory} which can handle
+   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
    * {@link Writable writable types}.
    */
-  @AutoService(CoderFactoryRegistrar.class)
-  public static class WritableCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @AutoService(CoderProviderRegistrar.class)
+  public static class WritableCoderProviderRegistrar implements CoderProviderRegistrar {
 
     @Override
-    public List<CoderFactory> getCoderFactories() {
+    public List<CoderProvider> getCoderProviders() {
       return Collections.singletonList(getCoderFactory());
     }
   }
 
   /**
-   * A {@link CoderFactory} for Hadoop {@link Writable writable types}.
+   * A {@link CoderProvider} for Hadoop {@link Writable writable types}.
    */
-  private static class WritableCoderFactory extends CoderFactory {
+  private static class WritableCoderProvider extends CoderProvider {
     private static final TypeDescriptor<Writable> WRITABLE_TYPE = new TypeDescriptor<Writable>() {};
 
     @Override

@@ -15,27 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.coders.CoderProvider;
+import org.apache.beam.sdk.coders.CoderProviderRegistrar;
+import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderFactory} creates coders.
- *
- * <p>It may operate on a parameterized type, such as {@link List}, in which case the
- * {@link #coderFor} method accepts a list of coders to use for the type parameters.
+ * A {@link CoderProviderRegistrar} for standard types used with {@link BigQueryIO}.
  */
-public abstract class CoderFactory {
-
-  /**
-   * Returns a {@code Coder<T>} to use for values of a particular type, given the Coders for each of
-   * the type's generic parameter types.
-   *
-   * <p>Throws {@link CannotProvideCoderException} if this {@link CoderFactory} cannot provide
-   * a coder for this type and components.
-   */
-  public abstract <T> Coder<T> coderFor(
-      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
-      throws CannotProvideCoderException;
+@AutoService(CoderProviderRegistrar.class)
+public class BigQueryCoderProviderRegistrar implements CoderProviderRegistrar {
+  @Override
+  public List<CoderProvider> getCoderProviders() {
+    return ImmutableList.of(
+        CoderProviders.forCoder(TypeDescriptor.of(TableRow.class), TableRowJsonCoder.of()),
+        CoderProviders.forCoder(TypeDescriptor.of(TableRowInfo.class), TableRowInfoCoder.of()));
+  }
 }

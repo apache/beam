@@ -66,34 +66,34 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   /**
-   * Returns a {@link CoderFactory} which uses the {@link SerializableCoder} if possible for
+   * Returns a {@link CoderProvider} which uses the {@link SerializableCoder} if possible for
    * all types.
    *
    * <p>This method is invoked reflectively from {@link DefaultCoder}.
    */
   @SuppressWarnings("unused")
-  public static CoderFactory getCoderFactory() {
-    return new SerializableCoderFactory();
+  public static CoderProvider getCoderProvider() {
+    return new SerializableCoderProvider();
   }
 
   /**
-   * A {@link CoderFactoryRegistrar} which registers a {@link CoderFactory} which can handle
+   * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
    * serializable types.
    */
-  @AutoService(CoderFactoryRegistrar.class)
-  public static class SerializableCoderFactoryRegistrar implements CoderFactoryRegistrar {
+  @AutoService(CoderProviderRegistrar.class)
+  public static class SerializableCoderProviderRegistrar implements CoderProviderRegistrar {
 
     @Override
-    public List<CoderFactory> getCoderFactories() {
-      return ImmutableList.of(getCoderFactory());
+    public List<CoderProvider> getCoderProviders() {
+      return ImmutableList.of(getCoderProvider());
     }
   }
 
   /**
-   * A {@link CoderFactory} that constructs a {@link SerializableCoder} for any class that
+   * A {@link CoderProvider} that constructs a {@link SerializableCoder} for any class that
    * implements serializable.
    */
-  static class SerializableCoderFactory extends CoderFactory {
+  static class SerializableCoderProvider extends CoderProvider {
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
         List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
