@@ -278,7 +278,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       }
       final String bucketName =
           "dataflow-staging-" + region + "-" + projectNumber;
-      LOG.info("No staging location provided, attempting to use default bucket: {}",
+      LOG.info("No tempLocation specified, attempting to use default bucket: {}",
           bucketName);
       Bucket bucket = new Bucket()
           .setName(bucketName)
@@ -306,7 +306,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         throw new RuntimeException(
             "Unable to determine the owner of the default bucket at gs://" + bucketName, e);
       }
-      return "gs://" + bucketName;
+      return "gs://" + bucketName + "/temp/";
     }
 
     /**
