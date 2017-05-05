@@ -34,6 +34,7 @@ import org.joda.time.Instant;
  */
 public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
+  private final String stepName;
   private final FlinkMetricContainer container;
   private final DoFnRunner<InputT, OutputT> delegate;
 
@@ -41,14 +42,15 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
       RuntimeContext runtimeContext) {
+    this.stepName = stepName;
     this.delegate = delegate;
-    container = new FlinkMetricContainer(stepName, runtimeContext);
+    container = new FlinkMetricContainer(runtimeContext);
   }
 
   @Override
   public void startBundle() {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.startBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -58,7 +60,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void processElement(final WindowedValue<InputT> elem) {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.processElement(elem);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -69,7 +71,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   public void onTimer(final String timerId, final BoundedWindow window, final Instant timestamp,
                       final TimeDomain timeDomain) {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.onTimer(timerId, window, timestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -79,7 +81,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void finishBundle() {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.finishBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);

@@ -214,10 +214,13 @@ public class UnboundedSourceWrapper<
 
     context = ctx;
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
-    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
-        new ReaderInvocationUtil<>(serializedOptions.getPipelineOptions(), metricContainer);
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
 
+    ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
+        new ReaderInvocationUtil<>(
+            stepName,
+            serializedOptions.getPipelineOptions(),
+            metricContainer);
 
     if (localReaders.size() == 0) {
       // do nothing, but still look busy ...
