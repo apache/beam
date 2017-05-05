@@ -27,7 +27,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +34,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;

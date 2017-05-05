@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.io.fs.PathValidator;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Noop implementation of {@link PathValidator}. All paths are allowed and returned unchanged.
+ * @deprecated use {@link org.apache.beam.sdk.io.fs.NoopPathValidator}.
  */
+@Deprecated
 public class NoopPathValidator implements PathValidator {
 
   private NoopPathValidator() {

@@ -58,7 +58,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.scheduler.StreamInputInfo;
 import org.joda.time.Instant;
-
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 

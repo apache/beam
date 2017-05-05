@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
-
 import org.apache.spark.metrics.source.Source;
 
 

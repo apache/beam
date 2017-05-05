@@ -23,9 +23,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource;

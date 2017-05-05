@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core.triggers;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 
 /**
  * A trigger that is equivalent to {@code Repeatedly.forever(AfterWatermark.pastEndOfWindow())}. See

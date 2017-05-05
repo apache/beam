@@ -18,11 +18,9 @@
 package org.apache.beam.runners.apex.examples;
 
 import com.google.common.collect.Sets;
-
 import java.io.File;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;

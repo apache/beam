@@ -21,7 +21,6 @@ package org.apache.beam.sdk.io.kafka.serialization;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;

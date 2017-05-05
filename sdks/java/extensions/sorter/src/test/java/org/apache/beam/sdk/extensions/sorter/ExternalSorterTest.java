@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;

@@ -22,9 +22,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Utility methods for translating {@link PCollection PCollections} to and from Runner API protos.
