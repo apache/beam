@@ -69,6 +69,6 @@ public class PartitionJava8Test implements Serializable {
         .apply(Partition.of(1, (element, numPartitions) -> 0));
 
     thrown.expect(CannotProvideCoderException.class);
-    pipeline.getCoderRegistry().getDefaultCoder(output.get(0).getTypeDescriptor());
+    pipeline.getCoderRegistry().getCoder(output.get(0).getTypeDescriptor());
   }
 }

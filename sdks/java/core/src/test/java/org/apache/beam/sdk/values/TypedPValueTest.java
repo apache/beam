@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -77,14 +78,10 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage(
-        containsString("Building a Coder using a registered CoderFactory failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the @DefaultCoder annotation failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the fallback CoderProvider failed"));
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
-    tuple.get(untypedOutputTag).getCoder();
+    Coder<?> coder = tuple.get(untypedOutputTag).getCoder();
+    System.out.println(coder);
   }
 
   @Test
@@ -96,12 +93,7 @@ public class TypedPValueTest {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("No Coder has been manually specified");
-    thrown.expectMessage(
-        containsString("Building a Coder using a registered CoderFactory failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the @DefaultCoder annotation failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the fallback CoderProvider failed"));
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
     tuple.get(untypedOutputTag).getCoder();
   }
@@ -126,7 +118,10 @@ public class TypedPValueTest {
     assertThat(tuple.get(typedOutputTag).getCoder(), instanceOf(VarIntCoder.class));
   }
 
-  // A simple class for which there should be no obvious Coder.
+  /**
+   * This type is incompatible with all known coder providers such as Serializable,
+   * {@code @DefaultCoder} which allows testing coder registry lookup failure cases.
+   */
   static class EmptyClass {
   }
 
@@ -149,10 +144,7 @@ public class TypedPValueTest {
     thrown.expectMessage(not(containsString("erasure")));
     thrown.expectMessage(not(containsString("see TupleTag Javadoc")));
     // Instead, expect output suggesting other possible fixes.
-    thrown.expectMessage(containsString("Building a Coder using a registered CoderFactory failed"));
-    thrown.expectMessage(
-        containsString("Building a Coder from the @DefaultCoder annotation failed"));
-    thrown.expectMessage(containsString("Building a Coder from the fallback CoderProvider failed"));
+    thrown.expectMessage("Building a Coder using a registered CoderProvider failed");
 
     input.getCoder();
   }

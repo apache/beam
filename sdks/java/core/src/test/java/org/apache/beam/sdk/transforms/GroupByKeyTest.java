@@ -41,6 +41,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -392,7 +393,8 @@ public class GroupByKeyTest {
     final int numValues = 10;
     final int numKeys = 5;
 
-    p.getCoderRegistry().registerCoder(BadEqualityKey.class, DeterministicKeyCoder.class);
+    p.getCoderRegistry().registerCoderProvider(
+        CoderProviders.fromStaticMethods(BadEqualityKey.class, DeterministicKeyCoder.class));
 
     // construct input data
     List<KV<BadEqualityKey, Long>> input = new ArrayList<>();

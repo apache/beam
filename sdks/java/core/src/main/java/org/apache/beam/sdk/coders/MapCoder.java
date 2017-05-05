@@ -50,18 +50,6 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     return new MapCoder<>(keyCoder, valueCoder);
   }
 
-  /**
-   * Returns the key and value for an arbitrary element of this map,
-   * if it is non-empty, otherwise returns {@code null}.
-   */
-   public static <K, V> List<Object> getInstanceComponents(
-       Map<K, V> exampleValue) {
-     for (Map.Entry<K, V> entry : exampleValue.entrySet()) {
-       return Arrays.asList(entry.getKey(), entry.getValue());
-     }
-     return null;
-   }
-
   public Coder<K> getKeyCoder() {
     return keyCoder;
   }

@@ -75,18 +75,6 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   private final Coder<T> elementCoder;
   private final String iterableName;
 
-  /**
-   * Returns the first element in the iterable-like {@code exampleValue} if it is non-empty,
-   * otherwise returns {@code null}.
-   */
-  protected static <T, IterableT extends Iterable<T>>
-      List<Object> getInstanceComponentsHelper(IterableT exampleValue) {
-    for (T value : exampleValue) {
-      return Arrays.<Object>asList(value);
-    }
-    return null;
-  }
-
   protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
     checkArgument(elementCoder != null, "element Coder for IterableLikeCoder must not be null");
     checkArgument(iterableName != null, "iterable name for IterableLikeCoder must not be null");

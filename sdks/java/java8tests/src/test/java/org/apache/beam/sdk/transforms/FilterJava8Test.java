@@ -91,7 +91,7 @@ public class FilterJava8Test implements Serializable {
         .apply(Filter.by(s -> true));
 
     thrown.expect(CannotProvideCoderException.class);
-    pipeline.getCoderRegistry().getDefaultCoder(output.getTypeDescriptor());
+    pipeline.getCoderRegistry().getCoder(output.getTypeDescriptor());
   }
 
   @Test
