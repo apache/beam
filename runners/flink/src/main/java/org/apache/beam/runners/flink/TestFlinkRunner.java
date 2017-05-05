@@ -55,7 +55,13 @@ public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     try {
-      return delegate.run(pipeline);
+      PipelineResult job = delegate.run(pipeline);
+
+      job.waitUntilFinish();
+//      job.waitUntilFinish(
+//          Duration.standardSeconds(
+//              getPipelineOptions().as(TestPipelineOptions.class).getTestTimeoutSeconds()));
+      return job;
     } catch (Throwable t) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
