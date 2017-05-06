@@ -271,6 +271,10 @@ public abstract class Coder<T> implements Serializable {
     }
   }
 
+  /**
+   * Give a {@link Object} returned by {@link #fromStructuralValue}, returns the original encoded
+   * object.
+   */
   public T fromStructuralValue(Object o) {
     if (consistentWithEquals()) {
       return (T) o;
