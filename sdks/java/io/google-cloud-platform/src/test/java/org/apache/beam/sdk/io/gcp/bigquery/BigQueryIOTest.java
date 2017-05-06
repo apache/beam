@@ -748,9 +748,20 @@ public class BigQueryIOTest implements Serializable {
    */
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
+    public void encode(PartitionedGlobalWindow window, OutputStream outStream)
+        throws IOException, CoderException {
+      encode(window, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
       StringUtf8Coder.of().encode(window.value, outStream, context);
+    }
+
+    @Override
+    public PartitionedGlobalWindow decode(InputStream inStream) throws IOException, CoderException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

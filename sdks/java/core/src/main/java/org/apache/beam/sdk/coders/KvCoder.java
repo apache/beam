@@ -58,6 +58,12 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
   }
 
   @Override
+  public void encode(KV<K, V> kv, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(kv, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(KV<K, V> kv, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (kv == null) {
@@ -65,6 +71,11 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
     }
     keyCoder.encode(kv.getKey(), outStream);
     valueCoder.encode(kv.getValue(), outStream, context);
+  }
+
+  @Override
+  public KV<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

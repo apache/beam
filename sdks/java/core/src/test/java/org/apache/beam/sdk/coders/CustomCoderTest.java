@@ -48,13 +48,13 @@ public class CustomCoderTest {
     }
 
     @Override
-    public void encode(KV<String, Long> kv, OutputStream out, Context context)
+    public void encode(KV<String, Long> kv, OutputStream out)
             throws IOException {
       new DataOutputStream(out).writeLong(kv.getValue());
     }
 
     @Override
-    public KV<String, Long> decode(InputStream inStream, Context context)
+    public KV<String, Long> decode(InputStream inStream)
         throws IOException {
       return KV.of(key, new DataInputStream(inStream).readLong());
     }

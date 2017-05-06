@@ -100,9 +100,20 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
+  public void encode(T value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     delegateCoder.encode(value, outStream, context);
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

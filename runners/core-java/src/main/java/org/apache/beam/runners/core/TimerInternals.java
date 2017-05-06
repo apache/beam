@@ -238,9 +238,8 @@ public interface TimerInternals {
     }
 
     @Override
-    public void encode(TimerData timer, OutputStream outStream, Context context)
+    public void encode(TimerData timer, OutputStream outStream)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
@@ -248,9 +247,8 @@ public interface TimerInternals {
     }
 
     @Override
-    public TimerData decode(InputStream inStream, Context context)
+    public TimerData decode(InputStream inStream)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
       String timerId = STRING_CODER.decode(inStream);
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);

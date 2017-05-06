@@ -153,11 +153,11 @@ public class SerializableMatchersTest implements Serializable {
 
   private static class NotSerializableClassCoder extends AtomicCoder<NotSerializableClass> {
     @Override
-    public void encode(NotSerializableClass value, OutputStream outStream, Coder.Context context) {
+    public void encode(NotSerializableClass value, OutputStream outStream) {
     }
 
     @Override
-    public NotSerializableClass decode(InputStream inStream, Coder.Context context) {
+    public NotSerializableClass decode(InputStream inStream) {
       return new NotSerializableClass();
     }
   }

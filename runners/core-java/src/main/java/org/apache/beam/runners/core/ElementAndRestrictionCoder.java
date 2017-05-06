@@ -50,7 +50,7 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
 
   @Override
   public void encode(
-      ElementAndRestriction<ElementT, RestrictionT> value, OutputStream outStream, Context context)
+      ElementAndRestriction<ElementT, RestrictionT> value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null ElementAndRestriction");
@@ -60,7 +60,7 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
   }
 
   @Override
-  public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
+  public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream)
       throws IOException {
     ElementT key = elementCoder.decode(inStream);
     RestrictionT value = restrictionCoder.decode(inStream);

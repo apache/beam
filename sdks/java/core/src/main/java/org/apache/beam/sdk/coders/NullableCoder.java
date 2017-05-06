@@ -61,6 +61,12 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
+  public void encode(@Nullable T value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (value == null) {
@@ -69,6 +75,11 @@ public class NullableCoder<T> extends StructuredCoder<T> {
       outStream.write(ENCODE_PRESENT);
       valueCoder.encode(value, outStream, context);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

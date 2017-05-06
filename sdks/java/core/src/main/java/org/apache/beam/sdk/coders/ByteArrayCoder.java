@@ -52,6 +52,12 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   private ByteArrayCoder() {}
 
   @Override
+  public void encode(byte[] value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(byte[] value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     if (value == null) {
@@ -83,6 +89,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
         outStream.write(value);
       }
     }
+  }
+
+  @Override
+  public byte[] decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

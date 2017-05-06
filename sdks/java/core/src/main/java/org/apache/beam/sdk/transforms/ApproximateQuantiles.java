@@ -679,7 +679,7 @@ public class ApproximateQuantiles {
 
     @Override
     public void encode(
-        QuantileState<T, ComparatorT> state, OutputStream outStream, Coder.Context context)
+        QuantileState<T, ComparatorT> state, OutputStream outStream)
         throws CoderException, IOException {
       intCoder.encode(state.numQuantiles, outStream);
       intCoder.encode(state.bufferSize, outStream);
@@ -695,7 +695,7 @@ public class ApproximateQuantiles {
     }
 
     @Override
-    public QuantileState<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+    public QuantileState<T, ComparatorT> decode(InputStream inStream)
         throws CoderException, IOException {
       int numQuantiles = intCoder.decode(inStream);
       int bufferSize = intCoder.decode(inStream);
