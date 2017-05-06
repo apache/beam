@@ -26,7 +26,6 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.api.client.util.BackOff;
 import java.io.IOException;
 import org.joda.time.Duration;
 import org.junit.Rule;
