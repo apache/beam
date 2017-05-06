@@ -1092,24 +1092,13 @@ public class ParDoTest implements Serializable {
     @Override
     public void encode(MyInteger value, OutputStream outStream)
         throws CoderException, IOException {
-      encode(value, outStream, Context.NESTED);
+      delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
-      delegate.encode(value.getValue(), outStream, context);
-    }
-
-    @Override
-    public MyInteger decode(InputStream inStream) throws CoderException {
-      return decode(inStream, Context.NESTED);
-    }
-
-    @Override
-    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+    public MyInteger decode(InputStream inStream) throws CoderException,
         IOException {
-      return new MyInteger(delegate.decode(inStream, context));
+      return new MyInteger(delegate.decode(inStream));
     }
   }
 

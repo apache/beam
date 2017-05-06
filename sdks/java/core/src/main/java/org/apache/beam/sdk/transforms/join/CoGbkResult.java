@@ -264,7 +264,7 @@ public class CoGbkResult {
       }
       List<Iterable<?>> valueMap = Lists.newArrayListWithExpectedSize(schema.size());
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(tagListCoder(unionTag).decode(inStream, Coder.Context.NESTED));
+        valueMap.add(tagListCoder(unionTag).decode(inStream));
       }
       return new CoGbkResult(schema, valueMap);
     }
