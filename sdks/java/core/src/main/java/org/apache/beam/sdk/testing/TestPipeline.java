@@ -72,7 +72,7 @@ import org.junit.runners.model.Statement;
  * <li>System property "beamTestPipelineOptions" must contain a JSON delimited list of pipeline
  *     options. For example:
  *     <pre>{@code [
- *     "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+ *     "--runner=TestDataflowRunner",
  *     "--project=mygcpproject",
  *     "--stagingLocation=gs://mygcsbucket/path"
  *     ]}</pre>
