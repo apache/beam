@@ -133,16 +133,10 @@
     </dependency>
 
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
-     scope and depend on it at runtime. -->
+         scope and depend on it at runtime. -->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-protobuf</artifactId>
       <scope>runtime</scope>
     </dependency>
 
