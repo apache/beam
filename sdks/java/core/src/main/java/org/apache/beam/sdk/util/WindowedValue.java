@@ -646,8 +646,7 @@ public abstract class WindowedValue<T> {
                        OutputStream outStream,
                        Context context)
         throws CoderException, IOException {
-      InstantCoder.of().encode(
-          windowedElem.getTimestamp(), outStream, nestedContext);
+      InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
       PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
