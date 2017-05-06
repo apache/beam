@@ -34,6 +34,7 @@ import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -44,11 +45,11 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.WindowedContext;
@@ -961,18 +962,23 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * A coder for {@link FileResult} objects.
    */
-  public static final class FileResultCoder extends AtomicCoder<FileResult> {
+  public static final class FileResultCoder extends StructuredCoder<FileResult> {
     private final Coder<String> stringCoder = StringUtf8Coder.of();
     private final Coder<Integer> integerCoder = VarIntCoder.of();
     private final Coder<PaneInfo> paneInfoCoder = NullableCoder.of(PaneInfoCoder.INSTANCE);
     private final Coder<BoundedWindow> windowCoder;
 
-    private FileResultCoder(Coder<BoundedWindow> windowCoder) {
+    protected FileResultCoder(Coder<BoundedWindow> windowCoder) {
       this.windowCoder = NullableCoder.of(windowCoder);
     }
 
     public static FileResultCoder of(Coder<BoundedWindow> windowCoder) {
       return new FileResultCoder(windowCoder);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Arrays.asList(windowCoder);
     }
 
     @Override
