@@ -21,6 +21,8 @@ import static java.util.Arrays.asList;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -51,7 +53,13 @@ import org.apache.beam.sdk.metrics.MetricsMap;
 class DirectMetrics extends MetricResults {
 
   // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
-  private static final ExecutorService COUNTER_COMMITTER = Executors.newCachedThreadPool();
+  private static final ExecutorService COUNTER_COMMITTER =
+      Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+              .setThreadFactory(MoreExecutors.platformThreadFactory())
+              .setDaemon(true)
+              .setNameFormat("direct-metrics-counter-committer")
+              .build());
 
   private interface MetricAggregation<UpdateT, ResultT> {
     UpdateT zero();
