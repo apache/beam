@@ -557,7 +557,6 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
                 second.getTempFilename().toString());
           }
         }).sortedCopy(unshardedFiles);
-        FilenamePolicy filenamePolicy = getSink().getFilenamePolicy();
         for (int i = 0; i < unshardedFiles.size(); i++) {
           FileResult result = unshardedFiles.get(i);
           result.setShard(i);
