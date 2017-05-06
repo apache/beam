@@ -268,7 +268,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       LOG.info(
           "Splitting filepattern {} into bundles of size {} took {} ms "
               + "and produced {} files and {} bundles",
-          fileOrPatternSpec,
+          fileOrPatternSpec.get(),
           desiredBundleSizeBytes,
           System.currentTimeMillis() - startTime,
           expandedFiles.size(),
@@ -327,7 +327,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       }
       LOG.debug(
           "Creating a reader for file pattern {} took {} ms",
-          fileOrPatternSpec,
+          fileOrPatternSpec.get(),
           System.currentTimeMillis() - startTime);
       if (fileReaders.size() == 1) {
         return fileReaders.get(0);
