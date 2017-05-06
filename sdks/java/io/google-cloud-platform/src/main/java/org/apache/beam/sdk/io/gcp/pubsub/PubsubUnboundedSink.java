@@ -108,7 +108,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
     @Override
     public void encode(
-        OutgoingMessage value, OutputStream outStream, Context context)
+        OutgoingMessage value, OutputStream outStream)
         throws CoderException, IOException {
       ByteArrayCoder.of().encode(value.elementBytes, outStream);
       ATTRIBUTES_CODER.encode(value.attributes, outStream);
@@ -118,7 +118,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
     @Override
     public OutgoingMessage decode(
-        InputStream inStream, Context context) throws CoderException, IOException {
+        InputStream inStream) throws CoderException, IOException {
       byte[] elementBytes = ByteArrayCoder.of().decode(inStream);
       Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
       long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream);

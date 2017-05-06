@@ -54,7 +54,7 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   }
 
   @Override
-  public void encode(ReadableDuration value, OutputStream outStream, Context context)
+  public void encode(ReadableDuration value, OutputStream outStream)
       throws CoderException, IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null ReadableDuration");
@@ -63,7 +63,7 @@ public class DurationCoder extends AtomicCoder<ReadableDuration> {
   }
 
   @Override
-  public ReadableDuration decode(InputStream inStream, Context context)
+  public ReadableDuration decode(InputStream inStream)
       throws CoderException, IOException {
       return fromLong(LONG_CODER.decode(inStream));
   }

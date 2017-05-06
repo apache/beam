@@ -151,11 +151,11 @@ public class CodersTest {
 
     private static class RecordCoder extends AtomicCoder<Record> {
       @Override
-      public void encode(Record value, OutputStream outStream, Context context)
+      public void encode(Record value, OutputStream outStream)
           throws CoderException, IOException {}
 
       @Override
-      public Record decode(InputStream inStream, Context context)
+      public Record decode(InputStream inStream)
           throws CoderException, IOException {
         return new Record();
       }

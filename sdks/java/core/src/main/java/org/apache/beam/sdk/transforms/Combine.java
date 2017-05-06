@@ -532,6 +532,12 @@ public class Combine {
     }
 
     @Override
+    public void encode(Holder<V> accumulator, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(accumulator, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(Holder<V> accumulator, OutputStream outStream, Context context)
         throws CoderException, IOException {
       if (accumulator.present) {
@@ -540,6 +546,11 @@ public class Combine {
       } else {
         outStream.write(0);
       }
+    }
+
+    @Override
+    public Holder<V> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -1971,6 +1982,12 @@ public class Combine {
         }
 
         @Override
+        public void encode(InputOrAccum<InputT, AccumT> value, OutputStream outStream)
+            throws CoderException, IOException {
+          encode(value, outStream, Coder.Context.NESTED);
+        }
+
+        @Override
         public void encode(
             InputOrAccum<InputT, AccumT> value, OutputStream outStream, Coder.Context context)
             throws CoderException, IOException {
@@ -1981,6 +1998,11 @@ public class Combine {
             outStream.write(1);
             accumCoder.encode(value.accum, outStream, context);
           }
+        }
+
+        @Override
+        public InputOrAccum<InputT, AccumT> decode(InputStream inStream) throws CoderException, IOException {
+          return decode(inStream, Coder.Context.NESTED);
         }
 
         @Override

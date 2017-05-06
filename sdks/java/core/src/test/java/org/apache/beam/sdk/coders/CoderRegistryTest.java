@@ -81,12 +81,12 @@ public class CoderRegistryTest {
   @SuppressWarnings("rawtypes") // this class exists to fail a test because of its rawtypes
   private class MyListCoder extends AtomicCoder<List> {
     @Override
-    public void encode(List value, OutputStream outStream, Context context)
+    public void encode(List value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public List decode(InputStream inStream, Context context)
+    public List decode(InputStream inStream)
         throws CoderException, IOException {
       return Collections.emptyList();
     }
@@ -375,12 +375,12 @@ public class CoderRegistryTest {
     }
 
     @Override
-    public void encode(MyValue value, OutputStream outStream, Context context)
+    public void encode(MyValue value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public MyValue decode(InputStream inStream, Context context)
+    public MyValue decode(InputStream inStream)
         throws CoderException, IOException {
       return new MyValue();
     }

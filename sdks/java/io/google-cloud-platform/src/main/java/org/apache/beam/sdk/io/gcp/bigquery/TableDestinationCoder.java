@@ -38,7 +38,7 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream, Context context)
+  public void encode(TableDestination value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");

@@ -66,12 +66,23 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   }
 
   @Override
+  public void encode(SingletonKeyedWorkItem<K, ElemT> value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(SingletonKeyedWorkItem<K, ElemT> value,
                      OutputStream outStream,
                      Context context)
       throws CoderException, IOException {
     keyCoder.encode(value.key(), outStream);
     valueCoder.encode(value.value, outStream, context);
+  }
+
+  @Override
+  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

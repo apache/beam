@@ -947,6 +947,12 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     }
 
     @Override
+    public void encode(FileResult value, OutputStream outStream)
+        throws IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(FileResult value, OutputStream outStream, Context context)
         throws IOException {
       if (value == null) {
@@ -958,6 +964,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       } else {
         stringCoder.encode(value.getDestinationFilename().toString(), outStream, context);
       }
+    }
+
+    @Override
+    public FileResult decode(InputStream inStream) throws IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

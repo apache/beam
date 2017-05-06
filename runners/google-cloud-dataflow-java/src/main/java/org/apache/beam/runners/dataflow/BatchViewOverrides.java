@@ -1351,10 +1351,21 @@ class BatchViewOverrides {
     }
 
     @Override
+    public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(outStream, outStream, Coder.Context.NESTED);
+    }
+
+    @Override
     public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream,
         Coder.Context context) throws CoderException, IOException {
       transformCoder.encode(value.transform, outStream);
       originalMapCoder.encode(value.originalMap, outStream, context);
+    }
+
+    @Override
+    public TransformedMap<K, V1, V2> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override

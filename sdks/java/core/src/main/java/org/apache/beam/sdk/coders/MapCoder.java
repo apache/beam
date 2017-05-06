@@ -69,6 +69,12 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   }
 
   @Override
+  public void encode(Map<K, V> map, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(map, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(
       Map<K, V> map,
       OutputStream outStream,
@@ -97,6 +103,11 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     keyCoder.encode(entry.getKey(), outStream);
     valueCoder.encode(entry.getValue(), outStream, context);
     // no flush needed as DataOutputStream does not buffer
+  }
+
+  @Override
+  public Map<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

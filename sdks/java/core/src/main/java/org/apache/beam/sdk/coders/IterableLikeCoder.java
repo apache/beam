@@ -84,12 +84,11 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
 
   @Override
   public void encode(
-      IterableT iterable, OutputStream outStream, Context context)
+      IterableT iterable, OutputStream outStream)
       throws IOException, CoderException  {
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
-    Context nestedContext = context.nested();
     DataOutputStream dataOutStream = new DataOutputStream(outStream);
     if (iterable instanceof Collection) {
       // We can know the size of the Iterable.  Use an encoding with a
@@ -117,9 +116,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   @Override
-  public IterableT decode(InputStream inStream, Context context)
+  public IterableT decode(InputStream inStream)
       throws IOException, CoderException {
-    Context nestedContext = context.nested();
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
     if (size >= 0) {

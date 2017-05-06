@@ -636,11 +636,16 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(windowedElem, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(WindowedValue<T> windowedElem,
                        OutputStream outStream,
                        Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, nestedContext);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
@@ -649,9 +654,13 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
+    }
+
+    @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      Context nestedContext = context.nested();
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream);
@@ -710,9 +719,20 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public void encode(WindowedValue<T> windowedElem, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(windowedElem, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(WindowedValue<T> windowedElem, OutputStream outStream, Context context)
         throws CoderException, IOException {
       valueCoder.encode(windowedElem.getValue(), outStream, context);
+    }
+
+    @Override
+    public WindowedValue<T> decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

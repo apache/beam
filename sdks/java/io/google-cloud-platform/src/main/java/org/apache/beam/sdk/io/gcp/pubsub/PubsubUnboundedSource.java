@@ -369,6 +369,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private PubsubCheckpointCoder() {}
 
     @Override
+    public void encode(PubsubCheckpoint value, OutputStream outStream)
+        throws IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(PubsubCheckpoint value, OutputStream outStream, Context context)
         throws IOException {
       SUBSCRIPTION_PATH_CODER.encode(
@@ -376,6 +382,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           outStream,
           context.nested());
       LIST_CODER.encode(value.notYetReadIds, outStream, context);
+    }
+
+    @Override
+    public PubsubCheckpoint decode(InputStream inStream) throws IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

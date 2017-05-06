@@ -119,7 +119,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
+  public void encode(T value, OutputStream outStream)
       throws IOException, CoderException {
     try {
       ObjectOutputStream oos = new ObjectOutputStream(outStream);
@@ -131,7 +131,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream, Context context)
+  public T decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       ObjectInputStream ois = new ObjectInputStream(inStream);

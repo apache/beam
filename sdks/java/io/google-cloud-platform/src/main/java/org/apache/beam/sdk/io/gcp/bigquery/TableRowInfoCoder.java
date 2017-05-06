@@ -38,6 +38,12 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
   }
 
   @Override
+  public void encode(TableRowInfo value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(TableRowInfo value, OutputStream outStream, Context context)
       throws IOException {
     if (value == null) {
@@ -45,6 +51,11 @@ class TableRowInfoCoder extends AtomicCoder<TableRowInfo> {
     }
     tableRowCoder.encode(value.tableRow, outStream);
     idCoder.encode(value.uniqueId, outStream, context);
+  }
+
+  @Override
+  public TableRowInfo decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

@@ -69,18 +69,16 @@ public class KeyedWorkItemCoder<K, ElemT> extends StructuredCoder<KeyedWorkItem<
   }
 
   @Override
-  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream, Coder.Context context)
+  public void encode(KeyedWorkItem<K, ElemT> value, OutputStream outStream)
       throws CoderException, IOException {
-    Coder.Context nestedContext = context.nested();
     keyCoder.encode(value.key(), outStream);
     timersCoder.encode(value.timersIterable(), outStream);
     elemsCoder.encode(value.elementsIterable(), outStream);
   }
 
   @Override
-  public KeyedWorkItem<K, ElemT> decode(InputStream inStream, Coder.Context context)
+  public KeyedWorkItem<K, ElemT> decode(InputStream inStream)
       throws CoderException, IOException {
-    Coder.Context nestedContext = context.nested();
     K key = keyCoder.decode(inStream);
     Iterable<TimerData> timers = timersCoder.decode(inStream);
     Iterable<WindowedValue<ElemT>> elems = elemsCoder.decode(inStream);

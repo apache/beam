@@ -43,7 +43,7 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
     }
 
     @Override
-    public void encode(KinesisRecord value, OutputStream outStream, Context context) throws
+    public void encode(KinesisRecord value, OutputStream outStream) throws
             IOException {
         BYTE_ARRAY_CODER.encode(value.getData().array(), outStream);
         STRING_CODER.encode(value.getSequenceNumber(), outStream);
@@ -56,7 +56,7 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
     }
 
     @Override
-    public KinesisRecord decode(InputStream inStream, Context context) throws IOException {
+    public KinesisRecord decode(InputStream inStream) throws IOException {
         ByteBuffer data = ByteBuffer.wrap(BYTE_ARRAY_CODER.decode(inStream));
         String sequenceNumber = STRING_CODER.decode(inStream);
         String partitionKey = STRING_CODER.decode(inStream);
