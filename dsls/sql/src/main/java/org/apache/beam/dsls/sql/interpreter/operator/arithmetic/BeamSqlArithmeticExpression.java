@@ -62,7 +62,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     BeamSqlExpression rightOp = operands.get(1);
 
     // In the case of -, +, and *, the result is calculated as Long if both
-    // operands are INT_TYPES(short, integer, long).
+    // operands are INT_TYPES(byte, short, integer, long).
     if (SqlTypeName.INT_TYPES.contains(leftOp.getOutputType())
         && SqlTypeName.INT_TYPES.contains(rightOp.getOutputType())) {
       Long leftValue = Long.valueOf(leftOp.evaluate(inputRecord).getValue().toString());
