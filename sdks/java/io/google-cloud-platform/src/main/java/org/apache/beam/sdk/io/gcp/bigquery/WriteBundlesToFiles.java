@@ -21,7 +21,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -61,8 +60,7 @@ class WriteBundlesToFiles<DestinationT>
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
   // 10TB of data have shown a sharding of 10 to be a good choice.
-  @VisibleForTesting
-  static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
+  private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
 
   // Map from tablespec to a writer for that table.
   private transient Map<DestinationT, TableRowWriter> writers;
@@ -156,8 +154,12 @@ class WriteBundlesToFiles<DestinationT>
       // File is too big. Close it and open a new file.
       TableRowWriter.Result result = writer.close();
       c.output(new Result<>(result.resourceId.toString(), result.byteSize, c.element().getKey()));
-      writer = null;
+      writer = new TableRowWriter(tempFilePrefix);
+      writer.open(UUID.randomUUID().toString());
+      writers.put(c.element().getKey(), writer);
+      LOG.debug("Done opening writer {}", writer);
     }
+
     if (writer == null) {
       // Only create a new writer if we have fewer than maxNumWritersPerBundle already in this
       // bundle.

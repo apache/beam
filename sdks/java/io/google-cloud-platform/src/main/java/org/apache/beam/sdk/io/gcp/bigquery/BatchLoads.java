@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.util.List;
@@ -70,7 +71,8 @@ class BatchLoads<DestinationT>
   // save on the cost of shuffling some of this data.
   // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
   // their own policy.
-  private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
+  @VisibleForTesting
+  static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;

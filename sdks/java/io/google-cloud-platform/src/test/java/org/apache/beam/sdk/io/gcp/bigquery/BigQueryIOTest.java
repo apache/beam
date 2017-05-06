@@ -493,8 +493,9 @@ public class BigQueryIOTest implements Serializable {
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
-    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill.
-    for (int i = 0; i < WriteBundlesToFiles.SPILLED_RECORD_SHARDING_FACTOR * 2; ++i) {
+    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
+    // WriteGroupedRecordsToFiles.
+    for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
       String userName = allUsernames.get(ThreadLocalRandom.current().nextInt(allUsernames.size()));
       userList.add(userName + i);
     }
