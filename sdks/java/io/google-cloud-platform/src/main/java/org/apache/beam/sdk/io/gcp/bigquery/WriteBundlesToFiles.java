@@ -145,6 +145,16 @@ class WriteBundlesToFiles<DestinationT>
     this.writerWindows = Maps.newHashMap();
   }
 
+  TableRowWriter createAndInsertWriter(DestinationT destination, String tempFilePrefix,
+                                       BoundedWindow window) throws Exception {
+    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+    writer.open(UUID.randomUUID().toString());
+    writers.put(destination, writer);
+    writerWindows.put(destination, window);
+    LOG.debug("Done opening writer {}", writer);
+    return writer;
+  }
+
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
     String tempFilePrefix = resolveTempLocation(
@@ -154,21 +164,14 @@ class WriteBundlesToFiles<DestinationT>
       // File is too big. Close it and open a new file.
       TableRowWriter.Result result = writer.close();
       c.output(new Result<>(result.resourceId.toString(), result.byteSize, c.element().getKey()));
-      writer = new TableRowWriter(tempFilePrefix);
-      writer.open(UUID.randomUUID().toString());
-      writers.put(c.element().getKey(), writer);
-      LOG.debug("Done opening writer {}", writer);
+      writer = createAndInsertWriter(c.element().getKey(), tempFilePrefix, window);
     }
 
     if (writer == null) {
       // Only create a new writer if we have fewer than maxNumWritersPerBundle already in this
       // bundle.
       if (writers.size() <= maxNumWritersPerBundle) {
-        writer = new TableRowWriter(tempFilePrefix);
-        writer.open(UUID.randomUUID().toString());
-        writers.put(c.element().getKey(), writer);
-        writerWindows.put(c.element().getKey(), window);
-        LOG.debug("Done opening writer {}", writer);
+        writer = createAndInsertWriter(c.element().getKey(), tempFilePrefix, window);
       } else {
         // This means that we already had too many writers open in this bundle. "spill" this record
         // into the output. It will be grouped and written to a file in a subsequent stage.
