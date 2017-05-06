@@ -38,7 +38,7 @@ import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Tests for {@link FastNanoClockAndSleeper}. */
+/** Tests for {@link ExpectedLogs}. */
 @RunWith(JUnit4.class)
 public class ExpectedLogsTest {
   private static final Logger LOG = LoggerFactory.getLogger(ExpectedLogsTest.class);

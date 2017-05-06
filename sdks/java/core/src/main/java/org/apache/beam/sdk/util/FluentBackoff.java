@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.util.BackOff;
 import com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 

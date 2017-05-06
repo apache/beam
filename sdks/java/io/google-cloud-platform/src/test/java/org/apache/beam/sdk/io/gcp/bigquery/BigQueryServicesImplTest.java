@@ -67,7 +67,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceIm
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
@@ -133,7 +134,8 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper,
+        BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -157,7 +159,8 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper,
+        BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
     verify(response, times(1)).getStatusCode();
     verify(response, times(1)).getContent();
@@ -185,7 +188,8 @@ public class BigQueryServicesImplTest {
 
     Sleeper sleeper = new FastNanoClockAndSleeper();
     JobServiceImpl.startJob(
-        testJob, new ApiErrorExtractor(), bigquery, sleeper, FluentBackoff.DEFAULT.backoff());
+        testJob, new ApiErrorExtractor(), bigquery, sleeper,
+        BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff()));
 
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
@@ -500,7 +504,8 @@ public class BigQueryServicesImplTest {
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+    dataService.insertAll(ref, rows, null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -536,7 +541,8 @@ public class BigQueryServicesImplTest {
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, insertIds, TEST_BACKOFF.backoff(), new MockSleeper());
+    dataService.insertAll(ref, rows, insertIds,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -577,7 +583,8 @@ public class BigQueryServicesImplTest {
 
     // Expect it to fail.
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+      dataService.insertAll(ref, rows, null,
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -617,7 +624,8 @@ public class BigQueryServicesImplTest {
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+      dataService.insertAll(ref, rows, null,
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
       fail();
     } catch (RuntimeException e) {
       verify(response, times(1)).getStatusCode();
