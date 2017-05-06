@@ -50,15 +50,15 @@ public class CoderPropertiesTest {
   /** A coder that says it is not deterministic but actually is. */
   public static class NonDeterministicCoder extends AtomicCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
-      StringUtf8Coder.of().encode(value, outStream, context);
+      StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
 
     public void verifyDeterministic() throws NonDeterministicException {
@@ -96,15 +96,15 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws IOException, CoderException {
-      StringUtf8Coder.of().encode(value + System.nanoTime(), outStream, context);
+      StringUtf8Coder.of().encode(value + System.nanoTime(), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override
@@ -136,16 +136,16 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
       changedState += 1;
-      StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream, context);
+      StringUtf8Coder.of().encode(value + Strings.repeat("A", changedState), outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      String decodedValue = StringUtf8Coder.of().decode(inStream, context);
+      String decodedValue = StringUtf8Coder.of().decode(inStream);
       return decodedValue.substring(0, decodedValue.length() - changedState);
     }
 
@@ -180,18 +180,18 @@ public class CoderPropertiesTest {
     }
 
     @Override
-    public void encode(String value, OutputStream outStream, Context context)
+    public void encode(String value, OutputStream outStream)
         throws CoderException, IOException {
       if (lostState == 0) {
         throw new RuntimeException("I forgot something...");
       }
-      StringUtf8Coder.of().encode(value, outStream, context);
+      StringUtf8Coder.of().encode(value, outStream);
     }
 
     @Override
-    public String decode(InputStream inStream, Context context)
+    public String decode(InputStream inStream)
         throws CoderException, IOException {
-      return StringUtf8Coder.of().decode(inStream, context);
+      return StringUtf8Coder.of().decode(inStream);
     }
 
     @Override
@@ -216,12 +216,12 @@ public class CoderPropertiesTest {
   /** A coder which closes the underlying stream during encoding and decoding. */
   public static class ClosingCoder extends AtomicCoder<String> {
     @Override
-    public void encode(String value, OutputStream outStream, Context context) throws IOException {
+    public void encode(String value, OutputStream outStream) throws IOException {
       outStream.close();
     }
 
     @Override
-    public String decode(InputStream inStream, Context context) throws IOException {
+    public String decode(InputStream inStream) throws IOException {
       inStream.close();
       return null;
     }

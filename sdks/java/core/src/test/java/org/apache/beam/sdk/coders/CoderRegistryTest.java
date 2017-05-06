@@ -438,6 +438,12 @@ public class CoderRegistryTest {
 
   private static class AutoRegistrationClassCoder extends CustomCoder<AutoRegistrationClass> {
     private static final AutoRegistrationClassCoder INSTANCE = new AutoRegistrationClassCoder();
+
+    public void encode(AutoRegistrationClass value, OutputStream outStream) {}
+
+    public AutoRegistrationClass decode(InputStream inStream) {
+      return null;
+    }
   }
 
   @Test

@@ -2001,7 +2001,8 @@ public class Combine {
         }
 
         @Override
-        public InputOrAccum<InputT, AccumT> decode(InputStream inStream) throws CoderException, IOException {
+        public InputOrAccum<InputT, AccumT> decode(InputStream inStream)
+            throws CoderException, IOException {
           return decode(inStream, Coder.Context.NESTED);
         }
 

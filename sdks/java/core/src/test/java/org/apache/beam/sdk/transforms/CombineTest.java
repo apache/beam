@@ -876,28 +876,17 @@ public class CombineTest implements Serializable {
      */
     private class CountSumCoder extends AtomicCoder<CountSum> {
       @Override
-      public void encode(CountSum value, OutputStream outStream, OutputStream outStream)
+      public void encode(CountSum value, OutputStream outStream)
           throws CoderException, IOException {
-        encode(outStream, outStream, Context.NESTED);
-      }
-
-      @Override
-      public void encode(CountSum value, OutputStream outStream,
-          Context context) throws CoderException, IOException {
         LONG_CODER.encode(value.count, outStream);
-        DOUBLE_CODER.encode(value.sum, outStream, context);
+        DOUBLE_CODER.encode(value.sum, outStream);
       }
 
       @Override
-      public CountSum decode(InputStream inStream) throws CoderException, IOException {
-        return decode(inStream, Coder.Context.NESTED);
-      }
-
-      @Override
-      public CountSum decode(InputStream inStream, Coder.Context context)
+      public CountSum decode(InputStream inStream)
           throws CoderException, IOException {
         long count = LONG_CODER.decode(inStream);
-        double sum = DOUBLE_CODER.decode(inStream, context);
+        double sum = DOUBLE_CODER.decode(inStream);
         return new CountSum(count, sum);
       }
 

@@ -1351,9 +1351,9 @@ class BatchViewOverrides {
     }
 
     @Override
-    public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream, OutputStream outStream)
+    public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream)
         throws CoderException, IOException {
-      encode(outStream, outStream, Coder.Context.NESTED);
+      encode(value, outStream, Coder.Context.NESTED);
     }
 
     @Override
