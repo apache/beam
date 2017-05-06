@@ -92,7 +92,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     try {
       if (!context.isWholeStream) {
         try {
-          long size = getEncodedElementByteSize(value, Context.OUTER);
+          long size = getEncodedElementByteSize(value);
           // record the number of bytes the XML consists of so when reading we only read the encoded
           // value
           VarInt.encode(size, outStream);

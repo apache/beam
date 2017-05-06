@@ -85,7 +85,7 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(BigDecimal value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(BigDecimal value) {
     return true;
   }
 
@@ -97,9 +97,9 @@ public class BigDecimalCoder extends AtomicCoder<BigDecimal> {
    * representation of the {@link BigInteger} that, when scaled, equals the given value.
    */
   @Override
-  protected long getEncodedElementByteSize(BigDecimal value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(BigDecimal value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigDecimal.class.getSimpleName()));
-    return VAR_INT_CODER.getEncodedElementByteSize(value.scale(), context.nested())
-        + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue(), context);
+    return VAR_INT_CODER.getEncodedElementByteSize(value.scale())
+        + BIG_INT_CODER.getEncodedElementByteSize(value.unscaledValue());
   }
 }
