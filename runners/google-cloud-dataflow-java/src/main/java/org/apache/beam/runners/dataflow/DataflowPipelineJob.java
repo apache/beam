@@ -46,6 +46,7 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -285,9 +286,10 @@ public class DataflowPipelineJob implements PipelineResult {
 
     BackOff backoff;
     if (!duration.isLongerThan(Duration.ZERO)) {
-      backoff = MESSAGES_BACKOFF_FACTORY.backoff();
+      backoff = BackOffAdapter.toGcpBackOff(MESSAGES_BACKOFF_FACTORY.backoff());
     } else {
-      backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff();
+      backoff = BackOffAdapter.toGcpBackOff(
+          MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration).backoff());
     }
 
     // This function tracks the cumulative time from the *first request* to enforce the wall-clock
@@ -299,7 +301,10 @@ public class DataflowPipelineJob implements PipelineResult {
     do {
       // Get the state of the job before listing messages. This ensures we always fetch job
       // messages after the job finishes to ensure we have all them.
-      state = getStateWithRetries(STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff(), sleeper);
+      state = getStateWithRetries(
+          BackOffAdapter.toGcpBackOff(
+              STATUS_BACKOFF_FACTORY.withMaxRetries(0).backoff()),
+          sleeper);
       boolean hasError = state == State.UNKNOWN;
 
       if (messageHandler != null && !hasError) {
@@ -354,7 +359,8 @@ public class DataflowPipelineJob implements PipelineResult {
           Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
           Duration remaining = duration.minus(consumed);
           if (remaining.isLongerThan(Duration.ZERO)) {
-            backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff();
+            backoff = BackOffAdapter.toGcpBackOff(
+                MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff());
           } else {
             // If there is no time remaining, don't bother backing off.
             backoff = BackOff.STOP_BACKOFF;
@@ -437,7 +443,9 @@ public class DataflowPipelineJob implements PipelineResult {
       return terminalState;
     }
 
-    return getStateWithRetries(STATUS_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+    return getStateWithRetries(
+        BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()),
+        Sleeper.DEFAULT);
   }
 
   /**
