@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.testing.TestDataflowRunner;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
