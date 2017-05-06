@@ -21,7 +21,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.google.api.client.util.Base64;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 
@@ -33,7 +33,7 @@ class MatcherSerializer extends JsonSerializer<SerializableMatcher<?>> {
   public void serialize(SerializableMatcher<?> matcher, JsonGenerator jsonGenerator,
       SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
     byte[] out = SerializableUtils.serializeToByteArray(matcher);
-    String encodedString = Base64.encodeBase64String(out);
+    String encodedString = BaseEncoding.base64().encode(out);
     jsonGenerator.writeStartObject();
     jsonGenerator.writeStringField("matcher", encodedString);
     jsonGenerator.writeEndObject();
