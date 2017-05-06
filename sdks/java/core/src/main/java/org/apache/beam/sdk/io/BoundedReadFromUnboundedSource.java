@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import com.google.api.client.util.BackOff;
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PBegin;

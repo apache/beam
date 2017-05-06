@@ -54,6 +54,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
@@ -210,7 +211,7 @@ class PackageUtil {
       }
 
       // Upload file, retrying on failure.
-      BackOff backoff = BACKOFF_FACTORY.backoff();
+      BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
       while (true) {
         try {
           LOG.debug("Uploading classpath element {} to {}", source, target);
