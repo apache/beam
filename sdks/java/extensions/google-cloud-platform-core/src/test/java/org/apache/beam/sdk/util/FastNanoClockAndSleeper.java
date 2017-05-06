@@ -15,26 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.util;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-import org.apache.beam.sdk.testing.SerializableMatcher;
+import com.google.api.client.util.NanoClock;
+import com.google.api.client.util.Sleeper;
+import org.junit.rules.ExternalResource;
+import org.junit.rules.TestRule;
 
 /**
- * Bare-bones class for using sharded files.
- *
- * <p>For internal use only; used only in SDK tests. Must be {@link Serializable} so it can be
- * shipped as a {@link SerializableMatcher}.
+ * This object quickly moves time forward based upon how much it has been asked to sleep,
+ * without actually sleeping, to simulate the backoff.
  */
-public interface ShardedFile extends Serializable {
+public class FastNanoClockAndSleeper extends ExternalResource
+    implements NanoClock, Sleeper, TestRule {
+  private long fastNanoTime;
 
-  /**
-   * Reads the lines from all shards of this file using the provided {@link Sleeper} and {@link
-   * BackOff}.
-   */
-  List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
-      throws IOException, InterruptedException;
+  @Override
+  public long nanoTime() {
+    return fastNanoTime;
+  }
+
+  @Override
+  protected void before() throws Throwable {
+    fastNanoTime = SYSTEM.nanoTime();
+  }
+
+  @Override
+  public void sleep(long millis) throws InterruptedException {
+    fastNanoTime += millis * 1000000L;
+  }
 }

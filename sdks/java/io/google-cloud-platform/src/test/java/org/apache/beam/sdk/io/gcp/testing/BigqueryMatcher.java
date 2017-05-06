@@ -49,6 +49,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testing.SerializableMatcher;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.hamcrest.Description;
@@ -118,7 +119,8 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       queryContent.setQuery(query);
 
       response = queryWithRetries(
-          bigqueryClient, queryContent, Sleeper.DEFAULT, BACKOFF_FACTORY.backoff());
+          bigqueryClient, queryContent, Sleeper.DEFAULT,
+          BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()));
     } catch (IOException | InterruptedException e) {
       if (e instanceof InterruptedIOException) {
         Thread.currentThread().interrupt();
