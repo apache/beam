@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.sdk.Pipeline;

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowClient;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.joda.time.Instant;
 import org.slf4j.Logger;

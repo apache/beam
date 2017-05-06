@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.options;
+package org.apache.beam.runners.dataflow;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.services.dataflow.Dataflow;

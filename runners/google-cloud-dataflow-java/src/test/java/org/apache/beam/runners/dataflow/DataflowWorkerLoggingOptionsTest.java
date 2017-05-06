@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.options;
+package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.Level.WARN;
+import static org.apache.beam.runners.dataflow.DataflowWorkerLoggingOptions.Level.WARN;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
+import org.apache.beam.runners.dataflow.DataflowWorkerLoggingOptions.WorkerLogLevelOverrides;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Rule;
 import org.junit.Test;
