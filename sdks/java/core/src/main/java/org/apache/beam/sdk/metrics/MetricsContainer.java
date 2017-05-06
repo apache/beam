@@ -20,6 +20,7 @@ package org.apache.beam.sdk.metrics;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -37,7 +38,7 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  * cumulative values/updates.
  */
 @Experimental(Kind.METRICS)
-public class MetricsContainer {
+public class MetricsContainer implements Serializable {
 
   private final String stepName;
 
@@ -96,7 +97,7 @@ public class MetricsContainer {
     return gauges.get(metricName);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UserT, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractUpdates(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -120,8 +121,8 @@ public class MetricsContainer {
         extractUpdates(gauges));
   }
 
-  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?>> cells) {
-    for (MetricCell<?> cell : cells.values()) {
+  private void commitUpdates(MetricsMap<MetricName, ? extends MetricCell<?, ?>> cells) {
+    for (MetricCell<?, ?> cell : cells.values()) {
       cell.getDirty().afterCommit();
     }
   }
@@ -133,9 +134,10 @@ public class MetricsContainer {
   public void commitUpdates() {
     commitUpdates(counters);
     commitUpdates(distributions);
+    commitUpdates(gauges);
   }
 
-  private <UpdateT, CellT extends MetricCell<UpdateT>>
+  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UserT, UpdateT>>
   ImmutableList<MetricUpdate<UpdateT>> extractCumulatives(
       MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -155,5 +157,22 @@ public class MetricsContainer {
         extractCumulatives(counters),
         extractCumulatives(distributions),
         extractCumulatives(gauges));
+  }
+
+  /**
+   * Update values of this {@link MetricsContainer} by merging the value of another cell.
+   */
+  public void update(MetricsContainer other) {
+    updateCells(counters, other.counters);
+    updateCells(distributions, other.distributions);
+    updateCells(gauges, other.gauges);
+  }
+
+  private <UserT extends Metric, DataT, CellT extends MetricCell<UserT, DataT>> void updateCells(
+      MetricsMap<MetricName, CellT> current,
+      MetricsMap<MetricName, CellT> updates) {
+    for (Map.Entry<MetricName, CellT> counter : updates.entries()) {
+      current.get(counter.getKey()).update(counter.getValue());
+    }
   }
 }
