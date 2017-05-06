@@ -42,6 +42,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
@@ -73,6 +75,7 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CompressedSource<T> extends FileBasedSource<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(CompressedSource.class);
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
@@ -384,6 +387,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   @Override
   protected final FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
+    LOG.info("Creating single file reader in compressed source");
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;

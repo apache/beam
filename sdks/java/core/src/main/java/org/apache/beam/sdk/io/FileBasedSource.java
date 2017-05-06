@@ -313,6 +313,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public final BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+    LOG.info("Creating reader for {}", this);
     // Validate the current source prior to creating a reader for it.
     this.validate();
 

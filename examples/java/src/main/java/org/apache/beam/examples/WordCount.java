@@ -165,6 +165,7 @@ public class WordCount {
      */
     @Description("Path of the file to write to")
     @Required
+    @Default.String("/tmp/output/out")
     String getOutput();
     void setOutput(String value);
   }
