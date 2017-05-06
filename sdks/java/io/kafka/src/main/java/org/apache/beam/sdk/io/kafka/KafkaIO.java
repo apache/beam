@@ -1597,13 +1597,13 @@ public class KafkaIO {
 
   private static class NullOnlyCoder<T> extends AtomicCoder<T> {
     @Override
-    public void encode(T value, OutputStream outStream, Context context) {
+    public void encode(T value, OutputStream outStream) {
       checkArgument(value == null, "Can only encode nulls");
       // Encode as no bytes.
     }
 
     @Override
-    public T decode(InputStream inStream, Context context) {
+    public T decode(InputStream inStream) {
       return null;
     }
   }

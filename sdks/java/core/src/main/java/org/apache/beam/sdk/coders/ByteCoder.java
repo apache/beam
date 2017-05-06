@@ -41,7 +41,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   private ByteCoder() {}
 
   @Override
-  public void encode(Byte value, OutputStream outStream, Context context)
+  public void encode(Byte value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Byte");
@@ -50,7 +50,7 @@ public class ByteCoder extends AtomicCoder<Byte> {
   }
 
   @Override
-  public Byte decode(InputStream inStream, Context context)
+  public Byte decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       // value will be between 0-255, -1 for EOF

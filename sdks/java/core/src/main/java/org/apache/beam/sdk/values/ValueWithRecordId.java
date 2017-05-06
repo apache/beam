@@ -101,10 +101,21 @@ public class ValueWithRecordId<ValueT> {
     }
 
     @Override
+    public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream)
+        throws IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(ValueWithRecordId<ValueT> value, OutputStream outStream, Context context)
         throws IOException {
       valueCoder.encode(value.value, outStream);
       idCoder.encode(value.id, outStream, context);
+    }
+
+    @Override
+    public ValueWithRecordId<ValueT> decode(InputStream inStream) throws IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

@@ -45,10 +45,21 @@ public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage>
     return new PubsubMessageWithAttributesCoder();
   }
 
+  @Override
+  public void encode(PubsubMessage value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
   public void encode(PubsubMessage value, OutputStream outStream, Context context)
       throws IOException {
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
+  }
+
+  @Override
+  public PubsubMessage decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

@@ -507,9 +507,20 @@ public class ViewTest implements Serializable {
 
   private static class NonDeterministicStringCoder extends AtomicCoder<String> {
     @Override
+    public void encode(String value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Coder.Context.NESTED);
+    }
+
+    @Override
     public void encode(String value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       StringUtf8Coder.of().encode(value, outStream, context);
+    }
+
+    @Override
+    public String decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
