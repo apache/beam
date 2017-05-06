@@ -21,7 +21,9 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -57,7 +59,16 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 0;
   private final EvaluationContext evaluationContext;
-  @VisibleForTesting final ExecutorService executor = Executors.newCachedThreadPool();
+
+  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
+  @VisibleForTesting
+  final ExecutorService executor =
+      Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+              .setThreadFactory(MoreExecutors.platformThreadFactory())
+              .setDaemon(true)
+              .setNameFormat("direct-dynamic-split-requester")
+              .build());
 
   private final long minimumDynamicSplitSize;
 
