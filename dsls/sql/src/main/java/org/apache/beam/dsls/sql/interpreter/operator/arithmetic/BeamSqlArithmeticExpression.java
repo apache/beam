@@ -45,9 +45,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     }
 
     for (BeamSqlExpression operand : operands) {
-      // arithmetic operators support both numeric and string types.
-      if (!SqlTypeName.NUMERIC_TYPES.contains(operand.getOutputType())
-          && !(SqlTypeName.VARCHAR == operand.getOutputType())) {
+      if (!SqlTypeName.NUMERIC_TYPES.contains(operand.getOutputType())) {
         return false;
       }
     }
@@ -70,7 +68,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
       Long ret = calc(leftValue, rightValue);
       return BeamSqlPrimitive.of(SqlTypeName.BIGINT, ret);
     } else {
-      // If any of the operands of a +, -, /, *, % is a real or string value
+      // If any of the operands of a +, -, /, *, % is a real
       //  OR
       // It is a division calculation
       // we treat them as Double
@@ -85,8 +83,6 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
     Double ret = null;
     if (SqlTypeName.NUMERIC_TYPES.contains(op.getOutputType())) {
       ret = ((Number) raw).doubleValue();
-    } else if (op.getOutputType() == SqlTypeName.VARCHAR) {
-      ret = Double.valueOf(raw.toString());
     }
 
     return ret;
@@ -99,7 +95,7 @@ public abstract class BeamSqlArithmeticExpression extends BeamSqlExpression {
 
 
   /**
-   * For other {@link SqlTypeName#NUMERIC_TYPES} and VARCHAR calculation of '+', '-', '*', '/'.
+   * For other {@link SqlTypeName#NUMERIC_TYPES} of '+', '-', '*', '/'.
    */
   public abstract Double calc(Number left, Number right);
 }
