@@ -26,6 +26,7 @@ import apache_beam as beam
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options import pipeline_options
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners.dataflow.internal.dependency import _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -39,7 +40,6 @@ try:
 except ImportError:
   from apache_beam.runners.worker import statesampler_fake as statesampler
 from apache_beam.typehints import typehints
-from apache_beam.utils import pipeline_options
 from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory
 

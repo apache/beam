@@ -49,7 +49,7 @@ from apache_beam.typehints import Union
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.utils import urns
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import TypeOptions
 
 
 # Type variables

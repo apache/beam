@@ -20,7 +20,7 @@ import unittest
 from mock import Mock
 
 from apache_beam.metrics.cells import DistributionData
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.dataflow.internal.clients import dataflow

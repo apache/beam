@@ -25,7 +25,7 @@ except ImportError:
   extra_types = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.utils.value_provider import ValueProvider
+from apache_beam.options.value_provider import ValueProvider
 
 
 _MAXINT64 = (1 << 63) - 1

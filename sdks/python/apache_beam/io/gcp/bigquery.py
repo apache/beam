@@ -117,7 +117,7 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
-from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.io.gcp.internal.clients import bigquery
 
 # Protect against environments where bigquery library is not available.

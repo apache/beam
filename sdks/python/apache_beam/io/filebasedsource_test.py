@@ -43,8 +43,8 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 class LineSource(FileBasedSource):

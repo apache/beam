@@ -59,11 +59,11 @@ from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
-from apache_beam.utils.pipeline_options import StandardOptions
-from apache_beam.utils.pipeline_options import TypeOptions
-from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.utils.annotations import deprecated
 
 

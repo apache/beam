@@ -23,7 +23,7 @@ import shlex
 from apache_beam.internal import pickler
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners.runner import PipelineState
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from nose.plugins.skip import SkipTest
 
 
