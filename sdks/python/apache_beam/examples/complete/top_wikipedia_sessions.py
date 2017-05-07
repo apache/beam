@@ -52,8 +52,8 @@ from apache_beam.io import WriteToText
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 ONE_HOUR_IN_SECONDS = 3600

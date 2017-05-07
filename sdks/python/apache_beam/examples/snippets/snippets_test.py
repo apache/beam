@@ -31,7 +31,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned

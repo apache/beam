@@ -37,7 +37,7 @@ from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import TypeOptions
 
 
 class TransformEvaluatorRegistry(object):

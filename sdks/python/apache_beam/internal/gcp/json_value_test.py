@@ -21,8 +21,8 @@ import unittest
 
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.utils.value_provider import StaticValueProvider
-from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 # Protect against environments where apitools library is not available.

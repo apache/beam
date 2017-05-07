@@ -40,7 +40,7 @@ import apache_beam.typehints as typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import TypeOptions
 
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
