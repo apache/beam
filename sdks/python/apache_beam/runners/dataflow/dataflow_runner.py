@@ -43,7 +43,7 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.utils.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 
 class DataflowRunner(PipelineRunner):
