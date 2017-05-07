@@ -61,10 +61,8 @@ public class RandomAccessDataTest {
     CoderProperties.coderSerializable(RandomAccessDataCoder.of());
     CoderProperties.structuralValueConsistentWithEquals(
         RandomAccessDataCoder.of(), streamA, streamB);
-    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA, Context.NESTED));
-    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA, Context.OUTER));
-    assertEquals(4, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA, Context.NESTED));
-    assertEquals(3, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA, Context.OUTER));
+    assertTrue(RandomAccessDataCoder.of().isRegisterByteSizeObserverCheap(streamA));
+    assertEquals(4, RandomAccessDataCoder.of().getEncodedElementByteSize(streamA));
   }
 
   @Test

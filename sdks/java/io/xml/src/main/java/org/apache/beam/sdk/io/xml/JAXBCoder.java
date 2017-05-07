@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.xml;
 
 import com.google.common.io.ByteStreams;
+import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -87,37 +88,40 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try {
-      if (!context.isWholeStream) {
-        try {
-          long size = getEncodedElementByteSize(value, Context.OUTER);
-          // record the number of bytes the XML consists of so when reading we only read the encoded
-          // value
-          VarInt.encode(size, outStream);
-        } catch (Exception e) {
-          throw new CoderException(
-              "An Exception occured while trying to get the size of an encoded representation", e);
-        }
-      }
-
-      jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
+      jaxbMarshaller.get().marshal(value, baos);
     } catch (JAXBException e) {
       throw new CoderException(e);
+    }
+    VarInt.encode(baos.size(), outStream);
+    baos.writeTo(outStream);
+  }
+
+  @Override
+  public void encode(T value, OutputStream outStream, Context context)
+      throws CoderException, IOException {
+    if (context.isWholeStream) {
+      try {
+        jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
+      } catch (JAXBException e) {
+        throw new CoderException(e);
+      }
+    } else {
+      encode(value, outStream);
     }
   }
 
   @Override
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
-      InputStream stream = inStream;
       if (!context.isWholeStream) {
         long limit = VarInt.decodeLong(inStream);
-        stream = ByteStreams.limit(inStream, limit);
+        inStream = ByteStreams.limit(inStream, limit);
       }
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(stream));
+      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(inStream));
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
