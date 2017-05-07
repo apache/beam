@@ -435,7 +435,7 @@ public class PubsubIO {
    * messages will only contain a {@link PubsubMessage#getPayload() payload}, but no {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+  public static Read<PubsubMessage> readMessages() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -448,7 +448,7 @@ public class PubsubIO {
    * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+  public static Read<PubsubMessage> readMessagesWithAttributes() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -495,7 +495,7 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static Write<PubsubMessage> writePubsubMessages() {
+  public static Write<PubsubMessage> writeMessages() {
     return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
