@@ -1,0 +1,102 @@
+apache\_beam\.runners\.direct package
+=====================================
+
+Submodules
+----------
+
+apache\_beam\.runners\.direct\.bundle\_factory module
+-----------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.bundle_factory
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.clock module
+-------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.clock
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.consumer\_tracking\_pipeline\_visitor module
+---------------------------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.consumer_tracking_pipeline_visitor
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.direct\_metrics module
+-----------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.direct_metrics
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.direct\_runner module
+----------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.direct_runner
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.evaluation\_context module
+---------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.evaluation_context
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.executor module
+----------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.executor
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.helper\_transforms module
+--------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.helper_transforms
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.transform\_evaluator module
+----------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.transform_evaluator
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.transform\_result module
+-------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.transform_result
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.runners\.direct\.watermark\_manager module
+--------------------------------------------------------
+
+.. automodule:: apache_beam.runners.direct.watermark_manager
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.runners.direct
+    :members:
+    :undoc-members:
+    :show-inheritance:

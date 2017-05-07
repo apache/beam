@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.annotations &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.annotations</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Deprecated and experimental annotations.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">Annotations come in two flavors: deprecated and experimental</span>
+
+<span class="sd">The &#39;deprecated&#39; annotation requires a &#39;since&quot; parameter to specify</span>
+<span class="sd">what version deprecated it.</span>
+<span class="sd">Both &#39;deprecated&#39; and &#39;experimental&#39; annotations can specify the</span>
+<span class="sd">current recommended version to use by means of a &#39;current&#39; parameter.</span>
+
+<span class="sd">The following example illustrates how to annotate coexisting versions of the</span>
+<span class="sd">same function &#39;multiply&#39;.::</span>
+
+<span class="sd">  def multiply(arg1, arg2):</span>
+<span class="sd">    print arg1, &#39;*&#39;, arg2, &#39;=&#39;,</span>
+<span class="sd">    return arg1*arg2</span>
+
+<span class="sd"># This annotation marks &#39;old_multiply&#39; as deprecated since &#39;v.1&#39; and suggests</span>
+<span class="sd"># using &#39;multiply&#39; instead.::</span>
+
+<span class="sd">  @deprecated(since=&#39;v.1&#39;, current=&#39;multiply&#39;)</span>
+<span class="sd">  def old_multiply(arg1, arg2):</span>
+<span class="sd">    result = 0</span>
+<span class="sd">    for i in xrange(arg1):</span>
+<span class="sd">        result += arg2</span>
+<span class="sd">    print arg1, &#39;*&#39;, arg2, &#39;(the old way)=&#39;,</span>
+<span class="sd">    return result</span>
+
+<span class="sd"># This annotation marks &#39;exp_multiply&#39; as experimental and suggests</span>
+<span class="sd"># using &#39;multiply&#39; instead.::</span>
+
+<span class="sd">  @experimental(since=&#39;v.1&#39;, current=&#39;multiply&#39;)</span>
+<span class="sd">  def exp_multiply(arg1, arg2):</span>
+<span class="sd">    print arg1, &#39;*&#39;, arg2, &#39;(the experimental way)=&#39;,</span>
+<span class="sd">    return (arg1*arg2)*(arg1/arg2)*(arg2/arg1)</span>
+
+<span class="sd"># Set a warning filter to control how often warnings are produced.::</span>
+
+<span class="sd">  warnings.simplefilter(&quot;always&quot;)</span>
+<span class="sd">  print multiply(5, 6)</span>
+<span class="sd">  print old_multiply(5,6)</span>
+<span class="sd">  print exp_multiply(5,6)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">wraps</span>
+
+<span class="c1"># Produce only the first occurrence of matching warnings regardless of</span>
+<span class="c1"># location per line of execution. Since the number of lines of execution</span>
+<span class="c1"># depends on the concrete runner, the number of warnings produced will</span>
+<span class="c1"># vary depending on the runner.</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;once&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="annotate"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.utils.annotations.annotate">[docs]</a><span class="k">def</span> <span class="nf">annotate</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">since</span><span class="p">,</span> <span class="n">current</span><span class="p">,</span> <span class="n">extra_message</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Decorates a function with a deprecated or experimental annotation.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    label: the kind of annotation (&#39;deprecated&#39; or &#39;experimental&#39;).</span>
+<span class="sd">    since: the version that causes the annotation.</span>
+<span class="sd">    current: the suggested replacement function.</span>
+<span class="sd">    extra_message: an optional additional message.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    The decorator for the function.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">_annotate</span><span class="p">(</span><span class="n">fnc</span><span class="p">):</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">fnc</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">label</span> <span class="o">==</span> <span class="s1">&#39;deprecated&#39;</span><span class="p">:</span>
+        <span class="n">warning_type</span> <span class="o">=</span> <span class="ne">DeprecationWarning</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">warning_type</span> <span class="o">=</span> <span class="ne">FutureWarning</span>
+      <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> is </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">fnc</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">label</span> <span class="o">==</span> <span class="s1">&#39;deprecated&#39;</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">+=</span> <span class="s1">&#39; since </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">since</span>
+      <span class="n">message</span> <span class="o">+=</span> <span class="s1">&#39;. Use </span><span class="si">%s</span><span class="s1"> instead.&#39;</span> <span class="o">%</span> <span class="n">current</span> <span class="k">if</span> <span class="n">current</span> <span class="k">else</span> <span class="s1">&#39;.&#39;</span>
+      <span class="k">if</span> <span class="n">extra_message</span><span class="p">:</span>
+        <span class="n">message</span> <span class="o">+=</span> <span class="s1">&#39;. &#39;</span> <span class="o">+</span> <span class="n">extra_message</span>
+      <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">warning_type</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">fnc</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">inner</span>
+  <span class="k">return</span> <span class="n">_annotate</span></div>
+
+
+<span class="c1"># Use partial application to customize each annotation.</span>
+<span class="c1"># &#39;current&#39; will be optional in both deprecated and experimental</span>
+<span class="c1"># while &#39;since&#39; will be mandatory for deprecated.</span>
+<span class="n">deprecated</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">annotate</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;deprecated&#39;</span><span class="p">,</span>
+                     <span class="n">current</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extra_message</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="n">experimental</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">annotate</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;experimental&#39;</span><span class="p">,</span>
+                       <span class="n">current</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">since</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">extra_message</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

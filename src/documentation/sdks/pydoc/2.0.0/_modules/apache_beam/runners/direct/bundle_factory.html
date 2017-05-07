@@ -1,0 +1,290 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct.bundle_factory &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.direct.bundle_factory</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A factory that creates UncommittedBundles.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.windowed_value</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+
+
+<div class="viewcode-block" id="BundleFactory"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.bundle_factory.BundleFactory">[docs]</a><span class="k">class</span> <span class="nc">BundleFactory</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  BundleFactory creates output bundles to be used by transform evaluators.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    stacked: whether or not to stack the WindowedValues within the bundle</span>
+<span class="sd">      in case consecutive ones share the same timestamp and windows.</span>
+<span class="sd">      DirectRunnerOptions.direct_runner_use_stacked_bundle controls this option.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stacked</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stacked</span> <span class="o">=</span> <span class="n">stacked</span>
+
+<div class="viewcode-block" id="BundleFactory.create_bundle"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.bundle_factory.BundleFactory.create_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">create_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_pcollection</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_Bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stacked</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BundleFactory.create_empty_committed_bundle"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.bundle_factory.BundleFactory.create_empty_committed_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">create_empty_committed_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_pcollection</span><span class="p">):</span>
+    <span class="n">bundle</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_bundle</span><span class="p">(</span><span class="n">output_pcollection</span><span class="p">)</span>
+    <span class="n">bundle</span><span class="o">.</span><span class="n">commit</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">bundle</span></div></div>
+
+
+<span class="c1"># a bundle represents a unit of work that will be processed by a transform.</span>
+<span class="k">class</span> <span class="nc">_Bundle</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Part of a PCollection with output elements.</span>
+
+<span class="sd">  Part of a PCollection. Elements are output to a bundle, which will cause them</span>
+<span class="sd">  to be executed by PTransform that consume the PCollection this bundle is a</span>
+<span class="sd">  part of at a later point. It starts as an uncommitted bundle and can have</span>
+<span class="sd">  elements added to it. It needs to be committed to make it immutable before</span>
+<span class="sd">  passing it to a downstream ptransform.</span>
+
+<span class="sd">  The stored elements are WindowedValues, which contains timestamp and windows</span>
+<span class="sd">  information.</span>
+
+<span class="sd">  Bundle internally optimizes storage by stacking elements with the same</span>
+<span class="sd">  timestamp and windows into StackedWindowedValues, and then returns an iterable</span>
+<span class="sd">  to restore WindowedValues upon get_elements() call.</span>
+
+<span class="sd">  When this optimization is not desired, it can be avoided by an option when</span>
+<span class="sd">  creating bundles, like:::</span>
+
+<span class="sd">    b = Bundle(stacked=False)</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">class</span> <span class="nc">_StackedWindowedValues</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A stack of WindowedValues with the same timestamp and windows.</span>
+
+<span class="sd">    It must be initialized from a single WindowedValue.</span>
+
+<span class="sd">    Example:::</span>
+
+<span class="sd">      s = StackedWindowedValues(windowed_value)</span>
+<span class="sd">      if (another_windowed_value.timestamp == s.timestamp and</span>
+<span class="sd">          another_windowed_value.windows == s.windows):</span>
+<span class="sd">        s.add_value(another_windowed_value.value)</span>
+<span class="sd">      windowed_values = [wv for wv in s.windowed_values()]</span>
+<span class="sd">      # now windowed_values equals to [windowed_value, another_windowed_value]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_windowed_value</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span> <span class="o">=</span> <span class="n">initial_windowed_value</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_appended_values</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span><span class="o">.</span><span class="n">timestamp</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span><span class="o">.</span><span class="n">windows</span>
+
+    <span class="k">def</span> <span class="nf">add_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_appended_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">windowed_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="c1"># yield first windowed_value as is, then iterate through</span>
+      <span class="c1"># _appended_values to yield WindowedValue on the fly.</span>
+      <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_appended_values</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">WindowedValue</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_initial_windowed_value</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcollection</span><span class="p">,</span> <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pcollection</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection</span> <span class="o">=</span> <span class="n">pcollection</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stacked</span> <span class="o">=</span> <span class="n">stacked</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tag</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># optional tag information for this bundle</span>
+
+  <span class="k">def</span> <span class="nf">get_elements_iterable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">make_copy</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns iterable elements.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      make_copy: whether to force returning copy or yielded iterable.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      unstacked elements,</span>
+<span class="sd">      in the form of iterable if committed and make_copy is not True,</span>
+<span class="sd">      or as a list of copied WindowedValues.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stacked</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">make_copy</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span>
+      <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">iterable_stacked_or_elements</span><span class="p">(</span><span class="n">elements</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">_Bundle</span><span class="o">.</span><span class="n">_StackedWindowedValues</span><span class="p">):</span>
+          <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">windowed_values</span><span class="p">():</span>
+            <span class="k">yield</span> <span class="n">w</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">yield</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">make_copy</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">iterable_stacked_or_elements</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">)</span>
+    <span class="c1"># returns a copy.</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">iterable_stacked_or_elements</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">)]</span>
+
+  <span class="k">def</span> <span class="nf">has_elements</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tag</span>
+
+  <span class="nd">@tag</span><span class="o">.</span><span class="n">setter</span>
+  <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tag</span> <span class="o">=</span> <span class="n">value</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">pcollection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;PCollection that the elements of this UncommittedBundle belong to.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pcollection</span>
+
+  <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Outputs an element to this bundle.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      element: WindowedValue</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stacked</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">return</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span> <span class="ow">and</span>
+        <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="n">WindowedValue</span><span class="p">,</span>
+                                         <span class="n">_Bundle</span><span class="o">.</span><span class="n">_StackedWindowedValues</span><span class="p">)))</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">==</span> <span class="n">element</span><span class="o">.</span><span class="n">timestamp</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">windows</span> <span class="o">==</span> <span class="n">element</span><span class="o">.</span><span class="n">windows</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">WindowedValue</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">_Bundle</span><span class="o">.</span><span class="n">_StackedWindowedValues</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">add_value</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">commit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">synchronized_processing_time</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Commits this bundle.</span>
+
+<span class="sd">    Uncommitted bundle will become committed (immutable) after this call.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      synchronized_processing_time: the synchronized processing time at which</span>
+<span class="sd">      this bundle was committed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_committed</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_elements</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elements</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_synchronized_processing_time</span> <span class="o">=</span> <span class="n">synchronized_processing_time</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

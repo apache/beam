@@ -1,0 +1,626 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.decorators &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.decorators</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Type hinting decorators allowing static or runtime type-checking for the SDK.</span>
+
+<span class="sd">This module defines decorators which utilize the type-hints defined in</span>
+<span class="sd">&#39;type_hints.py&#39; to allow annotation of the types of function arguments and</span>
+<span class="sd">return values.</span>
+
+<span class="sd">Type-hints for functions are annotated using two separate decorators. One is for</span>
+<span class="sd">type-hinting the types of function arguments, the other for type-hinting the</span>
+<span class="sd">function return value. Type-hints can either be specified in the form of</span>
+<span class="sd">positional arguments::</span>
+
+<span class="sd">  @with_input_types(int, int)</span>
+<span class="sd">  def add(a, b):</span>
+<span class="sd">    return a + b</span>
+
+<span class="sd">Keyword arguments::</span>
+
+<span class="sd">  @with_input_types(a=int, b=int)</span>
+<span class="sd">  def add(a, b):</span>
+<span class="sd">    return a + b</span>
+
+<span class="sd">Or even a mix of both::</span>
+
+<span class="sd">  @with_input_types(int, b=int)</span>
+<span class="sd">  def add(a, b):</span>
+<span class="sd">    return a + b</span>
+
+<span class="sd">Example usage for type-hinting arguments only::</span>
+
+<span class="sd">  @with_input_types(s=str)</span>
+<span class="sd">  def to_lower(a):</span>
+<span class="sd">    return a.lower()</span>
+
+<span class="sd">Example usage for type-hinting return values only::</span>
+
+<span class="sd">  @with_output_types(Tuple[int, bool])</span>
+<span class="sd">  def compress_point(ec_point):</span>
+<span class="sd">    return ec_point.x, ec_point.y &lt; 0</span>
+
+<span class="sd">Example usage for type-hinting both arguments and return values::</span>
+
+<span class="sd">  @with_input_types(a=int)</span>
+<span class="sd">  @with_output_types(str)</span>
+<span class="sd">  def int_to_str(a):</span>
+<span class="sd">    return str(a)</span>
+
+<span class="sd">Type-hinting a function with arguments that unpack tuples are also supported. As</span>
+<span class="sd">an example, such a function would be defined as::</span>
+
+<span class="sd">  def foo((a, b)):</span>
+<span class="sd">    ...</span>
+
+<span class="sd">The valid type-hint for such as function looks like the following::</span>
+
+<span class="sd">  @with_input_types(a=int, b=int)</span>
+<span class="sd">  def foo((a, b)):</span>
+<span class="sd">    ...</span>
+
+<span class="sd">Notice that we hint the type of each unpacked argument independently, rather</span>
+<span class="sd">than hinting the type of the tuple as a whole (Tuple[int, int]).</span>
+
+<span class="sd">Optionally, type-hints can be type-checked at runtime. To toggle this behavior</span>
+<span class="sd">this module defines two functions: &#39;enable_run_time_type_checking&#39; and</span>
+<span class="sd">&#39;disable_run_time_type_checking&#39;. NOTE: for this toggle behavior to work</span>
+<span class="sd">properly it must appear at the top of the module where all functions are</span>
+<span class="sd">defined, or before importing a module containing type-hinted functions.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">types</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">check_constraint</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">CompositeTypeHintError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">SimpleTypeHintError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">validate_composite_type_param</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;with_input_types&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;with_output_types&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;WithTypeHints&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TypeCheckError&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1"># This is missing in the builtin types module.  str.upper is arbitrary, any</span>
+<span class="c1"># method on a C-implemented type will do.</span>
+<span class="c1"># pylint: disable=invalid-name</span>
+<span class="n">_MethodDescriptorType</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">upper</span><span class="p">)</span>
+<span class="c1"># pylint: enable=invalid-name</span>
+
+
+<span class="c1"># Monkeypatch inspect.getargspec to allow passing non-function objects.</span>
+<span class="c1"># This is needed to use higher-level functions such as getcallargs.</span>
+<span class="n">_original_getargspec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span>
+
+
+<span class="k">def</span> <span class="nf">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">_original_getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ClassType</span><span class="p">)):</span>
+      <span class="n">argspec</span> <span class="o">=</span> <span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="fm">__init__</span><span class="p">)</span>
+      <span class="k">del</span> <span class="n">argspec</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">return</span> <span class="n">argspec</span>
+    <span class="k">elif</span> <span class="n">callable</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_original_getargspec</span><span class="p">(</span><span class="n">func</span><span class="o">.</span><span class="fm">__call__</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="c1"># Return an ArgSpec with at least one positional argument,</span>
+        <span class="c1"># and any number of other (positional or keyword) arguments</span>
+        <span class="c1"># whose name won&#39;t match any real agument.</span>
+        <span class="c1"># Arguments with the %unknown% prefix will be ignored in the type</span>
+        <span class="c1"># checking code.</span>
+        <span class="k">return</span> <span class="n">inspect</span><span class="o">.</span><span class="n">ArgSpec</span><span class="p">(</span>
+            <span class="p">[</span><span class="s1">&#39;_&#39;</span><span class="p">],</span> <span class="s1">&#39;</span><span class="si">%u</span><span class="s1">nknown%varargs&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%u</span><span class="s1">nknown%keywords&#39;</span><span class="p">,</span> <span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span>
+
+
+<span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span> <span class="o">=</span> <span class="n">getargspec</span>
+
+
+<span class="k">class</span> <span class="nc">IOTypeHints</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Encapsulates all type hint information about a Dataflow construct.</span>
+
+<span class="sd">  This should primarily be used via the WithTypeHints mixin class, though</span>
+<span class="sd">  may also be attached to other objects (such as Python functions).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="vm">__slots__</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;input_types&#39;</span><span class="p">,</span> <span class="s1">&#39;output_types&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_types</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_types</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">input_types</span> <span class="o">=</span> <span class="n">input_types</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span> <span class="o">=</span> <span class="n">output_types</span>
+
+  <span class="k">def</span> <span class="nf">set_input_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">input_types</span> <span class="o">=</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+  <span class="k">def</span> <span class="nf">set_output_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span> <span class="o">=</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+  <span class="k">def</span> <span class="nf">simple_output_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span><span class="p">:</span>
+      <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected simple output type hint for </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">context</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">IOTypeHints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_types</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">with_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hints</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">hints</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">hints</span>
+    <span class="k">return</span> <span class="n">IOTypeHints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_types</span> <span class="ow">or</span> <span class="n">hints</span><span class="o">.</span><span class="n">input_types</span><span class="p">,</span>
+                       <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span> <span class="ow">or</span> <span class="n">hints</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__nonzero__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input_types</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;IOTypeHints[inputs=</span><span class="si">%s</span><span class="s1">, outputs=</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_types</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_types</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="WithTypeHints"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.WithTypeHints">[docs]</a><span class="k">class</span> <span class="nc">WithTypeHints</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A mixin class that provides the ability to set and retrieve type hints.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">,</span> <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_type_hints</span> <span class="o">=</span> <span class="n">IOTypeHints</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_get_or_create_type_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># __init__ may have not been called</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type_hints</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_type_hints</span> <span class="o">=</span> <span class="n">IOTypeHints</span><span class="p">()</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type_hints</span>
+
+<div class="viewcode-block" id="WithTypeHints.get_type_hints"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.WithTypeHints.get_type_hints">[docs]</a>  <span class="k">def</span> <span class="nf">get_type_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_or_create_type_hints</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">with_defaults</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">default_type_hints</span><span class="p">())</span>
+            <span class="o">.</span><span class="n">with_defaults</span><span class="p">(</span><span class="n">get_type_hints</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="WithTypeHints.default_type_hints"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.WithTypeHints.default_type_hints">[docs]</a>  <span class="k">def</span> <span class="nf">default_type_hints</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="WithTypeHints.with_input_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.WithTypeHints.with_input_types">[docs]</a>  <span class="k">def</span> <span class="nf">with_input_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">kwarg_hints</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_get_or_create_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">set_input_types</span><span class="p">(</span><span class="o">*</span><span class="n">arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">kwarg_hints</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="WithTypeHints.with_output_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.WithTypeHints.with_output_types">[docs]</a>  <span class="k">def</span> <span class="nf">with_output_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">kwarg_hints</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_get_or_create_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">set_output_types</span><span class="p">(</span><span class="o">*</span><span class="n">arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">kwarg_hints</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div></div>
+
+
+<div class="viewcode-block" id="TypeCheckError"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.TypeCheckError">[docs]</a><span class="k">class</span> <span class="nc">TypeCheckError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="k">pass</span></div>
+
+
+<span class="k">def</span> <span class="nf">_positional_arg_hints</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">hints</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the type of a (possibly tuple-packed) positional argument.</span>
+
+<span class="sd">  E.g. for lambda ((a, b), c): None the single positional argument is (as</span>
+<span class="sd">  returned by inspect) [[a, b], c] which should have type</span>
+<span class="sd">  Tuple[Tuple[Int, Any], float] when applied to the type hints</span>
+<span class="sd">  {a: int, b: Any, c: float}.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[[</span><span class="n">_positional_arg_hints</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">hints</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">]]</span>
+  <span class="k">return</span> <span class="n">hints</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_unpack_positional_arg_hints</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">hint</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Unpacks the given hint according to the nested structure of arg.</span>
+
+<span class="sd">  For example, if arg is [[a, b], c] and hint is Tuple[Any, int], than</span>
+<span class="sd">  this function would return ((Any, Any), int) so it can be used in conjunction</span>
+<span class="sd">  with inspect.getcallargs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+    <span class="n">tuple_constraint</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">typehints</span><span class="o">.</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">tuple_constraint</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Bad tuple arguments for </span><span class="si">%s</span><span class="s1">: expected </span><span class="si">%s</span><span class="s1">, got </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                           <span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">tuple_constraint</span><span class="p">,</span> <span class="n">hint</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_unpack_positional_arg_hints</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">hint</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,)</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">hint</span>
+
+
+<span class="k">def</span> <span class="nf">getcallargs_forhints</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">typeargs</span><span class="p">,</span> <span class="o">**</span><span class="n">typekwargs</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Like inspect.getcallargs, but understands that Tuple[] and an Any unpack.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">argspec</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+  <span class="c1"># Turn Tuple[x, y] into (x, y) so getcallargs can do the proper unpacking.</span>
+  <span class="n">packed_typeargs</span> <span class="o">=</span> <span class="p">[</span><span class="n">_unpack_positional_arg_hints</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">hint</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">hint</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">argspec</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">typeargs</span><span class="p">)]</span>
+  <span class="n">packed_typeargs</span> <span class="o">+=</span> <span class="nb">list</span><span class="p">(</span><span class="n">typeargs</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">packed_typeargs</span><span class="p">):])</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">callargs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getcallargs</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">packed_typeargs</span><span class="p">,</span> <span class="o">**</span><span class="n">typekwargs</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">argspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">:</span>
+    <span class="c1"># Declare any default arguments to be Any.</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">var</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">argspec</span><span class="o">.</span><span class="n">args</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">argspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">):</span>
+        <span class="k">break</span>
+      <span class="k">if</span> <span class="n">callargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="n">argspec</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="o">-</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="n">callargs</span><span class="p">[</span><span class="n">var</span><span class="p">]</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span>
+  <span class="c1"># Patch up varargs and keywords</span>
+  <span class="k">if</span> <span class="n">argspec</span><span class="o">.</span><span class="n">varargs</span><span class="p">:</span>
+    <span class="n">callargs</span><span class="p">[</span><span class="n">argspec</span><span class="o">.</span><span class="n">varargs</span><span class="p">]</span> <span class="o">=</span> <span class="n">typekwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">argspec</span><span class="o">.</span><span class="n">varargs</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Tuple</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span>
+  <span class="k">if</span> <span class="n">argspec</span><span class="o">.</span><span class="n">keywords</span><span class="p">:</span>
+    <span class="c1"># TODO(robertwb): Consider taking the union of key and value types.</span>
+    <span class="n">callargs</span><span class="p">[</span><span class="n">argspec</span><span class="o">.</span><span class="n">keywords</span><span class="p">]</span> <span class="o">=</span> <span class="n">typekwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="n">argspec</span><span class="o">.</span><span class="n">keywords</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Dict</span><span class="p">[</span><span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">])</span>
+  <span class="k">return</span> <span class="n">callargs</span>
+
+
+<span class="k">def</span> <span class="nf">get_type_hints</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Gets the type hint associated with an arbitrary object fn.</span>
+
+<span class="sd">  Always returns a valid IOTypeHints object, creating one if necissary.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># pylint: disable=protected-access</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;_type_hints&#39;</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">fn</span><span class="o">.</span><span class="n">_type_hints</span> <span class="o">=</span> <span class="n">IOTypeHints</span><span class="p">()</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">AttributeError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+      <span class="c1"># Can&#39;t add arbitrary attributes to this object,</span>
+      <span class="c1"># but might have some restrictions anyways...</span>
+      <span class="n">hints</span> <span class="o">=</span> <span class="n">IOTypeHints</span><span class="p">()</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">_MethodDescriptorType</span><span class="p">):</span>
+        <span class="n">hints</span><span class="o">.</span><span class="n">set_input_types</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="vm">__objclass__</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">hints</span>
+  <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">_type_hints</span>
+  <span class="c1"># pylint: enable=protected-access</span>
+
+
+<div class="viewcode-block" id="with_input_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.with_input_types">[docs]</a><span class="k">def</span> <span class="nf">with_input_types</span><span class="p">(</span><span class="o">*</span><span class="n">positional_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">keyword_hints</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A decorator that type-checks defined type-hints with passed func arguments.</span>
+
+<span class="sd">  All type-hinted arguments can be specified using positional arguments,</span>
+<span class="sd">  keyword arguments, or a mix of both. Additionaly, all function arguments must</span>
+<span class="sd">  be type-hinted in totality if even one parameter is type-hinted.</span>
+
+<span class="sd">  Once fully decorated, if the arguments passed to the resulting function</span>
+<span class="sd">  violate the type-hint constraints defined, a TypeCheckError detailing the</span>
+<span class="sd">  error will be raised.</span>
+
+<span class="sd">  To be used as::</span>
+
+<span class="sd">    * @with_input_types(s=str)  # just @with_input_types(str) will work too.</span>
+<span class="sd">      def upper(s):</span>
+<span class="sd">        return s.upper()</span>
+
+<span class="sd">  Or::</span>
+
+<span class="sd">    * @with_input_types(ls=List[Tuple[int, int])</span>
+<span class="sd">      def increment(ls):</span>
+<span class="sd">        [(i + 1, j + 1) for (i,j) in ls]</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    *positional_hints: Positional type-hints having identical order as the</span>
+<span class="sd">      function&#39;s formal arguments. Values for this argument must either be a</span>
+<span class="sd">      built-in Python type or an instance of a TypeContraint created by</span>
+<span class="sd">      &#39;indexing&#39; a CompositeTypeHint instance with a type parameter.</span>
+<span class="sd">    **keyword_hints: Keyword arguments mirroring the names of the parameters to</span>
+<span class="sd">      the decorated functions. The value of each keyword argument must either</span>
+<span class="sd">      be one of the allowed built-in Python types, a custom class, or an</span>
+<span class="sd">      instance of a TypeContraint created by &#39;indexing&#39; a CompositeTypeHint</span>
+<span class="sd">      instance with a type parameter.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: If not all function arguments have corresponding type-hints</span>
+<span class="sd">      specified. Or if the inner wrapper function isn&#39;t passed a function</span>
+<span class="sd">      object.</span>
+<span class="sd">    TypeCheckError: If the any of the passed type-hint constraints are not a</span>
+<span class="sd">      type or TypeContraint instance.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    The original function decorated such that it enforces type-hint constraints</span>
+<span class="sd">    for all received function arguments.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">annotate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">positional_hints</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">keyword_hints</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="n">validate_composite_type_param</span><span class="p">(</span>
+            <span class="n">t</span><span class="p">,</span> <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;All type hint arguments&#39;</span><span class="p">)</span>
+
+    <span class="n">get_type_hints</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">set_input_types</span><span class="p">(</span><span class="o">*</span><span class="n">positional_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">keyword_hints</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span>
+  <span class="k">return</span> <span class="n">annotate</span></div>
+
+
+<div class="viewcode-block" id="with_output_types"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.decorators.with_output_types">[docs]</a><span class="k">def</span> <span class="nf">with_output_types</span><span class="p">(</span><span class="o">*</span><span class="n">return_type_hint</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A decorator that type-checks defined type-hints for return values(s).</span>
+
+<span class="sd">  This decorator will type-check the return value(s) of the decorated function.</span>
+
+<span class="sd">  Only a single type-hint is accepted to specify the return type of the return</span>
+<span class="sd">  value. If the function to be decorated has multiple return values, then one</span>
+<span class="sd">  should use: &#39;Tuple[type_1, type_2]&#39; to annotate the types of the return</span>
+<span class="sd">  values.</span>
+
+<span class="sd">  If the ultimate return value for the function violates the specified type-hint</span>
+<span class="sd">  a TypeCheckError will be raised detailing the type-constraint violation.</span>
+
+<span class="sd">  This decorator is intended to be used like::</span>
+
+<span class="sd">    * @with_output_types(Set[Coordinate])</span>
+<span class="sd">      def parse_ints(ints):</span>
+<span class="sd">        ....</span>
+<span class="sd">        return [Coordinate.from_int(i) for i in ints]</span>
+
+<span class="sd">  Or with a simple type-hint::</span>
+
+<span class="sd">    * @with_output_types(bool)</span>
+<span class="sd">      def negate(p):</span>
+<span class="sd">        return not p if p else p</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    *return_type_hint: A type-hint specifying the proper return type of the</span>
+<span class="sd">      function. This argument should either be a built-in Python type or an</span>
+<span class="sd">      instance of a &#39;TypeConstraint&#39; created by &#39;indexing&#39; a</span>
+<span class="sd">      &#39;CompositeTypeHint&#39;.</span>
+<span class="sd">    **kwargs: Not used.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    ValueError: If any kwarg parameters are passed in, or the length of</span>
+<span class="sd">      &#39;return_type_hint&#39; is greater than 1. Or if the inner wrapper function</span>
+<span class="sd">      isn&#39;t passed a function object.</span>
+<span class="sd">    TypeCheckError: If the &#39;return_type_hint&#39; object is in invalid type-hint.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    The original function decorated such that it enforces type-hint constraints</span>
+<span class="sd">    for all return values.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;All arguments for the &#39;returns&#39; decorator must be &quot;</span>
+                     <span class="s2">&quot;positional arguments.&quot;</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">return_type_hint</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;returns&#39; accepts only a single positional argument. In &quot;</span>
+                     <span class="s2">&quot;order to specify multiple return types, use the &#39;Tuple&#39; &quot;</span>
+                     <span class="s2">&quot;type-hint.&quot;</span><span class="p">)</span>
+
+  <span class="n">return_type_hint</span> <span class="o">=</span> <span class="n">return_type_hint</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+  <span class="n">validate_composite_type_param</span><span class="p">(</span>
+      <span class="n">return_type_hint</span><span class="p">,</span>
+      <span class="n">error_msg_prefix</span><span class="o">=</span><span class="s1">&#39;All type hint arguments&#39;</span>
+  <span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">annotate</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="n">get_type_hints</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">set_output_types</span><span class="p">(</span><span class="n">return_type_hint</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">f</span>
+  <span class="k">return</span> <span class="n">annotate</span></div>
+
+
+<span class="k">def</span> <span class="nf">_check_instance_type</span><span class="p">(</span>
+    <span class="n">type_constraint</span><span class="p">,</span> <span class="n">instance</span><span class="p">,</span> <span class="n">var_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A helper function to report type-hint constraint violations.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    type_constraint: An instance of a &#39;TypeConstraint&#39; or a built-in Python</span>
+<span class="sd">      type.</span>
+<span class="sd">    instance: The candidate object which will be checked by to satisfy</span>
+<span class="sd">      &#39;type_constraint&#39;.</span>
+<span class="sd">    var_name: If &#39;instance&#39; is an argument, then the actual name for the</span>
+<span class="sd">      parameter in the original function definition.</span>
+
+<span class="sd">  Raises:</span>
+<span class="sd">    TypeCheckError: If &#39;instance&#39; fails to meet the type-constraint of</span>
+<span class="sd">      &#39;type_constraint&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">hint_type</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s2">&quot;argument: &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="n">var_name</span> <span class="k">if</span> <span class="n">var_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;return type&#39;</span><span class="p">)</span>
+
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">check_constraint</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">instance</span><span class="p">)</span>
+  <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+      <span class="n">verbose_instance</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">, &#39;</span> <span class="o">%</span> <span class="n">instance</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">verbose_instance</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Type-hint for </span><span class="si">%s</span><span class="s1"> violated. Expected an &#39;</span>
+                         <span class="s1">&#39;instance of </span><span class="si">%s</span><span class="s1">, instead found </span><span class="si">%s</span><span class="s1">an instance of </span><span class="si">%s</span><span class="s1">.&#39;</span>
+                         <span class="o">%</span> <span class="p">(</span><span class="n">hint_type</span><span class="p">,</span> <span class="n">type_constraint</span><span class="p">,</span>
+                            <span class="n">verbose_instance</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">instance</span><span class="p">)))</span>
+  <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Type-hint for </span><span class="si">%s</span><span class="s1"> violated: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">hint_type</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_interleave_type_check</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">var_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Lazily type-check the type-hint for a lazily generated sequence type.</span>
+
+<span class="sd">  This function can be applied as a decorator or called manually in a curried</span>
+<span class="sd">  manner:</span>
+<span class="sd">    * @_interleave_type_check(List[int])</span>
+<span class="sd">      def gen():</span>
+<span class="sd">        yield 5</span>
+
+<span class="sd">    or</span>
+
+<span class="sd">     * gen = _interleave_type_check(Tuple[int, int], &#39;coord_gen&#39;)(gen)</span>
+
+<span class="sd">  As a result, all type-checking for the passed generator will occur at &#39;yield&#39;</span>
+<span class="sd">  time. This way, we avoid having to depleat the generator in order to</span>
+<span class="sd">  type-check it.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    type_constraint: An instance of a TypeConstraint. The output yielded of</span>
+<span class="sd">      &#39;gen&#39; will be type-checked according to this type constraint.</span>
+<span class="sd">    var_name: The variable name binded to &#39;gen&#39; if type-checking a function</span>
+<span class="sd">      argument. Used solely for templating in error message generation.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A function which takes a generator as an argument and returns a wrapped</span>
+<span class="sd">    version of the generator that interleaves type-checking at &#39;yield&#39;</span>
+<span class="sd">    iteration. If the generator received is already wrapped, then it is simply</span>
+<span class="sd">    returned to avoid nested wrapping.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">gen</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gen</span><span class="p">,</span> <span class="n">GeneratorWrapper</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">gen</span>
+    <span class="k">return</span> <span class="n">GeneratorWrapper</span><span class="p">(</span>
+        <span class="n">gen</span><span class="p">,</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">_check_instance_type</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">var_name</span><span class="p">)</span>
+    <span class="p">)</span>
+  <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<span class="k">class</span> <span class="nc">GeneratorWrapper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A wrapper around a generator, allows execution of a callback per yield.</span>
+
+<span class="sd">  Additionally, wrapping a generator with this class allows one to assign</span>
+<span class="sd">  arbitary attributes to a generator object just as with a function object.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    internal_gen: A instance of a generator object. As part of &#39;step&#39; of the</span>
+<span class="sd">      generator, the yielded object will be passed to &#39;interleave_func&#39;.</span>
+<span class="sd">    interleave_func: A callback accepting a single argument. This function will</span>
+<span class="sd">      be called with the result of each yielded &#39;step&#39; in the internal</span>
+<span class="sd">      generator.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gen</span><span class="p">,</span> <span class="n">interleave_func</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">internal_gen</span> <span class="o">=</span> <span class="n">gen</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">interleave_func</span> <span class="o">=</span> <span class="n">interleave_func</span>
+
+  <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+    <span class="c1"># TODO(laolu): May also want to intercept &#39;send&#39; in the future if we move to</span>
+    <span class="c1"># a GeneratorHint with 3 type-params:</span>
+    <span class="c1">#   * Generator[send_type, return_type, yield_type]</span>
+    <span class="k">if</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;__next__&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__next__</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">attr</span> <span class="o">==</span> <span class="s1">&#39;__iter__&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__iter__</span><span class="p">()</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">internal_gen</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">next</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">next_val</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">internal_gen</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">interleave_func</span><span class="p">(</span><span class="n">next_val</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">next_val</span>
+
+  <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">x</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">internal_gen</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">interleave_func</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+      <span class="k">yield</span> <span class="n">x</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.internal package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.internal.gcp package" href="apache_beam.internal.gcp.html" />
+    <link rel="prev" title="apache_beam.coders package" href="apache_beam.coders.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.gcp.html" title="apache_beam.internal.gcp package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.internal package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal.pickler">apache_beam.internal.pickler module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal.util">apache_beam.internal.util module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.internal">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.coders.html"
+                        title="previous chapter">apache_beam.coders package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.internal.gcp.html"
+                        title="next chapter">apache_beam.internal.gcp package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.internal.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-internal-package">
+<h1>apache_beam.internal package<a class="headerlink" href="#apache-beam-internal-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.gcp.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.auth">apache_beam.internal.gcp.auth module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp.json_value">apache_beam.internal.gcp.json_value module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.gcp.html#module-apache_beam.internal.gcp">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.internal.pickler">
+<span id="apache-beam-internal-pickler-module"></span><h2>apache_beam.internal.pickler module<a class="headerlink" href="#module-apache_beam.internal.pickler" title="Permalink to this headline">¶</a></h2>
+<p>Pickler for values, functions, and classes.</p>
+<p>For internal use only. No backwards compatibility guarantees.</p>
+<p>Pickles created by the pickling library contain non-ASCII characters, so
+we base64-encode the results so that we can put them in a JSON objects.
+The pickler is used to embed FlatMap callable objects into the workflow JSON
+description.</p>
+<p>The pickler module should be used to pickle functions and modules; for values,
+the coders.*PickleCoder classes should be used instead.</p>
+<dl class="function">
+<dt id="apache_beam.internal.pickler.dump_session">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">dump_session</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#dump_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.dump_session" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Pickle the current python session to be used in the worker.</p>
+<p>Note: Due to the inconsistency in the first dump of dill dump_session we
+create and load the dump twice to have consistent results in the worker and
+the running session. Check: <a class="reference external" href="https://github.com/uqfoundation/dill/issues/195">https://github.com/uqfoundation/dill/issues/195</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.dumps">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">dumps</code><span class="sig-paren">(</span><em>o</em>, <em>enable_trace=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.load_session">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">load_session</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#load_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.load_session" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.loads">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">loads</code><span class="sig-paren">(</span><em>encoded</em>, <em>enable_trace=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.new_save_module_dict">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">new_save_module_dict</code><span class="sig-paren">(</span><em>pickler</em>, <em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#new_save_module_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.new_save_module_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.save_module">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">save_module</code><span class="sig-paren">(</span><em>pickler</em>, <em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#save_module"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.save_module" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.internal.util">
+<span id="apache-beam-internal-util-module"></span><h2>apache_beam.internal.util module<a class="headerlink" href="#module-apache_beam.internal.util" title="Permalink to this headline">¶</a></h2>
+<p>Utility functions used throughout the package.</p>
+<p>For internal use only. No backwards compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.internal.util.ArgumentPlaceholder">
+<em class="property">class </em><code class="descclassname">apache_beam.internal.util.</code><code class="descname">ArgumentPlaceholder</code><a class="reference internal" href="_modules/apache_beam/internal/util.html#ArgumentPlaceholder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.util.ArgumentPlaceholder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>A place holder object replacing PValues in argument lists.</p>
+<p>A Fn object can take any number of &#8220;side inputs&#8221;, which are PValues that will
+be evaluated during pipeline execution and will be provided to the function
+at the moment of its execution as positional or keyword arguments.</p>
+<p>This is used only internally and should never be used by user code. A custom
+Fn object by the time it executes will have such values replaced with real
+computed values.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.util.insert_values_in_args">
+<code class="descclassname">apache_beam.internal.util.</code><code class="descname">insert_values_in_args</code><span class="sig-paren">(</span><em>args</em>, <em>kwargs</em>, <em>values</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/util.html#insert_values_in_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.util.insert_values_in_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Replaces all placeholders in args/kwargs with actual values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>args</strong> &#8211; A list of positional arguments.</li>
+<li><strong>kwargs</strong> &#8211; A dictionary of keyword arguments.</li>
+<li><strong>values</strong> &#8211; A list of values that will be used to replace placeholder values.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A 2-tuple containing a modified list of positional arguments, and a
+modified dictionary of keyword arguments.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.util.remove_objects_from_args">
+<code class="descclassname">apache_beam.internal.util.</code><code class="descname">remove_objects_from_args</code><span class="sig-paren">(</span><em>args</em>, <em>kwargs</em>, <em>pvalue_classes</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/util.html#remove_objects_from_args"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.util.remove_objects_from_args" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Replaces all objects of a given type in args/kwargs with a placeholder.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>args</strong> &#8211; A list of positional arguments.</li>
+<li><strong>kwargs</strong> &#8211; A dictionary of keyword arguments.</li>
+<li><strong>pvalue_classes</strong> &#8211; A tuple of class objects representing the types of the
+arguments that must be replaced with a placeholder value (instance of
+ArgumentPlaceholder)</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A 3-tuple containing a modified list of positional arguments, a modified
+dictionary of keyword arguments, and a list of all objects replaced with
+a placeholder value.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.util.run_using_threadpool">
+<code class="descclassname">apache_beam.internal.util.</code><code class="descname">run_using_threadpool</code><span class="sig-paren">(</span><em>fn_to_execute</em>, <em>inputs</em>, <em>pool_size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/util.html#run_using_threadpool"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.util.run_using_threadpool" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Runs the given function on given inputs using a thread pool.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fn_to_execute</strong> &#8211; Function to execute</li>
+<li><strong>inputs</strong> &#8211; Inputs on which given function will be executed in parallel.</li>
+<li><strong>pool_size</strong> &#8211; Size of thread pool.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Results retrieved after executing the given function on given inputs.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.internal">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.internal" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.internal.gcp.html" title="apache_beam.internal.gcp package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.coders.html" title="apache_beam.coders package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.filebasedsource &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.filebasedsource</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A framework for developing sources for new file types.</span>
+
+<span class="sd">To create a source for a new file type a sub-class of ``FileBasedSource`` should</span>
+<span class="sd">be created. Sub-classes of ``FileBasedSource`` must implement the method</span>
+<span class="sd">``FileBasedSource.read_records()``. Please read the documentation of that method</span>
+<span class="sd">for more details.</span>
+
+<span class="sd">For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">concat_source</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">range_trackers</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystems</span> <span class="k">import</span> <span class="n">FileSystems</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">ValueProvider</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">StaticValueProvider</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">check_accessible</span>
+
+<span class="n">MAX_NUM_THREADS_FOR_SIZE_ESTIMATION</span> <span class="o">=</span> <span class="mi">25</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;FileBasedSource&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="FileBasedSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource">[docs]</a><span class="k">class</span> <span class="nc">FileBasedSource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A ``BoundedSource`` for reading a file glob of a given type.&quot;&quot;&quot;</span>
+
+  <span class="n">MIN_NUMBER_OF_FILES_TO_STAT</span> <span class="o">=</span> <span class="mi">100</span>
+  <span class="n">MIN_FRACTION_OF_FILES_TO_STAT</span> <span class="o">=</span> <span class="mf">0.01</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">file_pattern</span><span class="p">,</span>
+               <span class="n">min_bundle_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">,</span>
+               <span class="n">splittable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``FileBasedSource``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_pattern: the file glob to read a string or a ValueProvider</span>
+<span class="sd">                    (placeholder to inject a runtime value).</span>
+<span class="sd">      min_bundle_size: minimum size of bundles that should be generated when</span>
+<span class="sd">                       performing initial splitting on this source.</span>
+<span class="sd">      compression_type: compression type to use</span>
+<span class="sd">      splittable: whether FileBasedSource should try to logically split a single</span>
+<span class="sd">                  file into data ranges so that different parts of the same file</span>
+<span class="sd">                  can be read in parallel. If set to False, FileBasedSource will</span>
+<span class="sd">                  prevent both initial and dynamic splitting of sources for</span>
+<span class="sd">                  single files. File patterns that represent multiple files may</span>
+<span class="sd">                  still get split into sources for individual files. Even if set</span>
+<span class="sd">                  to True by the user, FileBasedSource may choose to not split</span>
+<span class="sd">                  the file, for example, for compressed files where currently</span>
+<span class="sd">                  it is not possible to efficiently read a data range without</span>
+<span class="sd">                  decompressing the whole file.</span>
+<span class="sd">      validate: Boolean flag to verify that the files exist during the pipeline</span>
+<span class="sd">                creation time.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: when compression_type is not valid or if file_pattern is not a</span>
+<span class="sd">                 string or a ValueProvider.</span>
+<span class="sd">      ValueError: when compression and splittable files are specified.</span>
+<span class="sd">      IOError: when the file pattern specified yields an empty result.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="p">(</span><span class="n">basestring</span><span class="p">,</span> <span class="n">ValueProvider</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">: file_pattern must be of type string&#39;</span>
+                      <span class="s1">&#39; or ValueProvider; got </span><span class="si">%r</span><span class="s1"> instead&#39;</span>
+                      <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">file_pattern</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+      <span class="n">file_pattern</span> <span class="o">=</span> <span class="n">StaticValueProvider</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">file_pattern</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span> <span class="o">=</span> <span class="n">file_pattern</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_concat_source</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span> <span class="o">=</span> <span class="n">min_bundle_size</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">is_valid_compression_type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;compression_type must be CompressionType object but &#39;</span>
+                      <span class="s1">&#39;was </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">compression_type</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">=</span> <span class="n">compression_type</span>
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="ow">in</span> <span class="p">(</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">,</span>
+                            <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span> <span class="o">=</span> <span class="n">splittable</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># We can&#39;t split compressed files efficiently so turn off splitting.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">validate</span> <span class="ow">and</span> <span class="n">file_pattern</span><span class="o">.</span><span class="n">is_accessible</span><span class="p">():</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_validate</span><span class="p">()</span>
+
+<div class="viewcode-block" id="FileBasedSource.display_data"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.display_data">[docs]</a>  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;file_pattern&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span><span class="p">),</span>
+                                            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;File Pattern&quot;</span><span class="p">),</span>
+            <span class="s1">&#39;compression&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span><span class="p">),</span>
+                                           <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Compression Type&#39;</span><span class="p">)}</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;_pattern&#39;</span><span class="p">])</span>
+  <span class="k">def</span> <span class="nf">_get_concat_source</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_concat_source</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+      <span class="n">single_file_sources</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">match_result</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="n">pattern</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+      <span class="n">files_metadata</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">metadata_list</span>
+
+      <span class="c1"># We create a reference for FileBasedSource that will be serialized along</span>
+      <span class="c1"># with each _SingleFileSource. To prevent this FileBasedSource from having</span>
+      <span class="c1"># a reference to ConcatSource (resulting in quadratic space complexity)</span>
+      <span class="c1"># we clone it here.</span>
+      <span class="n">file_based_source_ref</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+      <span class="k">for</span> <span class="n">file_metadata</span> <span class="ow">in</span> <span class="n">files_metadata</span><span class="p">:</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="n">file_metadata</span><span class="o">.</span><span class="n">path</span>
+        <span class="n">file_size</span> <span class="o">=</span> <span class="n">file_metadata</span><span class="o">.</span><span class="n">size_in_bytes</span>
+        <span class="k">if</span> <span class="n">file_size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+          <span class="k">continue</span>  <span class="c1"># Ignoring empty file.</span>
+
+        <span class="c1"># We determine splittability of this specific file.</span>
+        <span class="n">splittable</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">splittable</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">splittable</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+          <span class="n">compression_type</span> <span class="o">=</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">detect_compression_type</span><span class="p">(</span>
+              <span class="n">file_name</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">compression_type</span> <span class="o">!=</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">:</span>
+            <span class="n">splittable</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">single_file_source</span> <span class="o">=</span> <span class="n">_SingleFileSource</span><span class="p">(</span>
+            <span class="n">file_based_source_ref</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span>
+            <span class="mi">0</span><span class="p">,</span>
+            <span class="n">file_size</span><span class="p">,</span>
+            <span class="n">min_bundle_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span><span class="p">,</span>
+            <span class="n">splittable</span><span class="o">=</span><span class="n">splittable</span><span class="p">)</span>
+        <span class="n">single_file_sources</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">single_file_source</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_concat_source</span> <span class="o">=</span> <span class="n">concat_source</span><span class="o">.</span><span class="n">ConcatSource</span><span class="p">(</span><span class="n">single_file_sources</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_concat_source</span>
+
+<div class="viewcode-block" id="FileBasedSource.open_file"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.open_file">[docs]</a>  <span class="k">def</span> <span class="nf">open_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">open</span><span class="p">(</span>
+        <span class="n">file_name</span><span class="p">,</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+        <span class="n">compression_type</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_compression_type</span><span class="p">)</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;_pattern&#39;</span><span class="p">])</span>
+  <span class="k">def</span> <span class="nf">_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validate if there are actual files in the specified glob pattern</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+
+    <span class="c1"># Limit the responses as we only want to check if something exists</span>
+    <span class="n">match_result</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="n">pattern</span><span class="p">],</span> <span class="n">limits</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match_result</span><span class="o">.</span><span class="n">metadata_list</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span>
+          <span class="s1">&#39;No files found based on the file pattern </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">pattern</span><span class="p">)</span>
+
+<div class="viewcode-block" id="FileBasedSource.split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.split">[docs]</a>  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_concat_source</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+        <span class="n">desired_bundle_size</span><span class="o">=</span><span class="n">desired_bundle_size</span><span class="p">,</span>
+        <span class="n">start_position</span><span class="o">=</span><span class="n">start_position</span><span class="p">,</span>
+        <span class="n">stop_position</span><span class="o">=</span><span class="n">stop_position</span><span class="p">)</span></div>
+
+  <span class="nd">@check_accessible</span><span class="p">([</span><span class="s1">&#39;_pattern&#39;</span><span class="p">])</span>
+<div class="viewcode-block" id="FileBasedSource.estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pattern</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+    <span class="n">match_result</span> <span class="o">=</span> <span class="n">FileSystems</span><span class="o">.</span><span class="n">match</span><span class="p">([</span><span class="n">pattern</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">size_in_bytes</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">match_result</span><span class="o">.</span><span class="n">metadata_list</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="FileBasedSource.read"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.read">[docs]</a>  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_concat_source</span><span class="p">()</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileBasedSource.get_range_tracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.get_range_tracker">[docs]</a>  <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_concat_source</span><span class="p">()</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span><span class="n">start_position</span><span class="p">,</span>
+                                                       <span class="n">stop_position</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FileBasedSource.read_records"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.filebasedsource.FileBasedSource.read_records">[docs]</a>  <span class="k">def</span> <span class="nf">read_records</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">offset_range_tracker</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a generator of records created by reading file &#39;file_name&#39;.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      file_name: a ``string`` that gives the name of the file to be read. Method</span>
+<span class="sd">                 ``FileBasedSource.open_file()`` must be used to open the file</span>
+<span class="sd">                 and create a seekable file object.</span>
+<span class="sd">      offset_range_tracker: a object of type ``OffsetRangeTracker``. This</span>
+<span class="sd">                            defines the byte range of the file that should be</span>
+<span class="sd">                            read. See documentation in</span>
+<span class="sd">                            ``iobase.BoundedSource.read()`` for more information</span>
+<span class="sd">                            on reading records while complying to the range</span>
+<span class="sd">                            defined by a given ``RangeTracker``.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      an iterator that gives the records read from the given file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">splittable</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span></div>
+
+
+<span class="k">class</span> <span class="nc">_SingleFileSource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Denotes a source for a specific file type.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_based_source</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">start_offset</span><span class="p">,</span> <span class="n">stop_offset</span><span class="p">,</span>
+               <span class="n">min_bundle_size</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">splittable</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">start_offset</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">)):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s1">&#39;start_offset must be a number. Received: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">start_offset</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stop_offset</span> <span class="o">!=</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stop_offset</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s1">&#39;stop_offset must be a number. Received: </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">stop_offset</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">start_offset</span> <span class="o">&gt;=</span> <span class="n">stop_offset</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;start_offset must be smaller than stop_offset. Received </span><span class="si">%d</span><span class="s1"> and </span><span class="si">%d</span><span class="s1"> &#39;</span>
+            <span class="s1">&#39;for start and stop offsets respectively&#39;</span> <span class="o">%</span>
+            <span class="p">(</span><span class="n">start_offset</span><span class="p">,</span> <span class="n">stop_offset</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span> <span class="o">=</span> <span class="n">file_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_is_gcs_file</span> <span class="o">=</span> <span class="n">file_name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;gs://&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">file_name</span> <span class="k">else</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span> <span class="o">=</span> <span class="n">start_offset</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">=</span> <span class="n">stop_offset</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span> <span class="o">=</span> <span class="n">min_bundle_size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_file_based_source</span> <span class="o">=</span> <span class="n">file_based_source</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span> <span class="o">=</span> <span class="n">splittable</span>
+
+  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">start_offset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_offset</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">start_offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start_offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span>
+    <span class="k">if</span> <span class="n">stop_offset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">stop_offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span><span class="p">:</span>
+      <span class="n">bundle_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">desired_bundle_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span><span class="p">)</span>
+
+      <span class="n">bundle_start</span> <span class="o">=</span> <span class="n">start_offset</span>
+      <span class="k">while</span> <span class="n">bundle_start</span> <span class="o">&lt;</span> <span class="n">stop_offset</span><span class="p">:</span>
+        <span class="n">bundle_stop</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bundle_start</span> <span class="o">+</span> <span class="n">bundle_size</span><span class="p">,</span> <span class="n">stop_offset</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span>
+            <span class="n">bundle_stop</span> <span class="o">-</span> <span class="n">bundle_start</span><span class="p">,</span>
+            <span class="n">_SingleFileSource</span><span class="p">(</span>
+                <span class="c1"># Copying this so that each sub-source gets a fresh instance.</span>
+                <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_based_source</span><span class="p">)),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
+                <span class="n">bundle_start</span><span class="p">,</span>
+                <span class="n">bundle_stop</span><span class="p">,</span>
+                <span class="n">min_bundle_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span><span class="p">,</span>
+                <span class="n">splittable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span><span class="p">),</span>
+            <span class="n">bundle_start</span><span class="p">,</span>
+            <span class="n">bundle_stop</span><span class="p">)</span>
+        <span class="n">bundle_start</span> <span class="o">=</span> <span class="n">bundle_stop</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Returning a single sub-source with end offset set to OFFSET_INFINITY (so</span>
+      <span class="c1"># that all data of the source gets read) since this source is</span>
+      <span class="c1"># unsplittable. Choosing size of the file as end offset will be wrong for</span>
+      <span class="c1"># certain unsplittable source, e.g., compressed sources.</span>
+      <span class="k">yield</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span>
+          <span class="n">stop_offset</span> <span class="o">-</span> <span class="n">start_offset</span><span class="p">,</span>
+          <span class="n">_SingleFileSource</span><span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_file_based_source</span><span class="p">,</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span>
+              <span class="n">start_offset</span><span class="p">,</span>
+              <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">,</span>
+              <span class="n">min_bundle_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_min_bundle_size</span><span class="p">,</span>
+              <span class="n">splittable</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span>
+          <span class="p">),</span>
+          <span class="n">start_offset</span><span class="p">,</span>
+          <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span>
+      <span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span>
+
+  <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start_offset</span>
+    <span class="k">if</span> <span class="n">stop_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># If file is unsplittable we choose OFFSET_INFINITY as the default end</span>
+      <span class="c1"># offset so that all data of the source gets read. Choosing size of the</span>
+      <span class="c1"># file as end offset will be wrong for certain unsplittable source, for</span>
+      <span class="c1"># e.g., compressed sources.</span>
+      <span class="n">stop_position</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_stop_offset</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span>
+          <span class="k">else</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="o">.</span><span class="n">OFFSET_INFINITY</span><span class="p">)</span>
+
+    <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">OffsetRangeTracker</span><span class="p">(</span>
+        <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_splittable</span><span class="p">:</span>
+      <span class="n">range_tracker</span> <span class="o">=</span> <span class="n">range_trackers</span><span class="o">.</span><span class="n">UnsplittableRangeTracker</span><span class="p">(</span><span class="n">range_tracker</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">range_tracker</span>
+
+  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_based_source</span><span class="o">.</span><span class="n">read_records</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_file_name</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">default_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_based_source</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

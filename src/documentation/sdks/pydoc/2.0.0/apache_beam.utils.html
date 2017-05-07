@@ -1,0 +1,793 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="apache_beam.typehints package" href="apache_beam.typehints.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.typehints.html" title="apache_beam.typehints package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" accesskey="U">apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.utils package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.annotations">apache_beam.utils.annotations module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.counters">apache_beam.utils.counters module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.processes">apache_beam.utils.processes module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.profiler">apache_beam.utils.profiler module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.proto_utils">apache_beam.utils.proto_utils module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.retry">apache_beam.utils.retry module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.timestamp">apache_beam.utils.timestamp module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.urns">apache_beam.utils.urns module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils.windowed_value">apache_beam.utils.windowed_value module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.typehints.html"
+                        title="previous chapter">apache_beam.typehints package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-utils-package">
+<h1>apache_beam.utils package<a class="headerlink" href="#apache-beam-utils-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.utils.annotations">
+<span id="apache-beam-utils-annotations-module"></span><h2>apache_beam.utils.annotations module<a class="headerlink" href="#module-apache_beam.utils.annotations" title="Permalink to this headline">¶</a></h2>
+<p>Deprecated and experimental annotations.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Annotations come in two flavors: deprecated and experimental</p>
+<p>The &#8216;deprecated&#8217; annotation requires a &#8216;since&#8221; parameter to specify
+what version deprecated it.
+Both &#8216;deprecated&#8217; and &#8216;experimental&#8217; annotations can specify the
+current recommended version to use by means of a &#8216;current&#8217; parameter.</p>
+<p>The following example illustrates how to annotate coexisting versions of the
+same function &#8216;multiply&#8217;.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span>
+</pre></div>
+</div>
+<p># This annotation marks &#8216;old_multiply&#8217; as deprecated since &#8216;v.1&#8217; and suggests
+# using &#8216;multiply&#8217; instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">old_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="n">arg1</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">arg2</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the old way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+</div>
+<p># This annotation marks &#8216;exp_multiply&#8217; as experimental and suggests
+# using &#8216;multiply&#8217; instead.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@experimental</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;v.1&#39;</span><span class="p">,</span> <span class="n">current</span><span class="o">=</span><span class="s1">&#39;multiply&#39;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">exp_multiply</span><span class="p">(</span><span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">):</span>
+  <span class="nb">print</span> <span class="n">arg1</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="s1">&#39;(the experimental way)=&#39;</span><span class="p">,</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">arg1</span><span class="o">*</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg1</span><span class="o">/</span><span class="n">arg2</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">arg2</span><span class="o">/</span><span class="n">arg1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p># Set a warning filter to control how often warnings are produced.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;always&quot;</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">old_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+<span class="nb">print</span> <span class="n">exp_multiply</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">6</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="function">
+<dt id="apache_beam.utils.annotations.annotate">
+<code class="descclassname">apache_beam.utils.annotations.</code><code class="descname">annotate</code><span class="sig-paren">(</span><em>label</em>, <em>since</em>, <em>current</em>, <em>extra_message</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/annotations.html#annotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.annotations.annotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorates a function with a deprecated or experimental annotation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>label</strong> &#8211; the kind of annotation (&#8216;deprecated&#8217; or &#8216;experimental&#8217;).</li>
+<li><strong>since</strong> &#8211; the version that causes the annotation.</li>
+<li><strong>current</strong> &#8211; the suggested replacement function.</li>
+<li><strong>extra_message</strong> &#8211; an optional additional message.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The decorator for the function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.counters">
+<span id="apache-beam-utils-counters-module"></span><h2>apache_beam.utils.counters module<a class="headerlink" href="#module-apache_beam.utils.counters" title="Permalink to this headline">¶</a></h2>
+<p>Counters collect the progress of the Worker for reporting to the service.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.utils.counters.AccumulatorCombineFnCounter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">AccumulatorCombineFnCounter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#AccumulatorCombineFnCounter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.AccumulatorCombineFnCounter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.utils.counters.Counter" title="apache_beam.utils.counters.Counter"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.utils.counters.Counter</span></code></a></p>
+<p>Counter optimized for a mutating accumulator that holds all the logic.</p>
+<dl class="method">
+<dt id="apache_beam.utils.counters.AccumulatorCombineFnCounter.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#AccumulatorCombineFnCounter.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.AccumulatorCombineFnCounter.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.counters.Counter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">Counter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A counter aggregates a series of values.</p>
+<p>The aggregation kind of the Counter is specified when the Counter
+is created.  The values aggregated must be of an appropriate for the
+aggregation used.  Aggregations supported are listed in the code.</p>
+<p>(The aggregated value will be reported to the Dataflow service.)</p>
+<p>Do not create directly; call CounterFactory.get_counter instead.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.name">
+<code class="descname">name</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>the name of the counter, a string</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.combine_fn">
+<code class="descname">combine_fn</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.combine_fn" title="Permalink to this definition">¶</a></dt>
+<dd><p>the CombineFn to use for aggregation</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.accumulator">
+<code class="descname">accumulator</code><a class="headerlink" href="#apache_beam.utils.counters.Counter.accumulator" title="Permalink to this definition">¶</a></dt>
+<dd><p>the accumulator created for the combine_fn</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.MEAN">
+<code class="descname">MEAN</code><em class="property"> = &lt;apache_beam.transforms.cy_combiners.MeanInt64Fn object&gt;</em><a class="headerlink" href="#apache_beam.utils.counters.Counter.MEAN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.counters.Counter.SUM">
+<code class="descname">SUM</code><em class="property"> = &lt;apache_beam.transforms.cy_combiners.SumInt64Fn object&gt;</em><a class="headerlink" href="#apache_beam.utils.counters.Counter.SUM" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.Counter.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.Counter.value">
+<code class="descname">value</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#Counter.value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.Counter.value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.counters.CounterFactory">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.counters.</code><code class="descname">CounterFactory</code><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Keeps track of unique counters.</p>
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_aggregator_counter">
+<code class="descname">get_aggregator_counter</code><span class="sig-paren">(</span><em>step_name</em>, <em>aggregator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_aggregator_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_aggregator_counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an AggregationCounter for this step&#8217;s aggregator.</p>
+<p>Passing in the same values will return the same counter.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>step_name</strong> &#8211; the name of this step.</li>
+<li><strong>aggregator</strong> &#8211; an Aggregator object.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A new or existing counter.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_aggregator_values">
+<code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns dict of step names to values of the aggregator.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_counter">
+<code class="descname">get_counter</code><span class="sig-paren">(</span><em>name</em>, <em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_counter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_counter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a counter with the requested name.</p>
+<p>Passing in the same name will return the same counter; the
+combine_fn must agree.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> &#8211; the name of this counter.  Typically has three parts:
+&#8220;step-output-counter&#8221;.</li>
+<li><strong>combine_fn</strong> &#8211; the CombineFn to use for aggregation</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A new or existing counter with the requested name.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.counters.CounterFactory.get_counters">
+<code class="descname">get_counters</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#CounterFactory.get_counters"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.CounterFactory.get_counters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the current set of counters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">An iterable that contains the current set of counters. To make sure that
+multiple threads can iterate over the set of counters, we return a new
+iterable here. Note that the actual set of counters may get modified after
+this method returns hence the returned iterable may be stale.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.counters.get_aggregator_values">
+<code class="descclassname">apache_beam.utils.counters.</code><code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em>, <em>counter_dict</em>, <em>value_extractor=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/counters.html#get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.counters.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts the named aggregator value from a set of counters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>aggregator_or_name</strong> &#8211; an Aggregator object or the name of one.</li>
+<li><strong>counter_dict</strong> &#8211; a dict object of {name: value_wrapper}</li>
+<li><strong>value_extractor</strong> &#8211; a function to convert the value_wrapper into a value.
+If None, no extraction is done and the value is return unchanged.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">dict of step names to values of the aggregator.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.processes">
+<span id="apache-beam-utils-processes-module"></span><h2>apache_beam.utils.processes module<a class="headerlink" href="#module-apache_beam.utils.processes" title="Permalink to this headline">¶</a></h2>
+<p>Cross-platform utilities for creating subprocesses.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="function">
+<dt id="apache_beam.utils.processes.Popen">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">Popen</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#Popen"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.Popen" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.call">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">call</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.check_call">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">check_call</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#check_call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.check_call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.processes.check_output">
+<code class="descclassname">apache_beam.utils.processes.</code><code class="descname">check_output</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/processes.html#check_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.processes.check_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.profiler">
+<span id="apache-beam-utils-profiler-module"></span><h2>apache_beam.utils.profiler module<a class="headerlink" href="#module-apache_beam.utils.profiler" title="Permalink to this headline">¶</a></h2>
+<p>A profiler context manager based on cProfile.Profile objects.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.utils.profiler.MemoryReporter">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.profiler.</code><code class="descname">MemoryReporter</code><span class="sig-paren">(</span><em>interval_second=60.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A memory reporter that reports the memory usage and heap profile.
+Usage::</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mr</span> <span class="o">=</span> <span class="n">MemoryReporter</span><span class="p">(</span><span class="n">interval_second</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<span class="k">while</span> <span class="o">...</span>
+  <span class="o">&lt;</span><span class="n">do</span> <span class="n">something</span><span class="o">&gt;</span>
+  <span class="c1"># this will report continuously with 30 seconds between reports.</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>NOTE: A reporter with start() should always stop(), or the parent process can
+never finish.</p>
+<dl class="docutils">
+<dt>Or simply the following which does star() and stop():</dt>
+<dd><dl class="first last docutils">
+<dt>with MemoryReporter(interval_second=100):</dt>
+<dd><dl class="first last docutils">
+<dt>while ...</dt>
+<dd>&lt;do some thing&gt;</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Also it could report on demand without continuous reporting.:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">mr</span> <span class="o">=</span> <span class="n">MemoryReporter</span><span class="p">()</span>  <span class="c1"># default interval 60s but not started.</span>
+<span class="o">&lt;</span><span class="n">do</span> <span class="n">something</span><span class="o">&gt;</span>
+<span class="n">mr</span><span class="o">.</span><span class="n">report_once</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.report_once">
+<code class="descname">report_once</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.report_once"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.report_once" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.start">
+<code class="descname">start</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.profiler.MemoryReporter.stop">
+<code class="descname">stop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#MemoryReporter.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.MemoryReporter.stop" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.profiler.Profile">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.profiler.</code><code class="descname">Profile</code><span class="sig-paren">(</span><em>profile_id</em>, <em>profile_location=None</em>, <em>log_results=False</em>, <em>file_copy_fn=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/profiler.html#Profile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.profiler.Profile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>cProfile wrapper context for saving and logging profiler results.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.profiler.Profile.SORTBY">
+<code class="descname">SORTBY</code><em class="property"> = 'cumulative'</em><a class="headerlink" href="#apache_beam.utils.profiler.Profile.SORTBY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.proto_utils">
+<span id="apache-beam-utils-proto-utils-module"></span><h2>apache_beam.utils.proto_utils module<a class="headerlink" href="#module-apache_beam.utils.proto_utils" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="function">
+<dt id="apache_beam.utils.proto_utils.pack_Any">
+<code class="descclassname">apache_beam.utils.proto_utils.</code><code class="descname">pack_Any</code><span class="sig-paren">(</span><em>msg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/proto_utils.html#pack_Any"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.proto_utils.pack_Any" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a protobuf Any with msg as its content.</p>
+<p>Returns None if msg is None.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.proto_utils.pack_Struct">
+<code class="descclassname">apache_beam.utils.proto_utils.</code><code class="descname">pack_Struct</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/proto_utils.html#pack_Struct"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.proto_utils.pack_Struct" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a struct containing the values indicated by kwargs.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.proto_utils.unpack_Any">
+<code class="descclassname">apache_beam.utils.proto_utils.</code><code class="descname">unpack_Any</code><span class="sig-paren">(</span><em>any_msg</em>, <em>msg_class</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/proto_utils.html#unpack_Any"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.proto_utils.unpack_Any" title="Permalink to this definition">¶</a></dt>
+<dd><p>Unpacks any_msg into msg_class.</p>
+<p>Returns None if msg_class is None.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.retry">
+<span id="apache-beam-utils-retry-module"></span><h2>apache_beam.utils.retry module<a class="headerlink" href="#module-apache_beam.utils.retry" title="Permalink to this headline">¶</a></h2>
+<p>Retry decorators for calls raising exceptions.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>This module is used mostly to decorate all integration points where the code
+makes calls to remote services. Searching through the code base for &#64;retry
+should find all such places. For this reason even places where retry is not
+needed right now use a &#64;retry.no_retries decorator.</p>
+<dl class="class">
+<dt id="apache_beam.utils.retry.Clock">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">Clock</code><a class="reference internal" href="_modules/apache_beam/utils/retry.html#Clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.Clock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A simple clock implementing sleep().</p>
+<dl class="method">
+<dt id="apache_beam.utils.retry.Clock.sleep">
+<code class="descname">sleep</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#Clock.sleep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.Clock.sleep" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.retry.FuzzedExponentialIntervals">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">FuzzedExponentialIntervals</code><span class="sig-paren">(</span><em>initial_delay_secs</em>, <em>num_retries</em>, <em>factor=2</em>, <em>fuzz=0.5</em>, <em>max_delay_secs=3600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#FuzzedExponentialIntervals"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.FuzzedExponentialIntervals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Iterable for intervals that are exponentially spaced, with fuzzing.</p>
+<p>On iteration, yields retry interval lengths, in seconds. Every iteration over
+this iterable will yield differently fuzzed interval lengths, as long as fuzz
+is nonzero.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>initial_delay_secs</strong> &#8211; The delay before the first retry, in seconds.</li>
+<li><strong>num_retries</strong> &#8211; The total number of times to retry.</li>
+<li><strong>factor</strong> &#8211; The exponential factor to use on subsequent retries.
+Default is 2 (doubling).</li>
+<li><strong>fuzz</strong> &#8211; A value between 0 and 1, indicating the fraction of fuzz. For a
+given delay d, the fuzzed delay is randomly chosen between
+[(1 - fuzz) * d, d].</li>
+<li><strong>max_delay_secs</strong> &#8211; Maximum delay (in seconds). After this limit is reached,
+further tries use max_delay_sec instead of exponentially increasing
+the time. Defaults to 1 hour.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="exception">
+<dt id="apache_beam.utils.retry.PermanentException">
+<em class="property">exception </em><code class="descclassname">apache_beam.utils.retry.</code><code class="descname">PermanentException</code><a class="reference internal" href="_modules/apache_beam/utils/retry.html#PermanentException"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.PermanentException" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></code></p>
+<p>Base class for exceptions that should not be retried.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.no_retries">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">no_retries</code><span class="sig-paren">(</span><em>fun</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#no_retries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.no_retries" title="Permalink to this definition">¶</a></dt>
+<dd><p>A retry decorator for places where we do not want retries.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.retry_on_server_errors_and_timeout_filter">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">retry_on_server_errors_and_timeout_filter</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#retry_on_server_errors_and_timeout_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.retry_on_server_errors_and_timeout_filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.retry_on_server_errors_filter">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">retry_on_server_errors_filter</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#retry_on_server_errors_filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.retry_on_server_errors_filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter allowing retries on server errors and non-HttpErrors.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.retry.with_exponential_backoff">
+<code class="descclassname">apache_beam.utils.retry.</code><code class="descname">with_exponential_backoff</code><span class="sig-paren">(</span><em>num_retries=7</em>, <em>initial_delay_secs=5.0</em>, <em>logger=&lt;function warning&gt;</em>, <em>retry_filter=&lt;function retry_on_server_errors_filter&gt;</em>, <em>clock=&lt;apache_beam.utils.retry.Clock object&gt;</em>, <em>fuzz=True</em>, <em>factor=2</em>, <em>max_delay_secs=3600</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/retry.html#with_exponential_backoff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.retry.with_exponential_backoff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decorator with arguments that control the retry logic.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>num_retries</strong> &#8211; The total number of times to retry.</li>
+<li><strong>initial_delay_secs</strong> &#8211; The delay before the first retry, in seconds.</li>
+<li><strong>logger</strong> &#8211; A callable used to report an exception. Must have the same signature
+as functions in the standard logging module. The default is
+logging.warning.</li>
+<li><strong>retry_filter</strong> &#8211; A callable getting the exception raised and returning True
+if the retry should happen. For instance we do not want to retry on
+404 Http errors most of the time. The default value will return true
+for server errors (HTTP status code &gt;= 500) and non Http errors.</li>
+<li><strong>clock</strong> &#8211; A clock object implementing a sleep method. The default clock will
+use time.sleep().</li>
+<li><strong>fuzz</strong> &#8211; True if the delay should be fuzzed (default). During testing False
+can be used so that the delays are not randomized.</li>
+<li><strong>factor</strong> &#8211; The exponential factor to use on subsequent retries.
+Default is 2 (doubling).</li>
+<li><strong>max_delay_secs</strong> &#8211; Maximum delay (in seconds). After this limit is reached,
+further tries use max_delay_sec instead of exponentially increasing
+the time. Defaults to 1 hour.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">As per Python decorators with arguments pattern returns a decorator
+for the function which in turn will return the wrapped (decorated) function.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The decorator is intended to be used on callables that make HTTP or RPC
+requests that can temporarily timeout or have transient errors. For instance
+the make_http_request() call below will be retried 16 times with exponential
+backoff and fuzzing of the delay interval (default settings).</p>
+<p>from apache_beam.utils import retry
+# ...
+&#64;retry.with_exponential_backoff()
+make_http_request(args)</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.timestamp">
+<span id="apache-beam-utils-timestamp-module"></span><h2>apache_beam.utils.timestamp module<a class="headerlink" href="#module-apache_beam.utils.timestamp" title="Permalink to this headline">¶</a></h2>
+<p>Timestamp utilities.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.utils.timestamp.Duration">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp.</code><code class="descname">Duration</code><span class="sig-paren">(</span><em>seconds=0</em>, <em>micros=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Duration"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Duration" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Represents a second duration with microsecond granularity.</p>
+<p>Can be treated in common arithmetic operations as a numeric type.</p>
+<p>Internally stores a time interval as an int of microseconds. This strategy
+is necessary since floating point values lose precision when storing values,
+especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
+to 0.0999999994448885).</p>
+<dl class="staticmethod">
+<dt id="apache_beam.utils.timestamp.Duration.of">
+<em class="property">static </em><code class="descname">of</code><span class="sig-paren">(</span><em>seconds</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Duration.of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Duration.of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Duration for the given number of seconds since Unix epoch.</p>
+<p>If the input is already a Duration, the input itself will be returned.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>seconds</strong> &#8211; Number of seconds as int, float or Duration.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Corresponding Duration object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.utils.timestamp.Timestamp">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.timestamp.</code><code class="descname">Timestamp</code><span class="sig-paren">(</span><em>seconds=0</em>, <em>micros=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Represents a Unix second timestamp with microsecond granularity.</p>
+<p>Can be treated in common timestamp arithmetic operations as a numeric type.</p>
+<p>Internally stores a time interval as an int of microseconds. This strategy
+is necessary since floating point values lose precision when storing values,
+especially after arithmetic operations (for example, 10000000 % 0.1 evaluates
+to 0.0999999994448885).</p>
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.isoformat">
+<code class="descname">isoformat</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.isoformat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.isoformat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.utils.timestamp.Timestamp.of">
+<em class="property">static </em><code class="descname">of</code><span class="sig-paren">(</span><em>seconds</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.of"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the Timestamp for the given number of seconds.</p>
+<p>If the input is already a Timestamp, the input itself will be returned.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>seconds</strong> &#8211; Number of seconds as int, float or Timestamp.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Corresponding Timestamp object.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.predecessor">
+<code class="descname">predecessor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.predecessor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.predecessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the largest timestamp smaller than self.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.timestamp.Timestamp.to_utc_datetime">
+<code class="descname">to_utc_datetime</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/timestamp.html#Timestamp.to_utc_datetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.timestamp.Timestamp.to_utc_datetime" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.urns">
+<span id="apache-beam-utils-urns-module"></span><h2>apache_beam.utils.urns module<a class="headerlink" href="#module-apache_beam.utils.urns" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.utils.urns.RunnerApiFn">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.urns.</code><code class="descname">RunnerApiFn</code><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Abstract base class that provides urn registration utilities.</p>
+<p>A class that inherits from this class will get a registration-based
+from_runner_api and to_runner_api method that convert to and from
+beam_runner_api_pb2.SdkFunctionSpec.</p>
+<p>Additionally, register_pickle_urn can be called from the body of a class
+to register serialization via pickling.</p>
+<dl class="classmethod">
+<dt id="apache_beam.utils.urns.RunnerApiFn.from_runner_api">
+<em class="property">classmethod </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>fn_proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts from an SdkFunctionSpec to a Fn object.</p>
+<p>Prefer registering a urn with its parameter type and constructor.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.utils.urns.RunnerApiFn.register_pickle_urn">
+<em class="property">classmethod </em><code class="descname">register_pickle_urn</code><span class="sig-paren">(</span><em>pickle_urn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn.register_pickle_urn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn.register_pickle_urn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registers and implements the given urn via pickling.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.utils.urns.RunnerApiFn.register_urn">
+<em class="property">classmethod </em><code class="descname">register_urn</code><span class="sig-paren">(</span><em>urn</em>, <em>parameter_type</em>, <em>fn=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn.register_urn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn.register_urn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registeres a urn with a constructor.</p>
+<p>For example, if &#8216;beam:fn:foo&#8217; had paramter type FooPayload, one could
+write <cite>RunnerApiFn.register_urn(&#8216;bean:fn:foo&#8217;, FooPayload, foo_from_proto)</cite>
+where foo_from_proto took as arguments a FooPayload and a PipelineContext.
+This function can also be used as a decorator rather than passing the
+callable in as the final parameter.</p>
+<p>A corresponding to_runner_api_parameter method would be expected that
+returns the tuple (&#8216;beam:fn:foo&#8217;, FooPayload)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.urns.RunnerApiFn.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an SdkFunctionSpec encoding this Fn.</p>
+<p>Prefer overriding self.to_runner_api_parameter.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.urns.RunnerApiFn.to_runner_api_parameter">
+<code class="descname">to_runner_api_parameter</code><span class="sig-paren">(</span><em>unused_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/urns.html#RunnerApiFn.to_runner_api_parameter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.urns.RunnerApiFn.to_runner_api_parameter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the urn and payload for this Fn.</p>
+<p>The returned urn(s) should be registered with <cite>register_urn</cite>.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils.windowed_value">
+<span id="apache-beam-utils-windowed-value-module"></span><h2>apache_beam.utils.windowed_value module<a class="headerlink" href="#module-apache_beam.utils.windowed_value" title="Permalink to this headline">¶</a></h2>
+<p>Core windowing data structures.</p>
+<p>This module is experimental. No backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.utils.windowed_value.WindowedValue">
+<em class="property">class </em><code class="descclassname">apache_beam.utils.windowed_value.</code><code class="descname">WindowedValue</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp</em>, <em>windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#WindowedValue"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>A windowed value having a value, a timestamp and set of windows.</p>
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.value">
+<code class="descname">value</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.value" title="Permalink to this definition">¶</a></dt>
+<dd><p>The underlying value of a windowed value.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.timestamp">
+<code class="descname">timestamp</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.timestamp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Timestamp associated with the value as seconds since Unix epoch.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.windows">
+<code class="descname">windows</code><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.windows" title="Permalink to this definition">¶</a></dt>
+<dd><p>A set (iterable) of window objects for the value. The window
+object are descendants of the BoundedWindow class.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt>
+<code class="descname">timestamp</code></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.timestamp_object">
+<code class="descname">timestamp_object</code><em class="property"> = None</em><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.timestamp_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.utils.windowed_value.WindowedValue.with_value">
+<code class="descname">with_value</code><span class="sig-paren">(</span><em>new_value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#WindowedValue.with_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.WindowedValue.with_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a new WindowedValue with the same timestamps and windows as this.</p>
+<p>This is the fasted way to create a new WindowedValue.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.utils.windowed_value.create">
+<code class="descclassname">apache_beam.utils.windowed_value.</code><code class="descname">create</code><span class="sig-paren">(</span><em>value</em>, <em>timestamp_micros</em>, <em>windows</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/utils/windowed_value.html#create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.utils.windowed_value.create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.utils" title="Permalink to this headline">¶</a></h2>
+<p>A package containing internal utilities.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.typehints.html" title="apache_beam.typehints package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

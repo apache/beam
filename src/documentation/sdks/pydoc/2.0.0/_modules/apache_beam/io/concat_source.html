@@ -1,0 +1,359 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.io.concat_source &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.io.concat_source</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">Concat Source, which reads the union of several other sources.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">bisect</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io</span> <span class="k">import</span> <span class="n">iobase</span>
+
+
+<div class="viewcode-block" id="ConcatSource"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource">[docs]</a><span class="k">class</span> <span class="nc">ConcatSource</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">BoundedSource</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A ``BoundedSource`` that can group a set of ``BoundedSources``.</span>
+
+<span class="sd">  Primarily for internal use, use the ``apache_beam.Flatten`` transform</span>
+<span class="sd">  to create the union of several reads.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sources</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span> <span class="o">=</span> <span class="p">[</span><span class="n">source</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">)</span>
+                            <span class="k">else</span> <span class="n">iobase</span><span class="o">.</span><span class="n">SourceBundle</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">source</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                            <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="n">sources</span><span class="p">]</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">sources</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">source</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">]</span>
+
+<div class="viewcode-block" id="ConcatSource.estimate_size"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatSource.split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource.split">[docs]</a>  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">desired_bundle_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">start_position</span> <span class="ow">or</span> <span class="n">stop_position</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Multi-level initial splitting is not supported. Expected start and &#39;</span>
+          <span class="s1">&#39;stop positions to be None. Received </span><span class="si">%r</span><span class="s1"> and </span><span class="si">%r</span><span class="s1"> respectively.&#39;</span> <span class="o">%</span>
+          <span class="p">(</span><span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">source</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">:</span>
+      <span class="c1"># We assume all sub-sources to produce bundles that specify weight using</span>
+      <span class="c1"># the same unit. For example, all sub-sources may specify the size in</span>
+      <span class="c1"># bytes as their weight.</span>
+      <span class="k">for</span> <span class="n">bundle</span> <span class="ow">in</span> <span class="n">source</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+          <span class="n">desired_bundle_size</span><span class="p">,</span> <span class="n">source</span><span class="o">.</span><span class="n">start_position</span><span class="p">,</span> <span class="n">source</span><span class="o">.</span><span class="n">stop_position</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">bundle</span></div>
+
+<div class="viewcode-block" id="ConcatSource.get_range_tracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource.get_range_tracker">[docs]</a>  <span class="k">def</span> <span class="nf">get_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">start_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">start_position</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stop_position</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">stop_position</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ConcatRangeTracker</span><span class="p">(</span>
+        <span class="n">start_position</span><span class="p">,</span> <span class="n">stop_position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatSource.read"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource.read">[docs]</a>  <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">range_tracker</span><span class="p">):</span>
+    <span class="n">start_source</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">start_position</span><span class="p">()</span>
+    <span class="n">stop_source</span><span class="p">,</span> <span class="n">stop_pos</span> <span class="o">=</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">stop_position</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">stop_pos</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">stop_source</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">source_ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start_source</span><span class="p">,</span> <span class="n">stop_source</span><span class="p">):</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">range_tracker</span><span class="o">.</span><span class="n">try_claim</span><span class="p">((</span><span class="n">source_ix</span><span class="p">,</span> <span class="kc">None</span><span class="p">)):</span>
+        <span class="k">break</span>
+      <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+          <span class="n">range_tracker</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="n">source_ix</span><span class="p">)):</span>
+        <span class="k">yield</span> <span class="n">record</span></div>
+
+<div class="viewcode-block" id="ConcatSource.default_output_coder"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatSource.default_output_coder">[docs]</a>  <span class="k">def</span> <span class="nf">default_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">:</span>
+      <span class="c1"># Getting coder from the first sub-sources. This assumes all sub-sources</span>
+      <span class="c1"># to produce the same coder.</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">ConcatSource</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">default_output_coder</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="ConcatRangeTracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker">[docs]</a><span class="k">class</span> <span class="nc">ConcatRangeTracker</span><span class="p">(</span><span class="n">iobase</span><span class="o">.</span><span class="n">RangeTracker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Range tracker for ConcatSource&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">source_bundles</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``ConcatRangeTracker``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      start: start position, a tuple of (source_index, source_position)</span>
+<span class="sd">      end: end position, a tuple of (source_index, source_position)</span>
+<span class="sd">      source_bundles: the list of source bundles in the ConcatSource</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ConcatRangeTracker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_start</span> <span class="o">=</span> <span class="n">start</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">=</span> <span class="n">end</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span> <span class="o">=</span> <span class="n">source_bundles</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">()</span>
+    <span class="c1"># Lazily-initialized list of RangeTrackers corresponding to each source.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_range_trackers</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_bundles</span><span class="p">)</span>
+    <span class="c1"># The currently-being-iterated-over (and latest claimed) source.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># Now compute cumulative progress through the sources for converting</span>
+    <span class="c1"># between global fractions and fractions within specific sources.</span>
+    <span class="c1"># TODO(robertwb): Implement fraction-at-position to properly scale</span>
+    <span class="c1"># partial start and end sources.</span>
+    <span class="c1"># Note, however, that in practice splits are typically on source</span>
+    <span class="c1"># boundaries anyways.</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="n">end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_cumulative_weights</span><span class="p">(</span><span class="n">source_bundles</span><span class="p">[</span><span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">last</span><span class="p">])</span>
+        <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">source_bundles</span><span class="p">)</span> <span class="o">-</span> <span class="n">last</span> <span class="o">-</span> <span class="n">start</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_compute_cumulative_weights</span><span class="p">(</span><span class="n">source_bundles</span><span class="p">):</span>
+    <span class="c1"># Two adjacent sources must differ so that they can be uniquely</span>
+    <span class="c1"># identified by a single global fraction.  Let min_diff be the</span>
+    <span class="c1"># smallest allowable difference between sources.</span>
+    <span class="n">min_diff</span> <span class="o">=</span> <span class="mf">1e-5</span>
+    <span class="c1"># For the computation below, we need weights for all sources.</span>
+    <span class="c1"># Substitute average weights for those whose weights are</span>
+    <span class="c1"># unspecified (or 1.0 for everything if none are known).</span>
+    <span class="n">known</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">weight</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">source_bundles</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+    <span class="n">avg</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">known</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">known</span><span class="p">)</span> <span class="k">if</span> <span class="n">known</span> <span class="k">else</span> <span class="mf">1.0</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">weight</span> <span class="ow">or</span> <span class="n">avg</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">source_bundles</span><span class="p">]</span>
+
+    <span class="c1"># Now compute running totals of the percent done upon reaching</span>
+    <span class="c1"># each source, with respect to the start and end positions.</span>
+    <span class="c1"># E.g. if the weights were [100, 20, 3] we would produce</span>
+    <span class="c1"># [0.0, 100/123, 120/123, 1.0]</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">weights</span><span class="p">))</span>
+    <span class="n">running_total</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">:</span>
+      <span class="n">running_total</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+          <span class="nb">max</span><span class="p">(</span><span class="n">min_diff</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">running_total</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">w</span> <span class="o">/</span> <span class="n">total</span><span class="p">)))</span>
+    <span class="n">running_total</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>  <span class="c1"># In case of rounding error.</span>
+    <span class="c1"># There are issues if, due to rouding error or greatly differing sizes,</span>
+    <span class="c1"># two adjacent running total weights are equal. Normalize this things so</span>
+    <span class="c1"># that this never happens.</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">running_total</span><span class="p">)):</span>
+      <span class="k">if</span> <span class="n">running_total</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">==</span> <span class="n">running_total</span><span class="p">[</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+          <span class="n">running_total</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">*=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">min_diff</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">running_total</span>
+
+<div class="viewcode-block" id="ConcatRangeTracker.start_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.start_position">[docs]</a>  <span class="k">def</span> <span class="nf">start_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.stop_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.stop_position">[docs]</a>  <span class="k">def</span> <span class="nf">stop_position</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.try_claim"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.try_claim">[docs]</a>  <span class="k">def</span> <span class="nf">try_claim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">):</span>
+    <span class="n">source_ix</span><span class="p">,</span> <span class="n">source_pos</span> <span class="o">=</span> <span class="n">pos</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">source_ix</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+      <span class="k">elif</span> <span class="n">source_ix</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">source_ix</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span> <span class="o">=</span> <span class="n">source_ix</span>
+        <span class="k">if</span> <span class="n">source_pos</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="n">source_ix</span><span class="p">)</span><span class="o">.</span><span class="n">try_claim</span><span class="p">(</span><span class="n">source_pos</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.try_split"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.try_split">[docs]</a>  <span class="k">def</span> <span class="nf">try_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">):</span>
+    <span class="n">source_ix</span><span class="p">,</span> <span class="n">source_pos</span> <span class="o">=</span> <span class="n">pos</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">source_ix</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span><span class="p">:</span>
+        <span class="c1"># Already claimed.</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">elif</span> <span class="n">source_ix</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+        <span class="c1"># After end.</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">elif</span> <span class="n">source_ix</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># At/after end.</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">source_ix</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span><span class="p">:</span>
+          <span class="c1"># Prefer to split on even boundary.</span>
+          <span class="n">split_pos</span> <span class="o">=</span> <span class="kc">None</span>
+          <span class="n">ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="c1"># Split the current subsource.</span>
+          <span class="n">split</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="n">source_ix</span><span class="p">)</span><span class="o">.</span><span class="n">try_split</span><span class="p">(</span>
+              <span class="n">source_pos</span><span class="p">)</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">split</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+          <span class="n">split_pos</span><span class="p">,</span> <span class="n">frac</span> <span class="o">=</span> <span class="n">split</span>
+          <span class="n">ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_to_global</span><span class="p">(</span><span class="n">source_ix</span><span class="p">,</span> <span class="n">frac</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_end</span> <span class="o">=</span> <span class="n">source_ix</span><span class="p">,</span> <span class="n">split_pos</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span> <span class="o">=</span> <span class="p">[</span><span class="nb">min</span><span class="p">(</span><span class="n">w</span> <span class="o">/</span> <span class="n">ratio</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                                    <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">source_ix</span><span class="p">,</span> <span class="n">split_pos</span><span class="p">),</span> <span class="n">ratio</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.set_current_position"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.set_current_position">[docs]</a>  <span class="k">def</span> <span class="nf">set_current_position</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pos</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Should only be called on sub-trackers&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.position_at_fraction"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.position_at_fraction">[docs]</a>  <span class="k">def</span> <span class="nf">position_at_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fraction</span><span class="p">):</span>
+    <span class="n">source_ix</span><span class="p">,</span> <span class="n">source_frac</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_to_local</span><span class="p">(</span><span class="n">fraction</span><span class="p">)</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">source_ix</span> <span class="o">==</span> <span class="n">last</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">source_ix</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">source_ix</span><span class="p">,</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="n">source_ix</span><span class="p">)</span><span class="o">.</span><span class="n">position_at_fraction</span><span class="p">(</span>
+                  <span class="n">source_frac</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.fraction_consumed"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.fraction_consumed">[docs]</a>  <span class="k">def</span> <span class="nf">fraction_consumed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">local_to_global</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">sub_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_claimed_source_ix</span><span class="p">)</span>
+          <span class="o">.</span><span class="n">fraction_consumed</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.local_to_global"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.local_to_global">[docs]</a>  <span class="k">def</span> <span class="nf">local_to_global</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ix</span><span class="p">,</span> <span class="n">source_frac</span><span class="p">):</span>
+    <span class="n">cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span>
+    <span class="c1"># The global fraction is the fraction to source_ix plus some portion of</span>
+    <span class="c1"># the way towards the next source.</span>
+    <span class="k">return</span> <span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span> <span class="o">+</span> <span class="n">source_frac</span> <span class="o">*</span> <span class="p">(</span><span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.global_to_local"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.global_to_local">[docs]</a>  <span class="k">def</span> <span class="nf">global_to_local</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">frac</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">frac</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">last</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">last</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">cw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cumulative_weights</span>
+      <span class="c1"># Find the last source that starts at or before frac.</span>
+      <span class="n">source_ix</span> <span class="o">=</span> <span class="n">bisect</span><span class="o">.</span><span class="n">bisect</span><span class="p">(</span><span class="n">cw</span><span class="p">,</span> <span class="n">frac</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+      <span class="c1"># Return this source, converting what&#39;s left of frac after starting</span>
+      <span class="c1"># this source into a value in [0.0, 1.0) representing how far we are</span>
+      <span class="c1"># towards the next source.</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">source_ix</span><span class="p">,</span>
+              <span class="p">(</span><span class="n">frac</span> <span class="o">-</span> <span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">cw</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="ConcatRangeTracker.sub_range_tracker"><a class="viewcode-back" href="../../../apache_beam.io.html#apache_beam.io.concat_source.ConcatRangeTracker.sub_range_tracker">[docs]</a>  <span class="k">def</span> <span class="nf">sub_range_tracker</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_ix</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">source_ix</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_trackers</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_trackers</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_source_bundles</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span>
+          <span class="k">if</span> <span class="n">source_ix</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_start</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">start_position</span>
+          <span class="k">if</span> <span class="n">source_ix</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stop</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_end</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">stop</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">stop_position</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_range_trackers</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span> <span class="o">=</span> <span class="n">source</span><span class="o">.</span><span class="n">source</span><span class="o">.</span><span class="n">get_range_tracker</span><span class="p">(</span>
+              <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_range_trackers</span><span class="p">[</span><span class="n">source_ix</span><span class="p">]</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

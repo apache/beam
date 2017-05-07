@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct.direct_runner &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.direct.direct_runner</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;DirectRunner, executing on the local machine.</span>
+
+<span class="sd">The DirectRunner is a runner implementation that executes the entire</span>
+<span class="sd">graph of transformations belonging to a pipeline on the local machine.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">MetricsEnvironment</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.direct.bundle_factory</span> <span class="k">import</span> <span class="n">BundleFactory</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineResult</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineState</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PValueCache</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">DirectOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.value_provider</span> <span class="k">import</span> <span class="n">RuntimeValueProvider</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;DirectRunner&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="DirectRunner"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_runner.DirectRunner">[docs]</a><span class="k">class</span> <span class="nc">DirectRunner</span><span class="p">(</span><span class="n">PipelineRunner</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Executes a single pipeline on the local machine.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="DirectRunner.apply_CombinePerKey"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_runner.DirectRunner.apply_CombinePerKey">[docs]</a>  <span class="k">def</span> <span class="nf">apply_CombinePerKey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c1"># TODO: Move imports to top. Pipeline &lt;-&gt; Runner dependency cause problems</span>
+    <span class="c1"># with resolving imports when they are at top.</span>
+    <span class="c1"># pylint: disable=wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.direct.helper_transforms</span> <span class="k">import</span> <span class="n">LiftedCombinePerKey</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">LiftedCombinePerKey</span><span class="p">(</span>
+          <span class="n">transform</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">pcoll</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DirectRunner.run"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.direct_runner.DirectRunner.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Execute the entire pipeline and returns an DirectPipelineResult.&quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO: Move imports to top. Pipeline &lt;-&gt; Runner dependency cause problems</span>
+    <span class="c1"># with resolving imports when they are at top.</span>
+    <span class="c1"># pylint: disable=wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.direct.consumer_tracking_pipeline_visitor</span> <span class="k">import</span> \
+      <span class="n">ConsumerTrackingPipelineVisitor</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.direct.evaluation_context</span> <span class="k">import</span> <span class="n">EvaluationContext</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.direct.executor</span> <span class="k">import</span> <span class="n">Executor</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.direct.transform_evaluator</span> <span class="k">import</span> \
+      <span class="n">TransformEvaluatorRegistry</span>
+
+    <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">set_metrics_supported</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Running pipeline with DirectRunner.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span> <span class="o">=</span> <span class="n">ConsumerTrackingPipelineVisitor</span><span class="p">()</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="p">)</span>
+
+    <span class="n">evaluation_context</span> <span class="o">=</span> <span class="n">EvaluationContext</span><span class="p">(</span>
+        <span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="p">,</span>
+        <span class="n">BundleFactory</span><span class="p">(</span><span class="n">stacked</span><span class="o">=</span><span class="n">pipeline</span><span class="o">.</span><span class="n">_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">DirectOptions</span><span class="p">)</span>
+                      <span class="o">.</span><span class="n">direct_runner_use_stacked_bundle</span><span class="p">),</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">root_transforms</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">value_to_consumers</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">step_names</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">views</span><span class="p">)</span>
+
+    <span class="n">evaluation_context</span><span class="o">.</span><span class="n">use_pvalue_cache</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+
+    <span class="n">executor</span> <span class="o">=</span> <span class="n">Executor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">value_to_consumers</span><span class="p">,</span>
+                        <span class="n">TransformEvaluatorRegistry</span><span class="p">(</span><span class="n">evaluation_context</span><span class="p">),</span>
+                        <span class="n">evaluation_context</span><span class="p">)</span>
+    <span class="c1"># DirectRunner does not support injecting</span>
+    <span class="c1"># PipelineOptions values at runtime</span>
+    <span class="n">RuntimeValueProvider</span><span class="o">.</span><span class="n">set_runtime_options</span><span class="p">({})</span>
+    <span class="c1"># Start the executor. This is a non-blocking call, it will start the</span>
+    <span class="c1"># execution in background threads and return.</span>
+    <span class="n">executor</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">consumer_tracking_visitor</span><span class="o">.</span><span class="n">root_transforms</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">DirectPipelineResult</span><span class="p">(</span><span class="n">executor</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span>
+      <span class="c1"># We are running in eager mode, block until the pipeline execution</span>
+      <span class="c1"># completes in order to have full results in the cache.</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">result</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="n">BufferingInMemoryCache</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">pvalue_cache</span></div>
+
+
+<span class="k">class</span> <span class="nc">BufferingInMemoryCache</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;PValueCache wrapper for buffering bundles until a PValue is fully computed.</span>
+
+<span class="sd">  BufferingInMemoryCache keeps an in memory cache of</span>
+<span class="sd">  (applied_ptransform, tag) tuples. It accepts appending to existing cache</span>
+<span class="sd">  entries until it is finalized. finalize() will make all the existing cached</span>
+<span class="sd">  entries visible to the underyling PValueCache in their entirety, clean the in</span>
+<span class="sd">  memory cache and stop accepting new cache entries.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span> <span class="o">=</span> <span class="n">PValueCache</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_finalized</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">pvalue_cache</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span>
+
+  <span class="k">def</span> <span class="nf">append</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalized</span>
+    <span class="k">assert</span> <span class="n">elements</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">[(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">tag</span><span class="p">)]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Make buffered cache elements visible to the underlying PValueCache.&quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_finalized</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">tag</span> <span class="o">=</span> <span class="n">key</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span><span class="o">.</span><span class="n">cache_output</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cache</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">class</span> <span class="nc">DirectPipelineResult</span><span class="p">(</span><span class="n">PipelineResult</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A DirectPipelineResult provides access to info about a pipeline.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">executor</span><span class="p">,</span> <span class="n">evaluation_context</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">DirectPipelineResult</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">PipelineState</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span> <span class="o">=</span> <span class="n">executor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span> <span class="o">=</span> <span class="n">evaluation_context</span>
+
+  <span class="k">def</span> <span class="nf">_is_in_terminal_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">RUNNING</span>
+
+  <span class="k">def</span> <span class="nf">wait_until_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_in_terminal_state</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">duration</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s1">&#39;DirectRunner does not support duration argument.&#39;</span><span class="p">)</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_executor</span><span class="o">.</span><span class="n">await_completion</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span>
+      <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">FAILED</span>
+        <span class="k">raise</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_state</span>
+
+  <span class="k">def</span> <span class="nf">aggregated_values</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregator_or_name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">get_aggregator_values</span><span class="p">(</span><span class="n">aggregator_or_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_context</span><span class="o">.</span><span class="n">metrics</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">EagerRunner</span><span class="p">(</span><span class="n">DirectRunner</span><span class="p">):</span>
+
+  <span class="n">is_eager</span> <span class="o">=</span> <span class="kc">True</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
