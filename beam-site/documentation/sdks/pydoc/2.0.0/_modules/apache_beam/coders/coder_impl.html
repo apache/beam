@@ -1,0 +1,857 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.coders.coder_impl &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.coders.coder_impl</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Coder implementations.</span>
+
+<span class="sd">The actual encode/decode implementations are split off from coders to</span>
+<span class="sd">allow conditional (compiled/pure) implementations, which can be used to</span>
+<span class="sd">encode many elements with minimal overhead.</span>
+
+<span class="sd">This module may be optionally compiled with Cython, using the corresponding</span>
+<span class="sd">coder_impl.pxd file for type hints.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">types</span> <span class="k">import</span> <span class="n">NoneType</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">observable</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">Timestamp</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MAX_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">windowed_value</span>
+
+<span class="c1"># pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports</span>
+<span class="k">try</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">stream</span> <span class="k">import</span> <span class="n">InputStream</span> <span class="k">as</span> <span class="n">create_InputStream</span>
+  <span class="kn">from</span> <span class="nn">stream</span> <span class="k">import</span> <span class="n">OutputStream</span> <span class="k">as</span> <span class="n">create_OutputStream</span>
+  <span class="kn">from</span> <span class="nn">stream</span> <span class="k">import</span> <span class="n">ByteCountingOutputStream</span>
+  <span class="kn">from</span> <span class="nn">stream</span> <span class="k">import</span> <span class="n">get_varint_size</span>
+  <span class="nb">globals</span><span class="p">()[</span><span class="s1">&#39;create_InputStream&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">create_InputStream</span>
+  <span class="nb">globals</span><span class="p">()[</span><span class="s1">&#39;create_OutputStream&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">create_OutputStream</span>
+  <span class="nb">globals</span><span class="p">()[</span><span class="s1">&#39;ByteCountingOutputStream&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ByteCountingOutputStream</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+  <span class="kn">from</span> <span class="nn">slow_stream</span> <span class="k">import</span> <span class="n">InputStream</span> <span class="k">as</span> <span class="n">create_InputStream</span>
+  <span class="kn">from</span> <span class="nn">slow_stream</span> <span class="k">import</span> <span class="n">OutputStream</span> <span class="k">as</span> <span class="n">create_OutputStream</span>
+  <span class="kn">from</span> <span class="nn">slow_stream</span> <span class="k">import</span> <span class="n">ByteCountingOutputStream</span>
+  <span class="kn">from</span> <span class="nn">slow_stream</span> <span class="k">import</span> <span class="n">get_varint_size</span>
+<span class="c1"># pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports</span>
+
+
+<div class="viewcode-block" id="CoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl">[docs]</a><span class="k">class</span> <span class="nc">CoderImpl</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads object from potentially-nested encoding in stream.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="CoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads object from potentially-nested encoding in stream.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="CoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Encodes an object to an unnested string.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="CoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decodes an object to an unnested string.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="CoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimates the encoded size of the given value, in bytes.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_nested_size</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">)),</span> <span class="n">nested</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_get_nested_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inner_size</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">nested</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">inner_size</span>
+    <span class="n">varint_size</span> <span class="o">=</span> <span class="n">get_varint_size</span><span class="p">(</span><span class="n">inner_size</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">varint_size</span> <span class="o">+</span> <span class="n">inner_size</span>
+
+<div class="viewcode-block" id="CoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns estimated size of value along with any nested observables.</span>
+
+<span class="sd">    The list of nested observables is returned as a list of 2-tuples of</span>
+<span class="sd">    (obj, coder_impl), where obj is an instance of observable.ObservableMixin,</span>
+<span class="sd">    and coder_impl is the CoderImpl that can be used to encode elements sent by</span>
+<span class="sd">    obj to its observers.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">      value: the value whose encoded size is to be estimated.</span>
+<span class="sd">      nested: whether the value is nested.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      The estimated encoded size of the given value and a list of observables</span>
+<span class="sd">      whose elements are 2-tuples of (obj, coder_impl) as described above.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">),</span> <span class="p">[]</span></div></div>
+
+
+<div class="viewcode-block" id="SimpleCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SimpleCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">SimpleCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Subclass of CoderImpl implementing stream methods using encode/decode.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SimpleCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SimpleCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads object from potentially-nested encoding in stream.&quot;&quot;&quot;</span>
+    <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SimpleCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SimpleCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads object from potentially-nested encoding in stream.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">nested</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="StreamCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.StreamCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">StreamCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Subclass of CoderImpl implementing encode/decode using stream methods.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="StreamCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.StreamCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">create_OutputStream</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="StreamCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.StreamCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">create_InputStream</span><span class="p">(</span><span class="n">encoded</span><span class="p">),</span> <span class="kc">False</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="StreamCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.StreamCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimates the encoded size of the given value, in bytes.&quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">ByteCountingOutputStream</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">get_count</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="CallbackCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">CallbackCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A CoderImpl that calls back to the _impl methods on the Coder itself.</span>
+
+<span class="sd">  This is the default implementation used if Coder._get_impl()</span>
+<span class="sd">  is not overwritten.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoder</span><span class="p">,</span> <span class="n">decoder</span><span class="p">,</span> <span class="n">size_estimator</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_encoder</span> <span class="o">=</span> <span class="n">encoder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span> <span class="o">=</span> <span class="n">decoder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_size_estimator</span> <span class="o">=</span> <span class="n">size_estimator</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_size_estimator</span>
+
+  <span class="k">def</span> <span class="nf">_default_size_estimator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
+<div class="viewcode-block" id="CallbackCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_encoder</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span><span class="p">(</span><span class="n">stream</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">nested</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CallbackCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encoder</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decoder</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_nested_size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_size_estimator</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CallbackCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.CallbackCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># TODO(robertwb): Remove this once all coders are correct.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">observable</span><span class="o">.</span><span class="n">ObservableMixin</span><span class="p">):</span>
+      <span class="c1"># CallbackCoderImpl can presumably encode the elements too.</span>
+      <span class="k">return</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="p">)]</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">),</span> <span class="p">[]</span></div></div>
+
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">DeterministicFastPrimitivesCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="n">step_label</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span> <span class="o">=</span> <span class="n">coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_step_label</span> <span class="o">=</span> <span class="n">step_label</span>
+
+  <span class="k">def</span> <span class="nf">_check_safe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">unicode</span><span class="p">,</span> <span class="n">long</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+      <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">pass</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+      <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_safe</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s2">&quot;Unable to deterministically code &#39;</span><span class="si">%s</span><span class="s2">&#39; of type &#39;</span><span class="si">%s</span><span class="s2">&#39;, &quot;</span>
+          <span class="s2">&quot;please provide a type hint for the input of &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_step_label</span><span class="p">))</span>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_safe</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_check_safe</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DeterministicFastPrimitivesCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.DeterministicFastPrimitivesCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_underlying_coder</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span>
+        <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ProtoCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.ProtoCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">ProtoCoderImpl</span><span class="p">(</span><span class="n">SimpleCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto_message_type</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">proto_message_type</span> <span class="o">=</span> <span class="n">proto_message_type</span>
+
+<div class="viewcode-block" id="ProtoCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.ProtoCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">value</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="ProtoCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.ProtoCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="n">proto_message</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proto_message_type</span><span class="p">()</span>
+    <span class="n">proto_message</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">proto_message</span></div></div>
+
+
+<span class="n">UNKNOWN_TYPE</span> <span class="o">=</span> <span class="mh">0xFF</span>
+<span class="n">NONE_TYPE</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">INT_TYPE</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">FLOAT_TYPE</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">STR_TYPE</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">UNICODE_TYPE</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">BOOL_TYPE</span> <span class="o">=</span> <span class="mi">9</span>
+<span class="n">LIST_TYPE</span> <span class="o">=</span> <span class="mi">5</span>
+<span class="n">TUPLE_TYPE</span> <span class="o">=</span> <span class="mi">6</span>
+<span class="n">DICT_TYPE</span> <span class="o">=</span> <span class="mi">7</span>
+<span class="n">SET_TYPE</span> <span class="o">=</span> <span class="mi">8</span>
+
+
+<div class="viewcode-block" id="FastPrimitivesCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FastPrimitivesCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">FastPrimitivesCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fallback_coder_impl</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fallback_coder_impl</span> <span class="o">=</span> <span class="n">fallback_coder_impl</span>
+
+<div class="viewcode-block" id="FastPrimitivesCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FastPrimitivesCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">observable</span><span class="o">.</span><span class="n">ObservableMixin</span><span class="p">):</span>
+      <span class="c1"># FastPrimitivesCoderImpl can presumably encode the elements too.</span>
+      <span class="k">return</span> <span class="mi">1</span><span class="p">,</span> <span class="p">[(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="p">)]</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">ByteCountingOutputStream</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">get_count</span><span class="p">(),</span> <span class="p">[]</span></div>
+
+<div class="viewcode-block" id="FastPrimitivesCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FastPrimitivesCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="n">NoneType</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">NONE_TYPE</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">int</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">INT_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">float</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">FLOAT_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_bigendian_double</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">STR_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="n">unicode</span><span class="p">:</span>
+      <span class="n">unicode_value</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># for typing</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">UNICODE_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">unicode_value</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">nested</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">list</span> <span class="ow">or</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">tuple</span> <span class="ow">or</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">set</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span>
+          <span class="n">LIST_TYPE</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">list</span> <span class="k">else</span> <span class="n">TUPLE_TYPE</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">tuple</span> <span class="k">else</span> <span class="n">SET_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+      <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+      <span class="n">dict_value</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># for typing</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">DICT_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dict_value</span><span class="p">))</span>
+      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dict_value</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="ow">is</span> <span class="nb">bool</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">BOOL_TYPE</span><span class="p">)</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">stream</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="n">UNKNOWN_TYPE</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">fallback_coder_impl</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FastPrimitivesCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FastPrimitivesCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_byte</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">NONE_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">INT_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">FLOAT_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_bigendian_double</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">STR_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">nested</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">UNICODE_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">nested</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">LIST_TYPE</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">==</span> <span class="n">TUPLE_TYPE</span> <span class="ow">or</span> <span class="n">t</span> <span class="o">==</span> <span class="n">SET_TYPE</span><span class="p">:</span>
+      <span class="n">vlen</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+      <span class="n">vlist</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">vlen</span><span class="p">)]</span>
+      <span class="k">if</span> <span class="n">t</span> <span class="o">==</span> <span class="n">LIST_TYPE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">vlist</span>
+      <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">TUPLE_TYPE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">vlist</span><span class="p">)</span>
+      <span class="k">return</span> <span class="nb">set</span><span class="p">(</span><span class="n">vlist</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">DICT_TYPE</span><span class="p">:</span>
+      <span class="n">vlen</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+      <span class="n">v</span> <span class="o">=</span> <span class="p">{}</span>
+      <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">vlen</span><span class="p">):</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">v</span>
+    <span class="k">elif</span> <span class="n">t</span> <span class="o">==</span> <span class="n">BOOL_TYPE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="ow">not</span> <span class="ow">not</span> <span class="n">stream</span><span class="o">.</span><span class="n">read_byte</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fallback_coder_impl</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="BytesCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.BytesCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">BytesCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for bytes/str objects.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BytesCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.BytesCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BytesCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.BytesCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_all</span><span class="p">(</span><span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="BytesCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.BytesCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">),</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">value</span></div>
+
+<div class="viewcode-block" id="BytesCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.BytesCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">encoded</span></div></div>
+
+
+<div class="viewcode-block" id="FloatCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FloatCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">FloatCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="FloatCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FloatCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_double</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="FloatCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FloatCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_bigendian_double</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="FloatCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.FloatCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># A double is encoded as 8 bytes, regardless of nesting.</span>
+    <span class="k">return</span> <span class="mi">8</span></div></div>
+
+
+<div class="viewcode-block" id="IntervalWindowCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.IntervalWindowCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">IntervalWindowCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="c1"># TODO: Fn Harness only supports millis. Is this important enough to fix?</span>
+  <span class="k">def</span> <span class="nf">_to_normal_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert &quot;lexicographically ordered unsigned&quot; to signed.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_from_normal_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert signed to &quot;lexicographically ordered unsigned&quot;.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span>
+
+<div class="viewcode-block" id="IntervalWindowCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.IntervalWindowCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">span_micros</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="n">value</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">micros</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_uint64</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_from_normal_time</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">micros</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">))</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="n">span_micros</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="IntervalWindowCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.IntervalWindowCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">end_millis</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_normal_time</span><span class="p">(</span><span class="n">in_</span><span class="o">.</span><span class="n">read_bigendian_uint64</span><span class="p">())</span>
+    <span class="n">start_millis</span> <span class="o">=</span> <span class="n">end_millis</span> <span class="o">-</span> <span class="n">in_</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">IntervalWindow</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">IntervalWindow</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">start_millis</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+                         <span class="n">end</span><span class="o">=</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">end_millis</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">ret</span></div>
+
+<div class="viewcode-block" id="IntervalWindowCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.IntervalWindowCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># An IntervalWindow is context-insensitive, with a timestamp (8 bytes)</span>
+    <span class="c1"># and a varint timespam.</span>
+    <span class="n">span</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="n">value</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">micros</span>
+    <span class="k">return</span> <span class="mi">8</span> <span class="o">+</span> <span class="n">get_varint_size</span><span class="p">(</span><span class="n">span</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TimestampCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TimestampCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">TimestampCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TimestampCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TimestampCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_int64</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TimestampCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TimestampCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">in_stream</span><span class="o">.</span><span class="n">read_bigendian_int64</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="TimestampCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TimestampCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of</span>
+    <span class="c1"># nesting.</span>
+    <span class="k">return</span> <span class="mi">8</span></div></div>
+
+
+<span class="n">small_ints</span> <span class="o">=</span> <span class="p">[</span><span class="nb">chr</span><span class="p">(</span><span class="n">_</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">128</span><span class="p">)]</span>
+
+
+<div class="viewcode-block" id="VarIntCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">VarIntCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for long/int objects.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="VarIntCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VarIntCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="VarIntCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">ivalue</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># type cast</span>
+    <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">ivalue</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">small_ints</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">small_ints</span><span class="p">[</span><span class="n">ivalue</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">StreamCoderImpl</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VarIntCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="n">i</span> <span class="o">=</span> <span class="nb">ord</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+      <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">128</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">i</span>
+    <span class="k">return</span> <span class="n">StreamCoderImpl</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="VarIntCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.VarIntCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="c1"># Note that VarInts are encoded the same way regardless of nesting.</span>
+    <span class="k">return</span> <span class="n">get_varint_size</span><span class="p">(</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="SingletonCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">SingletonCoderImpl</span><span class="p">(</span><span class="n">CoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder that always encodes exactly one value.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_value</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="SingletonCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="SingletonCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span></div>
+
+<div class="viewcode-block" id="SingletonCoderImpl.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>  <span class="c1"># avoid byte vs str vs unicode error</span>
+    <span class="k">return</span> <span class="n">b</span></div>
+
+<div class="viewcode-block" id="SingletonCoderImpl.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value</span></div>
+
+<div class="viewcode-block" id="SingletonCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SingletonCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">return</span> <span class="mi">0</span></div></div>
+
+
+<div class="viewcode-block" id="AbstractComponentCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.AbstractComponentCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">AbstractComponentCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  CoderImpl for coders that are comprised of several component coders.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder_impls</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coder_impls</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">CoderImpl</span><span class="p">),</span> <span class="n">c</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">coder_impls</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_extract_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+  <span class="k">def</span> <span class="nf">_construct_from_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+<div class="viewcode-block" id="AbstractComponentCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.AbstractComponentCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_components</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Number of components does not match number of coders.&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">)):</span>
+      <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>   <span class="c1"># type cast</span>
+      <span class="n">c</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">out</span><span class="p">,</span>
+                         <span class="n">nested</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="AbstractComponentCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.AbstractComponentCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct_from_components</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">in_stream</span><span class="p">,</span>
+                              <span class="n">nested</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">))</span>
+         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">)])</span></div>
+
+<div class="viewcode-block" id="AbstractComponentCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.AbstractComponentCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimates the encoded size of the given value, in bytes.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO(ccy): This ignores sizes of observable components.</span>
+    <span class="n">estimated_size</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">estimated_size</span></div>
+
+<div class="viewcode-block" id="AbstractComponentCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.AbstractComponentCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns estimated size of value along with any nested observables.&quot;&quot;&quot;</span>
+    <span class="n">values</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_components</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">estimated_size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">observables</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">)):</span>
+      <span class="n">c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>  <span class="c1"># type cast</span>
+      <span class="n">child_size</span><span class="p">,</span> <span class="n">child_observables</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">c</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span>
+              <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">nested</span><span class="o">=</span><span class="n">nested</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_coder_impls</span><span class="p">)))</span>
+      <span class="n">estimated_size</span> <span class="o">+=</span> <span class="n">child_size</span>
+      <span class="n">observables</span> <span class="o">+=</span> <span class="n">child_observables</span>
+    <span class="k">return</span> <span class="n">estimated_size</span><span class="p">,</span> <span class="n">observables</span></div></div>
+
+
+<div class="viewcode-block" id="TupleCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TupleCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">TupleCoderImpl</span><span class="p">(</span><span class="n">AbstractComponentCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A coder for tuple objects.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_extract_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">_construct_from_components</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">components</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SequenceCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SequenceCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">SequenceCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for sequences.</span>
+
+<span class="sd">  If the length of the sequence in known we encode the length as a 32 bit</span>
+<span class="sd">  ``int`` followed by the encoded bytes.</span>
+
+<span class="sd">  If the length of the sequence is unknown, we encode the length as ``-1``</span>
+<span class="sd">  followed by the encoding of elements buffered up to 64K bytes before prefixing</span>
+<span class="sd">  the count of number of elements. A ``0`` is encoded at the end to indicate the</span>
+<span class="sd">  end of stream.</span>
+
+<span class="sd">  The resulting encoding would look like this::</span>
+
+<span class="sd">    -1</span>
+<span class="sd">    countA element(0) element(1) ... element(countA - 1)</span>
+<span class="sd">    countB element(0) element(1) ... element(countB - 1)</span>
+<span class="sd">    ...</span>
+<span class="sd">    countX element(0) element(1) ... element(countX - 1)</span>
+<span class="sd">    0</span>
+
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Default buffer size of 64kB of handling iterables of unknown length.</span>
+  <span class="n">_DEFAULT_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elem_coder</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span> <span class="o">=</span> <span class="n">elem_coder</span>
+
+  <span class="k">def</span> <span class="nf">_construct_from_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+<div class="viewcode-block" id="SequenceCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SequenceCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="c1"># Compatible with Java&#39;s IterableLikeCoder.</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s1">&#39;__len__&#39;</span><span class="p">):</span>
+      <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_int32</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+      <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># We don&#39;t know the size without traversing it so use a fixed size buffer</span>
+      <span class="c1"># and encode as many elements as possible into it before outputting</span>
+      <span class="c1"># the size followed by the elements.</span>
+
+      <span class="c1"># -1 to indicate that the length is not known.</span>
+      <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_int32</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+      <span class="n">buffer</span> <span class="o">=</span> <span class="n">create_OutputStream</span><span class="p">()</span>
+      <span class="n">prev_index</span> <span class="o">=</span> <span class="n">index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+      <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out</span><span class="o">.</span><span class="n">size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_DEFAULT_BUFFER_SIZE</span><span class="p">:</span>
+          <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="n">index</span> <span class="o">-</span> <span class="n">prev_index</span><span class="p">)</span>
+          <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+          <span class="n">prev_index</span> <span class="o">=</span> <span class="n">index</span>
+          <span class="n">buffer</span> <span class="o">=</span> <span class="n">create_OutputStream</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;</span> <span class="n">prev_index</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="n">index</span> <span class="o">-</span> <span class="n">prev_index</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">buffer</span><span class="o">.</span><span class="n">get</span><span class="p">())</span>
+      <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SequenceCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SequenceCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_bigendian_int32</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">size</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">in_stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">size</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">elements</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="n">count</span> <span class="o">=</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+      <span class="k">while</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+          <span class="n">elements</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">in_stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct_from_sequence</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SequenceCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SequenceCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Estimates the encoded size of the given value, in bytes.&quot;&quot;&quot;</span>
+    <span class="c1"># TODO(ccy): This ignores element sizes.</span>
+    <span class="n">estimated_size</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">estimated_size</span></div>
+
+<div class="viewcode-block" id="SequenceCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.SequenceCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns estimated size of value along with any nested observables.&quot;&quot;&quot;</span>
+    <span class="n">estimated_size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="c1"># Size of 32-bit integer storing number of elements.</span>
+    <span class="n">estimated_size</span> <span class="o">+=</span> <span class="mi">4</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">observable</span><span class="o">.</span><span class="n">ObservableMixin</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">estimated_size</span><span class="p">,</span> <span class="p">[(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="p">)]</span>
+
+    <span class="n">observables</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+      <span class="n">child_size</span><span class="p">,</span> <span class="n">child_observables</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_elem_coder</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span>
+              <span class="n">elem</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+      <span class="n">estimated_size</span> <span class="o">+=</span> <span class="n">child_size</span>
+      <span class="n">observables</span> <span class="o">+=</span> <span class="n">child_observables</span>
+    <span class="c1"># TODO: (BEAM-1537) Update to use an accurate count depending on size and</span>
+    <span class="c1"># count, currently we are underestimating the size by up to 10 bytes</span>
+    <span class="c1"># per block of data since we are not including the count prefix which</span>
+    <span class="c1"># occurs at most once per 64k of data and is upto 10 bytes long. The upper</span>
+    <span class="c1"># bound of the underestimate is 10 / 65536 ~= 0.0153% of the actual size.</span>
+    <span class="k">return</span> <span class="n">estimated_size</span><span class="p">,</span> <span class="n">observables</span></div></div>
+
+
+<div class="viewcode-block" id="TupleSequenceCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.TupleSequenceCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">TupleSequenceCoderImpl</span><span class="p">(</span><span class="n">SequenceCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for homogeneous tuple objects.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_construct_from_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">components</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IterableCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.IterableCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">IterableCoderImpl</span><span class="p">(</span><span class="n">SequenceCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for homogeneous iterable objects.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_construct_from_sequence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">components</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">components</span></div>
+
+
+<div class="viewcode-block" id="WindowedValueCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.WindowedValueCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">WindowedValueCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A coder for windowed values.&quot;&quot;&quot;</span>
+
+  <span class="c1"># Ensure that lexicographic ordering of the bytes corresponds to</span>
+  <span class="c1"># chronological order of timestamps.</span>
+  <span class="c1"># TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on</span>
+  <span class="c1"># byte representation of timestamps.</span>
+  <span class="k">def</span> <span class="nf">_to_normal_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert &quot;lexicographically ordered unsigned&quot; to signed.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_from_normal_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert signed to &quot;lexicographically ordered unsigned&quot;.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">value</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">63</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value_coder</span><span class="p">,</span> <span class="n">timestamp_coder</span><span class="p">,</span> <span class="n">window_coder</span><span class="p">):</span>
+    <span class="c1"># TODO(lcwik): Remove the timestamp coder field</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span> <span class="o">=</span> <span class="n">value_coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp_coder</span> <span class="o">=</span> <span class="n">timestamp_coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_windows_coder</span> <span class="o">=</span> <span class="n">TupleSequenceCoderImpl</span><span class="p">(</span><span class="n">window_coder</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WindowedValueCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.WindowedValueCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">wv</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># type cast</span>
+    <span class="c1"># Avoid creation of Timestamp object.</span>
+    <span class="n">restore_sign</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span> <span class="k">if</span> <span class="n">wv</span><span class="o">.</span><span class="n">timestamp_micros</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_bigendian_uint64</span><span class="p">(</span>
+        <span class="c1"># Convert to postive number and divide, since python rounds off to the</span>
+        <span class="c1"># lower negative number. For ex: -3 / 2 = -2, but we expect it to be -1,</span>
+        <span class="c1"># to be consistent across SDKs.</span>
+        <span class="c1"># TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on</span>
+        <span class="c1"># precision of timestamps.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_from_normal_time</span><span class="p">(</span>
+            <span class="n">restore_sign</span> <span class="o">*</span> <span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">wv</span><span class="o">.</span><span class="n">timestamp_micros</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_windows_coder</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">wv</span><span class="o">.</span><span class="n">windows</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Default PaneInfo encoded byte representing NO_FIRING.</span>
+    <span class="c1"># TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_byte</span><span class="p">(</span><span class="mh">0xF</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">encode_to_stream</span><span class="p">(</span><span class="n">wv</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WindowedValueCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.WindowedValueCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_to_normal_time</span><span class="p">(</span><span class="n">in_stream</span><span class="o">.</span><span class="n">read_bigendian_uint64</span><span class="p">())</span>
+    <span class="c1"># Restore MIN/MAX timestamps to their actual values as encoding incurs loss</span>
+    <span class="c1"># of precision while converting to millis.</span>
+    <span class="c1"># Note: This is only a best effort here as there is no way to know if these</span>
+    <span class="c1"># were indeed MIN/MAX timestamps.</span>
+    <span class="c1"># TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on</span>
+    <span class="c1"># precision of timestamps.</span>
+    <span class="k">if</span> <span class="n">timestamp</span> <span class="o">==</span> <span class="o">-</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="n">MIN_TIMESTAMP</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">):</span>
+      <span class="n">timestamp</span> <span class="o">=</span> <span class="n">MIN_TIMESTAMP</span><span class="o">.</span><span class="n">micros</span>
+    <span class="k">elif</span> <span class="n">timestamp</span> <span class="o">==</span> <span class="p">(</span><span class="n">MAX_TIMESTAMP</span><span class="o">.</span><span class="n">micros</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">):</span>
+      <span class="n">timestamp</span> <span class="o">=</span> <span class="n">MAX_TIMESTAMP</span><span class="o">.</span><span class="n">micros</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">timestamp</span> <span class="o">*=</span> <span class="mi">1000</span>
+
+    <span class="n">windows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_windows_coder</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">in_stream</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Read PaneInfo encoded byte.</span>
+    <span class="c1"># TODO(BEAM-1522): Ignored for now but should be converted to pane info once</span>
+    <span class="c1"># it is supported.</span>
+    <span class="n">in_stream</span><span class="o">.</span><span class="n">read_byte</span><span class="p">()</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">decode_from_stream</span><span class="p">(</span><span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">value</span><span class="p">,</span>
+        <span class="c1"># Avoid creation of Timestamp object.</span>
+        <span class="n">timestamp</span><span class="p">,</span>
+        <span class="n">windows</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WindowedValueCoderImpl.get_estimated_size_and_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.WindowedValueCoderImpl.get_estimated_size_and_observables">[docs]</a>  <span class="k">def</span> <span class="nf">get_estimated_size_and_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns estimated size of value along with any nested observables.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">observable</span><span class="o">.</span><span class="n">ObservableMixin</span><span class="p">):</span>
+      <span class="c1"># Should never be here.</span>
+      <span class="c1"># TODO(robertwb): Remove when coders are set correctly.</span>
+      <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="p">)]</span>
+    <span class="n">estimated_size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">observables</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">value_estimated_size</span><span class="p">,</span> <span class="n">value_observables</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span>
+            <span class="n">value</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="n">nested</span><span class="p">))</span>
+    <span class="n">estimated_size</span> <span class="o">+=</span> <span class="n">value_estimated_size</span>
+    <span class="n">observables</span> <span class="o">+=</span> <span class="n">value_observables</span>
+    <span class="n">estimated_size</span> <span class="o">+=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp_coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    <span class="n">estimated_size</span> <span class="o">+=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_windows_coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">windows</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+    <span class="c1"># for pane info</span>
+    <span class="n">estimated_size</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">estimated_size</span><span class="p">,</span> <span class="n">observables</span></div></div>
+
+
+<div class="viewcode-block" id="LengthPrefixCoderImpl"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.LengthPrefixCoderImpl">[docs]</a><span class="k">class</span> <span class="nc">LengthPrefixCoderImpl</span><span class="p">(</span><span class="n">StreamCoderImpl</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Coder which prefixes the length of the encoded object in the stream.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value_coder</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span> <span class="o">=</span> <span class="n">value_coder</span>
+
+<div class="viewcode-block" id="LengthPrefixCoderImpl.encode_to_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.LengthPrefixCoderImpl.encode_to_stream">[docs]</a>  <span class="k">def</span> <span class="nf">encode_to_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">encoded_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write_var_int64</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">encoded_value</span><span class="p">))</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">encoded_value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LengthPrefixCoderImpl.decode_from_stream"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.LengthPrefixCoderImpl.decode_from_stream">[docs]</a>  <span class="k">def</span> <span class="nf">decode_from_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_stream</span><span class="p">,</span> <span class="n">nested</span><span class="p">):</span>
+    <span class="n">value_length</span> <span class="o">=</span> <span class="n">in_stream</span><span class="o">.</span><span class="n">read_var_int64</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">in_stream</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">value_length</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="LengthPrefixCoderImpl.estimate_size"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coder_impl.LengthPrefixCoderImpl.estimate_size">[docs]</a>  <span class="k">def</span> <span class="nf">estimate_size</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">nested</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">value_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">get_varint_size</span><span class="p">(</span><span class="n">value_size</span><span class="p">)</span> <span class="o">+</span> <span class="n">value_size</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.utils.timestamp &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.utils.timestamp</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Timestamp utilities.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+
+
+<div class="viewcode-block" id="Timestamp"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Timestamp">[docs]</a><span class="k">class</span> <span class="nc">Timestamp</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents a Unix second timestamp with microsecond granularity.</span>
+
+<span class="sd">  Can be treated in common timestamp arithmetic operations as a numeric type.</span>
+
+<span class="sd">  Internally stores a time interval as an int of microseconds. This strategy</span>
+<span class="sd">  is necessary since floating point values lose precision when storing values,</span>
+<span class="sd">  especially after arithmetic operations (for example, 10000000 % 0.1 evaluates</span>
+<span class="sd">  to 0.0999999994448885).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">micros</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seconds</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">)</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Timestamp.of"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Timestamp.of">[docs]</a>  <span class="k">def</span> <span class="nf">of</span><span class="p">(</span><span class="n">seconds</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the Timestamp for the given number of seconds.</span>
+
+<span class="sd">    If the input is already a Timestamp, the input itself will be returned.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      seconds: Number of seconds as int, float or Timestamp.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Corresponding Timestamp object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="n">Duration</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Can</span><span class="se">\&#39;</span><span class="s1">t interpret </span><span class="si">%s</span><span class="s1"> as Timestamp.&#39;</span> <span class="o">%</span> <span class="n">seconds</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="n">Timestamp</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">seconds</span>
+    <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">seconds</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Timestamp.predecessor"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Timestamp.predecessor">[docs]</a>  <span class="k">def</span> <span class="nf">predecessor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the largest timestamp smaller than self.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">micros</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">micros</span>
+    <span class="n">sign</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">micros</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">sign</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+      <span class="n">micros</span> <span class="o">=</span> <span class="o">-</span><span class="n">micros</span>
+    <span class="n">int_part</span> <span class="o">=</span> <span class="n">micros</span> <span class="o">/</span> <span class="mi">1000000</span>
+    <span class="n">frac_part</span> <span class="o">=</span> <span class="n">micros</span> <span class="o">%</span> <span class="mi">1000000</span>
+    <span class="k">if</span> <span class="n">frac_part</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;Timestamp(</span><span class="si">%s%d</span><span class="s1">.</span><span class="si">%06d</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sign</span><span class="p">,</span> <span class="n">int_part</span><span class="p">,</span> <span class="n">frac_part</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;Timestamp(</span><span class="si">%s%d</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sign</span><span class="p">,</span> <span class="n">int_part</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Timestamp.to_utc_datetime"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Timestamp.to_utc_datetime">[docs]</a>  <span class="k">def</span> <span class="nf">to_utc_datetime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">epoch</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcfromtimestamp</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># We can&#39;t easily construct a datetime object from microseconds, so we</span>
+    <span class="c1"># create one at the epoch and add an appropriate timedelta interval.</span>
+    <span class="k">return</span> <span class="n">epoch</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">microseconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Timestamp.isoformat"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Timestamp.isoformat">[docs]</a>  <span class="k">def</span> <span class="nf">isoformat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Append &#39;Z&#39; for UTC timezone.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;Z&#39;</span></div>
+
+  <span class="k">def</span> <span class="nf">__float__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Note that the returned value may have lost precision.</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000000</span>
+
+  <span class="k">def</span> <span class="nf">__int__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Note that the returned value may have lost precision.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">/</span> <span class="mi">1000000</span>
+
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># Allow comparisons between Duration and Timestamp values.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Duration</span><span class="p">):</span>
+      <span class="n">other</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__radd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="o">+</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__mod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">%</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span></div>
+
+
+<span class="n">MIN_TIMESTAMP</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=-</span><span class="mh">0x7fffffffffffffff</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">MAX_TIMESTAMP</span> <span class="o">=</span> <span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="mh">0x7fffffffffffffff</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Duration"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Duration">[docs]</a><span class="k">class</span> <span class="nc">Duration</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents a second duration with microsecond granularity.</span>
+
+<span class="sd">  Can be treated in common arithmetic operations as a numeric type.</span>
+
+<span class="sd">  Internally stores a time interval as an int of microseconds. This strategy</span>
+<span class="sd">  is necessary since floating point values lose precision when storing values,</span>
+<span class="sd">  especially after arithmetic operations (for example, 10000000 % 0.1 evaluates</span>
+<span class="sd">  to 0.0999999994448885).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seconds</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">micros</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">seconds</span> <span class="o">*</span> <span class="mi">1000000</span><span class="p">)</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Duration.of"><a class="viewcode-back" href="../../../apache_beam.utils.html#apache_beam.runners.direct.watermark_manager.Duration.of">[docs]</a>  <span class="k">def</span> <span class="nf">of</span><span class="p">(</span><span class="n">seconds</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return the Duration for the given number of seconds since Unix epoch.</span>
+
+<span class="sd">    If the input is already a Duration, the input itself will be returned.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      seconds: Number of seconds as int, float or Duration.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Corresponding Duration object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="n">Timestamp</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Can</span><span class="se">\&#39;</span><span class="s1">t interpret </span><span class="si">%s</span><span class="s1"> as Duration.&#39;</span> <span class="o">%</span> <span class="n">seconds</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seconds</span><span class="p">,</span> <span class="n">Duration</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">seconds</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">seconds</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">micros</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">micros</span>
+    <span class="n">sign</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">micros</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">sign</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+      <span class="n">micros</span> <span class="o">=</span> <span class="o">-</span><span class="n">micros</span>
+    <span class="n">int_part</span> <span class="o">=</span> <span class="n">micros</span> <span class="o">/</span> <span class="mi">1000000</span>
+    <span class="n">frac_part</span> <span class="o">=</span> <span class="n">micros</span> <span class="o">%</span> <span class="mi">1000000</span>
+    <span class="k">if</span> <span class="n">frac_part</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;Duration(</span><span class="si">%s%d</span><span class="s1">.</span><span class="si">%06d</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sign</span><span class="p">,</span> <span class="n">int_part</span><span class="p">,</span> <span class="n">frac_part</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s1">&#39;Duration(</span><span class="si">%s%d</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sign</span><span class="p">,</span> <span class="n">int_part</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__float__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Note that the returned value may have lost precision.</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000000</span>
+
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="c1"># Allow comparisons between Duration and Timestamp values.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Timestamp</span><span class="p">):</span>
+      <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__neg__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=-</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">Timestamp</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">other</span> <span class="o">+</span> <span class="bp">self</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">+</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__radd__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="o">+</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__sub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">-</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__rsub__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="bp">self</span> <span class="o">-</span> <span class="n">other</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__mul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">*</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span> <span class="o">/</span> <span class="mi">1000000</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__rmul__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span> <span class="o">*</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__mod__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="n">other</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Duration</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">micros</span> <span class="o">%</span> <span class="n">other</span><span class="o">.</span><span class="n">micros</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,802 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.ptransform &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.ptransform</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;PTransform and descendants.</span>
+
+<span class="sd">A PTransform is an object describing (not executing) a computation. The actual</span>
+<span class="sd">execution semantics for a transform is captured by a runner object. A transform</span>
+<span class="sd">object always belongs to a pipeline object.</span>
+
+<span class="sd">A PTransform derived class needs to define the expand() method that describes</span>
+<span class="sd">how one or more PValues are created by the transform.</span>
+
+<span class="sd">The module defines a few standard transforms: FlatMap (parallel do),</span>
+<span class="sd">GroupByKey (group by key), etc. Note that the expand() methods for these</span>
+<span class="sd">classes contain code that will add nodes to the processing graph associated</span>
+<span class="sd">with a pipeline.</span>
+
+<span class="sd">As support for the FlatMap transform, the module also defines a DoFn</span>
+<span class="sd">class and wrapper class that allows lambda functions to be used as</span>
+<span class="sd">FlatMap processing functions.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">wrappers_pb2</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">error</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">HasDisplayData</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">getcallargs_forhints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">TypeCheckError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">WithTypeHints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.trivial_inference</span> <span class="k">import</span> <span class="n">instance_to_type</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">validate_composite_type_param</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">proto_utils</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">urns</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;PTransform&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ptransform_fn&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;label_from_callable&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">_PValueishTransform</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Visitor for PValueish objects.</span>
+
+<span class="sd">  A PValueish is a PValue, or list, tuple, dict of PValuesish objects.</span>
+
+<span class="sd">  This visits a PValueish, contstructing a (possibly mutated) copy.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="s1">&#39;visit_&#39;</span> <span class="o">+</span> <span class="n">node</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">x</span><span class="p">)(</span><span class="n">node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">visit_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">node</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">visit_tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">node</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">visit_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+
+<span class="k">class</span> <span class="nc">_SetInputPValues</span><span class="p">(</span><span class="n">_PValueishTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">replacements</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">in</span> <span class="n">replacements</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">replacements</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">_SetInputPValues</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">replacements</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_MaterializedDoOutputsTuple</span><span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deferred</span><span class="p">,</span> <span class="n">pvalue_cache</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_MaterializedDoOutputsTuple</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">deferred</span><span class="o">.</span><span class="n">_tags</span><span class="p">,</span> <span class="n">deferred</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_deferred</span> <span class="o">=</span> <span class="n">deferred</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span> <span class="o">=</span> <span class="n">pvalue_cache</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span><span class="o">.</span><span class="n">get_unwindowed_pvalue</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_deferred</span><span class="p">[</span><span class="n">tag</span><span class="p">])</span>
+
+
+<span class="k">class</span> <span class="nc">_MaterializePValues</span><span class="p">(</span><span class="n">_PValueishTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue_cache</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span> <span class="o">=</span> <span class="n">pvalue_cache</span>
+
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span><span class="o">.</span><span class="n">get_unwindowed_pvalue</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">_MaterializedDoOutputsTuple</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pvalue_cache</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">_MaterializePValues</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">GetPValues</span><span class="p">(</span><span class="n">_PValueishTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">pvalues</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">pvalues</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">pvalues</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">pvalues</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">pvalues</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">)):</span>
+      <span class="n">pvalues</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">GetPValues</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">pvalues</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_ZipPValues</span><span class="p">(</span><span class="n">_PValueishTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Pairs each PValue in a pvalueish with a value in a parallel out sibling.</span>
+
+<span class="sd">  Sibling should have the same nested structure as pvalueish.  Leaves in</span>
+<span class="sd">  sibling are expanded across nested pvalueish lists, tuples, and dicts.</span>
+<span class="sd">  For example</span>
+
+<span class="sd">      ZipPValues().visit({&#39;a&#39;: pc1, &#39;b&#39;: (pc2, pc3)},</span>
+<span class="sd">                         {&#39;a&#39;: &#39;A&#39;, &#39;b&#39;, &#39;B&#39;})</span>
+
+<span class="sd">  will return</span>
+
+<span class="sd">      [(&#39;a&#39;, pc1, &#39;A&#39;), (&#39;b&#39;, pc2, &#39;B&#39;), (&#39;b&#39;, pc3, &#39;B&#39;)]</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">pairs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">pairs</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">pairs</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">)):</span>
+      <span class="n">pairs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">context</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">_ZipPValues</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">visit_list</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sibling</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+      <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span>
+          <span class="n">pvalueish</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">sibling</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">))):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">s</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="s1">&#39;position </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">ix</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pvalueish</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">visit_tuple</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">visit_list</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">visit_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sibling</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pvalueish</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">sibling</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">pvalueish</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">sibling</span><span class="p">,</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PTransform"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform">[docs]</a><span class="k">class</span> <span class="nc">PTransform</span><span class="p">(</span><span class="n">WithTypeHints</span><span class="p">,</span> <span class="n">HasDisplayData</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A transform object used to modify one or more PCollections.</span>
+
+<span class="sd">  Subclasses must define an expand() method that will be used when the transform</span>
+<span class="sd">  is applied to some arguments. Typical usage pattern will be:</span>
+
+<span class="sd">    input | CustomTransform(...)</span>
+
+<span class="sd">  The expand() method of the CustomTransform object passed in will be called</span>
+<span class="sd">  with input as an argument.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># By default, transforms don&#39;t have any side inputs.</span>
+  <span class="n">side_inputs</span> <span class="o">=</span> <span class="p">()</span>
+
+  <span class="c1"># Used for nullary transforms.</span>
+  <span class="n">pipeline</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="c1"># Default is unset.</span>
+  <span class="n">_user_label</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_user_label</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_label</span><span class="p">()</span>
+
+  <span class="nd">@label</span><span class="o">.</span><span class="n">setter</span>
+  <span class="k">def</span> <span class="nf">label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_user_label</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="PTransform.default_label"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.default_label">[docs]</a>  <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span></div>
+
+<div class="viewcode-block" id="PTransform.with_input_types"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.with_input_types">[docs]</a>  <span class="k">def</span> <span class="nf">with_input_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_type_hint</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Annotates the input type of a PTransform with a type-hint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      input_type_hint: An instance of an allowed built-in type, a custom class,</span>
+<span class="sd">        or an instance of a typehints.TypeConstraint.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: If &#39;type_hint&#39; is not a valid type-hint. See</span>
+<span class="sd">        typehints.validate_composite_type_param for further details.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A reference to the instance of this particular PTransform object. This</span>
+<span class="sd">      allows chaining type-hinting related methods.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span><span class="n">input_type_hint</span><span class="p">,</span>
+                                  <span class="s1">&#39;Type hints for a PTransform&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">PTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">input_type_hint</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PTransform.with_output_types"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.with_output_types">[docs]</a>  <span class="k">def</span> <span class="nf">with_output_types</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_hint</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Annotates the output type of a PTransform with a type-hint.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      type_hint: An instance of an allowed built-in type, a custom class, or a</span>
+<span class="sd">        typehints.TypeConstraint.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: If &#39;type_hint&#39; is not a valid type-hint. See</span>
+<span class="sd">        typehints.validate_composite_type_param for further details.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A reference to the instance of this particular PTransform object. This</span>
+<span class="sd">      allows chaining type-hinting related methods.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">validate_composite_type_param</span><span class="p">(</span><span class="n">type_hint</span><span class="p">,</span> <span class="s1">&#39;Type hints for a PTransform&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">PTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">type_hint</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PTransform.type_check_inputs"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.type_check_inputs">[docs]</a>  <span class="k">def</span> <span class="nf">type_check_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type_check_inputs_or_outputs</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="s1">&#39;input&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PTransform.infer_output_type"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.infer_output_type">[docs]</a>  <span class="k">def</span> <span class="nf">infer_output_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_input_type</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">simple_output_type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span> <span class="ow">or</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span></div>
+
+<div class="viewcode-block" id="PTransform.type_check_outputs"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.type_check_outputs">[docs]</a>  <span class="k">def</span> <span class="nf">type_check_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type_check_inputs_or_outputs</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="s1">&#39;output&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PTransform.type_check_inputs_or_outputs"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.type_check_inputs_or_outputs">[docs]</a>  <span class="k">def</span> <span class="nf">type_check_inputs_or_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">input_or_output</span><span class="p">):</span>
+    <span class="n">hints</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">(),</span> <span class="n">input_or_output</span> <span class="o">+</span> <span class="s1">&#39;_types&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">hints</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="n">arg_hints</span><span class="p">,</span> <span class="n">kwarg_hints</span> <span class="o">=</span> <span class="n">hints</span>
+    <span class="k">if</span> <span class="n">arg_hints</span> <span class="ow">and</span> <span class="n">kwarg_hints</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span>
+          <span class="s1">&#39;PTransform cannot have both positional and keyword type hints &#39;</span>
+          <span class="s1">&#39;without overriding </span><span class="si">%s</span><span class="s1">._type_check_</span><span class="si">%s</span><span class="s1">()&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">input_or_output</span><span class="p">))</span>
+    <span class="n">root_hint</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">arg_hints</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">arg_hints</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">arg_hints</span> <span class="ow">or</span> <span class="n">kwarg_hints</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">context</span><span class="p">,</span> <span class="n">pvalue_</span><span class="p">,</span> <span class="n">hint</span> <span class="ow">in</span> <span class="n">_ZipPValues</span><span class="p">()</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">root_hint</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">pvalue_</span><span class="o">.</span><span class="n">element_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># TODO(robertwb): It&#39;s a bug that we ever get here. (typecheck)</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">hint</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">typehints</span><span class="o">.</span><span class="n">is_consistent_with</span><span class="p">(</span><span class="n">pvalue_</span><span class="o">.</span><span class="n">element_type</span><span class="p">,</span> <span class="n">hint</span><span class="p">):</span>
+        <span class="n">at_context</span> <span class="o">=</span> <span class="s1">&#39; </span><span class="si">%s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">input_or_output</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span> <span class="k">if</span> <span class="n">context</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span>
+            <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> type hint violation at </span><span class="si">%s%s</span><span class="s1">: expected </span><span class="si">%s</span><span class="s1">, got </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">input_or_output</span><span class="o">.</span><span class="n">title</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">at_context</span><span class="p">,</span> <span class="n">hint</span><span class="p">,</span>
+                <span class="n">pvalue_</span><span class="o">.</span><span class="n">element_type</span><span class="p">))</span></div>
+
+  <span class="k">def</span> <span class="nf">_infer_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_coder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the output coder to use for output of this transform.</span>
+
+<span class="sd">    Note: this API is experimental and is subject to change; please do not rely</span>
+<span class="sd">    on behavior induced by this method.</span>
+
+<span class="sd">    The Coder returned here should not be wrapped in a WindowedValueCoder</span>
+<span class="sd">    wrapper.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      input_type: An instance of an allowed built-in type, a custom class, or a</span>
+<span class="sd">        typehints.TypeConstraint for the input type, or None if not available.</span>
+<span class="sd">      input_coder: Coder object for encoding input to this PTransform, or None</span>
+<span class="sd">        if not available.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Coder object for encoding output of this PTransform or None if unknown.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO(ccy): further refine this API.</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">_clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_label</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Clones the current transform instance under a new label.&quot;&quot;&quot;</span>
+    <span class="n">transform</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="n">transform</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">new_label</span>
+    <span class="k">return</span> <span class="n">transform</span>
+
+<div class="viewcode-block" id="PTransform.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_or_inputs</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&lt;</span><span class="si">%s</span><span class="s1"> at </span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_str_internal</span><span class="p">(),</span> <span class="nb">hex</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span>
+
+  <span class="k">def</span> <span class="nf">_str_internal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">(PTransform)</span><span class="si">%s%s%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+        <span class="s1">&#39; label=[</span><span class="si">%s</span><span class="s1">]&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="k">if</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">)</span> <span class="ow">and</span>
+                                       <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39; inputs=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;inputs&#39;</span><span class="p">)</span> <span class="ow">and</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">,</span>
+        <span class="s1">&#39; side_inputs=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span> <span class="k">else</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_check_pcollection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">error</span><span class="o">.</span><span class="n">TransformError</span><span class="p">(</span><span class="s1">&#39;Expecting a PCollection argument.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">error</span><span class="o">.</span><span class="n">TransformError</span><span class="p">(</span><span class="s1">&#39;PCollection not part of a pipeline.&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PTransform.get_windowing"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.get_windowing">[docs]</a>  <span class="k">def</span> <span class="nf">get_windowing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the window function to be associated with transform&#39;s output.</span>
+
+<span class="sd">    By default most transforms just return the windowing function associated</span>
+<span class="sd">    with the input PCollection (or the first input if several).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO(robertwb): Assert all input WindowFns compatible.</span>
+    <span class="k">return</span> <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">windowing</span></div>
+
+  <span class="k">def</span> <span class="nf">__rrshift__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_NamedPTransform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to compose PTransforms, e.g., ptransform1 | ptransform2.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">PTransform</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">_ChainedPTransform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">right</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+  <span class="k">def</span> <span class="nf">__ror__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">left</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to apply this PTransform to non-PValues, e.g., a tuple.&quot;&quot;&quot;</span>
+    <span class="n">pvalueish</span><span class="p">,</span> <span class="n">pvalues</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_input_pvalues</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+    <span class="n">pipelines</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">pipeline</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pvalues</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">pvalues</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">pipelines</span><span class="p">:</span>
+      <span class="n">deferred</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+      <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pipeline</span>
+      <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+      <span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+      <span class="n">p</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span>
+          <span class="s1">&#39;DirectRunner&#39;</span><span class="p">,</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">pipelines</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; requires a pipeline to be specified &#39;</span>
+                           <span class="s1">&#39;as there are no deferred inputs.&#39;</span><span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="ow">or</span> <span class="n">pipelines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">pp</span> <span class="ow">in</span> <span class="n">pipelines</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">p</span> <span class="o">!=</span> <span class="n">pp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s1">&#39;Mixing value from different pipelines not allowed.&#39;</span><span class="p">)</span>
+      <span class="n">deferred</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">runner</span><span class="p">,</span> <span class="s1">&#39;is_eager&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=wrong-import-order, wrong-import-position</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">Create</span>
+    <span class="c1"># pylint: enable=wrong-import-order, wrong-import-position</span>
+    <span class="n">replacements</span> <span class="o">=</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">v</span><span class="p">):</span> <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;CreatePInput</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">ix</span> <span class="o">&gt;&gt;</span> <span class="n">Create</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pvalues</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span>
+    <span class="n">pvalueish</span> <span class="o">=</span> <span class="n">_SetInputPValues</span><span class="p">()</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">replacements</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">p</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">deferred</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">result</span>
+    <span class="c1"># Get a reference to the runners internal cache, otherwise runner may</span>
+    <span class="c1"># clean it after run.</span>
+    <span class="n">cache</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">cache</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">_MaterializePValues</span><span class="p">(</span><span class="n">cache</span><span class="p">)</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_extract_input_pvalues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Extract all the pvalues contained in the input pvalueish.</span>
+
+<span class="sd">    Returns pvalueish as well as the flat inputs list as the input may have to</span>
+<span class="sd">    be copied as inspection may be destructive.</span>
+
+<span class="sd">    By default, recursively extracts tuple components and dict values.</span>
+
+<span class="sd">    Generally only needs to be overriden for multi-input PTransforms.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># pylint: disable=wrong-import-order</span>
+    <span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pipeline</span>
+    <span class="c1"># pylint: enable=wrong-import-order</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">):</span>
+      <span class="n">pvalueish</span> <span class="o">=</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PBegin</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_dict_tuple_leaves</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">pvalueish</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">_dict_tuple_leaves</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">p</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">pvalueish</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+          <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">_dict_tuple_leaves</span><span class="p">(</span><span class="n">a</span><span class="p">):</span>
+            <span class="k">yield</span> <span class="n">p</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">pvalueish</span>
+    <span class="k">return</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">_dict_tuple_leaves</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">))</span>
+
+  <span class="n">_known_urns</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PTransform.register_urn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.register_urn">[docs]</a>  <span class="k">def</span> <span class="nf">register_urn</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">urn</span><span class="p">,</span> <span class="n">parameter_type</span><span class="p">,</span> <span class="n">constructor</span><span class="p">):</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_known_urns</span><span class="p">[</span><span class="n">urn</span><span class="p">]</span> <span class="o">=</span> <span class="n">parameter_type</span><span class="p">,</span> <span class="n">constructor</span></div>
+
+<div class="viewcode-block" id="PTransform.to_runner_api"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.to_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+    <span class="n">urn</span><span class="p">,</span> <span class="n">typed_param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_runner_api_parameter</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">FunctionSpec</span><span class="p">(</span>
+        <span class="n">urn</span><span class="o">=</span><span class="n">urn</span><span class="p">,</span>
+        <span class="n">parameter</span><span class="o">=</span><span class="n">proto_utils</span><span class="o">.</span><span class="n">pack_Any</span><span class="p">(</span><span class="n">typed_param</span><span class="p">))</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="PTransform.from_runner_api"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.from_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">proto</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">proto</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">proto</span><span class="o">.</span><span class="n">urn</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">parameter_type</span><span class="p">,</span> <span class="n">constructor</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_known_urns</span><span class="p">[</span><span class="n">proto</span><span class="o">.</span><span class="n">urn</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">constructor</span><span class="p">(</span>
+        <span class="n">proto_utils</span><span class="o">.</span><span class="n">unpack_Any</span><span class="p">(</span><span class="n">proto</span><span class="o">.</span><span class="n">parameter</span><span class="p">,</span> <span class="n">parameter_type</span><span class="p">),</span>
+        <span class="n">context</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PTransform.to_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.to_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">urns</span><span class="o">.</span><span class="n">PICKLED_TRANSFORM</span><span class="p">,</span>
+            <span class="n">wrappers_pb2</span><span class="o">.</span><span class="n">BytesValue</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="p">)))</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="PTransform.from_runner_api_parameter"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.PTransform.from_runner_api_parameter">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api_parameter</span><span class="p">(</span><span class="n">spec_parameter</span><span class="p">,</span> <span class="n">unused_context</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">spec_parameter</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div></div>
+
+
+<span class="n">PTransform</span><span class="o">.</span><span class="n">register_urn</span><span class="p">(</span>
+    <span class="n">urns</span><span class="o">.</span><span class="n">PICKLED_TRANSFORM</span><span class="p">,</span>
+    <span class="n">wrappers_pb2</span><span class="o">.</span><span class="n">BytesValue</span><span class="p">,</span>
+    <span class="n">PTransform</span><span class="o">.</span><span class="n">from_runner_api_parameter</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_ChainedPTransform</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">parts</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_ChainedPTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_chain_label</span><span class="p">(</span><span class="n">parts</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_parts</span> <span class="o">=</span> <span class="n">parts</span>
+
+  <span class="k">def</span> <span class="nf">_chain_label</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parts</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;|&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">label</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__or__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">right</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">PTransform</span><span class="p">):</span>
+      <span class="c1"># Create a flat list rather than a nested tree of composite</span>
+      <span class="c1"># transforms for better monitoring, etc.</span>
+      <span class="k">return</span> <span class="n">_ChainedPTransform</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_parts</span> <span class="o">+</span> <span class="p">(</span><span class="n">right</span><span class="p">,)))</span>
+    <span class="k">return</span> <span class="bp">NotImplemented</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pval</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">reduce</span><span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="n">or_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parts</span><span class="p">,</span> <span class="n">pval</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">PTransformWithSideInputs</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A superclass for any PTransform (e.g. FlatMap or Combine)</span>
+<span class="sd">  invoking user code.</span>
+
+<span class="sd">  PTransforms like FlatMap invoke user-supplied code in some kind of</span>
+<span class="sd">  package (e.g. a DoFn) and optionally provide arguments and side inputs</span>
+<span class="sd">  to that code. This internal-use-only class contains common functionality</span>
+<span class="sd">  for PTransforms that fit this model.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">WithTypeHints</span><span class="p">):</span>
+      <span class="c1"># Don&#39;t treat Fn class objects as callables.</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Use </span><span class="si">%s</span><span class="s1">() not </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_fn</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="c1"># Now that we figure out the label, initialize the super-class.</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PTransformWithSideInputs</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="nb">any</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">])</span> <span class="ow">or</span>
+        <span class="nb">any</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()])):</span>
+      <span class="k">raise</span> <span class="n">error</span><span class="o">.</span><span class="n">SideInputError</span><span class="p">(</span>
+          <span class="s1">&#39;PCollection used directly as side input argument. Specify &#39;</span>
+          <span class="s1">&#39;AsIter(pcollection) or AsSingleton(pcollection) to indicate how the &#39;</span>
+          <span class="s1">&#39;PCollection is to be used.&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">remove_objects_from_args</span><span class="p">(</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsSideInput</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">raw_side_inputs</span> <span class="o">=</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="c1"># Prevent name collisions with fns of the form &#39;&lt;function &lt;lambda&gt; at ...&gt;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span>
+
+    <span class="c1"># Ensure fn and side inputs are picklable for remote execution.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">))</span>
+
+    <span class="c1"># For type hints, because loads(dumps(class)) != class.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_fn</span>
+
+  <span class="k">def</span> <span class="nf">with_input_types</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">input_type_hint</span><span class="p">,</span> <span class="o">*</span><span class="n">side_inputs_arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">side_input_kwarg_hints</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Annotates the types of main inputs and side inputs for the PTransform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      input_type_hint: An instance of an allowed built-in type, a custom class,</span>
+<span class="sd">        or an instance of a typehints.TypeConstraint.</span>
+<span class="sd">      *side_inputs_arg_hints: A variable length argument composed of</span>
+<span class="sd">        of an allowed built-in type, a custom class, or a</span>
+<span class="sd">        typehints.TypeConstraint.</span>
+<span class="sd">      **side_input_kwarg_hints: A dictionary argument composed of</span>
+<span class="sd">        of an allowed built-in type, a custom class, or a</span>
+<span class="sd">        typehints.TypeConstraint.</span>
+
+<span class="sd">    Example of annotating the types of side-inputs:</span>
+<span class="sd">      FlatMap().with_input_types(int, int, bool)</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: If &#39;type_hint&#39; is not a valid type-hint. See</span>
+<span class="sd">        typehints.validate_composite_type_param for further details.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A reference to the instance of this particular PTransform object. This</span>
+<span class="sd">      allows chaining type-hinting related methods.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PTransformWithSideInputs</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">input_type_hint</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="n">side_inputs_arg_hints</span><span class="p">:</span>
+      <span class="n">validate_composite_type_param</span><span class="p">(</span><span class="n">si</span><span class="p">,</span> <span class="s1">&#39;Type hints for a PTransform&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="n">side_input_kwarg_hints</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="n">validate_composite_type_param</span><span class="p">(</span><span class="n">si</span><span class="p">,</span> <span class="s1">&#39;Type hints for a PTransform&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs_types</span> <span class="o">=</span> <span class="n">side_inputs_arg_hints</span>
+    <span class="k">return</span> <span class="n">WithTypeHints</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">input_type_hint</span><span class="p">,</span> <span class="o">*</span><span class="n">side_inputs_arg_hints</span><span class="p">,</span> <span class="o">**</span><span class="n">side_input_kwarg_hints</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">type_check_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">):</span>
+    <span class="n">type_hints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">input_types</span>
+    <span class="k">if</span> <span class="n">type_hints</span><span class="p">:</span>
+      <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_side_inputs</span>
+
+      <span class="k">def</span> <span class="nf">element_type</span><span class="p">(</span><span class="n">side_input</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">side_input</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsSideInput</span><span class="p">):</span>
+          <span class="k">return</span> <span class="n">side_input</span><span class="o">.</span><span class="n">element_type</span>
+        <span class="k">return</span> <span class="n">instance_to_type</span><span class="p">(</span><span class="n">side_input</span><span class="p">)</span>
+
+      <span class="n">arg_types</span> <span class="o">=</span> <span class="p">[</span><span class="n">pvalueish</span><span class="o">.</span><span class="n">element_type</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">element_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+      <span class="n">kwargs_types</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">element_type</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+      <span class="n">argspec_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_argspec_fn</span><span class="p">()</span>
+      <span class="n">bindings</span> <span class="o">=</span> <span class="n">getcallargs_forhints</span><span class="p">(</span><span class="n">argspec_fn</span><span class="p">,</span> <span class="o">*</span><span class="n">arg_types</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs_types</span><span class="p">)</span>
+      <span class="n">hints</span> <span class="o">=</span> <span class="n">getcallargs_forhints</span><span class="p">(</span><span class="n">argspec_fn</span><span class="p">,</span> <span class="o">*</span><span class="n">type_hints</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">**</span><span class="n">type_hints</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+      <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">hint</span> <span class="ow">in</span> <span class="n">hints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">arg</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%u</span><span class="s1">nknown%&#39;</span><span class="p">):</span>
+          <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">hint</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">typehints</span><span class="o">.</span><span class="n">is_consistent_with</span><span class="p">(</span>
+            <span class="n">bindings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">),</span> <span class="n">hint</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span>
+              <span class="s1">&#39;Type hint violation for </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1">: requires </span><span class="si">%s</span><span class="s1"> but got </span><span class="si">%s</span><span class="s1"> for </span><span class="si">%s</span><span class="s1">&#39;</span>
+              <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">hint</span><span class="p">,</span> <span class="n">bindings</span><span class="p">[</span><span class="n">arg</span><span class="p">],</span> <span class="n">arg</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">_process_argspec_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an argspec of the function actually consuming the data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+  <span class="k">def</span> <span class="nf">make_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="c1"># TODO(silviuc): Add comment describing that this is meant to be overriden</span>
+    <span class="c1"># by methods detecting callables and wrapping them in DoFns.</span>
+    <span class="k">return</span> <span class="n">fn</span>
+
+  <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="n">default_label</span><span class="p">())</span>
+
+
+<span class="k">class</span> <span class="nc">CallablePTransform</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A class wrapper for a function-based transform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=super-init-not-called</span>
+    <span class="c1"># This  is a helper class for a function decorator. Only when the class</span>
+    <span class="c1"># is called (and __call__ invoked) we will have all the information</span>
+    <span class="c1"># needed to initialize the super class.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fn</span> <span class="o">=</span> <span class="n">fn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_args</span> <span class="o">=</span> <span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;fn&#39;</span><span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
+                  <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">)</span>
+                  <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="o">.</span><span class="vm">__class__</span><span class="p">),</span>
+           <span class="s1">&#39;args&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">))</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="s1">&#39;()&#39;</span><span class="p">),</span>
+           <span class="s1">&#39;kwargs&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">))</span><span class="o">.</span><span class="n">drop_if_default</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+  <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">CallablePTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_args</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="c1"># Since the PTransform will be implemented entirely as a function</span>
+    <span class="c1"># (once called), we need to pass through any type-hinting information that</span>
+    <span class="c1"># may have been annotated via the .with_input_types() and</span>
+    <span class="c1"># .with_output_types() methods.</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_kwargs</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">if</span> <span class="s1">&#39;type_hints&#39;</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getargspec</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)</span><span class="o">.</span><span class="n">args</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">(),)</span> <span class="o">+</span> <span class="n">args</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+      <span class="c1"># Might not be a function.</span>
+      <span class="k">pass</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">label_from_callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">),</span> <span class="n">label_from_callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_args</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">label_from_callable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fn</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ptransform_fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.ptransform_fn">[docs]</a><span class="k">def</span> <span class="nf">ptransform_fn</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A decorator for a function-based PTransform.</span>
+
+<span class="sd">  Experimental; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    fn: A function implementing a custom PTransform.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A CallablePTransform instance wrapping the function-based PTransform.</span>
+
+<span class="sd">  This wrapper provides an alternative, simpler way to define a PTransform.</span>
+<span class="sd">  The standard method is to subclass from PTransform and override the expand()</span>
+<span class="sd">  method. An equivalent effect can be obtained by defining a function that</span>
+<span class="sd">  an input PCollection and additional optional arguments and returns a</span>
+<span class="sd">  resulting PCollection. For example::</span>
+
+<span class="sd">    @ptransform_fn</span>
+<span class="sd">    def CustomMapper(pcoll, mapfn):</span>
+<span class="sd">      return pcoll | ParDo(mapfn)</span>
+
+<span class="sd">  The equivalent approach using PTransform subclassing::</span>
+
+<span class="sd">    class CustomMapper(PTransform):</span>
+
+<span class="sd">      def __init__(self, mapfn):</span>
+<span class="sd">        super(CustomMapper, self).__init__()</span>
+<span class="sd">        self.mapfn = mapfn</span>
+
+<span class="sd">      def expand(self, pcoll):</span>
+<span class="sd">        return pcoll | ParDo(self.mapfn)</span>
+
+<span class="sd">  With either method the custom PTransform can be used in pipelines as if</span>
+<span class="sd">  it were one of the &quot;native&quot; PTransforms::</span>
+
+<span class="sd">    result_pcoll = input_pcoll | &#39;Label&#39; &gt;&gt; CustomMapper(somefn)</span>
+
+<span class="sd">  Note that for both solutions the underlying implementation of the pipe</span>
+<span class="sd">  operator (i.e., `|`) will inject the pcoll argument in its proper place</span>
+<span class="sd">  (first argument if no label was specified and second argument otherwise).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="n">CallablePTransform</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="label_from_callable"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.label_from_callable">[docs]</a><span class="k">def</span> <span class="nf">label_from_callable</span><span class="p">(</span><span class="n">fn</span><span class="p">):</span>
+  <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;default_label&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">default_label</span><span class="p">()</span>
+  <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;&lt;lambda&gt;&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;&lt;lambda at </span><span class="si">%s</span><span class="s1">:</span><span class="si">%s</span><span class="s1">&gt;&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">fn</span><span class="o">.</span><span class="n">func_code</span><span class="o">.</span><span class="n">co_filename</span><span class="p">),</span>
+          <span class="n">fn</span><span class="o">.</span><span class="n">func_code</span><span class="o">.</span><span class="n">co_firstlineno</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="vm">__name__</span>
+  <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">_NamedPTransform</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_NamedPTransform</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+
+  <span class="k">def</span> <span class="nf">__ror__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span> <span class="n">_unused</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="o">.</span><span class="fm">__ror__</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pvalue</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Should never be expanded directly.&quot;</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
