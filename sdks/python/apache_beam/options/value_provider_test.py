@@ -19,9 +19,9 @@
 
 import unittest
 
-from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.value_provider import RuntimeValueProvider
-from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 
 
 class ValueProviderTests(unittest.TestCase):
