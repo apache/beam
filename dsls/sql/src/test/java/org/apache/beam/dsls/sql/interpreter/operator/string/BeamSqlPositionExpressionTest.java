@@ -32,7 +32,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
 /**
- * Created by xumingmingv on 5/5/17.
+ * Test for BeamSqlPositionExpression.
  */
 public class BeamSqlPositionExpressionTest extends BeamSQLFnExecutorTestBase {
 
