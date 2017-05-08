@@ -173,7 +173,8 @@ class SplittableProcessElementsEvaluatorFactory<
             outputWindowedValue,
             evaluationContext.createSideInputReader(transform.getSideInputs()),
             // TODO: For better performance, use a higher-level executor?
-            // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
+            // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the
+            // DirectRunner.
             Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder()
                     .setThreadFactory(MoreExecutors.platformThreadFactory())
