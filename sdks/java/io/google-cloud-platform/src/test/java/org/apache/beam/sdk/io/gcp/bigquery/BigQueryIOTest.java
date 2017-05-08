@@ -513,6 +513,7 @@ public class BigQueryIOTest implements Serializable {
     }
     users.apply("WriteBigQuery", BigQueryIO.<String>write()
             .withTestServices(fakeBqServices)
+            .withMaxFilesPerBundle(5)
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withFormatFunction(new SerializableFunction<String, TableRow>() {
               @Override

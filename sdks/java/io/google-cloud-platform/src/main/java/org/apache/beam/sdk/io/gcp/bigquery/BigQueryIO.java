@@ -691,6 +691,7 @@ public class BigQueryIO {
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
+    @Nullable abstract Integer getMaxFilesPerBundle();
 
     abstract Builder<T> toBuilder();
 
@@ -708,6 +709,7 @@ public class BigQueryIO {
       abstract Builder<T> setTableDescription(String tableDescription);
       abstract Builder<T> setValidate(boolean validate);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setMaxFilesPerBundle(Integer maxFilesPerBundle);
 
       abstract Write<T> build();
     }
@@ -886,6 +888,11 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
+    @VisibleForTesting
+    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+      return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -997,6 +1004,9 @@ public class BigQueryIO {
             dynamicDestinations,
             destinationCoder);
         batchLoads.setTestServices(getBigQueryServices());
+        if (getMaxFilesPerBundle() != null) {
+          batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
+        }
         return rowsWithDestination.apply(batchLoads);
       }
     }
