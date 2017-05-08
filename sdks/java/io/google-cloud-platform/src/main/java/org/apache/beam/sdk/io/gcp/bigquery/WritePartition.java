@@ -23,7 +23,6 @@ import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
@@ -73,8 +72,8 @@ class WritePartition<DestinationT>
     // Check to see whether we can add to this partition without exceeding the maximum partition
     // size.
     boolean canAccept(int numFiles, long numBytes) {
-      return this.numFiles + numFiles <= Write.MAX_NUM_FILES
-          && this.byteSize + numBytes <= Write.MAX_SIZE_BYTES;
+      return this.numFiles + numFiles <= BatchLoads.MAX_NUM_FILES
+          && this.byteSize + numBytes <= BatchLoads.MAX_SIZE_BYTES;
     }
   }
 

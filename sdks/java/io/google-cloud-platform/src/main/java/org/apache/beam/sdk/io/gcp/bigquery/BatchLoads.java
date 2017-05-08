@@ -74,6 +74,24 @@ class BatchLoads<DestinationT>
   @VisibleForTesting
   static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
 
+  @VisibleForTesting
+  // Maximum number of files in a single partition.
+  static final int MAX_NUM_FILES = 10000;
+
+  @VisibleForTesting
+  // Maximum number of bytes in a single partition -- 11 TiB just under BQ's 12 TiB limit.
+  static final long MAX_SIZE_BYTES = 11 * (1L << 40);
+
+  // The maximum size of a single file - 4TiB, just under the 5 TiB limit.
+  static final long DEFAULT_MAX_FILE_SIZE = 4 * (1L << 40);
+
+  // The maximum number of retries to poll the status of a job.
+  // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
+  static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
+
+  // The maximum number of retry jobs.
+  static final int MAX_RETRY_JOBS = 3;
+
   private BigQueryServices bigQueryServices;
   private final WriteDisposition writeDisposition;
   private final CreateDisposition createDisposition;
@@ -83,6 +101,7 @@ class BatchLoads<DestinationT>
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final Coder<DestinationT> destinationCoder;
   private int maxNumWritersPerBundle;
+  private long maxFileSize;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
@@ -95,6 +114,7 @@ class BatchLoads<DestinationT>
     this.dynamicDestinations = dynamicDestinations;
     this.destinationCoder = destinationCoder;
     this.maxNumWritersPerBundle = DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE;
+    this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -109,6 +129,11 @@ class BatchLoads<DestinationT>
   /** Set the maximum number of file writers that will be open simultaneously in a bundle. */
   public void setMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
+  }
+
+  @VisibleForTesting
+  void setMaxFileSize(long maxFileSize) {
+    this.maxFileSize = maxFileSize;
   }
 
   @Override
@@ -179,7 +204,7 @@ class BatchLoads<DestinationT>
     PCollectionTuple writeBundlesTuple = inputInGlobalWindow
             .apply("WriteBundlesToFiles",
                 ParDo.of(new WriteBundlesToFiles<>(stepUuid, unwrittedRecordsTag,
-                    maxNumWritersPerBundle))
+                    maxNumWritersPerBundle, maxFileSize))
                 .withOutputTags(writtenFilesTag, TupleTagList.of(unwrittedRecordsTag)));
     PCollection<WriteBundlesToFiles.Result<DestinationT>> writtenFiles =
         writeBundlesTuple.get(writtenFilesTag)
@@ -193,7 +218,7 @@ class BatchLoads<DestinationT>
         writeBundlesTuple.get(unwrittedRecordsTag)
             .setCoder(KvCoder.of(ShardedKeyCoder.of(destinationCoder), TableRowJsonCoder.of()))
         .apply(GroupByKey.<ShardedKey<DestinationT>, TableRow>create())
-        .apply(ParDo.of(new WriteGroupedRecordsToFiles<DestinationT>(stepUuid)))
+        .apply(ParDo.of(new WriteGroupedRecordsToFiles<DestinationT>(stepUuid, maxFileSize)))
             .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
 
     // PCollection of filename, file byte size, and table destination.

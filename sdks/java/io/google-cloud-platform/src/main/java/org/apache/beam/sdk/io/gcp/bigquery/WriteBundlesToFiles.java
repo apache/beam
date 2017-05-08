@@ -37,7 +37,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -68,6 +67,8 @@ class WriteBundlesToFiles<DestinationT>
   private final String stepUuid;
   private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag;
   private int maxNumWritersPerBundle;
+  private long maxFileSize;
+
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
@@ -131,10 +132,12 @@ class WriteBundlesToFiles<DestinationT>
   WriteBundlesToFiles(
       String stepUuid,
       TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag,
-      int maxNumWritersPerBundle) {
+      int maxNumWritersPerBundle,
+      long maxFileSize) {
     this.stepUuid = stepUuid;
     this.unwrittedRecordsTag = unwrittedRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
+    this.maxFileSize = maxFileSize;
   }
 
   @StartBundle
@@ -160,11 +163,14 @@ class WriteBundlesToFiles<DestinationT>
     String tempFilePrefix = resolveTempLocation(
         c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
     TableRowWriter writer = writers.get(c.element().getKey());
-    if (writer != null && writer.getByteSize() > Write.MAX_FILE_SIZE) {
+    if (writer != null && writer.getByteSize() > maxFileSize) {
+      System.out.println("FILE " + c.element().getKey() + " IS TOO BIG");
       // File is too big. Close it and open a new file.
       TableRowWriter.Result result = writer.close();
       c.output(new Result<>(result.resourceId.toString(), result.byteSize, c.element().getKey()));
       writer = createAndInsertWriter(c.element().getKey(), tempFilePrefix, window);
+    } else {
+      System.out.println("FILE " + c.element().getKey() + " IS CHILL");
     }
 
     if (writer == null) {

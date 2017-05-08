@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.UUID;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 
@@ -33,9 +32,11 @@ class WriteGroupedRecordsToFiles<DestinationT>
     extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
     WriteBundlesToFiles.Result<DestinationT>> {
   private final String tempFilePrefix;
+  private final long maxFileSize;
 
-  WriteGroupedRecordsToFiles(String tempFilePrefix) {
+  WriteGroupedRecordsToFiles(String tempFilePrefix, long maxFileSize) {
     this.tempFilePrefix = tempFilePrefix;
+    this.maxFileSize = maxFileSize;
   }
 
   @ProcessElement
@@ -43,11 +44,15 @@ class WriteGroupedRecordsToFiles<DestinationT>
     TableRowWriter writer = createWriter();
     try {
       for (TableRow tableRow : c.element().getValue()) {
-        if (writer.getByteSize() > Write.MAX_FILE_SIZE) {
+        if (writer.getByteSize() > maxFileSize) {
+          System.out.println(" GROUPED FILE " + c.element().getKey() + " IS TOO BIG");
           TableRowWriter.Result result = writer.close();
           c.output(new WriteBundlesToFiles.Result<>(
               result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
           writer = createWriter();
+        } else {
+          System.out.println(" GROUPED FILE " + c.element().getKey() + " IS CHILL");
+
         }
         writer.write(tableRow);
       }
