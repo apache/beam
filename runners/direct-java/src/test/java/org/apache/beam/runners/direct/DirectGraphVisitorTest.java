@@ -26,9 +26,7 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -56,6 +54,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DirectGraphVisitorTest implements Serializable {
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient TestPipeline p = TestPipeline.create()
                                                       .enableAbandonedNodeEnforcement(false);
@@ -87,7 +86,7 @@ public class DirectGraphVisitorTest implements Serializable {
   @Test
   public void getRootTransformsContainsRootTransforms() {
     PCollection<String> created = p.apply(Create.of("foo", "bar"));
-    PCollection<Long> counted = p.apply(Read.from(CountingSource.upTo(1234L)));
+    PCollection<Long> counted = p.apply(GenerateSequence.from(0).to(1234L));
     PCollection<Long> unCounted = p.apply(GenerateSequence.from(0));
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
