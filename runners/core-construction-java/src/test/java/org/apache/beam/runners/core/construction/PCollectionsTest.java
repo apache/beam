@@ -29,10 +29,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AtomicCoder;
-import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.*;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -130,13 +127,13 @@ public class PCollectionsTest {
   @AutoValue
   abstract static class CustomIntCoder extends CustomCoder<Integer> {
     @Override
-    public void encode(Integer value, OutputStream outStream, Context context) throws IOException {
-      VarInt.encode(value, outStream);
+    public Integer decode(InputStream inStream) throws IOException {
+      return VarInt.decodeInt(inStream);
     }
 
     @Override
-    public Integer decode(InputStream inStream, Context context) throws IOException {
-      return VarInt.decodeInt(inStream);
+    public void encode(Integer value, OutputStream outStream) throws IOException {
+      VarInt.encode(value, outStream);
     }
   }
 
@@ -163,13 +160,13 @@ public class PCollectionsTest {
         @Override public void verifyDeterministic() {}
 
         @Override
-        public void encode(BoundedWindow value, OutputStream outStream, Context context)
+        public void encode(BoundedWindow value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value.maxTimestamp().getMillis(), outStream);
         }
 
         @Override
-        public BoundedWindow decode(InputStream inStream, Context context) throws IOException {
+        public BoundedWindow decode(InputStream inStream) throws IOException {
           final Instant ts = new Instant(VarInt.decodeLong(inStream));
           return new BoundedWindow() {
             @Override
