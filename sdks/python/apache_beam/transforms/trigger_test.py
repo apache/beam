@@ -402,22 +402,22 @@ class RunnerApiTest(unittest.TestCase):
 class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
-    p = TestPipeline()
-    result = (p
-              | beam.Create([1, 2, 3, 4, 5, 10, 11])
-              | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-              | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
-              | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
-                                accumulation_mode=AccumulationMode.DISCARDING)
-              | beam.GroupByKey()
-              | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
-    assert_that(result, equal_to(
-        {
-            'A-5': {1, 2, 3, 4, 5},
-            # A-10, A-11 never emitted due to AfterCount(3) never firing.
-            'B-4': {6, 7, 8, 9},
-            'B-3': {10, 15, 16},
-        }.iteritems()))
+    with TestPipeline() as p:
+      result = (p
+                | beam.Create([1, 2, 3, 4, 5, 10, 11])
+                | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+                | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+                | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
+                                  accumulation_mode=AccumulationMode.DISCARDING)
+                | beam.GroupByKey()
+                | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+      assert_that(result, equal_to(
+          {
+              'A-5': {1, 2, 3, 4, 5},
+              # A-10, A-11 never emitted due to AfterCount(3) never firing.
+              'B-4': {6, 7, 8, 9},
+              'B-3': {10, 15, 16},
+          }.iteritems()))
 
 
 class TranscriptTest(unittest.TestCase):
