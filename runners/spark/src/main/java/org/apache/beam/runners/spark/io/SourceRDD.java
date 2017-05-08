@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -159,6 +160,7 @@ public class SourceRDD {
      *   <code>UnsupportedOperationException</code>.
      * </p>
      */
+    @VisibleForTesting
     static class ReaderToIteratorAdapter<T> implements Iterator<WindowedValue<T>> {
 
       private static final boolean FAILED_TO_OBTAIN_NEXT = false;
