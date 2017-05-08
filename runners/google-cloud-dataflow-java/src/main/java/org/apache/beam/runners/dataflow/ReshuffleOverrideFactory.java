@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.dataflow;
 
-import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -50,7 +49,7 @@ class ReshuffleOverrideFactory<K, V>
           AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>>
               transform) {
     return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
+        getSingletonMainInput(transform),
         new ReshuffleWithOnlyTrigger<K, V>());
   }
 

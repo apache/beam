@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.KV;
@@ -42,7 +41,7 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
                   GBKIntoKeyedWorkItems<KeyT, InputT>>
               transform) {
     return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
+        getSingletonMainInput(transform),
         new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
   }
 }

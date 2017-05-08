@@ -18,8 +18,10 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.ImmutableList;
+
 import java.util.List;
 import java.util.Map;
+
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
@@ -241,7 +243,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     public PTransformReplacement<PCollection<InputT>, PCollection<OutputT>> getReplacementTransform(
         AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, TransformT> transform) {
       return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
+          getSingletonMainInput(transform),
           InstanceBuilder.ofType(replacement)
               .withArg(FlinkRunner.class, runner)
               .withArg(

@@ -23,6 +23,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,13 +34,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.apex.api.EmbeddedAppLauncher;
 import org.apache.apex.api.Launcher;
 import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.LaunchMode;
 import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -272,7 +273,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
                       GloballyAsSingletonView<InputT, OutputT>>
                   transform) {
         return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
+            getSingletonMainInput(transform),
             new StreamingCombineGloballyAsSingletonView<>(transform.getTransform()));
       }
     }
@@ -337,7 +338,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       public PTransformReplacement<PCollection<T>, PCollectionView<T>> getReplacementTransform(
           AppliedPTransform<PCollection<T>, PCollectionView<T>, AsSingleton<T>> transform) {
         return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
+            getSingletonMainInput(transform),
             new StreamingViewAsSingleton<>(transform.getTransform()));
       }
     }
@@ -372,7 +373,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
               AppliedPTransform<PCollection<T>, PCollectionView<Iterable<T>>, AsIterable<T>>
                   transform) {
         return PTransformReplacement.of(
-            PTransformReplacements.getSingletonMainInput(transform),
+            getSingletonMainInput(transform),
             new StreamingViewAsIterable<T>());
       }
     }
