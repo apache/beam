@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.fs;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * <b>For internal use only; no backwards compatibility guarantees.</b>
- *
- * <p>Noop implementation of {@link PathValidator}. All paths are allowed and returned unchanged.
+ * @deprecated use {@link org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator}.
  */
-@Internal
+@Deprecated
 public class NoopPathValidator implements PathValidator {
 
   private NoopPathValidator() {

@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.fs;
+package org.apache.beam.sdk.extensions.gcp.storage;
 
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
  * <b>For internal use only; no backwards compatibility guarantees.</b>
