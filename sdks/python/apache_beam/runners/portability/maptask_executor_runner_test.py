@@ -16,6 +16,7 @@
 #
 
 import logging
+import os
 import tempfile
 import unittest
 
@@ -181,12 +182,17 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
   def test_read(self):
-    with tempfile.NamedTemporaryFile() as temp_file:
+    # Can't use NamedTemporaryFile as a context
+    # due to https://bugs.python.org/issue14243
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    try:
       temp_file.write('a\nb\nc')
-      temp_file.flush()
+      temp_file.close()
       with self.create_pipeline() as p:
         assert_that(p | beam.io.ReadFromText(temp_file.name),
                     equal_to(['a', 'b', 'c']))
+    finally:
+      os.unlink(temp_file.name)
 
   def test_windowing(self):
     with self.create_pipeline() as p:
