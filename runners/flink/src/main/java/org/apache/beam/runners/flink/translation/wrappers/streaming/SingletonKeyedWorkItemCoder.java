@@ -81,7 +81,8 @@ public class SingletonKeyedWorkItemCoder<K, ElemT>
   }
 
   @Override
-  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream) throws CoderException, IOException {
+  public SingletonKeyedWorkItem<K, ElemT> decode(InputStream inStream)
+      throws CoderException, IOException {
     return decode(inStream, Context.NESTED);
   }
 
