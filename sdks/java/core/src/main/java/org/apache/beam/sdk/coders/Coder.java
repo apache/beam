@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
   @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes
@@ -134,6 +135,7 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     encode(value, outStream);
@@ -158,6 +160,7 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
   public T decode(InputStream inStream, Context context)
       throws CoderException, IOException {
     return decode(inStream);
