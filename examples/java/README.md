@@ -40,69 +40,9 @@ demonstrates some best practices for instrumenting your pipeline code.
 
 1. [`WindowedWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
 
-## Building and Running
+## Running Examples
 
-Change directory into `examples/java` and run the examples:
-
-    mvn compile exec:java \
-    -Dexec.mainClass=<MAIN CLASS> \
-    -Dexec.args="<EXAMPLE-SPECIFIC ARGUMENTS>"
-
-Alternatively, you may choose to bundle all dependencies into a single JAR and
-execute it outside of the Maven environment.
-
-### Direct Runner
-
-You can execute the `WordCount` pipeline on your local machine as follows:
-
-    mvn compile exec:java \
-    -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=<LOCAL INPUT FILE> --output=<LOCAL OUTPUT FILE>"
-
-To create the bundled JAR of the examples and execute it locally:
-
-    mvn package
-
-    java -cp examples/java/target/beam-examples-java-bundled-<VERSION>.jar \
-    org.apache.beam.examples.WordCount \
-    --inputFile=<INPUT FILE PATTERN> --output=<OUTPUT FILE>
-
-### Google Cloud Dataflow Runner
-
-After you have followed the general Cloud Dataflow
-[prerequisites and setup](https://beam.apache.org/documentation/runners/dataflow/), you can execute
-the pipeline on fully managed resources in Google Cloud Platform:
-
-    mvn compile exec:java \
-    -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--project=<YOUR CLOUD PLATFORM PROJECT ID> \
-    --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
-    --runner=DataflowRunner"
-
-Make sure to use your project id, not the project number or the descriptive name.
-The Google Cloud Storage location should be entered in the form of
-`gs://bucket/path/to/staging/directory`.
-
-To create the bundled JAR of the examples and execute it in Google Cloud Platform:
-
-    mvn package
-
-    java -cp examples/java/target/beam-examples-java-bundled-<VERSION>.jar \
-    org.apache.beam.examples.WordCount \
-    --project=<YOUR CLOUD PLATFORM PROJECT ID> \
-    --tempLocation=<YOUR CLOUD STORAGE LOCATION> \
-    --runner=DataflowRunner
-
-## Other Examples
-
-Other examples can be run similarly by replacing the `WordCount` class path with the example classpath, e.g.
-`org.apache.beam.examples.cookbook.CombinePerKeyExamples`,
-and adjusting runtime options under the `Dexec.args` parameter, as specified in
-the example itself.
-
-Note that when running Maven on Microsoft Windows platform, backslashes (`\`)
-under the `Dexec.args` parameter should be escaped with another backslash. For
-example, input file pattern of `c:\*.txt` should be entered as `c:\\*.txt`.
+See [Apache Beam WordCount Example](https://beam.apache.org/get-started/wordcount-example/) for information on running these examples.
 
 ## Beyond Word Count
 
