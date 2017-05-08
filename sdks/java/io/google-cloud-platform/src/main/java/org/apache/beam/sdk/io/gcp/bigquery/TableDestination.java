@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import java.io.Serializable;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Encapsulates a BigQuery table destination.
@@ -28,10 +29,11 @@ import java.util.Objects;
 public class TableDestination implements Serializable {
   private static final long serialVersionUID = 1L;
   private final String tableSpec;
+  @Nullable
   private final String tableDescription;
 
 
-  public TableDestination(String tableSpec, String tableDescription) {
+  public TableDestination(String tableSpec, @Nullable String tableDescription) {
     this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
   }
@@ -55,7 +57,11 @@ public class TableDestination implements Serializable {
 
   @Override
   public String toString() {
-    return "tableSpec: " + tableSpec + " tableDescription: " + tableDescription;
+    String toString = "tableSpec: " + tableSpec;
+    if (tableDescription != null) {
+      toString += " tableDescription: " + tableDescription;
+    }
+    return toString;
   }
 
   @Override

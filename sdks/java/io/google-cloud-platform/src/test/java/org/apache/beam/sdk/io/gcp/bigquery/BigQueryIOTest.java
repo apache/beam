@@ -595,6 +595,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
+        .withTableDescription(null)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
