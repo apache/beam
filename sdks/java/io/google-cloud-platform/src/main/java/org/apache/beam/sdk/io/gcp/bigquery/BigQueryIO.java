@@ -641,7 +641,6 @@ public class BigQueryIO {
   public static <T> Write<T> write() {
     return new AutoValue_BigQueryIO_Write.Builder<T>()
         .setValidate(true)
-        .setTableDescription("")
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
@@ -684,7 +683,7 @@ public class BigQueryIO {
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
     /** Table description. Default is empty. */
-    abstract String getTableDescription();
+    @Nullable abstract String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
@@ -1027,8 +1026,8 @@ public class BigQueryIO {
                   .withLabel("Table WriteDisposition"))
           .addIfNotDefault(DisplayData.item("validation", getValidate())
               .withLabel("Validation Enabled"), true)
-          .addIfNotDefault(DisplayData.item("tableDescription", getTableDescription())
-                  .withLabel("Table Description"), "");
+          .addIfNotNull(DisplayData.item("tableDescription", getTableDescription())
+                  .withLabel("Table Description"));
     }
 
     /**

@@ -22,13 +22,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /** A coder for {@link TableDestination} objects. */
 public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
-  private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+  private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
+  private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
 
   public static TableDestinationCoder of() {
     return INSTANCE;
@@ -40,19 +43,17 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    stringCoder.encode(value.getTableSpec(), outStream, context.nested());
-    stringCoder.encode(value.getTableDescription(), outStream, context.nested());
+    tableSpecCoder.encode(value.getTableSpec(), outStream, context.nested());
+    tableDescriptionCoder.encode(value.getTableDescription(), outStream, context);
   }
 
   @Override
   public TableDestination decode(InputStream inStream, Context context) throws IOException {
-    return new TableDestination(
-        stringCoder.decode(inStream, context.nested()),
-        stringCoder.decode(inStream, context.nested()));
+    String tableSpec = tableSpecCoder.decode(inStream, context.nested());
+    String tableDescription = tableDescriptionCoder.decode(inStream, context);
+    return new TableDestination(tableSpec, tableDescription);
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {
-    return;
-  }
+  public void verifyDeterministic() throws NonDeterministicException {}
 }
