@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.api.client.util.Base64;
+import com.google.common.io.BaseEncoding;
 import java.io.IOException;
 import org.apache.beam.sdk.util.SerializableUtils;
 
@@ -36,7 +36,7 @@ class MatcherDeserializer extends JsonDeserializer<SerializableMatcher<?>> {
       throws IOException, JsonProcessingException {
     ObjectNode node = jsonParser.readValueAsTree();
     String matcher = node.get("matcher").asText();
-    byte[] in = Base64.decodeBase64(matcher);
+    byte[] in = BaseEncoding.base64().decode(matcher);
     return (SerializableMatcher<?>) SerializableUtils
         .deserializeFromByteArray(in, "SerializableMatcher");
   }
