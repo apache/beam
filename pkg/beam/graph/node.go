@@ -2,6 +2,7 @@ package graph
 
 import (
 	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
@@ -11,8 +12,8 @@ import (
 // must be a complete windowed type, i.e., not include any type variables.
 type Node struct {
 	id int
-	// t is the type of underlying data. It must be equal to the coder type.
-	// A node type root would always be a WindowedValue.
+	// t is the type of underlying data and cannot change. It must be equal to
+	// the coder type. A node type root would always be a WindowedValue.
 	t typex.FullType
 
 	// Coder defines the data encoding. It can be changed, but must be of
