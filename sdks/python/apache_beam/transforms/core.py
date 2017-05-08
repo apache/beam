@@ -29,7 +29,8 @@ from apache_beam.coders import typecoders
 from apache_beam.internal import util
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import ptransform
-from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
@@ -130,6 +131,8 @@ class DoFn(WithTypeHints, HasDisplayData):
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
   WindowParam = 'WindowParam'
+
+  DoFnParams = [ElementParam, SideInputParam, TimestampParam, WindowParam]
 
   @staticmethod
   def from_callable(fn):
@@ -595,6 +598,10 @@ class ParDo(PTransformWithSideInputs):
 
     if not isinstance(self.fn, DoFn):
       raise TypeError('ParDo must be called with a DoFn instance.')
+
+    # Validate the DoFn by creating a DoFnSignature
+    from apache_beam.runners.common import DoFnSignature
+    DoFnSignature(self.fn)
 
   def default_type_hints(self):
     return self.fn.get_type_hints()
