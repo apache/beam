@@ -1542,8 +1542,8 @@
                   <include>**/*.pyc</include>
                   <include>**/*.egg-info/</include>
                   <include>**/sdks/python/LICENSE</include>
-                  <include>**/sdks/python/README.md</include>
                   <include>**/sdks/python/NOTICE</include>
+                  <include>**/sdks/python/README.md</include>
                 </includes>
                 <followSymlinks>false</followSymlinks>
               </fileset>
@@ -1680,8 +1680,8 @@
                   <directory>${basedir}</directory>
                   <includes>
                     <include>LICENSE</include>
-                    <include>README.md</include>
                     <include>NOTICE</include>
+                    <include>README.md</include>
                   </includes>
                 </resource>
               </resources>              
