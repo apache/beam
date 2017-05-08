@@ -49,8 +49,8 @@ class TimeDomain(object):
     raise ValueError('Unknown time domain: %s' % domain)
 
 
-class OutputTimeFnImpl(object):
-  """Implementation of OutputTimeFn."""
+class TimestampCombinerImpl(object):
+  """Implementation of TimestampCombiner."""
 
   __metaclass__ = ABCMeta
 
@@ -78,8 +78,8 @@ class OutputTimeFnImpl(object):
     return self.combine_all(merging_timestamps)
 
 
-class DependsOnlyOnWindow(OutputTimeFnImpl):
-  """OutputTimeFnImpl that only depends on the window."""
+class DependsOnlyOnWindow(TimestampCombinerImpl):
+  """TimestampCombinerImpl that only depends on the window."""
 
   __metaclass__ = ABCMeta
 
@@ -92,8 +92,8 @@ class DependsOnlyOnWindow(OutputTimeFnImpl):
     return self.assign_output_time(result_window, None)
 
 
-class OutputAtEarliestInputTimestampImpl(OutputTimeFnImpl):
-  """OutputTimeFnImpl outputting at earliest input timestamp."""
+class OutputAtEarliestInputTimestampImpl(TimestampCombinerImpl):
+  """TimestampCombinerImpl outputting at earliest input timestamp."""
 
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
@@ -103,8 +103,8 @@ class OutputAtEarliestInputTimestampImpl(OutputTimeFnImpl):
     return min(output_timestamp, other_output_timestamp)
 
 
-class OutputAtEarliestTransformedInputTimestampImpl(OutputTimeFnImpl):
-  """OutputTimeFnImpl outputting at earliest input timestamp."""
+class OutputAtEarliestTransformedInputTimestampImpl(TimestampCombinerImpl):
+  """TimestampCombinerImpl outputting at earliest input timestamp."""
 
   def __init__(self, window_fn):
     self.window_fn = window_fn
@@ -116,8 +116,8 @@ class OutputAtEarliestTransformedInputTimestampImpl(OutputTimeFnImpl):
     return min(output_timestamp, other_output_timestamp)
 
 
-class OutputAtLatestInputTimestampImpl(OutputTimeFnImpl):
-  """OutputTimeFnImpl outputting at latest input timestamp."""
+class OutputAtLatestInputTimestampImpl(TimestampCombinerImpl):
+  """TimestampCombinerImpl outputting at latest input timestamp."""
 
   def assign_output_time(self, window, input_timestamp):
     return input_timestamp
@@ -127,7 +127,7 @@ class OutputAtLatestInputTimestampImpl(OutputTimeFnImpl):
 
 
 class OutputAtEndOfWindowImpl(DependsOnlyOnWindow):
-  """OutputTimeFnImpl outputting at end of window."""
+  """TimestampCombinerImpl outputting at end of window."""
 
   def assign_output_time(self, window, unused_input_timestamp):
     return window.end

@@ -38,7 +38,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
@@ -271,7 +271,7 @@ class RunnerApiTest(unittest.TestCase):
         Windowing(FixedWindows(1, 3), AfterCount(6),
                   accumulation_mode=AccumulationMode.ACCUMULATING),
         Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
-                  output_time_fn=OutputTimeFn.OUTPUT_AT_LATEST,
+                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST,
                   accumulation_mode=AccumulationMode.DISCARDING)):
       context = pipeline_context.PipelineContext()
       self.assertEqual(
