@@ -33,7 +33,7 @@ from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import GlobalWindows
@@ -1172,7 +1172,7 @@ class Partition(PTransformWithSideInputs):
 class Windowing(object):
 
   def __init__(self, windowfn, triggerfn=None, accumulation_mode=None,
-               output_time_fn=None):
+               timestamp_combiner=None):
     global AccumulationMode, DefaultTrigger  # pylint: disable=global-variable-not-assigned
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import AccumulationMode, DefaultTrigger
@@ -1192,17 +1192,18 @@ class Windowing(object):
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
-    self.output_time_fn = output_time_fn or OutputTimeFn.OUTPUT_AT_EOW
+    self.timestamp_combiner = (
+        timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
         self.windowfn == GlobalWindows() and
         self.triggerfn == DefaultTrigger() and
         self.accumulation_mode == AccumulationMode.DISCARDING and
-        self.output_time_fn == OutputTimeFn.OUTPUT_AT_EOW)
+        self.timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW)
 
   def __repr__(self):
     return "Windowing(%s, %s, %s, %s)" % (self.windowfn, self.triggerfn,
                                           self.accumulation_mode,
-                                          self.output_time_fn)
+                                          self.timestamp_combiner)
 
   def __eq__(self, other):
     if type(self) == type(other):
@@ -1212,7 +1213,7 @@ class Windowing(object):
           self.windowfn == other.windowfn
           and self.triggerfn == other.triggerfn
           and self.accumulation_mode == other.accumulation_mode
-          and self.output_time_fn == other.output_time_fn)
+          and self.timestamp_combiner == other.timestamp_combiner)
     return False
 
   def is_default(self):
@@ -1229,7 +1230,7 @@ class Windowing(object):
             self.windowfn.get_window_coder()),
         trigger=self.triggerfn.to_runner_api(context),
         accumulation_mode=self.accumulation_mode,
-        output_time=self.output_time_fn,
+        output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
         closing_behavior=beam_runner_api_pb2.EMIT_ALWAYS,
         allowed_lateness=0)
@@ -1242,7 +1243,7 @@ class Windowing(object):
         windowfn=WindowFn.from_runner_api(proto.window_fn, context),
         triggerfn=TriggerFn.from_runner_api(proto.trigger, context),
         accumulation_mode=proto.accumulation_mode,
-        output_time_fn=proto.output_time)
+        timestamp_combiner=proto.output_time)
 
 
 @typehints.with_input_types(T)
@@ -1275,9 +1276,9 @@ class WindowInto(ParDo):
     """
     triggerfn = kwargs.pop('trigger', None)
     accumulation_mode = kwargs.pop('accumulation_mode', None)
-    output_time_fn = kwargs.pop('output_time_fn', None)
+    timestamp_combiner = kwargs.pop('timestamp_combiner', None)
     self.windowing = Windowing(windowfn, triggerfn, accumulation_mode,
-                               output_time_fn)
+                               timestamp_combiner)
     super(WindowInto, self).__init__(self.WindowIntoFn(self.windowing))
 
   def get_windowing(self, unused_inputs):
@@ -1307,7 +1308,7 @@ class WindowInto(ParDo):
         windowing.windowfn,
         trigger=windowing.triggerfn,
         accumulation_mode=windowing.accumulation_mode,
-        output_time_fn=windowing.output_time_fn)
+        timestamp_combiner=windowing.timestamp_combiner)
 
 
 PTransform.register_urn(
