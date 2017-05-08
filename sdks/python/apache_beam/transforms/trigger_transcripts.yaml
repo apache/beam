@@ -29,7 +29,7 @@ transcript:                       # Ordered list of events.
 name: fixed_default_late_data
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EOW
+timestamp_combiner: OUTPUT_AT_EOW
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -42,10 +42,10 @@ transcript:
       - {window: [0, 9], values: [1, 2, 3, 7], timestamp: 10, late: true}
 
 ---
-name: output_time_fn_earliest
+name: timestamp_combiner_earliest
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EARLIEST
+timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -55,10 +55,10 @@ transcript:
       - {window: [20, 29], values: [25], timestamp: 25, late: false}
 
 ---
-name: output_time_fn_latest
+name: timestamp_combiner_latest
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_LATEST
+timestamp_combiner: OUTPUT_AT_LATEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -69,10 +69,10 @@ transcript:
 
 ---
 # Test that custom timestamping is not invoked.
-name: output_time_fn_custom_timestamping_eow
+name: timestamp_combiner_custom_timestamping_eow
 window_fn: CustomTimestampingFixedWindowsWindowFn(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EOW
+timestamp_combiner: OUTPUT_AT_EOW
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -83,10 +83,10 @@ transcript:
 
 ---
 # Test that custom timestamping is not invoked.
-name: output_time_fn_custom_timestamping_earliest
+name: timestamp_combiner_custom_timestamping_earliest
 window_fn: CustomTimestampingFixedWindowsWindowFn(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EARLIEST
+timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -97,10 +97,10 @@ transcript:
 
 ---
 # Test that custom timestamping is in fact invoked.
-name: output_time_fn_custom_timestamping_earliest
+name: timestamp_combiner_custom_timestamping_earliest
 window_fn: CustomTimestampingFixedWindowsWindowFn(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EARLIEST_TRANSFORMED
+timestamp_combiner: OUTPUT_AT_EARLIEST_TRANSFORMED
 transcript:
   - input: [1, 2, 3, 10, 11, 25]
   - watermark: 100
@@ -113,7 +113,7 @@ transcript:
 name: early_late_sessions
 window_fn: Sessions(10)
 trigger_fn: AfterWatermark(early=AfterCount(2), late=AfterCount(3))
-output_time_fn: OUTPUT_AT_EOW
+timestamp_combiner: OUTPUT_AT_EOW
 transcript:
     - input: [1, 2, 3]
     - expect:
@@ -136,7 +136,7 @@ transcript:
 name: garbage_collection
 window_fn: FixedWindows(10)
 trigger_fn: AfterCount(2)
-output_time_fn: OUTPUT_AT_EOW
+timestamp_combiner: OUTPUT_AT_EOW
 allowed_lateness: 10
 accumulation_mode: discarding
 transcript:
@@ -153,7 +153,7 @@ transcript:
 name: known_late_data_watermark
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EARLIEST
+timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - watermark: 5
   - input: [2, 3, 7, 8]
@@ -165,7 +165,7 @@ transcript:
 name: known_late_data_no_watermark_hold_possible
 window_fn: FixedWindows(10)
 trigger_fn: Default
-output_time_fn: OUTPUT_AT_EARLIEST
+timestamp_combiner: OUTPUT_AT_EARLIEST
 transcript:
   - watermark: 8
   - input: [2, 3, 7]
