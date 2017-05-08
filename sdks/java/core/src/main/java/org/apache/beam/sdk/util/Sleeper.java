@@ -25,7 +25,7 @@ package org.apache.beam.sdk.util;
  * The default implementation can be accessed at {@link #DEFAULT}. Primarily used for testing.
  * </p>
  *
- * <p><b>Note</b>: This interface is copied from google api client library to avoid its dependency.
+ * <p><b>Note</b>: This interface is copied from Google API client library to avoid its dependency.
  */
 public interface Sleeper {
 

@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * Utilities for {@link BackOff}.
  *
- * <p><b>Note</b>: This is copied from google api client library to avoid its dependency.
+ * <p><b>Note</b>: This is copied from Google API client library to avoid its dependency.
  */
 public final class BackOffUtils {
 

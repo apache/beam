@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 
 /**
- * An adapter for converting between Beam and Google api client representation of backoff utilities.
+ * An adapter for converting between Apache Beam and Google API client representations of backoffs.
  */
 public class BackOffAdapter {
   /**

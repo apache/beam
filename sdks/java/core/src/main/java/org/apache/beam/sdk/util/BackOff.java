@@ -22,7 +22,7 @@ import java.io.IOException;
 /**
  * Back-off policy when retrying an operation.
  *
- * <p><b>Note</b>: This interface is copied from google api client library to avoid its dependency.
+ * <p><b>Note</b>: This interface is copied from Google API client library to avoid its dependency.
  */
 public interface BackOff {
 

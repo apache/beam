@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-
 import org.apache.beam.sdk.util.Sleeper;
 
 /**
