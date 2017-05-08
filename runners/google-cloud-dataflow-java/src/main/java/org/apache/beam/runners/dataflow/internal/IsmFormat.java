@@ -622,32 +622,20 @@ public class IsmFormat {
     @Override
     public void encode(IsmShard value, OutputStream outStream)
         throws CoderException, IOException {
-      encode(value, outStream, Coder.Context.NESTED);
-    }
-
-    @Override
-    public void encode(IsmShard value, OutputStream outStream, Coder.Context context)
-        throws CoderException, IOException {
       checkState(value.getIndexOffset() >= 0,
           "%s attempting to be written without index offset.",
           value);
       VarIntCoder.of().encode(value.getId(), outStream);
       VarLongCoder.of().encode(value.getBlockOffset(), outStream);
-      VarLongCoder.of().encode(value.getIndexOffset(), outStream, context);
+      VarLongCoder.of().encode(value.getIndexOffset(), outStream);
     }
 
     @Override
     public IsmShard decode(InputStream inStream) throws CoderException, IOException {
-      return decode(inStream, Coder.Context.NESTED);
-    }
-
-    @Override
-    public IsmShard decode(
-        InputStream inStream, Coder.Context context) throws CoderException, IOException {
       return IsmShard.of(
           VarIntCoder.of().decode(inStream),
           VarLongCoder.of().decode(inStream),
-          VarLongCoder.of().decode(inStream, context));
+          VarLongCoder.of().decode(inStream));
     }
 
     @Override

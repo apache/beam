@@ -526,11 +526,11 @@ public class DirectRunnerTest implements Serializable {
   private static class LongNoDecodeCoder extends AtomicCoder<Long> {
     @Override
     public void encode(
-        Long value, OutputStream outStream, Context context) throws IOException {
+        Long value, OutputStream outStream) throws IOException {
     }
 
     @Override
-    public Long decode(InputStream inStream, Context context) throws IOException {
+    public Long decode(InputStream inStream) throws IOException {
       throw new CoderException("Cannot decode a long");
     }
   }
