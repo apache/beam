@@ -63,6 +63,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages watermarks of {@link PCollection PCollections} and input and output watermarks of
@@ -127,6 +129,7 @@ import org.joda.time.Instant;
  * </pre>
  */
 class WatermarkManager {
+  private static final Logger LOG = LoggerFactory.getLogger(WatermarkManager.class);
   // The number of updates to apply in #tryApplyPendingUpdates
   private static final int MAX_INCREMENTAL_UPDATES = 10;
 
@@ -546,6 +549,7 @@ class WatermarkManager {
       }
 
       for (TimerData completedTimer : update.completedTimers) {
+        LOG.info("removing a timer");
         pendingTimers.remove(completedTimer);
       }
       for (TimerData deletedTimer : update.deletedTimers) {

@@ -31,6 +31,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation detail of {@link TextIO.Read}.
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.options.ValueProvider;
  */
 @VisibleForTesting
 class TextSource extends FileBasedSource<String> {
+  private static final Logger LOG = LoggerFactory.getLogger(TextSource.class);
   TextSource(ValueProvider<String> fileSpec) {
     super(fileSpec, 1L);
   }
@@ -124,6 +127,7 @@ class TextSource extends FileBasedSource<String> {
 
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
+      LOG.info("Starting reading");
       this.inChannel = channel;
       // If the first offset is greater than zero, we need to skip bytes until we see our
       // first separator.
@@ -139,6 +143,7 @@ class TextSource extends FileBasedSource<String> {
         endOfSeparatorInBuffer = 0;
         startOfSeparatorInBuffer = 0;
       }
+      LOG.info("Done with startReading");
     }
 
     /**
@@ -189,6 +194,7 @@ class TextSource extends FileBasedSource<String> {
 
     @Override
     protected boolean readNextRecord() throws IOException {
+      LOG.info("RNR");
       startOfRecord = startOfNextRecord;
       findSeparatorBounds();
 
@@ -196,11 +202,13 @@ class TextSource extends FileBasedSource<String> {
       // that there are no more records.
       if (eof && buffer.size() == 0) {
         elementIsPresent = false;
+        LOG.info("DONE RNR");
         return false;
       }
 
       decodeCurrentElement();
       startOfNextRecord = startOfRecord + endOfSeparatorInBuffer;
+      LOG.info("DONE RNR");
       return true;
     }
 

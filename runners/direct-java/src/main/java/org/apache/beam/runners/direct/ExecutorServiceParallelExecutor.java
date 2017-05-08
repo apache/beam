@@ -28,6 +28,8 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -132,7 +134,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
-    this.executorService = Executors.newFixedThreadPool(targetParallelism);
+    this.executorService = Executors
+        .newFixedThreadPool(targetParallelism, new ThreadFactoryBuilder()
+            .setThreadFactory(MoreExecutors.platformThreadFactory())
+            .setDaemon(true)
+            .setNameFormat("direct-executor-service-parallel-executor")
+            .build());
     this.graph = graph;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
