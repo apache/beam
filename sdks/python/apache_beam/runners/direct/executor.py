@@ -308,7 +308,6 @@ class TransformExecutor(ExecutorService.CallableTask):
       self._completion_callback.handle_result(self._input_bundle, result)
       return result
     except Exception as e:  # pylint: disable=broad-except
-      logging.warning('Task failed: %s', traceback.format_exc(), exc_info=True)
       self._completion_callback.handle_exception(e)
     finally:
       self._evaluation_context.metrics().commit_physical(
