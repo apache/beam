@@ -95,17 +95,20 @@ class DoFnSignature(object):
     self._validate()
 
   def _validate(self):
+    self._validate_process()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
 
-  def _validate_bundle_method(self, method_wrapper):
-    # Here we use the fact that every DoFn parameter defined in core.DoFn has
-    # the value that is the same as the name of the parameter and ends with
-    # string 'Param'.
-    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if
-                               i.endswith('Param')]
+  def _validate_process(self):
+    """Validate that none of the DoFnParameters are repeated in the function
+    """
+    for param in core.DoFn.DoFnParams:
+      assert self.process_method.defaults.count(param) <= 1
 
-    for param in unsupported_dofn_params:
+  def _validate_bundle_method(self, method_wrapper):
+    """Validate that none of the DoFnParameters are used in the function
+    """
+    for param in core.DoFn.DoFnParams:
       assert param not in method_wrapper.defaults
 
 
@@ -156,18 +159,14 @@ class DoFnInvoker(object):
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
-    args_for_start_bundle = self.signature.start_bundle_method.defaults
     self.output_processor.start_bundle_outputs(
-        self.signature.start_bundle_method.method_value(
-            *args_for_start_bundle))
+        self.signature.start_bundle_method.method_value())
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
     """
-    args_for_finish_bundle = self.signature.finish_bundle_method.defaults
     self.output_processor.finish_bundle_outputs(
-        self.signature.finish_bundle_method.method_value(
-            *args_for_finish_bundle))
+        self.signature.finish_bundle_method.method_value())
 
 
 class SimpleInvoker(DoFnInvoker):
