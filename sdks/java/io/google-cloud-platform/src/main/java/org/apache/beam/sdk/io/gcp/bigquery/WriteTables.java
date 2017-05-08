@@ -35,7 +35,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -149,11 +148,11 @@ class WriteTables<DestinationT>
 
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
-    for (int i = 0; i < Write.MAX_RETRY_JOBS; ++i) {
+    for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
       JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
       jobService.startLoadJob(jobRef, loadConfig);
-      Job loadJob = jobService.pollJob(jobRef, Write.LOAD_JOB_POLL_MAX_RETRIES);
+      Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:
@@ -181,7 +180,7 @@ class WriteTables<DestinationT>
             "Failed to create load job with id prefix %s, "
                 + "reached max retries: %d, last failed load job: %s.",
             jobIdPrefix,
-            Write.MAX_RETRY_JOBS,
+            BatchLoads.MAX_RETRY_JOBS,
             BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
   }
 
