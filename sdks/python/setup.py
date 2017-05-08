@@ -124,7 +124,7 @@ setuptools.setup(
     package_data={'apache_beam': [
         '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'tests/data/*']},
     ext_modules=cythonize([
-        '**/*.pyx',
+        'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
         'apache_beam/metrics/execution.py',
         'apache_beam/runners/common.py',
