@@ -231,7 +231,8 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(IsmRecord<V> value, OutputStream outStream) throws CoderException, IOException {
+    public void encode(IsmRecord<V> value, OutputStream outStream)
+        throws CoderException, IOException {
       if (value.getKeyComponents().size() != keyComponentCoders.size()) {
         throw new CoderException(String.format(
             "Expected %s key component(s) but received key component(s) %s.",

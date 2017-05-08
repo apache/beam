@@ -1358,7 +1358,8 @@ class BatchViewOverrides {
     }
 
     @Override
-    public TransformedMap<K, V1, V2> decode(InputStream inStream) throws CoderException, IOException {
+    public TransformedMap<K, V1, V2> decode(InputStream inStream)
+        throws CoderException, IOException {
       return new TransformedMap<>(
           transformCoder.decode(inStream),
           originalMapCoder.decode(inStream));
