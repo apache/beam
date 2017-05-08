@@ -223,7 +223,7 @@ def _fn_takes_side_inputs(fn):
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
 
-class CallableWrapperDoFn(DoFn):
+class CallableWrapperDoFn(NewDoFn):
   """A DoFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
