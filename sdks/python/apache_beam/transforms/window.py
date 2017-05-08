@@ -67,7 +67,7 @@ from apache_beam.utils import urns
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
 # behavior.
-class OutputTimeFn(object):
+class TimestampCombiner(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
   OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
@@ -77,17 +77,17 @@ class OutputTimeFn(object):
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 
   @staticmethod
-  def get_impl(output_time_fn, window_fn):
-    if output_time_fn == OutputTimeFn.OUTPUT_AT_EOW:
+  def get_impl(timestamp_combiner, window_fn):
+    if timestamp_combiner == TimestampCombiner.OUTPUT_AT_EOW:
       return timeutil.OutputAtEndOfWindowImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST:
       return timeutil.OutputAtEarliestInputTimestampImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_LATEST:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_LATEST:
       return timeutil.OutputAtLatestInputTimestampImpl()
-    elif output_time_fn == OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED:
+    elif timestamp_combiner == TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED:
       return timeutil.OutputAtEarliestTransformedInputTimestampImpl(window_fn)
     else:
-      raise ValueError('Invalid OutputTimeFn: %s.' % output_time_fn)
+      raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
 class WindowFn(urns.RunnerApiFn):
@@ -132,10 +132,10 @@ class WindowFn(urns.RunnerApiFn):
   def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
 
-    If OutputTimeFn.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the Windowing,
-    the output timestamp for the given window will be the earliest of the
-    timestamps returned by get_transformed_output_time() for elements of the
-    window.
+    If TimestampCombiner.OUTPUT_AT_EARLIEST_TRANSFORMED is used in the
+    Windowing, the output timestamp for the given window will be the earliest
+    of the timestamps returned by get_transformed_output_time() for elements
+    of the window.
 
     Arguments:
       window: Output window of element.

@@ -44,7 +44,7 @@ from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import MIN_TIMESTAMP
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
@@ -522,11 +522,12 @@ class TranscriptTest(unittest.TestCase):
     trigger_fn = parse_fn(spec.get('trigger_fn', 'Default'), trigger_names)
     accumulation_mode = getattr(
         AccumulationMode, spec.get('accumulation_mode', 'ACCUMULATING').upper())
-    output_time_fn = getattr(
-        OutputTimeFn, spec.get('output_time_fn', 'OUTPUT_AT_EOW').upper())
+    timestamp_combiner = getattr(
+        TimestampCombiner,
+        spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, output_time_fn))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP

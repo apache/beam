@@ -32,7 +32,7 @@ from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.window import GlobalWindow
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.runners.api import beam_runner_api_pb2
@@ -100,17 +100,17 @@ class ListStateTag(StateTag):
 
 class WatermarkHoldStateTag(StateTag):
 
-  def __init__(self, tag, output_time_fn_impl):
+  def __init__(self, tag, timestamp_combiner_impl):
     super(WatermarkHoldStateTag, self).__init__(tag)
-    self.output_time_fn_impl = output_time_fn_impl
+    self.timestamp_combiner_impl = timestamp_combiner_impl
 
   def __repr__(self):
     return 'WatermarkHoldStateTag(%s, %s)' % (self.tag,
-                                              self.output_time_fn_impl)
+                                              self.timestamp_combiner_impl)
 
   def with_prefix(self, prefix):
     return WatermarkHoldStateTag(prefix + self.tag,
-                                 self.output_time_fn_impl)
+                                 self.timestamp_combiner_impl)
 
 
 # pylint: disable=unused-argument
@@ -750,7 +750,7 @@ class MergeableStateAdapter(SimpleState):
     elif isinstance(tag, ListStateTag):
       return [v for vs in values for v in vs]
     elif isinstance(tag, WatermarkHoldStateTag):
-      return tag.output_time_fn_impl.combine_all(values)
+      return tag.timestamp_combiner_impl.combine_all(values)
     else:
       raise ValueError('Invalid tag.', tag)
 
@@ -909,11 +909,11 @@ class GeneralTriggerDriver(TriggerDriver):
 
   def __init__(self, windowing):
     self.window_fn = windowing.windowfn
-    self.output_time_fn_impl = OutputTimeFn.get_impl(windowing.output_time_fn,
-                                                     self.window_fn)
+    self.timestamp_combiner_impl = TimestampCombiner.get_impl(
+        windowing.timestamp_combiner, self.window_fn)
     # pylint: disable=invalid-name
-    self.WATERMARK_HOLD = WatermarkHoldStateTag('watermark',
-                                                self.output_time_fn_impl)
+    self.WATERMARK_HOLD = WatermarkHoldStateTag(
+        'watermark', self.timestamp_combiner_impl)
     # pylint: enable=invalid-name
     self.trigger_fn = windowing.triggerfn
     self.accumulation_mode = windowing.accumulation_mode
@@ -965,10 +965,10 @@ class GeneralTriggerDriver(TriggerDriver):
         continue
       # Add watermark hold.
       # TODO(ccy): Add late data and garbage-collection hold support.
-      output_time = self.output_time_fn_impl.merge(
+      output_time = self.timestamp_combiner_impl.merge(
           window,
           (element_output_time for element_output_time in
-           (self.output_time_fn_impl.assign_output_time(window, timestamp)
+           (self.timestamp_combiner_impl.assign_output_time(window, timestamp)
             for unused_value, timestamp in elements)
            if element_output_time >= output_watermark))
       if output_time is not None:
@@ -1075,7 +1075,7 @@ class InMemoryUnmergedState(UnmergedState):
     elif isinstance(tag, ListStateTag):
       return values
     elif isinstance(tag, WatermarkHoldStateTag):
-      return tag.output_time_fn_impl.combine_all(values)
+      return tag.timestamp_combiner_impl.combine_all(values)
     else:
       raise ValueError('Invalid tag.', tag)
 
