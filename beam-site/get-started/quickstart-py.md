@@ -94,7 +94,7 @@ For example, to run `wordcount.py`, run:
 
 {:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount --input README.md --output counts
+python -m apache_beam.examples.wordcount --input MANIFEST.in --output counts
 ```
 
 {:.runner-dataflow}
