@@ -84,13 +84,10 @@ import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.fs.PathValidator;
-import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -98,7 +95,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -343,10 +339,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.stateOrTimerParDoSingle(),
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
 
-          // WriteFiles uses views internally
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(WriteFiles.class), new BatchWriteFactory(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
@@ -803,58 +795,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   void recordViewUsesNonDeterministicKeyCoder(PTransform<?, ?> ptransform) {
     ptransformViewsWithNonDeterministicKeyCoders.add(ptransform);
-  }
-
-  private class BatchWriteFactory<T>
-      implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
-    private final DataflowRunner runner;
-    private BatchWriteFactory(DataflowRunner dataflowRunner) {
-      this.runner = dataflowRunner;
-    }
-
-    @Override
-    public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<T>, PDone, WriteFiles<T>> transform) {
-      return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform),
-          new BatchWrite<>(runner, transform.getTransform()));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
-      return Collections.emptyMap();
-    }
-  }
-
-  /**
-   * Specialized implementation which overrides
-   * {@link WriteFiles WriteFiles} to provide Google
-   * Cloud Dataflow specific path validation of {@link FileBasedSink}s.
-   */
-  private static class BatchWrite<T> extends PTransform<PCollection<T>, PDone> {
-    private final DataflowRunner runner;
-    private final WriteFiles<T> transform;
-    /**
-     * Builds an instance of this class from the overridden transform.
-     */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchWrite(DataflowRunner runner, WriteFiles<T> transform) {
-      this.runner = runner;
-      this.transform = transform;
-    }
-
-    @Override
-    public PDone expand(PCollection<T> input) {
-      ValueProvider<ResourceId> outputDirectory =
-          transform.getSink().getBaseOutputDirectoryProvider();
-      if (outputDirectory.isAccessible()) {
-        PathValidator validator = runner.options.getPathValidator();
-        validator.validateOutputResourceSupported(
-            outputDirectory.get().resolve("some-file", StandardResolveOptions.RESOLVE_FILE));
-      }
-      return transform.expand(input);
-    }
   }
 
   // ================================================================================
