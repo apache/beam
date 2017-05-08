@@ -949,34 +949,22 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     @Override
     public void encode(FileResult value, OutputStream outStream)
         throws IOException {
-      encode(value, outStream, Context.NESTED);
-    }
-
-    @Override
-    public void encode(FileResult value, OutputStream outStream, Context context)
-        throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
       stringCoder.encode(value.getFilename().toString(), outStream);
       if (value.getDestinationFilename() == null) {
-        stringCoder.encode(null, outStream, context);
+        stringCoder.encode(null, outStream);
       } else {
-        stringCoder.encode(value.getDestinationFilename().toString(), outStream, context);
+        stringCoder.encode(value.getDestinationFilename().toString(), outStream);
       }
     }
 
     @Override
     public FileResult decode(InputStream inStream) throws IOException {
-      return decode(inStream, Context.NESTED);
-    }
-
-    @Override
-    public FileResult decode(InputStream inStream, Context context)
-        throws IOException {
       String filename = stringCoder.decode(inStream);
       assert filename != null;  // fixes a compiler warning
-      @Nullable String destinationFilename = stringCoder.decode(inStream, context);
+      @Nullable String destinationFilename = stringCoder.decode(inStream);
       return new FileResult(
           FileSystems.matchNewResource(filename, false /* isDirectory */),
           destinationFilename == null

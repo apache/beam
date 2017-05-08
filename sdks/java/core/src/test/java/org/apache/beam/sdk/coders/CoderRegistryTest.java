@@ -439,8 +439,10 @@ public class CoderRegistryTest {
   private static class AutoRegistrationClassCoder extends CustomCoder<AutoRegistrationClass> {
     private static final AutoRegistrationClassCoder INSTANCE = new AutoRegistrationClassCoder();
 
+    @Override
     public void encode(AutoRegistrationClass value, OutputStream outStream) {}
 
+    @Override
     public AutoRegistrationClass decode(InputStream inStream) {
       return null;
     }
