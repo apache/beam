@@ -25,6 +25,7 @@ from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import core
+from apache_beam.transforms.dofn_signature import DoFnSignature
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.transforms.window import GlobalWindow
@@ -49,64 +50,6 @@ class Receiver(object):
 
   def receive(self, windowed_value):
     raise NotImplementedError
-
-
-class DoFnMethodWrapper(object):
-  """Represents a method of a DoFn object."""
-
-  def __init__(self, do_fn, method_name):
-    """
-    Initiates a ``DoFnMethodWrapper``.
-
-    Args:
-      do_fn: A DoFn object that contains the method.
-      method_name: name of the method as a string.
-    """
-
-    args, _, _, defaults = do_fn.get_function_arguments(method_name)
-    defaults = defaults if defaults else []
-    method_value = getattr(do_fn, method_name)
-    self.method_value = method_value
-    self.args = args
-    self.defaults = defaults
-
-
-class DoFnSignature(object):
-  """Represents the signature of a given ``DoFn`` object.
-
-  Signature of a ``DoFn`` provides a view of the properties of a given ``DoFn``.
-  Among other things, this will give an extensible way for for (1) accessing the
-  structure of the ``DoFn`` including methods and method parameters
-  (2) identifying features that a given ``DoFn`` support, for example, whether
-  a given ``DoFn`` is a Splittable ``DoFn`` (
-  https://s.apache.org/splittable-do-fn) (3) validating a ``DoFn`` based on the
-  feature set offered by it.
-  """
-
-  def __init__(self, do_fn):
-    # We add a property here for all methods defined by Beam DoFn features.
-
-    assert isinstance(do_fn, core.DoFn)
-    self.do_fn = do_fn
-
-    self.process_method = DoFnMethodWrapper(do_fn, 'process')
-    self.start_bundle_method = DoFnMethodWrapper(do_fn, 'start_bundle')
-    self.finish_bundle_method = DoFnMethodWrapper(do_fn, 'finish_bundle')
-    self._validate()
-
-  def _validate(self):
-    self._validate_bundle_method(self.start_bundle_method)
-    self._validate_bundle_method(self.finish_bundle_method)
-
-  def _validate_bundle_method(self, method_wrapper):
-    # Here we use the fact that every DoFn parameter defined in core.DoFn has
-    # the value that is the same as the name of the parameter and ends with
-    # string 'Param'.
-    unsupported_dofn_params = [i for i in core.DoFn.__dict__ if
-                               i.endswith('Param')]
-
-    for param in unsupported_dofn_params:
-      assert param not in method_wrapper.defaults
 
 
 class DoFnInvoker(object):
@@ -156,18 +99,14 @@ class DoFnInvoker(object):
   def invoke_start_bundle(self):
     """Invokes the DoFn.start_bundle() method.
     """
-    args_for_start_bundle = self.signature.start_bundle_method.defaults
     self.output_processor.start_bundle_outputs(
-        self.signature.start_bundle_method.method_value(
-            *args_for_start_bundle))
+        self.signature.start_bundle_method.method_value())
 
   def invoke_finish_bundle(self):
     """Invokes the DoFn.finish_bundle() method.
     """
-    args_for_finish_bundle = self.signature.finish_bundle_method.defaults
     self.output_processor.finish_bundle_outputs(
-        self.signature.finish_bundle_method.method_value(
-            *args_for_finish_bundle))
+        self.signature.finish_bundle_method.method_value())
 
 
 class SimpleInvoker(DoFnInvoker):
