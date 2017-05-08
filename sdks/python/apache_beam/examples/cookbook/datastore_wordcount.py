@@ -108,7 +108,7 @@ class WordExtractingDoFn(beam.DoFn):
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
       self.word_length_counter.inc(len(w))
-      self.word_len_dis.update(len(w))
+      self.word_lengths_dist.update(len(w))
       self.word_counter.inc()
     return words
 
