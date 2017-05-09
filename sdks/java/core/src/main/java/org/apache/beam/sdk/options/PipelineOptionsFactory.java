@@ -541,7 +541,11 @@ public class PipelineOptionsFactory {
     if (REGISTERED_OPTIONS.contains(iface)) {
       return;
     }
-    validateWellFormed(iface, REGISTERED_OPTIONS);
+    try {
+      validateWellFormed(iface, REGISTERED_OPTIONS);
+    } catch (Throwable t) {
+      throw new RuntimeException("Error registering PipelineOptions interface " + iface, t);
+    }
     REGISTERED_OPTIONS.add(iface);
   }
 
