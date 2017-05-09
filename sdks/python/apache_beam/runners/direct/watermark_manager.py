@@ -23,8 +23,8 @@ import threading
 
 from apache_beam import pipeline
 from apache_beam import pvalue
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 class WatermarkManager(object):
