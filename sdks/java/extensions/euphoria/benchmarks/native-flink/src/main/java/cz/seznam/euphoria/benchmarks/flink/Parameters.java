@@ -85,8 +85,8 @@ class Parameters {
                                             .build()
                                       : null)
                               .rocksDbCheckpoint(
-                                  cfg.hasPath("stream.rocksdb-checkpoint-uri")
-                                      ? URI.create(cfg.getString("stream.rocksdb-checkpoint-uri"))
+                                  cfg.hasPath("stream.rocksdb-checkpoint")
+                                      ? URI.create(cfg.getString("stream.rocksdb-checkpoint"))
                                       : null)
                               .allowedLateness(cfgDuration(cfg, "stream.watermark-interval"))
                               .watermarkInterval(cfgDuration(cfg, "stream.watermark-interval"))
