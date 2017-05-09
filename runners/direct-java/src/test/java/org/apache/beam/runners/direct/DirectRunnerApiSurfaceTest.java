@@ -23,7 +23,12 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ApiSurface;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,9 +48,17 @@ public class DirectRunnerApiSurfaceTest {
     final ClassLoader thisClassLoader = getClass().getClassLoader();
     ApiSurface apiSurface =
         ApiSurface.ofPackage(thisPackage, thisClassLoader)
+            // Do not include dependencies that are required based on the known exposures. This
+            // could alternatively prune everything exposed by the public parts of the Core SDK
+            .pruningClass(Pipeline.class)
+            .pruningClass(PipelineRunner.class)
+            .pruningClass(PipelineOptions.class)
+            .pruningClass(PipelineOptionsRegistrar.class)
+            .pruningClass(PipelineOptions.DirectRunner.class)
+            .pruningClass(DisplayData.Builder.class)
+            .pruningClass(MetricResults.class)
             .pruningPattern("org[.]apache[.]beam[.].*Test.*")
             .pruningPattern("org[.]apache[.]beam[.].*IT")
-            .pruningClass(Nullable.class)
             .pruningPattern("java[.]io.*")
             .pruningPattern("java[.]lang.*")
             .pruningPattern("java[.]util.*");
