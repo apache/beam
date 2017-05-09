@@ -63,8 +63,7 @@ class ShardedKeyCoder<KeyT>
   public ShardedKey<KeyT> decode(InputStream inStream, Context context)
       throws IOException {
     return new ShardedKey<>(
-        keyCoder.decode(inStream, context.nested()),
-        shardNumberCoder.decode(inStream, context));
+        keyCoder.decode(inStream, context.nested()), shardNumberCoder.decode(inStream, context));
   }
 
   @Override

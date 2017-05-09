@@ -658,21 +658,6 @@ public class BigQueryIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, WriteResult> {
-    @VisibleForTesting
-    // Maximum number of files in a single partition.
-    static final int MAX_NUM_FILES = 10000;
-
-    @VisibleForTesting
-    // Maximum number of bytes in a single partition -- 11 TiB just under BQ's 12 TiB limit.
-    static final long MAX_SIZE_BYTES = 11 * (1L << 40);
-
-    // The maximum number of retry jobs.
-    static final int MAX_RETRY_JOBS = 3;
-
-    // The maximum number of retries to poll the status of a job.
-    // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
-    static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
-
     @Nullable abstract ValueProvider<String> getJsonTableRef();
     @Nullable abstract SerializableFunction<ValueInSingleWindow<T>, TableDestination>
       getTableFunction();
@@ -687,6 +672,8 @@ public class BigQueryIO {
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
     abstract BigQueryServices getBigQueryServices();
+    @Nullable abstract Integer getMaxFilesPerBundle();
+    @Nullable abstract Long getMaxFileSize();
 
     abstract Builder<T> toBuilder();
 
@@ -704,6 +691,8 @@ public class BigQueryIO {
       abstract Builder<T> setTableDescription(String tableDescription);
       abstract Builder<T> setValidate(boolean validate);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setMaxFilesPerBundle(Integer maxFilesPerBundle);
+      abstract Builder<T> setMaxFileSize(Long maxFileSize);
 
       abstract Write<T> build();
     }
@@ -882,6 +871,16 @@ public class BigQueryIO {
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
+    @VisibleForTesting
+    Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+      return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
+    }
+
+    @VisibleForTesting
+    Write<T> withMaxFileSize(long maxFileSize) {
+      return toBuilder().setMaxFileSize(maxFileSize).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -993,6 +992,12 @@ public class BigQueryIO {
             dynamicDestinations,
             destinationCoder);
         batchLoads.setTestServices(getBigQueryServices());
+        if (getMaxFilesPerBundle() != null) {
+          batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
+        }
+        if (getMaxFileSize() != null) {
+          batchLoads.setMaxFileSize(getMaxFileSize());
+        }
         return rowsWithDestination.apply(batchLoads);
       }
     }
