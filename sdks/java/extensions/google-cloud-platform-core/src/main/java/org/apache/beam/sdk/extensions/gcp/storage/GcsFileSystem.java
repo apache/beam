@@ -25,6 +25,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -236,11 +237,17 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private Metadata toMetadata(StorageObject storageObject) {
-    // TODO: Address https://issues.apache.org/jira/browse/BEAM-1494
-    // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
     Metadata.Builder ret = Metadata.builder()
-        .setIsReadSeekEfficient(true)
         .setResourceId(GcsResourceId.fromGcsPath(GcsPath.fromObject(storageObject)));
+
+    // It is incorrect to set IsReadSeekEfficient true for files with content encoding set to gzip.
+    @Nullable String contentEncoding= storageObject.getContentEncoding();
+    if (Strings.isNullOrEmpty(contentEncoding) || "text/plain".equals(contentEncoding)) {
+      ret.setIsReadSeekEfficient(true);
+    } else {
+      ret.setIsReadSeekEfficient(false);
+    }
+
     BigInteger size = storageObject.getSize();
     if (size != null) {
       ret.setSizeBytes(size.longValue());
