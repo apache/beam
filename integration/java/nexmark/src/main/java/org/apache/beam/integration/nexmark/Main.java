@@ -36,7 +36,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * An implementation of the 'NEXMark queries' for Google Dataflow.
+ * An implementation of the 'NEXMark queries' for Beam.
  * These are multiple queries over a three table schema representing an online auction system:
  * <ul>
  * <li>{@link Person} represents a person submitting an item for auction and/or making a bid
@@ -44,7 +44,7 @@ import org.joda.time.Instant;
  * <li>{@link Auction} represents an item under auction.
  * <li>{@link Bid} represents a bid for an item under auction.
  * </ul>
- * The queries exercise many aspects of streaming dataflow.
+ * The queries exercise many aspects of the Beam model.
  *
  * <p>We synthesize the creation of people, auctions and bids in real-time. The data is not
  * particularly sensible.
