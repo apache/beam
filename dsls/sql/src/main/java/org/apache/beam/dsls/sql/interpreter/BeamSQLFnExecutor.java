@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlAndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
@@ -36,6 +37,20 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowStartExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlDivideExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlLowerExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlOverlayExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlPositionExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlSubstringExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlTrimExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
@@ -77,9 +92,10 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
    * {@link #buildExpression(RexNode)} visits the operands of {@link RexNode} recursively,
    * and represent each {@link SqlOperator} with a corresponding {@link BeamSqlExpression}.
    */
-  private BeamSqlExpression buildExpression(RexNode rexNode) {
+  static BeamSqlExpression buildExpression(RexNode rexNode) {
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
+
       return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
@@ -110,6 +126,40 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "<=":
           return new BeamSqlLessThanEqualExpression(subExps);
 
+        // arithmetic operators
+        case "+":
+          return new BeamSqlPlusExpression(subExps);
+        case "-":
+          return new BeamSqlMinusExpression(subExps);
+        case "*":
+          return new BeamSqlMultiplyExpression(subExps);
+        case "/":
+          return new BeamSqlDivideExpression(subExps);
+        case "MOD":
+          return new BeamSqlModExpression(subExps);
+
+        // string operators
+        case "||":
+          return new BeamSqlConcatExpression(subExps);
+        case "POSITION":
+          return new BeamSqlPositionExpression(subExps);
+        case "CHAR_LENGTH":
+        case "CHARACTER_LENGTH":
+          return new BeamSqlCharLengthExpression(subExps);
+        case "UPPER":
+          return new BeamSqlUpperExpression(subExps);
+        case "LOWER":
+          return new BeamSqlLowerExpression(subExps);
+        case "TRIM":
+          return new BeamSqlTrimExpression(subExps);
+        case "SUBSTRING":
+          return new BeamSqlSubstringExpression(subExps);
+        case "OVERLAY":
+          return new BeamSqlOverlayExpression(subExps);
+        case "INITCAP":
+          return new BeamSqlInitCapExpression(subExps);
+
+
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
         case "IS NOT NULL":
@@ -128,7 +178,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "SESSION_END":
         return new BeamSqlWindowEndExpression();
       default:
-        throw new BeamSqlUnsupportedException();
+        throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
       }
     } else {
       throw new BeamSqlUnsupportedException(
