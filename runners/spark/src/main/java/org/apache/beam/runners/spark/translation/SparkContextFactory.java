@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import com.google.common.base.Strings;
 import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
@@ -92,6 +93,9 @@ public final class SparkContextFactory {
       if (!conf.contains("spark.master")) {
         // set master if not set.
         conf.setMaster(contextOptions.getSparkMaster());
+      }
+      if (!conf.contains("spark.jars") && !Strings.isNullOrEmpty(contextOptions.getJars())) {
+        conf.setJars(contextOptions.getJars().split(","));
       }
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
