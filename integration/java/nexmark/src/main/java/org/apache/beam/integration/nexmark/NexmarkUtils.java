@@ -351,25 +351,25 @@ public class NexmarkUtils {
     CoderRegistry registry = p.getCoderRegistry();
     switch (coderStrategy) {
       case HAND:
-        registry.registerCoder(Auction.class, Auction.CODER);
-        registry.registerCoder(AuctionBid.class, AuctionBid.CODER);
-        registry.registerCoder(AuctionCount.class, AuctionCount.CODER);
-        registry.registerCoder(AuctionPrice.class, AuctionPrice.CODER);
-        registry.registerCoder(Bid.class, Bid.CODER);
-        registry.registerCoder(CategoryPrice.class, CategoryPrice.CODER);
-        registry.registerCoder(Event.class, Event.CODER);
-        registry.registerCoder(IdNameReserve.class, IdNameReserve.CODER);
-        registry.registerCoder(NameCityStateId.class, NameCityStateId.CODER);
-        registry.registerCoder(Person.class, Person.CODER);
-        registry.registerCoder(SellerPrice.class, SellerPrice.CODER);
-        registry.registerCoder(Done.class, Done.CODER);
-        registry.registerCoder(BidsPerSession.class, BidsPerSession.CODER);
+        registry.registerCoderForClass(Auction.class, Auction.CODER);
+        registry.registerCoderForClass(AuctionBid.class, AuctionBid.CODER);
+        registry.registerCoderForClass(AuctionCount.class, AuctionCount.CODER);
+        registry.registerCoderForClass(AuctionPrice.class, AuctionPrice.CODER);
+        registry.registerCoderForClass(Bid.class, Bid.CODER);
+        registry.registerCoderForClass(CategoryPrice.class, CategoryPrice.CODER);
+        registry.registerCoderForClass(Event.class, Event.CODER);
+        registry.registerCoderForClass(IdNameReserve.class, IdNameReserve.CODER);
+        registry.registerCoderForClass(NameCityStateId.class, NameCityStateId.CODER);
+        registry.registerCoderForClass(Person.class, Person.CODER);
+        registry.registerCoderForClass(SellerPrice.class, SellerPrice.CODER);
+        registry.registerCoderForClass(Done.class, Done.CODER);
+        registry.registerCoderForClass(BidsPerSession.class, BidsPerSession.CODER);
         break;
       case AVRO:
-        registry.setFallbackCoderProvider(AvroCoder.PROVIDER);
+        registry.registerCoderProvider(AvroCoder.getCoderProvider());
         break;
       case JAVA:
-        registry.setFallbackCoderProvider(SerializableCoder.PROVIDER);
+        registry.registerCoderProvider(SerializableCoder.getCoderProvider());
         break;
     }
   }
@@ -621,22 +621,17 @@ public class NexmarkUtils {
     }
 
     @Override
-    public void encode(KnownSize value, OutputStream outStream, Context context)
+    public void encode(KnownSize value, OutputStream outStream)
         throws CoderException, IOException {
       @SuppressWarnings("unchecked")
       T typedValue = (T) value;
-      trueCoder.encode(typedValue, outStream, context);
+      trueCoder.encode(typedValue, outStream);
     }
 
     @Override
-    public KnownSize decode(InputStream inStream, Context context)
+    public KnownSize decode(InputStream inStream)
         throws CoderException, IOException {
-      return trueCoder.decode(inStream, context);
-    }
-
-    @Override
-    public List<? extends Coder<?>> getComponents() {
-      return ImmutableList.of(trueCoder);
+      return trueCoder.decode(inStream);
     }
   }
 

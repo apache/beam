@@ -156,19 +156,19 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override
-    public void encode(AuctionOrBidWindow window, OutputStream outStream, Coder.Context context)
+    public void encode(AuctionOrBidWindow window, OutputStream outStream)
         throws IOException, CoderException {
-      SUPER_CODER.encode(window, outStream, Coder.Context.NESTED);
-      ID_CODER.encode(window.auction, outStream, Coder.Context.NESTED);
-      INT_CODER.encode(window.isAuctionWindow ? 1 : 0, outStream, Coder.Context.NESTED);
+      SUPER_CODER.encode(window, outStream);
+      ID_CODER.encode(window.auction, outStream);
+      INT_CODER.encode(window.isAuctionWindow ? 1 : 0, outStream);
     }
 
     @Override
-    public AuctionOrBidWindow decode(InputStream inStream, Coder.Context context)
+    public AuctionOrBidWindow decode(InputStream inStream)
         throws IOException, CoderException {
-      IntervalWindow superWindow = SUPER_CODER.decode(inStream, Coder.Context.NESTED);
-      long auction = ID_CODER.decode(inStream, Coder.Context.NESTED);
-      boolean isAuctionWindow = INT_CODER.decode(inStream, Context.NESTED) != 0;
+      IntervalWindow superWindow = SUPER_CODER.decode(inStream);
+      long auction = ID_CODER.decode(inStream);
+      boolean isAuctionWindow = INT_CODER.decode(inStream) != 0;
       return new AuctionOrBidWindow(
           superWindow.start(), superWindow.end(), auction, isAuctionWindow);
     }

@@ -36,17 +36,17 @@ public class Event implements KnownSize, Serializable {
 
   public static final Coder<Event> CODER = new CustomCoder<Event>() {
     @Override
-    public void encode(Event value, OutputStream outStream, Coder.Context context)
+    public void encode(Event value, OutputStream outStream)
         throws CoderException, IOException {
       if (value.newPerson != null) {
-        INT_CODER.encode(0, outStream, Context.NESTED);
-        Person.CODER.encode(value.newPerson, outStream, Context.NESTED);
+        INT_CODER.encode(0, outStream);
+        Person.CODER.encode(value.newPerson, outStream);
       } else if (value.newAuction != null) {
-        INT_CODER.encode(1, outStream, Context.NESTED);
-        Auction.CODER.encode(value.newAuction, outStream, Context.NESTED);
+        INT_CODER.encode(1, outStream);
+        Auction.CODER.encode(value.newAuction, outStream);
       } else if (value.bid != null) {
-        INT_CODER.encode(2, outStream, Context.NESTED);
-        Bid.CODER.encode(value.bid, outStream, Context.NESTED);
+        INT_CODER.encode(2, outStream);
+        Bid.CODER.encode(value.bid, outStream);
       } else {
         throw new RuntimeException("invalid event");
       }
@@ -54,17 +54,17 @@ public class Event implements KnownSize, Serializable {
 
     @Override
     public Event decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      int tag = INT_CODER.decode(inStream, context);
+      int tag = INT_CODER.decode(inStream);
       if (tag == 0) {
-        Person person = Person.CODER.decode(inStream, Context.NESTED);
+        Person person = Person.CODER.decode(inStream);
         return new Event(person);
       } else if (tag == 1) {
-        Auction auction = Auction.CODER.decode(inStream, Context.NESTED);
+        Auction auction = Auction.CODER.decode(inStream);
         return new Event(auction);
       } else if (tag == 2) {
-        Bid bid = Bid.CODER.decode(inStream, Context.NESTED);
+        Bid bid = Bid.CODER.decode(inStream);
         return new Event(bid);
       } else {
         throw new RuntimeException("invalid event encoding");

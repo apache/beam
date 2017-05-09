@@ -37,19 +37,18 @@ public class BidsPerSession implements KnownSize, Serializable {
 
   public static final Coder<BidsPerSession> CODER = new CustomCoder<BidsPerSession>() {
     @Override
-    public void encode(BidsPerSession value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(BidsPerSession value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.personId, outStream, Context.NESTED);
-      LONG_CODER.encode(value.bidsPerSession, outStream, Context.NESTED);
+      LONG_CODER.encode(value.personId, outStream);
+      LONG_CODER.encode(value.bidsPerSession, outStream);
     }
 
     @Override
     public BidsPerSession decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      long personId = LONG_CODER.decode(inStream, Context.NESTED);
-      long bidsPerSession = LONG_CODER.decode(inStream, Context.NESTED);
+      long personId = LONG_CODER.decode(inStream);
+      long bidsPerSession = LONG_CODER.decode(inStream);
       return new BidsPerSession(personId, bidsPerSession);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}

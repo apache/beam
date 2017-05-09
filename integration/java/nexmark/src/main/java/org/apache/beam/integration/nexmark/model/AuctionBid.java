@@ -34,19 +34,18 @@ import org.apache.beam.sdk.coders.CustomCoder;
 public class AuctionBid implements KnownSize, Serializable {
   public static final Coder<AuctionBid> CODER = new CustomCoder<AuctionBid>() {
     @Override
-    public void encode(AuctionBid value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(AuctionBid value, OutputStream outStream)
         throws CoderException, IOException {
-      Auction.CODER.encode(value.auction, outStream, Context.NESTED);
-      Bid.CODER.encode(value.bid, outStream, Context.NESTED);
+      Auction.CODER.encode(value.auction, outStream);
+      Bid.CODER.encode(value.bid, outStream);
     }
 
     @Override
     public AuctionBid decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      Auction auction = Auction.CODER.decode(inStream, Context.NESTED);
-      Bid bid = Bid.CODER.decode(inStream, Context.NESTED);
+      Auction auction = Auction.CODER.decode(inStream);
+      Bid bid = Bid.CODER.decode(inStream);
       return new AuctionBid(auction, bid);
     }
   };

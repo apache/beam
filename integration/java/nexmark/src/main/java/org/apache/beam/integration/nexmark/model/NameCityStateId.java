@@ -39,23 +39,21 @@ public class NameCityStateId implements KnownSize, Serializable {
 
   public static final Coder<NameCityStateId> CODER = new CustomCoder<NameCityStateId>() {
     @Override
-    public void encode(NameCityStateId value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(NameCityStateId value, OutputStream outStream)
         throws CoderException, IOException {
-      STRING_CODER.encode(value.name, outStream, Context.NESTED);
-      STRING_CODER.encode(value.city, outStream, Context.NESTED);
-      STRING_CODER.encode(value.state, outStream, Context.NESTED);
-      LONG_CODER.encode(value.id, outStream, Context.NESTED);
+      STRING_CODER.encode(value.name, outStream);
+      STRING_CODER.encode(value.city, outStream);
+      STRING_CODER.encode(value.state, outStream);
+      LONG_CODER.encode(value.id, outStream);
     }
 
     @Override
-    public NameCityStateId decode(
-        InputStream inStream, Coder.Context context)
+    public NameCityStateId decode(InputStream inStream)
         throws CoderException, IOException {
-      String name = STRING_CODER.decode(inStream, Context.NESTED);
-      String city = STRING_CODER.decode(inStream, Context.NESTED);
-      String state = STRING_CODER.decode(inStream, Context.NESTED);
-      long id = LONG_CODER.decode(inStream, Context.NESTED);
+      String name = STRING_CODER.decode(inStream);
+      String city = STRING_CODER.decode(inStream);
+      String state = STRING_CODER.decode(inStream);
+      long id = LONG_CODER.decode(inStream);
       return new NameCityStateId(name, city, state, id);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}

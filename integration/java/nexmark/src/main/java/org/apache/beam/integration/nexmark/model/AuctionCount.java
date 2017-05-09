@@ -37,19 +37,17 @@ public class AuctionCount implements KnownSize, Serializable {
 
   public static final Coder<AuctionCount> CODER = new CustomCoder<AuctionCount>() {
     @Override
-    public void encode(AuctionCount value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(AuctionCount value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream, Context.NESTED);
-      LONG_CODER.encode(value.count, outStream, Context.NESTED);
+      LONG_CODER.encode(value.auction, outStream);
+      LONG_CODER.encode(value.count, outStream);
     }
 
     @Override
-    public AuctionCount decode(
-        InputStream inStream, Coder.Context context)
+    public AuctionCount decode(InputStream inStream)
         throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream, Context.NESTED);
-      long count = LONG_CODER.decode(inStream, Context.NESTED);
+      long auction = LONG_CODER.decode(inStream);
+      long count = LONG_CODER.decode(inStream);
       return new AuctionCount(auction, count);
     }
   };

@@ -102,22 +102,17 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     /** Coder for this class. */
     public static final Coder<Checkpoint> CODER_INSTANCE =
         new CustomCoder<Checkpoint>() {
-          @Override
-          public void encode(
-              Checkpoint value,
-              OutputStream outStream,
-              Coder.Context context)
-              throws CoderException, IOException {
-            LONG_CODER.encode(value.numEvents, outStream, Context.NESTED);
-            LONG_CODER.encode(value.wallclockBaseTime, outStream, Context.NESTED);
+          @Override public void encode(Checkpoint value, OutputStream outStream)
+          throws CoderException, IOException {
+            LONG_CODER.encode(value.numEvents, outStream);
+            LONG_CODER.encode(value.wallclockBaseTime, outStream);
           }
 
           @Override
-          public Checkpoint decode(
-              InputStream inStream, Coder.Context context)
+          public Checkpoint decode(InputStream inStream)
               throws CoderException, IOException {
-            long numEvents = LONG_CODER.decode(inStream, Context.NESTED);
-            long wallclockBaseTime = LONG_CODER.decode(inStream, Context.NESTED);
+            long numEvents = LONG_CODER.decode(inStream);
+            long wallclockBaseTime = LONG_CODER.decode(inStream);
             return new Checkpoint(numEvents, wallclockBaseTime);
           }
           @Override public void verifyDeterministic() throws NonDeterministicException {}

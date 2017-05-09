@@ -39,35 +39,34 @@ public class Auction implements KnownSize, Serializable {
 
   public static final Coder<Auction> CODER = new CustomCoder<Auction>() {
     @Override
-    public void encode(Auction value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(Auction value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream, Context.NESTED);
-      STRING_CODER.encode(value.itemName, outStream, Context.NESTED);
-      STRING_CODER.encode(value.description, outStream, Context.NESTED);
-      LONG_CODER.encode(value.initialBid, outStream, Context.NESTED);
-      LONG_CODER.encode(value.reserve, outStream, Context.NESTED);
-      LONG_CODER.encode(value.dateTime, outStream, Context.NESTED);
-      LONG_CODER.encode(value.expires, outStream, Context.NESTED);
-      LONG_CODER.encode(value.seller, outStream, Context.NESTED);
-      LONG_CODER.encode(value.category, outStream, Context.NESTED);
-      STRING_CODER.encode(value.extra, outStream, Context.NESTED);
+      LONG_CODER.encode(value.id, outStream);
+      STRING_CODER.encode(value.itemName, outStream);
+      STRING_CODER.encode(value.description, outStream);
+      LONG_CODER.encode(value.initialBid, outStream);
+      LONG_CODER.encode(value.reserve, outStream);
+      LONG_CODER.encode(value.dateTime, outStream);
+      LONG_CODER.encode(value.expires, outStream);
+      LONG_CODER.encode(value.seller, outStream);
+      LONG_CODER.encode(value.category, outStream);
+      STRING_CODER.encode(value.extra, outStream);
     }
 
     @Override
     public Auction decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream, Context.NESTED);
-      String itemName = STRING_CODER.decode(inStream, Context.NESTED);
-      String description = STRING_CODER.decode(inStream, Context.NESTED);
-      long initialBid = LONG_CODER.decode(inStream, Context.NESTED);
-      long reserve = LONG_CODER.decode(inStream, Context.NESTED);
-      long dateTime = LONG_CODER.decode(inStream, Context.NESTED);
-      long expires = LONG_CODER.decode(inStream, Context.NESTED);
-      long seller = LONG_CODER.decode(inStream, Context.NESTED);
-      long category = LONG_CODER.decode(inStream, Context.NESTED);
-      String extra = STRING_CODER.decode(inStream, Context.NESTED);
+      long id = LONG_CODER.decode(inStream);
+      String itemName = STRING_CODER.decode(inStream);
+      String description = STRING_CODER.decode(inStream);
+      long initialBid = LONG_CODER.decode(inStream);
+      long reserve = LONG_CODER.decode(inStream);
+      long dateTime = LONG_CODER.decode(inStream);
+      long expires = LONG_CODER.decode(inStream);
+      long seller = LONG_CODER.decode(inStream);
+      long category = LONG_CODER.decode(inStream);
+      String extra = STRING_CODER.decode(inStream);
       return new Auction(
           id, itemName, description, initialBid, reserve, dateTime, expires, seller, category,
           extra);

@@ -39,21 +39,20 @@ public class IdNameReserve implements KnownSize, Serializable {
 
   public static final Coder<IdNameReserve> CODER = new CustomCoder<IdNameReserve>() {
     @Override
-    public void encode(IdNameReserve value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(IdNameReserve value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream, Context.NESTED);
-      STRING_CODER.encode(value.name, outStream, Context.NESTED);
-      LONG_CODER.encode(value.reserve, outStream, Context.NESTED);
+      LONG_CODER.encode(value.id, outStream);
+      STRING_CODER.encode(value.name, outStream);
+      LONG_CODER.encode(value.reserve, outStream);
     }
 
     @Override
     public IdNameReserve decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream, Context.NESTED);
-      String name = STRING_CODER.decode(inStream, Context.NESTED);
-      long reserve = LONG_CODER.decode(inStream, Context.NESTED);
+      long id = LONG_CODER.decode(inStream);
+      String name = STRING_CODER.decode(inStream);
+      long reserve = LONG_CODER.decode(inStream);
       return new IdNameReserve(id, name, reserve);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}

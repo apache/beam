@@ -37,17 +37,15 @@ public class Done implements KnownSize, Serializable {
 
   public static final Coder<Done> CODER = new CustomCoder<Done>() {
     @Override
-    public void encode(Done value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(Done value, OutputStream outStream)
         throws CoderException, IOException {
-      STRING_CODER.encode(value.message, outStream, Context.NESTED);
+      STRING_CODER.encode(value.message, outStream);
     }
 
     @Override
-    public Done decode(
-        InputStream inStream, Coder.Context context)
+    public Done decode(InputStream inStream)
         throws CoderException, IOException {
-      String message = STRING_CODER.decode(inStream, Context.NESTED);
+      String message = STRING_CODER.decode(inStream);
       return new Done(message);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}

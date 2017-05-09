@@ -38,31 +38,29 @@ public class Person implements KnownSize, Serializable {
   private static final Coder<String> STRING_CODER = StringUtf8Coder.of();
   public static final Coder<Person> CODER = new CustomCoder<Person>() {
     @Override
-    public void encode(Person value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(Person value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.id, outStream, Context.NESTED);
-      STRING_CODER.encode(value.name, outStream, Context.NESTED);
-      STRING_CODER.encode(value.emailAddress, outStream, Context.NESTED);
-      STRING_CODER.encode(value.creditCard, outStream, Context.NESTED);
-      STRING_CODER.encode(value.city, outStream, Context.NESTED);
-      STRING_CODER.encode(value.state, outStream, Context.NESTED);
-      LONG_CODER.encode(value.dateTime, outStream, Context.NESTED);
-      STRING_CODER.encode(value.extra, outStream, Context.NESTED);
+      LONG_CODER.encode(value.id, outStream);
+      STRING_CODER.encode(value.name, outStream);
+      STRING_CODER.encode(value.emailAddress, outStream);
+      STRING_CODER.encode(value.creditCard, outStream);
+      STRING_CODER.encode(value.city, outStream);
+      STRING_CODER.encode(value.state, outStream);
+      LONG_CODER.encode(value.dateTime, outStream);
+      STRING_CODER.encode(value.extra, outStream);
     }
 
     @Override
-    public Person decode(
-        InputStream inStream, Coder.Context context)
+    public Person decode(InputStream inStream)
         throws CoderException, IOException {
-      long id = LONG_CODER.decode(inStream, Context.NESTED);
-      String name = STRING_CODER.decode(inStream, Context.NESTED);
-      String emailAddress = STRING_CODER.decode(inStream, Context.NESTED);
-      String creditCard = STRING_CODER.decode(inStream, Context.NESTED);
-      String city = STRING_CODER.decode(inStream, Context.NESTED);
-      String state = STRING_CODER.decode(inStream, Context.NESTED);
-      long dateTime = LONG_CODER.decode(inStream, Context.NESTED);
-      String extra = STRING_CODER.decode(inStream, Context.NESTED);
+      long id = LONG_CODER.decode(inStream);
+      String name = STRING_CODER.decode(inStream);
+      String emailAddress = STRING_CODER.decode(inStream);
+      String creditCard = STRING_CODER.decode(inStream);
+      String city = STRING_CODER.decode(inStream);
+      String state = STRING_CODER.decode(inStream);
+      long dateTime = LONG_CODER.decode(inStream);
+      String extra = STRING_CODER.decode(inStream);
       return new Person(id, name, emailAddress, creditCard, city, state, dateTime, extra);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}
