@@ -48,8 +48,8 @@ public interface Timer {
    * was already set, resets it to the new requested time.
    *
    * <p>For {@link TimeDomain#PROCESSING_TIME}, the behavior is be unpredictable, since processing
-   * time timers are ignored after a window has expired. Instead, it is recommended to use
-   * {@link #setRelative()}.
+   * time timers are ignored after a window has expired. Instead, it is recommended to use {@link
+   * #setRelative()}.
    */
   void set(Instant absoluteTime);
 
@@ -65,14 +65,12 @@ public interface Timer {
    */
   void setRelative();
 
-  /**
-   * Set the align offset.
-   */
+  /** Offsets the target timestamp used by {@link #setRelative()} by the given duration. */
   Timer offset(Duration offset);
 
   /**
-   * Aligns a timestamp to the next boundary of {@code period}.
+   * Aligns the target timestamp used by {@link #setRelative()} to the next boundary of {@code
+   * period}.
    */
   Timer align(Duration period);
-
 }

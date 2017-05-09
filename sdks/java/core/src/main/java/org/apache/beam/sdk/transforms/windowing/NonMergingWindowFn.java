@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 /**
- * Abstract base class for {@link WindowFn}s that do not merge windows.
+ * Abstract base class for {@link WindowFn WindowFns} that do not merge windows.
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the windows used by this

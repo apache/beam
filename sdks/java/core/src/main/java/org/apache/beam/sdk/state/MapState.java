@@ -22,9 +22,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * An object that maps keys to values.
- * A map cannot contain duplicate keys;
- * each key can map to at most one value.
+ * A {@link ReadableState} cell mapping keys to values.
+ *
+ * <p>Implementations of this form of state are expected to implement map operations efficiently
+ * as supported by some associated backing key-value store.
  *
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
@@ -32,9 +33,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @Experimental(Kind.STATE)
 public interface MapState<K, V> extends State {
 
-  /**
-   * Associates the specified value with the specified key in this state.
-   */
+  /** Associates the specified value with the specified key in this state. */
   void put(K key, V value);
 
   /**
@@ -48,9 +47,7 @@ public interface MapState<K, V> extends State {
    */
   ReadableState<V> putIfAbsent(K key, V value);
 
-  /**
-   * Removes the mapping for a key from this map if it is present.
-   */
+  /** Remove the mapping for a key from this map if it is present. */
   void remove(K key);
 
   /**
@@ -64,19 +61,13 @@ public interface MapState<K, V> extends State {
    */
   ReadableState<V> get(K key);
 
-  /**
-   * Returns a iterable view of the keys contained in this map.
-   */
+  /** Returns an {@link Iterable} over the keys contained in this map. */
   ReadableState<Iterable<K>> keys();
 
-  /**
-   * Returns a iterable view of the values contained in this map.
-   */
+  /** Returns an {@link Iterable} over the values contained in this map. */
   ReadableState<Iterable<V>> values();
 
-  /**
-   * Returns a iterable view of all key-values.
-   */
+  /** Returns an {@link Iterable} over the key-value pairs contained in this map. */
   ReadableState<Iterable<Map.Entry<K, V>>> entries();
 }
 
