@@ -369,6 +369,9 @@ class SlidingWindows(NonMergingWindowFn):
   def get_window_coder(self):
     return coders.IntervalWindowCoder()
 
+  def get_window_coder(self):
+    return coders.IntervalWindowCoder()
+
   def __eq__(self, other):
     if type(self) == type(other) == SlidingWindows:
       return (self.size == other.size
