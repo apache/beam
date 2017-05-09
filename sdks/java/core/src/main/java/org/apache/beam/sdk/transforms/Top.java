@@ -539,15 +539,15 @@ public class Top {
 
     @Override
     public void encode(
-        BoundedHeap<T, ComparatorT> value, OutputStream outStream, Context context)
+        BoundedHeap<T, ComparatorT> value, OutputStream outStream)
         throws CoderException, IOException {
-      listCoder.encode(value.asList(), outStream, context);
+      listCoder.encode(value.asList(), outStream);
     }
 
     @Override
-    public BoundedHeap<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+    public BoundedHeap<T, ComparatorT> decode(InputStream inStream)
         throws CoderException, IOException {
-      return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream, context));
+      return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream));
     }
 
     @Override
@@ -557,16 +557,15 @@ public class Top {
 
     @Override
     public boolean isRegisterByteSizeObserverCheap(
-        BoundedHeap<T, ComparatorT> value, Context context) {
-      return listCoder.isRegisterByteSizeObserverCheap(
-          value.asList(), context);
+        BoundedHeap<T, ComparatorT> value) {
+      return listCoder.isRegisterByteSizeObserverCheap(value.asList());
     }
 
     @Override
     public void registerByteSizeObserver(
-        BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer, Context context)
+        BoundedHeap<T, ComparatorT> value, ElementByteSizeObserver observer)
             throws Exception {
-      listCoder.registerByteSizeObserver(value.asList(), observer, context);
+      listCoder.registerByteSizeObserver(value.asList(), observer);
     }
 
     @Override

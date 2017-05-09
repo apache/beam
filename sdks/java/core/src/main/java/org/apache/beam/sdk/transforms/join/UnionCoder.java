@@ -54,6 +54,12 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     return index;
   }
 
+  @Override
+  public void encode(RawUnionValue union, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(union, outStream, Context.NESTED);
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void encode(
@@ -71,6 +77,11 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
         union.getValue(),
         outStream,
         context);
+  }
+
+  @Override
+  public RawUnionValue decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -100,11 +111,11 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
    * time, we defer the return value to that coder.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(RawUnionValue union) {
     int index = getIndexForEncoding(union);
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    return coder.isRegisterByteSizeObserverCheap(union.getValue(), context);
+    return coder.isRegisterByteSizeObserverCheap(union.getValue());
   }
 
   /**
@@ -112,7 +123,7 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
    */
   @Override
   public void registerByteSizeObserver(
-      RawUnionValue union, ElementByteSizeObserver observer, Context context)
+      RawUnionValue union, ElementByteSizeObserver observer)
       throws Exception {
     int index = getIndexForEncoding(union);
     // Write out the union tag.
@@ -120,7 +131,7 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     // Write out the actual value.
     @SuppressWarnings("unchecked")
     Coder<Object> coder = (Coder<Object>) elementCoders.get(index);
-    coder.registerByteSizeObserver(union.getValue(), observer, context);
+    coder.registerByteSizeObserver(union.getValue(), observer);
   }
 
   /////////////////////////////////////////////////////////////////////////////

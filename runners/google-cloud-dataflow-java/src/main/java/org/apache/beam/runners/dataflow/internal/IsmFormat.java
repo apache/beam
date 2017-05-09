@@ -231,35 +231,35 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(IsmRecord<V> value, OutputStream outStream,
-        Coder.Context context) throws CoderException, IOException {
+    public void encode(IsmRecord<V> value, OutputStream outStream)
+        throws CoderException, IOException {
       if (value.getKeyComponents().size() != keyComponentCoders.size()) {
         throw new CoderException(String.format(
             "Expected %s key component(s) but received key component(s) %s.",
             keyComponentCoders.size(), value.getKeyComponents()));
       }
       for (int i = 0; i < keyComponentCoders.size(); ++i) {
-        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream, context.nested());
+        getKeyComponentCoder(i).encode(value.getKeyComponent(i), outStream);
       }
       if (isMetadataKey(value.getKeyComponents())) {
-        ByteArrayCoder.of().encode(value.getMetadata(), outStream, context.nested());
+        ByteArrayCoder.of().encode(value.getMetadata(), outStream);
       } else {
-        valueCoder.encode(value.getValue(), outStream, context.nested());
+        valueCoder.encode(value.getValue(), outStream);
       }
     }
 
     @Override
-    public IsmRecord<V> decode(InputStream inStream, Coder.Context context)
+    public IsmRecord<V> decode(InputStream inStream)
         throws CoderException, IOException {
       List<Object> keyComponents = new ArrayList<>(keyComponentCoders.size());
       for (Coder<?> keyCoder : keyComponentCoders) {
-        keyComponents.add(keyCoder.decode(inStream, context.nested()));
+        keyComponents.add(keyCoder.decode(inStream));
       }
       if (isMetadataKey(keyComponents)) {
         return IsmRecord.<V>meta(
-            keyComponents, ByteArrayCoder.of().decode(inStream, context.nested()));
+            keyComponents, ByteArrayCoder.of().decode(inStream));
       } else {
-        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream, context.nested()));
+        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream));
       }
     }
 
@@ -493,24 +493,24 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(K value, OutputStream outStream, Coder.Context context)
+    public void encode(K value, OutputStream outStream)
         throws CoderException, IOException {
       if (value == METADATA_KEY) {
         outStream.write(0);
       } else {
         outStream.write(1);
-        keyCoder.encode(value, outStream, context.nested());
+        keyCoder.encode(value, outStream);
       }
     }
 
     @Override
-    public K decode(InputStream inStream, Coder.Context context)
+    public K decode(InputStream inStream)
         throws CoderException, IOException {
       int marker = inStream.read();
       if (marker == 0) {
         return (K) getMetadataKey();
       } else if (marker == 1) {
-        return keyCoder.decode(inStream, context.nested());
+        return keyCoder.decode(inStream);
       } else {
         throw new CoderException(String.format("Expected marker but got %s.", marker));
       }
@@ -621,23 +621,22 @@ public class IsmFormat {
     private IsmShardCoder() {}
 
     @Override
-    public void encode(IsmShard value, OutputStream outStream, Coder.Context context)
+    public void encode(IsmShard value, OutputStream outStream)
         throws CoderException, IOException {
       checkState(value.getIndexOffset() >= 0,
           "%s attempting to be written without index offset.",
           value);
-      VarIntCoder.of().encode(value.getId(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getBlockOffset(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getIndexOffset(), outStream, context);
+      VarIntCoder.of().encode(value.getId(), outStream);
+      VarLongCoder.of().encode(value.getBlockOffset(), outStream);
+      VarLongCoder.of().encode(value.getIndexOffset(), outStream);
     }
 
     @Override
-    public IsmShard decode(
-        InputStream inStream, Coder.Context context) throws CoderException, IOException {
+    public IsmShard decode(InputStream inStream) throws CoderException, IOException {
       return IsmShard.of(
-          VarIntCoder.of().decode(inStream, context.nested()),
-          VarLongCoder.of().decode(inStream, context.nested()),
-          VarLongCoder.of().decode(inStream, context));
+          VarIntCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream),
+          VarLongCoder.of().decode(inStream));
     }
 
     @Override
@@ -683,14 +682,14 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(KeyPrefix value, OutputStream outStream, Coder.Context context)
+    public void encode(KeyPrefix value, OutputStream outStream)
         throws CoderException, IOException {
       VarInt.encode(value.getSharedKeySize(), outStream);
       VarInt.encode(value.getUnsharedKeySize(), outStream);
     }
 
     @Override
-    public KeyPrefix decode(InputStream inStream, Coder.Context context)
+    public KeyPrefix decode(InputStream inStream)
         throws CoderException, IOException {
       return KeyPrefix.of(VarInt.decodeInt(inStream), VarInt.decodeInt(inStream));
     }
@@ -704,12 +703,12 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(KeyPrefix value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(KeyPrefix value, Coder.Context context)
+    public long getEncodedElementByteSize(KeyPrefix value)
         throws Exception {
       checkNotNull(value);
       return VarInt.getLength(value.getSharedKeySize())
@@ -755,7 +754,7 @@ public class IsmFormat {
     }
 
     @Override
-    public void encode(Footer value, OutputStream outStream, Coder.Context context)
+    public void encode(Footer value, OutputStream outStream)
         throws CoderException, IOException {
       DataOutputStream dataOut = new DataOutputStream(outStream);
       dataOut.writeLong(value.getIndexPosition());
@@ -765,7 +764,7 @@ public class IsmFormat {
     }
 
     @Override
-    public Footer decode(InputStream inStream, Coder.Context context)
+    public Footer decode(InputStream inStream)
         throws CoderException, IOException {
       DataInputStream dataIn = new DataInputStream(inStream);
       Footer footer = Footer.of(dataIn.readLong(), dataIn.readLong(), dataIn.readLong());
@@ -786,12 +785,12 @@ public class IsmFormat {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(Footer value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(Footer value) {
       return true;
     }
 
     @Override
-    public long getEncodedElementByteSize(Footer value, Coder.Context context)
+    public long getEncodedElementByteSize(Footer value)
         throws Exception {
       return Footer.FIXED_LENGTH;
     }

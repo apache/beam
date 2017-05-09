@@ -61,6 +61,12 @@ public class NullableCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
+  public void encode(@Nullable T value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(@Nullable T value, OutputStream outStream, Context context)
       throws IOException, CoderException  {
     if (value == null) {
@@ -69,6 +75,11 @@ public class NullableCoder<T> extends StructuredCoder<T> {
       outStream.write(ENCODE_PRESENT);
       valueCoder.encode(value, outStream, context);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -127,10 +138,10 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    */
   @Override
   public void registerByteSizeObserver(
-      @Nullable T value, ElementByteSizeObserver observer, Context context) throws Exception {
+      @Nullable T value, ElementByteSizeObserver observer) throws Exception {
     observer.update(1);
     if (value != null) {
-      valueCoder.registerByteSizeObserver(value, observer, context);
+      valueCoder.registerByteSizeObserver(value, observer);
     }
   }
 
@@ -142,7 +153,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  protected long getEncodedElementByteSize(@Nullable T value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(@Nullable T value) throws Exception {
     if (value == null) {
       return 1;
     }
@@ -151,12 +162,12 @@ public class NullableCoder<T> extends StructuredCoder<T> {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
       return 1  + ((StructuredCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value, context);
+          .getEncodedElementByteSize(value);
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the null indicator byte.
-    return super.getEncodedElementByteSize(value, context);
+    return super.getEncodedElementByteSize(value);
   }
 
   /**
@@ -165,11 +176,11 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
     if (value == null) {
       return true;
     }
-    return valueCoder.isRegisterByteSizeObserverCheap(value, context);
+    return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 
   @Override

@@ -169,13 +169,13 @@ public class Count {
                                              Coder<T> inputCoder) {
       return new AtomicCoder<long[]>() {
         @Override
-        public void encode(long[] value, OutputStream outStream, Context context)
+        public void encode(long[] value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value[0], outStream);
         }
 
         @Override
-        public long[] decode(InputStream inStream, Context context)
+        public long[] decode(InputStream inStream)
             throws IOException, CoderException {
           try {
             return new long[] {VarInt.decodeLong(inStream)};
@@ -185,12 +185,12 @@ public class Count {
         }
 
         @Override
-        public boolean isRegisterByteSizeObserverCheap(long[] value, Context context) {
+        public boolean isRegisterByteSizeObserverCheap(long[] value) {
           return true;
         }
 
         @Override
-        protected long getEncodedElementByteSize(long[] value, Context context) {
+        protected long getEncodedElementByteSize(long[] value) {
           return VarInt.getLength(value[0]);
         }
       };

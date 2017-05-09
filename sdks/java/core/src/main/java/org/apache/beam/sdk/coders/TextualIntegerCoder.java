@@ -39,6 +39,12 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   protected TextualIntegerCoder() {}
 
   @Override
+  public void encode(Integer value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(Integer value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     if (value == null) {
@@ -46,6 +52,11 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
     }
     String textualValue = value.toString();
     StringUtf8Coder.of().encode(textualValue, outStream, context);
+  }
+
+  @Override
+  public Integer decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -70,11 +81,11 @@ public class TextualIntegerCoder extends AtomicCoder<Integer> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Integer value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(Integer value) throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }
     String textualValue = value.toString();
-    return StringUtf8Coder.of().getEncodedElementByteSize(textualValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(textualValue);
   }
 }

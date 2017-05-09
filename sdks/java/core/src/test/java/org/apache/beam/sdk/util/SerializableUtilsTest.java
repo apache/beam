@@ -89,12 +89,12 @@ public class SerializableUtilsTest {
     private final Object unserializableField = new Object();
 
     @Override
-    public void encode(Object value, OutputStream outStream, Context context)
+    public void encode(Object value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public Object decode(InputStream inStream, Context context)
+    public Object decode(InputStream inStream)
         throws CoderException, IOException {
       return unserializableField;
     }

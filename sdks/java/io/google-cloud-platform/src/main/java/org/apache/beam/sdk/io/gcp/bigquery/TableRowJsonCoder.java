@@ -38,10 +38,21 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   }
 
   @Override
+  public void encode(TableRow value, OutputStream outStream)
+      throws IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(TableRow value, OutputStream outStream, Context context)
       throws IOException {
     String strValue = MAPPER.writeValueAsString(value);
     StringUtf8Coder.of().encode(strValue, outStream, context);
+  }
+
+  @Override
+  public TableRow decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -52,10 +63,10 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(TableRow value, Context context)
+  protected long getEncodedElementByteSize(TableRow value)
       throws Exception {
     String strValue = MAPPER.writeValueAsString(value);
-    return StringUtf8Coder.of().getEncodedElementByteSize(strValue, context);
+    return StringUtf8Coder.of().getEncodedElementByteSize(strValue);
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -42,10 +42,21 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
   private BigIntegerCoder() {}
 
   @Override
+  public void encode(BigInteger value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(BigInteger value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
     BYTE_ARRAY_CODER.encode(value.toByteArray(), outStream, context);
+  }
+
+  @Override
+  public BigInteger decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -75,7 +86,7 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(BigInteger value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(BigInteger value) {
     return true;
   }
 
@@ -85,8 +96,8 @@ public class BigIntegerCoder extends AtomicCoder<BigInteger> {
    * @return the size of the encoding as a byte array according to {@link ByteArrayCoder}
    */
   @Override
-  protected long getEncodedElementByteSize(BigInteger value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(BigInteger value) throws Exception {
     checkNotNull(value, String.format("cannot encode a null %s", BigInteger.class.getSimpleName()));
-    return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray(), context);
+    return BYTE_ARRAY_CODER.getEncodedElementByteSize(value.toByteArray());
   }
 }

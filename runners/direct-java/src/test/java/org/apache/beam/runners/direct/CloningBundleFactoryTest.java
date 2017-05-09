@@ -178,15 +178,14 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       return null;
     }
@@ -196,13 +195,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws IOException {
       throw new CoderException("Decode not allowed");
     }
@@ -212,13 +210,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override
@@ -244,13 +241,12 @@ public class CloningBundleFactoryTest {
     @Override
     public void encode(
         Record value,
-        OutputStream outStream,
-        org.apache.beam.sdk.coders.Coder.Context context)
+        OutputStream outStream)
         throws CoderException, IOException {}
 
     @Override
     public Record decode(
-        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
       return new Record() {
         @Override

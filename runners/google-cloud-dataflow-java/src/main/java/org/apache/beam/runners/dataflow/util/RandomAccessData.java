@@ -63,6 +63,12 @@ public class RandomAccessData {
     }
 
     @Override
+    public void encode(RandomAccessData value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Coder.Context.NESTED);
+    }
+
+    @Override
     public void encode(RandomAccessData value, OutputStream outStream, Coder.Context context)
         throws CoderException, IOException {
       if (value == POSITIVE_INFINITY) {
@@ -72,6 +78,11 @@ public class RandomAccessData {
         VarInt.encode(value.size, outStream);
       }
       value.writeTo(outStream, 0, value.size);
+    }
+
+    @Override
+    public RandomAccessData decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Coder.Context.NESTED);
     }
 
     @Override
@@ -96,22 +107,17 @@ public class RandomAccessData {
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(
-        RandomAccessData value, Coder.Context context) {
+    public boolean isRegisterByteSizeObserverCheap(RandomAccessData value) {
       return true;
     }
 
     @Override
-    protected long getEncodedElementByteSize(RandomAccessData value, Coder.Context context)
+    protected long getEncodedElementByteSize(RandomAccessData value)
         throws Exception {
       if (value == null) {
         throw new CoderException("cannot encode a null in memory stream");
       }
-      long size = 0;
-      if (!context.isWholeStream) {
-        size += VarInt.getLength(value.size);
-      }
-      return size + value.size;
+      return VarInt.getLength(value.size) + value.size;
     }
   }
 

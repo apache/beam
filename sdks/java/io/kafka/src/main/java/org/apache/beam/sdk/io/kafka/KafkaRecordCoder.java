@@ -50,6 +50,12 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   @Override
+  public void encode(KafkaRecord<K, V> value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(KafkaRecord<K, V> value, OutputStream outStream, Context context)
                          throws CoderException, IOException {
     Context nested = context.nested();
@@ -58,6 +64,11 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
     longCoder.encode(value.getOffset(), outStream, nested);
     longCoder.encode(value.getTimestamp(), outStream, nested);
     kvCoder.encode(value.getKV(), outStream, context);
+  }
+
+  @Override
+  public KafkaRecord<K, V> decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -83,8 +94,8 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   }
 
   @Override
-  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value, Context context) {
-    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV(), context);
+  public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
+    return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
     //TODO : do we have to implement getEncodedSize()?
   }
 

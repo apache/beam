@@ -98,24 +98,24 @@ public class PAssertTest implements Serializable {
     }
 
     @Override
-    public void encode(NotSerializableObject value, OutputStream outStream, Context context)
+    public void encode(NotSerializableObject value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public NotSerializableObject decode(InputStream inStream, Context context)
+    public NotSerializableObject decode(InputStream inStream)
         throws CoderException, IOException {
       return new NotSerializableObject();
     }
 
     @Override
-    public boolean isRegisterByteSizeObserverCheap(NotSerializableObject value, Context context) {
+    public boolean isRegisterByteSizeObserverCheap(NotSerializableObject value) {
       return true;
     }
 
     @Override
     public void registerByteSizeObserver(
-        NotSerializableObject value, ElementByteSizeObserver observer, Context context)
+        NotSerializableObject value, ElementByteSizeObserver observer)
         throws Exception {
       observer.update(0L);
     }

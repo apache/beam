@@ -49,6 +49,12 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   private ByteStringCoder() {}
 
   @Override
+  public void encode(ByteString value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(ByteString value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     if (value == null) {
@@ -60,6 +66,11 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
       VarInt.encode(value.size(), outStream);
     }
     value.writeTo(outStream);
+  }
+
+  @Override
+  public ByteString decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -76,12 +87,8 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(ByteString value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
-
-    if (context.isWholeStream) {
-      return size;
-    }
     return VarInt.getLength(size) + size;
   }
 
@@ -106,7 +113,7 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
    * <p>Returns true. {@link ByteString#size} returns the size of an array and a {@link VarInt}.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(ByteString value) {
     return true;
   }
 

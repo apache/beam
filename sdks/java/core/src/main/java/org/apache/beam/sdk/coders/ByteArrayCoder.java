@@ -52,6 +52,12 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   private ByteArrayCoder() {}
 
   @Override
+  public void encode(byte[] value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(byte[] value, OutputStream outStream, Context context)
       throws IOException, CoderException {
     if (value == null) {
@@ -83,6 +89,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
         outStream.write(value);
       }
     }
+  }
+
+  @Override
+  public byte[] decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -126,7 +137,7 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
    * constant time using the {@code length} of the provided array.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(byte[] value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(byte[] value) {
     return true;
   }
 
@@ -136,15 +147,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(byte[] value, Context context)
+  protected long getEncodedElementByteSize(byte[] value)
       throws Exception {
     if (value == null) {
       throw new CoderException("cannot encode a null byte[]");
     }
-    long size = 0;
-    if (!context.isWholeStream) {
-      size += VarInt.getLength(value.length);
-    }
-    return size + value.length;
+    return VarInt.getLength(value.length) + value.length;
   }
 }

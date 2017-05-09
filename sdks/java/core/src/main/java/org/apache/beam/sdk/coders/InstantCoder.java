@@ -68,18 +68,18 @@ public class InstantCoder extends AtomicCoder<Instant> {
   }
 
   @Override
-  public void encode(Instant value, OutputStream outStream, Context context)
+  public void encode(Instant value, OutputStream outStream)
       throws CoderException, IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Instant");
     }
-    LONG_CODER.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream, context);
+    LONG_CODER.encode(ORDER_PRESERVING_CONVERTER.convert(value), outStream);
   }
 
   @Override
-  public Instant decode(InputStream inStream, Context context)
+  public Instant decode(InputStream inStream)
       throws CoderException, IOException {
-    return ORDER_PRESERVING_CONVERTER.reverse().convert(LONG_CODER.decode(inStream, context));
+    return ORDER_PRESERVING_CONVERTER.reverse().convert(LONG_CODER.decode(inStream));
   }
 
   @Override
@@ -103,16 +103,16 @@ public class InstantCoder extends AtomicCoder<Instant> {
    * @return {@code true}. The byte size for a big endian long is a constant.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Instant value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Instant value) {
     return LONG_CODER.isRegisterByteSizeObserverCheap(
-        ORDER_PRESERVING_CONVERTER.convert(value), context);
+        ORDER_PRESERVING_CONVERTER.convert(value));
   }
 
   @Override
   public void registerByteSizeObserver(
-      Instant value, ElementByteSizeObserver observer, Context context) throws Exception {
+      Instant value, ElementByteSizeObserver observer) throws Exception {
     LONG_CODER.registerByteSizeObserver(
-        ORDER_PRESERVING_CONVERTER.convert(value), observer, context);
+        ORDER_PRESERVING_CONVERTER.convert(value), observer);
   }
 
   @Override

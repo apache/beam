@@ -84,12 +84,11 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
 
   @Override
   public void encode(
-      IterableT iterable, OutputStream outStream, Context context)
+      IterableT iterable, OutputStream outStream)
       throws IOException, CoderException  {
     if (iterable == null) {
       throw new CoderException("cannot encode a null " + iterableName);
     }
-    Context nestedContext = context.nested();
     DataOutputStream dataOutStream = new DataOutputStream(outStream);
     if (iterable instanceof Collection) {
       // We can know the size of the Iterable.  Use an encoding with a
@@ -97,7 +96,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
       Collection<T> collection = (Collection<T>) iterable;
       dataOutStream.writeInt(collection.size());
       for (T elem : collection) {
-        elementCoder.encode(elem, dataOutStream, nestedContext);
+        elementCoder.encode(elem, dataOutStream);
       }
     } else {
       // We don't know the size without traversing it so use a fixed size buffer
@@ -108,7 +107,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
           new BufferedElementCountingOutputStream(dataOutStream);
       for (T elem : iterable) {
         countingOutputStream.markElementStart();
-        elementCoder.encode(elem, countingOutputStream, nestedContext);
+        elementCoder.encode(elem, countingOutputStream);
       }
       countingOutputStream.finish();
     }
@@ -117,15 +116,14 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   }
 
   @Override
-  public IterableT decode(InputStream inStream, Context context)
+  public IterableT decode(InputStream inStream)
       throws IOException, CoderException {
-    Context nestedContext = context.nested();
     DataInputStream dataInStream = new DataInputStream(inStream);
     int size = dataInStream.readInt();
     if (size >= 0) {
       List<T> elements = new ArrayList<>(size);
       for (int i = 0; i < size; i++) {
-        elements.add(elementCoder.decode(dataInStream, nestedContext));
+        elements.add(elementCoder.decode(dataInStream));
       }
       return decodeToIterable(elements);
     }
@@ -134,7 +132,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     // each block of elements.
     long count = VarInt.decodeLong(dataInStream);
     while (count > 0L) {
-      elements.add(elementCoder.decode(dataInStream, nestedContext));
+      elements.add(elementCoder.decode(dataInStream));
       --count;
       if (count == 0L) {
           count = VarInt.decodeLong(dataInStream);
@@ -170,18 +168,17 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(
-      IterableT iterable, Context context) {
+      IterableT iterable) {
     return iterable instanceof ElementByteSizeObservableIterable;
   }
 
   @Override
   public void registerByteSizeObserver(
-      IterableT iterable, ElementByteSizeObserver observer, Context context)
+      IterableT iterable, ElementByteSizeObserver observer)
       throws Exception {
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
     }
-    Context nestedContext = context.nested();
 
     if (iterable instanceof ElementByteSizeObservableIterable) {
       observer.setLazy();
@@ -196,7 +193,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         Collection<T> collection = (Collection<T>) iterable;
         observer.update(4L);
         for (T elem : collection) {
-          elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
+          elementCoder.registerByteSizeObserver(elem, observer);
         }
       } else {
         // TODO: (BEAM-1537) Update to use an accurate count depending on size and count,
@@ -208,7 +205,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         long count = 0;
         for (T elem : iterable) {
           count += 1;
-          elementCoder.registerByteSizeObserver(elem, observer, nestedContext);
+          elementCoder.registerByteSizeObserver(elem, observer);
         }
         if (count > 0) {
           // Update the length based upon the number of counted elements, this helps

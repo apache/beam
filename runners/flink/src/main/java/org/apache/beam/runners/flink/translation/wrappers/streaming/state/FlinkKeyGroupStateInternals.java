@@ -31,7 +31,6 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -430,8 +429,8 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       Map<String, ?> map = entry.getValue().f1;
       out.writeInt(map.size());
       for (Map.Entry<String, ?> entry1 : map.entrySet()) {
-        StringUtf8Coder.of().encode(entry1.getKey(), out, Context.NESTED);
-        coder.encode(entry1.getValue(), out, Context.NESTED);
+        StringUtf8Coder.of().encode(entry1.getKey(), out);
+        coder.encode(entry1.getValue(), out);
       }
     }
   }
@@ -463,8 +462,8 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
       Map<String, Object> map = (Map<String, Object>) tuple2.f1;
       int mapSize = in.readInt();
       for (int j = 0; j < mapSize; j++) {
-        String namespace = StringUtf8Coder.of().decode(in, Context.NESTED);
-        Object value = coder.decode(in, Context.NESTED);
+        String namespace = StringUtf8Coder.of().decode(in);
+        Object value = coder.decode(in);
         map.put(namespace, value);
       }
     }

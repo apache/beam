@@ -64,6 +64,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
   @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes
@@ -127,18 +128,6 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Encodes the given value of type {@code T} onto the given output stream
-   * in the outer context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException;
-
-  /**
-   * Encodes the given value of type {@code T} onto the given output stream
    * in the given context.
    *
    * @throws IOException if writing to the {@code OutputStream} fails
@@ -146,8 +135,11 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   @Deprecated
-  public abstract void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException;
+  @Experimental(Kind.CODER_CONTEXT)
+  public void encode(T value, OutputStream outStream, Context context)
+      throws CoderException, IOException {
+    encode(value, outStream);
+  }
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
@@ -161,17 +153,6 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
-   * the outer context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decodeOuter(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
    * the given context.  Returns the decoded value.
    *
    * @throws IOException if reading from the {@code InputStream} fails
@@ -179,8 +160,11 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   @Deprecated
-  public abstract T decode(InputStream inStream, Context context)
-      throws CoderException, IOException;
+  @Experimental(Kind.CODER_CONTEXT)
+  public T decode(InputStream inStream, Context context)
+      throws CoderException, IOException {
+    return decode(inStream);
+  }
 
   /**
    * If this is a {@code Coder} for a parameterized type, returns the
@@ -301,37 +285,7 @@ public abstract class Coder<T> implements Serializable {
    *         unless it is overridden. This is considered expensive.
    */
   public boolean isRegisterByteSizeObserverCheap(T value) {
-    return isRegisterByteSizeObserverCheap(value, Context.NESTED);
-  }
-
-  /**
-   * {@inheritDoc}
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
-   * implementations.
-   *
-   * @return {@code false} unless it is overridden. {@link StructuredCoder#registerByteSizeObserver}
-   *         invokes {@link #getEncodedElementByteSize} which requires re-encoding an element
-   *         unless it is overridden. This is considered expensive.
-   */
-  @Deprecated
-  public boolean isRegisterByteSizeObserverCheap(T value, Context context) {
     return false;
-  }
-
-  /**
-   * Returns the size in bytes of the encoded value using this coder.
-   */
-  protected long getEncodedElementByteSize(T value, Context context)
-      throws Exception {
-    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
-      encode(value, os, context);
-      return os.getCount();
-    } catch (Exception exn) {
-      throw new IllegalArgumentException(
-          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
-    }
   }
 
   /**
@@ -347,22 +301,20 @@ public abstract class Coder<T> implements Serializable {
    */
   public void registerByteSizeObserver(T value, ElementByteSizeObserver observer)
       throws Exception {
-    registerByteSizeObserver(value, observer, Context.NESTED);
+    observer.update(getEncodedElementByteSize(value));
   }
 
   /**
-   * Notifies the {@code ElementByteSizeObserver} about the byte size
-   * of the encoded value using this {@code Coder}.
-   *
-   * <p>Not intended to be called by user code, but instead by
-   * {@link PipelineRunner}
-   * implementations.
+   * Returns the size in bytes of the encoded value using this coder.
    */
-  @Deprecated
-  public void registerByteSizeObserver(
-      T value, ElementByteSizeObserver observer, Context context)
-      throws Exception {
-    observer.update(getEncodedElementByteSize(value, context));
+  protected long getEncodedElementByteSize(T value) throws Exception {
+    try (CountingOutputStream os = new CountingOutputStream(ByteStreams.nullOutputStream())) {
+      encode(value, os);
+      return os.getCount();
+    } catch (Exception exn) {
+      throw new IllegalArgumentException(
+          "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+    }
   }
 
   /**

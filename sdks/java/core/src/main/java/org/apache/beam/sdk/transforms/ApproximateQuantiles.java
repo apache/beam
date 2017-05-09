@@ -679,59 +679,55 @@ public class ApproximateQuantiles {
 
     @Override
     public void encode(
-        QuantileState<T, ComparatorT> state, OutputStream outStream, Coder.Context context)
+        QuantileState<T, ComparatorT> state, OutputStream outStream)
         throws CoderException, IOException {
-      Coder.Context nestedContext = context.nested();
-      intCoder.encode(state.numQuantiles, outStream, nestedContext);
-      intCoder.encode(state.bufferSize, outStream, nestedContext);
-      elementCoder.encode(state.min, outStream, nestedContext);
-      elementCoder.encode(state.max, outStream, nestedContext);
+      intCoder.encode(state.numQuantiles, outStream);
+      intCoder.encode(state.bufferSize, outStream);
+      elementCoder.encode(state.min, outStream);
+      elementCoder.encode(state.max, outStream);
       elementListCoder.encode(
-          state.unbufferedElements, outStream, nestedContext);
+          state.unbufferedElements, outStream);
       BigEndianIntegerCoder.of().encode(
-          state.buffers.size(), outStream, nestedContext);
+          state.buffers.size(), outStream);
       for (QuantileBuffer<T> buffer : state.buffers) {
-        encodeBuffer(buffer, outStream, nestedContext);
+        encodeBuffer(buffer, outStream);
       }
     }
 
     @Override
-    public QuantileState<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+    public QuantileState<T, ComparatorT> decode(InputStream inStream)
         throws CoderException, IOException {
-      Coder.Context nestedContext = context.nested();
-      int numQuantiles = intCoder.decode(inStream, nestedContext);
-      int bufferSize = intCoder.decode(inStream, nestedContext);
-      T min = elementCoder.decode(inStream, nestedContext);
-      T max = elementCoder.decode(inStream, nestedContext);
+      int numQuantiles = intCoder.decode(inStream);
+      int bufferSize = intCoder.decode(inStream);
+      T min = elementCoder.decode(inStream);
+      T max = elementCoder.decode(inStream);
       List<T> unbufferedElements =
-          elementListCoder.decode(inStream, nestedContext);
+          elementListCoder.decode(inStream);
       int numBuffers =
-          BigEndianIntegerCoder.of().decode(inStream, nestedContext);
+          BigEndianIntegerCoder.of().decode(inStream);
       List<QuantileBuffer<T>> buffers = new ArrayList<>(numBuffers);
       for (int i = 0; i < numBuffers; i++) {
-        buffers.add(decodeBuffer(inStream, nestedContext));
+        buffers.add(decodeBuffer(inStream));
       }
       return new QuantileState<T, ComparatorT>(
           compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
     }
 
-    private void encodeBuffer(
-        QuantileBuffer<T> buffer, OutputStream outStream, Coder.Context context)
+    private void encodeBuffer(QuantileBuffer<T> buffer, OutputStream outStream)
         throws CoderException, IOException {
       DataOutputStream outData = new DataOutputStream(outStream);
       outData.writeInt(buffer.level);
       outData.writeLong(buffer.weight);
-      elementListCoder.encode(buffer.elements, outStream, context);
+      elementListCoder.encode(buffer.elements, outStream);
     }
 
-    private QuantileBuffer<T> decodeBuffer(
-        InputStream inStream, Coder.Context context)
+    private QuantileBuffer<T> decodeBuffer(InputStream inStream)
         throws IOException, CoderException {
       DataInputStream inData = new DataInputStream(inStream);
       return new QuantileBuffer<>(
           inData.readInt(),
           inData.readLong(),
-          elementListCoder.decode(inStream, context));
+          elementListCoder.decode(inStream));
     }
 
     /**
@@ -741,24 +737,16 @@ public class ApproximateQuantiles {
     @Override
     public void registerByteSizeObserver(
         QuantileState<T, ComparatorT> state,
-        ElementByteSizeObserver observer,
-        Coder.Context context)
+        ElementByteSizeObserver observer)
         throws Exception {
-      Coder.Context nestedContext = context.nested();
-      elementCoder.registerByteSizeObserver(
-          state.min, observer, nestedContext);
-      elementCoder.registerByteSizeObserver(
-          state.max, observer, nestedContext);
-      elementListCoder.registerByteSizeObserver(
-          state.unbufferedElements, observer, nestedContext);
+      elementCoder.registerByteSizeObserver(state.min, observer);
+      elementCoder.registerByteSizeObserver(state.max, observer);
+      elementListCoder.registerByteSizeObserver(state.unbufferedElements, observer);
 
-      BigEndianIntegerCoder.of().registerByteSizeObserver(
-          state.buffers.size(), observer, nestedContext);
+      BigEndianIntegerCoder.of().registerByteSizeObserver(state.buffers.size(), observer);
       for (QuantileBuffer<T> buffer : state.buffers) {
         observer.update(4L + 8);
-
-        elementListCoder.registerByteSizeObserver(
-            buffer.elements, observer, nestedContext);
+        elementListCoder.registerByteSizeObserver(buffer.elements, observer);
       }
     }
 
