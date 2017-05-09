@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReference;

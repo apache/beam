@@ -16,10 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
 import com.google.common.base.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 
 /**
  * Implements matching for metrics filters. Specifically, matching for metric name,

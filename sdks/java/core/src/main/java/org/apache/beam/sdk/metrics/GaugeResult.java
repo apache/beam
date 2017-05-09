@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.joda.time.Instant;
 
 /**
  * The result of a {@link Gauge} metric.
  */
+@Experimental(Kind.METRICS)
 @AutoValue
 public abstract class GaugeResult {
   public abstract long value();

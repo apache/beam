@@ -24,8 +24,8 @@ import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -91,7 +91,7 @@ public class ReaderToIteratorAdapterTest {
   private final TestReader testReader = new TestReader();
 
   private final SourceRDD.Bounded.ReaderToIteratorAdapter<Integer> readerIterator =
-      new SourceRDD.Bounded.ReaderToIteratorAdapter<>(new MetricsContainer(""), testReader);
+      new SourceRDD.Bounded.ReaderToIteratorAdapter<>(new MetricsContainerImpl(""), testReader);
 
   private void assertReaderRange(final int start, final int end) {
     for (int i = start; i < end; i++) {

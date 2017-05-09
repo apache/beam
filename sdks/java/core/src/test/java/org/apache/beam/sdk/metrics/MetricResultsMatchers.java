@@ -19,66 +19,14 @@
 package org.apache.beam.sdk.metrics;
 
 import java.util.Objects;
-import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 
 /**
- * Matchers for metrics.
+ * Matchers for {@link MetricResults}.
  */
-public class MetricMatchers {
-
-  /**
-   * Matches a {@link MetricUpdate} with the given name and contents.
-   *
-   * <p>Visible since it may be used in runner-specific tests.
-   */
-  public static <T> Matcher<MetricUpdate<T>> metricUpdate(final String name, final T update) {
-    return new TypeSafeMatcher<MetricUpdate<T>>() {
-      @Override
-      protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(name, item.getKey().metricName().name())
-            && Objects.equals(update, item.getUpdate());
-      }
-
-      @Override
-      public void describeTo(Description description) {
-        description
-            .appendText("MetricUpdate{name=").appendValue(name)
-            .appendText(", update=").appendValue(update)
-            .appendText("}");
-      }
-    };
-  }
-
-  /**
-   * Matches a {@link MetricUpdate} with the given namespace, name, step and contents.
-   *
-   * <p>Visible since it may be used in runner-specific tests.
-   */
-  public static <T> Matcher<MetricUpdate<T>> metricUpdate(
-      final String namespace, final String name, final String step, final T update) {
-    return new TypeSafeMatcher<MetricUpdate<T>>() {
-      @Override
-      protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(namespace, item.getKey().metricName().namespace())
-            && Objects.equals(name, item.getKey().metricName().name())
-            && Objects.equals(step, item.getKey().stepName())
-            && Objects.equals(update, item.getUpdate());
-      }
-
-      @Override
-      public void describeTo(Description description) {
-        description
-            .appendText("MetricUpdate{inNamespace=").appendValue(namespace)
-            .appendText(", name=").appendValue(name)
-            .appendText(", step=").appendValue(step)
-            .appendText(", update=").appendValue(update)
-            .appendText("}");
-      }
-    };
-  }
+public class MetricResultsMatchers {
 
   /**
    * Matches a {@link MetricResult} with the given namespace, name and step, and whose value equals
@@ -164,7 +112,7 @@ public class MetricMatchers {
     return distributionMinMax(namespace, name, step, committedMin, committedMax, true);
   }
 
-  static Matcher<MetricResult<DistributionResult>> distributionMinMax(
+  public static Matcher<MetricResult<DistributionResult>> distributionMinMax(
       final String namespace, final String name, final String step,
       final Long min, final Long max, final boolean isCommitted) {
     final String metricState = isCommitted ? "committed" : "attempted";

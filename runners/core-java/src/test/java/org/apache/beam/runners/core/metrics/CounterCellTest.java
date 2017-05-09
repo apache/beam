@@ -16,38 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link DistributionCell}.
+ * Tests for {@link CounterCell}.
  */
 @RunWith(JUnit4.class)
-public class DistributionCellTest {
-  private DistributionCell cell = new DistributionCell();
+public class CounterCellTest {
+
+  private CounterCell cell = new CounterCell(MetricName.named("hello", "world"));
 
   @Test
   public void testDeltaAndCumulative() {
-    cell.update(5);
-    cell.update(7);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
-    assertThat("getCumulative is idempotent",
-        cell.getCumulative(), equalTo(DistributionData.create(12, 2, 5, 7)));
+    cell.inc(5);
+    cell.inc(7);
+    assertThat(cell.getCumulative(), equalTo(12L));
+    assertThat("getCumulative is idempotent", cell.getCumulative(), equalTo(12L));
 
     assertThat(cell.getDirty().beforeCommit(), equalTo(true));
     cell.getDirty().afterCommit();
     assertThat(cell.getDirty().beforeCommit(), equalTo(false));
+    assertThat(cell.getCumulative(), equalTo(12L));
 
-    cell.update(30);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 5, 30)));
+    cell.inc(30);
+    assertThat(cell.getCumulative(), equalTo(42L));
 
-    assertThat("Adding a new value made the cell dirty",
-        cell.getDirty().beforeCommit(), equalTo(true));
+    assertThat(cell.getDirty().beforeCommit(), equalTo(true));
+    cell.getDirty().afterCommit();
+    assertThat(cell.getDirty().beforeCommit(), equalTo(false));
   }
 }
