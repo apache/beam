@@ -56,13 +56,13 @@ from google.protobuf import struct_pb2
 from apache_beam import coders
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import timeutil
-from apache_beam.transforms.timeutil import Duration
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
-from apache_beam.transforms.timeutil import Timestamp
-from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # TODO(ccy): revisit naming and semantics once Java Apache Beam finalizes their
@@ -414,7 +414,7 @@ class Sessions(WindowFn):
 
   def merge(self, merge_context):
     to_merge = []
-    end = timeutil.MIN_TIMESTAMP
+    end = MIN_TIMESTAMP
     for w in sorted(merge_context.windows, key=lambda w: w.start):
       if to_merge:
         if end > w.start:

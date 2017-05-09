@@ -979,8 +979,3 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, element
-
-
-# For backwards compatibility.
-# pylint: disable=wrong-import-position
-from apache_beam.runners.dataflow.native_io.iobase import *
