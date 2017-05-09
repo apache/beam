@@ -46,12 +46,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy.Context;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
+import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
+import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
@@ -88,7 +88,7 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * FileBasedWriter opens the correct file, writes the header, footer, and elements in the
+   * Writer opens the correct file, writes the header, footer, and elements in the
    * correct order, and returns the correct filename.
    */
   @Test
@@ -187,13 +187,13 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * Generate n temporary files using the temporary file pattern of FileBasedWriter.
+   * Generate n temporary files using the temporary file pattern of Writer.
    */
   private List<File> generateTemporaryFilesForFinalize(int numFiles) throws Exception {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       ResourceId temporaryFile =
-          FileBasedWriteOperation.buildTemporaryFilename(getBaseTempDirectory(), "" + i);
+          WriteOperation.buildTemporaryFilename(getBaseTempDirectory(), "" + i);
       File tmpFile = new File(tmpFolder.getRoot(), temporaryFile.toString());
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
@@ -242,14 +242,14 @@ public class FileBasedSinkTest {
     SimpleSink sink =
         new SimpleSink(getBaseOutputDirectory(), prefix, "", "");
 
-    FileBasedWriteOperation<String> writeOp =
+    WriteOperation<String> writeOp =
         new SimpleSink.SimpleWriteOperation(sink, tempDirectory);
 
     List<File> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       ResourceId tempResource =
-          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, prefix + i);
+          WriteOperation.buildTemporaryFilename(tempDirectory, prefix + i);
       File tmpFile = new File(tempResource.toString());
       tmpFile.getParentFile().mkdirs();
       assertTrue("not able to create new temp file", tmpFile.createNewFile());
@@ -487,17 +487,17 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * {@link FileBasedWriter} writes to the {@link WritableByteChannel} provided by
+   * {@link Writer} writes to the {@link WritableByteChannel} provided by
    * {@link DrunkWritableByteChannelFactory}.
    */
   @Test
   public void testFileBasedWriterWithWritableByteChannelFactory() throws Exception {
     final String testUid = "testId";
     ResourceId root = getBaseOutputDirectory();
-    FileBasedWriteOperation<String> writeOp =
+    WriteOperation<String> writeOp =
         new SimpleSink(root, "file", "-SS-of-NN", "txt", new DrunkWritableByteChannelFactory())
             .createWriteOperation();
-    final FileBasedWriter<String> writer = writeOp.createWriter();
+    final Writer<String> writer = writeOp.createWriter();
     final ResourceId expectedFile =
         writeOp.tempDirectory.get().resolve(testUid, StandardResolveOptions.RESOLVE_FILE);
 
