@@ -95,6 +95,7 @@
                   <include>org.apache.beam:beam-runners-core-construction-java</include>
                   <include>org.apache.beam:beam-runners-core-java</include>
                   <include>org.apache.beam:beam-sdks-common-runner-api</include>
+                  <include>com.google.code.findbugs:jsr305</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -136,6 +137,12 @@
                   <pattern>com.google.thirdparty</pattern>
                   <shadedPattern>
                     org.apache.beam.runners.direct.repackaged.com.google.thirdparty
+                  </shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>
+                    org.apache.beam.runners.direct.repackaged.javax.annotation
                   </shadedPattern>
                 </relocation>
               </relocations>
