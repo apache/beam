@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.GaugeResult;
-import org.apache.beam.sdk.metrics.MetricMatchers;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -587,33 +587,29 @@ public class KafkaIOTest {
 
     Iterable<MetricResult<Long>> counters = metrics.counters();
 
-    assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult(
-            elementsRead.namespace(),
-            elementsRead.name(),
-            readStep,
-            1000L)));
+    assertThat(counters, hasItem(attemptedMetricsResult(
+        elementsRead.namespace(),
+        elementsRead.name(),
+        readStep,
+        1000L)));
 
-    assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult(
-            elementsReadBySplit.namespace(),
-            elementsReadBySplit.name(),
-            readStep,
-            1000L)));
+    assertThat(counters, hasItem(attemptedMetricsResult(
+        elementsReadBySplit.namespace(),
+        elementsReadBySplit.name(),
+        readStep,
+        1000L)));
 
-    assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult(
-            bytesRead.namespace(),
-            bytesRead.name(),
-            readStep,
-            12000L)));
+    assertThat(counters, hasItem(attemptedMetricsResult(
+        bytesRead.namespace(),
+        bytesRead.name(),
+        readStep,
+        12000L)));
 
-    assertThat(counters, hasItem(
-        MetricMatchers.attemptedMetricsResult(
-            bytesReadBySplit.namespace(),
-            bytesReadBySplit.name(),
-            readStep,
-            12000L)));
+    assertThat(counters, hasItem(attemptedMetricsResult(
+        bytesReadBySplit.namespace(),
+        bytesReadBySplit.name(),
+        readStep,
+        12000L)));
 
     MetricQueryResults backlogElementsMetrics =
         result.metrics().queryMetrics(
@@ -912,7 +908,7 @@ public class KafkaIOTest {
 
 
       assertThat(metrics.counters(), hasItem(
-          MetricMatchers.attemptedMetricsResult(
+          attemptedMetricsResult(
               elementsWritten.namespace(),
               elementsWritten.name(),
               "writeToKafka",
