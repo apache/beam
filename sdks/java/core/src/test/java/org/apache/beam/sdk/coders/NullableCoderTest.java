@@ -167,10 +167,21 @@ public class NullableCoderTest {
 
   private static class EntireStreamExpectingCoder extends AtomicCoder<String> {
     @Override
+    public void encode(String value, OutputStream outStream)
+        throws IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(
         String value, OutputStream outStream, Context context) throws IOException {
       checkArgument(context.isWholeStream, "Expected to get entire stream");
       StringUtf8Coder.of().encode(value, outStream, context);
+    }
+
+    @Override
+    public String decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override

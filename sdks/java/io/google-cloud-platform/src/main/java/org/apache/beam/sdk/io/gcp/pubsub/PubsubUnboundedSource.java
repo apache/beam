@@ -369,19 +369,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private PubsubCheckpointCoder() {}
 
     @Override
-    public void encode(PubsubCheckpoint value, OutputStream outStream, Context context)
+    public void encode(PubsubCheckpoint value, OutputStream outStream)
         throws IOException {
       SUBSCRIPTION_PATH_CODER.encode(
           value.subscriptionPath,
-          outStream,
-          context.nested());
-      LIST_CODER.encode(value.notYetReadIds, outStream, context);
+          outStream);
+      LIST_CODER.encode(value.notYetReadIds, outStream);
     }
 
     @Override
-    public PubsubCheckpoint decode(InputStream inStream, Context context) throws IOException {
-      String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
-      List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
+    public PubsubCheckpoint decode(InputStream inStream) throws IOException {
+      String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
+      List<String> notYetReadIds = LIST_CODER.decode(inStream);
       return new PubsubCheckpoint(path, null, null, notYetReadIds);
     }
   }

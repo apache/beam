@@ -69,6 +69,12 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   }
 
   @Override
+  public void encode(Map<K, V> map, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(map, outStream, Context.NESTED);
+  }
+
+  @Override
   public void encode(
       Map<K, V> map,
       OutputStream outStream,
@@ -89,14 +95,19 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
     Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
     Entry<K, V> entry = iterator.next();
     while (iterator.hasNext()) {
-      keyCoder.encode(entry.getKey(), outStream, context.nested());
-      valueCoder.encode(entry.getValue(), outStream, context.nested());
+      keyCoder.encode(entry.getKey(), outStream);
+      valueCoder.encode(entry.getValue(), outStream);
       entry = iterator.next();
     }
 
-    keyCoder.encode(entry.getKey(), outStream, context.nested());
+    keyCoder.encode(entry.getKey(), outStream);
     valueCoder.encode(entry.getValue(), outStream, context);
     // no flush needed as DataOutputStream does not buffer
+  }
+
+  @Override
+  public Map<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -110,12 +121,12 @@ public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
 
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
     for (int i = 0; i < size - 1; ++i) {
-      K key = keyCoder.decode(inStream, context.nested());
-      V value = valueCoder.decode(inStream, context.nested());
+      K key = keyCoder.decode(inStream);
+      V value = valueCoder.decode(inStream);
       retval.put(key, value);
     }
 
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     retval.put(key, value);
     return retval;

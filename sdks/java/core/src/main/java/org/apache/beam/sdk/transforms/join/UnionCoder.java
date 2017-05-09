@@ -54,6 +54,12 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     return index;
   }
 
+  @Override
+  public void encode(RawUnionValue union, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(union, outStream, Context.NESTED);
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void encode(
@@ -71,6 +77,11 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
         union.getValue(),
         outStream,
         context);
+  }
+
+  @Override
+  public RawUnionValue decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
