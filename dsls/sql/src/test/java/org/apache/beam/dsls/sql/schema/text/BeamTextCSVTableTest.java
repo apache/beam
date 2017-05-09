@@ -18,29 +18,27 @@
 
 package org.apache.beam.dsls.sql.schema.text;
 
-import static org.junit.Assert.assertTrue;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.io.Serializable;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -57,11 +55,8 @@ import org.junit.Test;
  */
 public class BeamTextCSVTableTest {
 
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
-
-  @Rule
-  public TestPipeline pipeline2 = TestPipeline.create();
+  @Rule public TestPipeline pipeline = TestPipeline.create();
+  @Rule public TestPipeline pipeline2 = TestPipeline.create();
 
   /**
    * testData.
@@ -71,9 +66,14 @@ public class BeamTextCSVTableTest {
    *     integer,bigint,float,double,string
    * </p>
    */
-  private static List<Object[]> testData = new ArrayList<Object[]>() {{
-    add(new Object[] { 1, 1L, 1.1F, 1.1, "james" });
-    add(new Object[] { 2, 2L, 2.2F, 2.2, "bond" });
+  private static Object[] data1 = new Object[] { 1, 1L, 1.1F, 1.1, "james" };
+  private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
+
+  private static List<Object[]> testData = Arrays.asList(data1, data2);
+  private static List<BeamSQLRow> testDataRows = new ArrayList<BeamSQLRow>() {{
+    for (Object[] data : testData) {
+      add(buildRow(data));
+    }
   }};
   private static ConcurrentLinkedQueue<Object[]> actualData = new ConcurrentLinkedQueue<>();
 
@@ -81,34 +81,27 @@ public class BeamTextCSVTableTest {
   private static File readerSourceFile;
   private static File writerTargetFile;
 
-
   @Test public void testBuildIOReader() {
-    pipeline.apply(
-        new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader())
-        .apply(ParDo.of(new TeeFn()));
+    PCollection<BeamSQLRow> rows = pipeline.apply(
+        new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader());
+    PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
-
-    equalsIgnoreOrder(testData, actualData);
   }
 
   @Test public void testBuildIOWriter() {
     // reader from a source file, then write into a target file
     pipeline.apply(
         new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader())
-        .apply(ParDo.of(new TeeFn())).apply(
-        new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath()).buildIOWriter());
+        .apply(new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath())
+            .buildIOWriter());
     pipeline.run();
 
-    // read from the target file
-    actualData.clear();
-
-    pipeline2.apply(
-        new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath()).buildIOReader())
-        .apply(ParDo.of(new TeeFn()));
-    pipeline2.run();
+    PCollection<BeamSQLRow> rows = pipeline2.apply(
+        new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath()).buildIOReader());
 
     // confirm the two reads match
-    equalsIgnoreOrder(testData, actualData);
+    PAssert.that(rows).containsInAnyOrder(testDataRows);
+    pipeline2.run();
   }
 
   @BeforeClass public static void setUp() throws IOException {
@@ -159,63 +152,28 @@ public class BeamTextCSVTableTest {
     }
   }
 
-  /**
-   * Keep a copy and forward.
-   */
-  private static class TeeFn extends DoFn<BeamSQLRow, BeamSQLRow> implements Serializable {
-
-    @ProcessElement public void processElement(ProcessContext ctx) {
-      Object[] row = new Object[5];
-      for (int i = 0; i < ctx.element().size(); i++) {
-        row[i] = ctx.element().getFieldValue(i);
-      }
-      actualData.add(row);
-      ctx.output(ctx.element());
-    }
-  }
-
-  /**
-   * Compares two list of objects ignores their order difference.
-   *
-   * <p>
-   *   [a, b] == [b, a]
-   *   [a, b, c] != [a, b]
-   * </p>
-   */
-  private static void equalsIgnoreOrder(Collection expected, Collection actual) {
-    boolean ret = true;
-    if (expected.size() != actual.size()) {
-      ret = false;
-    }
-
-    if (expected.size() == actual.size()) {
-      for (Object row : expected) {
-        boolean matches = false;
-        for (Object actualRow : actual) {
-          if (Objects.deepEquals(row, actualRow)) {
-            matches = true;
-            break;
-          }
-        }
-
-        if (!matches) {
-          ret = false;
-        }
-      }
-    }
-
-    assertTrue(ret);
-  }
-
   private RelProtoDataType buildRowType() {
     return new RelProtoDataType() {
 
       @Override public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("id", SqlTypeName.INTEGER)
-            .add("order_id", SqlTypeName.BIGINT)
+        return a0.builder().add("id", SqlTypeName.INTEGER).add("order_id", SqlTypeName.BIGINT)
             .add("price", SqlTypeName.FLOAT).add("amount", SqlTypeName.DOUBLE)
             .add("user_name", SqlTypeName.VARCHAR).build();
       }
     };
+  }
+
+  private static RelDataType buildRelDataType() {
+    return BeamQueryPlanner.TYPE_FACTORY.builder().add("id", SqlTypeName.INTEGER)
+        .add("order_id", SqlTypeName.BIGINT).add("price", SqlTypeName.FLOAT)
+        .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
+  }
+
+  private static BeamSQLRecordType buildBeamSQLRecordType() {
+    return BeamSQLRecordType.from(buildRelDataType());
+  }
+
+  private static BeamSQLRow buildRow(Object[] data) {
+    return new BeamSQLRow(buildBeamSQLRecordType(), Arrays.asList(data));
   }
 }
