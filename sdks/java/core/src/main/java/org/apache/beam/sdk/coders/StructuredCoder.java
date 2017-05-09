@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -99,50 +96,6 @@ public abstract class StructuredCoder<T> extends Coder<T> {
       builder.append(')');
     }
     return builder.toString();
-  }
-
-  @Override
-  public void encode(T value, OutputStream outStream)
-      throws CoderException, IOException {
-    encode(value, outStream, Coder.Context.NESTED);
-  }
-
-  @Deprecated
-  @Override
-  public void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException {
-    encode(value, outStream, Coder.Context.OUTER);
-  }
-
-  @Deprecated
-  public void encode(T value, OutputStream outStream, Coder.Context context)
-      throws CoderException, IOException {
-    if (context == Coder.Context.NESTED) {
-      encode(value, outStream);
-    } else {
-      encodeOuter(value, outStream);
-    }
-  }
-
-  @Override
-  public T decode(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Coder.Context.NESTED);
-  }
-
-  @Deprecated
-  @Override
-  public T decodeOuter(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Coder.Context.OUTER);
-  }
-
-  @Deprecated
-  public T decode(InputStream inStream, Coder.Context context)
-      throws CoderException, IOException {
-    if (context == Coder.Context.NESTED) {
-      return decode(inStream);
-    } else {
-      return decodeOuter(inStream);
-    }
   }
 
   protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)

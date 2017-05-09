@@ -130,13 +130,13 @@ public class PCollectionsTest {
   @AutoValue
   abstract static class CustomIntCoder extends CustomCoder<Integer> {
     @Override
-    public void encode(Integer value, OutputStream outStream, Context context) throws IOException {
-      VarInt.encode(value, outStream);
+    public Integer decode(InputStream inStream) throws IOException {
+      return VarInt.decodeInt(inStream);
     }
 
     @Override
-    public Integer decode(InputStream inStream, Context context) throws IOException {
-      return VarInt.decodeInt(inStream);
+    public void encode(Integer value, OutputStream outStream) throws IOException {
+      VarInt.encode(value, outStream);
     }
   }
 
@@ -163,13 +163,13 @@ public class PCollectionsTest {
         @Override public void verifyDeterministic() {}
 
         @Override
-        public void encode(BoundedWindow value, OutputStream outStream, Context context)
+        public void encode(BoundedWindow value, OutputStream outStream)
             throws IOException {
           VarInt.encode(value.maxTimestamp().getMillis(), outStream);
         }
 
         @Override
-        public BoundedWindow decode(InputStream inStream, Context context) throws IOException {
+        public BoundedWindow decode(InputStream inStream) throws IOException {
           final Instant ts = new Instant(VarInt.decodeLong(inStream));
           return new BoundedWindow() {
             @Override

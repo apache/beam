@@ -88,15 +88,8 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    try {
-      jaxbMarshaller.get().marshal(value, baos);
-    } catch (JAXBException e) {
-      throw new CoderException(e);
-    }
-    VarInt.encode(baos.size(), outStream);
-    baos.writeTo(outStream);
+  public void encode(T value, OutputStream outStream) throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
@@ -109,8 +102,20 @@ public class JAXBCoder<T> extends CustomCoder<T> {
         throw new CoderException(e);
       }
     } else {
-      encode(value, outStream);
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      try {
+        jaxbMarshaller.get().marshal(value, baos);
+      } catch (JAXBException e) {
+        throw new CoderException(e);
+      }
+      VarInt.encode(baos.size(), outStream);
+      baos.writeTo(outStream);
     }
+  }
+
+  @Override
+  public T decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override

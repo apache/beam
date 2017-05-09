@@ -68,13 +68,13 @@ public class WritableCoder<T extends Writable> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context) throws IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     value.write(new DataOutputStream(outStream));
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public T decode(InputStream inStream, Context context) throws IOException {
+  public T decode(InputStream inStream) throws IOException {
     try {
       if (type == NullWritable.class) {
         // NullWritable has no default constructor

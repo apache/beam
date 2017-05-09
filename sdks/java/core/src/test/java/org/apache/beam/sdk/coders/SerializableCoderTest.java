@@ -182,15 +182,15 @@ public class SerializableCoderTest implements Serializable {
     // Encode both strings into NESTED form.
     byte[] nestedEncoding;
     try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-      coder.encode(source, os, Coder.Context.NESTED);
-      coder.encode(source2, os, Coder.Context.NESTED);
+      coder.encode(source, os);
+      coder.encode(source2, os);
       nestedEncoding = os.toByteArray();
     }
 
     // Decode from NESTED form.
     try (ByteArrayInputStream is = new ByteArrayInputStream(nestedEncoding)) {
-      assertEquals(source, coder.decode(is, Coder.Context.NESTED));
-      assertEquals(source2, coder.decode(is, Coder.Context.NESTED));
+      assertEquals(source, coder.decode(is));
+      assertEquals(source2, coder.decode(is));
       assertEquals(0, is.available());
     }
   }
@@ -207,20 +207,20 @@ public class SerializableCoderTest implements Serializable {
     Coder<String> coder = SerializableCoder.of(String.class);
     byte[] encodedBytes;
     try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
-      coder.encode(null, os, Coder.Context.NESTED);
-      coder.encode("TestValue", os, Coder.Context.NESTED);
-      coder.encode(null, os, Coder.Context.NESTED);
-      coder.encode("TestValue2", os, Coder.Context.NESTED);
-      coder.encode(null, os, Coder.Context.NESTED);
+      coder.encode(null, os);
+      coder.encode("TestValue", os);
+      coder.encode(null, os);
+      coder.encode("TestValue2", os);
+      coder.encode(null, os);
       encodedBytes = os.toByteArray();
     }
 
     try (ByteArrayInputStream is = new ByteArrayInputStream(encodedBytes)) {
-      assertNull(coder.decode(is, Coder.Context.NESTED));
-      assertEquals("TestValue", coder.decode(is,  Coder.Context.NESTED));
-      assertNull(coder.decode(is, Coder.Context.NESTED));
-      assertEquals("TestValue2", coder.decode(is,  Coder.Context.NESTED));
-      assertNull(coder.decode(is, Coder.Context.NESTED));
+      assertNull(coder.decode(is));
+      assertEquals("TestValue", coder.decode(is));
+      assertNull(coder.decode(is));
+      assertEquals("TestValue2", coder.decode(is));
+      assertNull(coder.decode(is));
       assertEquals(0, is.available());
     }
   }
