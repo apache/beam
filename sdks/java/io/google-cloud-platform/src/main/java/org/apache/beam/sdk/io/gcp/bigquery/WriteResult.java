@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.TupleTag;
 /**
  * The result of a {@link BigQueryIO.Write} transform.
  */
-final class WriteResult implements POutput {
+public final class WriteResult implements POutput {
 
   private final Pipeline pipeline;
 
