@@ -91,7 +91,7 @@ import org.joda.time.Duration;
 /**
  * Run a single Nexmark query using a given configuration.
  */
-public class NexmarkRunner<OptionT extends NexmarkOptions> {
+public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -153,7 +153,7 @@ public class NexmarkRunner<OptionT extends NexmarkOptions> {
   @Nullable
   private String queryName;
 
-  public NexmarkRunner(OptionT options) {
+  public NexmarkLauncher(OptionT options) {
     this.options = options;
   }
 
