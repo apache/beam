@@ -17,9 +17,13 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /**
  * Standard Sink Metrics.
  */
+@Experimental(Kind.METRICS)
 public class SinkMetrics {
 
   private static final String SINK_NAMESPACE = "sink";

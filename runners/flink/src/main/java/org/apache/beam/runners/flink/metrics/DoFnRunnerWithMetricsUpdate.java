@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -29,7 +30,7 @@ import org.joda.time.Instant;
 
 /**
  * {@link DoFnRunner} decorator which registers
- * {@link org.apache.beam.sdk.metrics.MetricsContainer}. It updates metrics to Flink metrics and
+ * {@link MetricsContainerImpl}. It updates metrics to Flink metrics and
  * accumulators in {@link #finishBundle()}.
  */
 public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {

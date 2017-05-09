@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.committedMetricsResult;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
