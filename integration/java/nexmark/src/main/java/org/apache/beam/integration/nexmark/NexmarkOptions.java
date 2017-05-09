@@ -37,7 +37,7 @@ public interface NexmarkOptions
 
   void setSuite(NexmarkSuite suite);
 
-  @Description("If true, and using the DataflowPipelineRunner, monitor the jobs as they run.")
+  @Description("If true, monitor the jobs as they run.")
   @Default.Boolean(false)
   boolean getMonitorJobs();
 

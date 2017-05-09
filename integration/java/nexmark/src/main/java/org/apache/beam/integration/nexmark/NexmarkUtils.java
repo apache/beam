@@ -289,7 +289,7 @@ public class NexmarkUtils {
   private static final boolean LOG_ERROR = true;
 
   /**
-   * Set to true to log directly to stdout on VM. You can watch the results in real-time with:
+   * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results in real-time with:
    * tail -f /var/log/dataflow/streaming-harness/harness-stdout.log
    */
   private static final boolean LOG_TO_CONSOLE = false;
