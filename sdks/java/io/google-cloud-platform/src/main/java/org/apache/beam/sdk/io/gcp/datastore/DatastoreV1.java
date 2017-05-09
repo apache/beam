@@ -212,6 +212,7 @@ public class DatastoreV1 {
    * exceeds this limit. This is set lower than the 10MB limit on the RPC, as this only accounts for
    * the mutations themselves and not the CommitRequest wrapper around them.
    */
+  @VisibleForTesting
   static final int DATASTORE_BATCH_UPDATE_BYTES_LIMIT = 5_000_000;
 
   /**
