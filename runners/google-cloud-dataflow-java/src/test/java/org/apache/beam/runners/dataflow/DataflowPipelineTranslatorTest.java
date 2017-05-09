@@ -20,13 +20,10 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -109,7 +106,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -807,28 +803,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   private void applyRead(Pipeline pipeline, String path) {
     pipeline.apply("Read(" + path + ")", TextIO.read().from(path));
-  }
-
-  /**
-   * Recursive wildcards are not supported.
-   * This tests "**".
-   */
-  @Test
-  public void testBadWildcardRecursive() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    Pipeline pipeline = Pipeline.create(options);
-    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
-
-    pipeline.apply(TextIO.read().from("gs://bucket/foo**/baz"));
-
-    // Check that translation does fail.
-    thrown.expectCause(allOf(
-        instanceOf(IllegalArgumentException.class),
-        ThrowableMessageMatcher.hasMessage(containsString("Unsupported wildcard usage"))));
-    t.translate(
-        pipeline,
-        DataflowRunner.fromOptions(options),
-        Collections.<DataflowPackage>emptyList());
   }
 
   private static class TestValueProvider implements ValueProvider<String>, Serializable {
