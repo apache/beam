@@ -20,7 +20,7 @@
 import unittest
 
 from apache_beam.runners import pipeline_context
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
