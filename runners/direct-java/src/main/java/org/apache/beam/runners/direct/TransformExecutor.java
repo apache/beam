@@ -26,6 +26,8 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Callable} responsible for constructing a {@link TransformEvaluator} from a
@@ -36,6 +38,8 @@ import org.apache.beam.sdk.util.WindowedValue;
  * that it is being executed on.
  */
 class TransformExecutor<T> implements Runnable {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformExecutor.class);
+
   public static <T> TransformExecutor<T> create(
       EvaluationContext context,
       TransformEvaluatorFactory factory,
@@ -112,6 +116,10 @@ class TransformExecutor<T> implements Runnable {
         throw (RuntimeException) e;
       }
       throw new RuntimeException(e);
+    } catch (Error err) {
+      LOG.error("Error occurred within {}", this, err);
+      onComplete.handleError(err);
+      throw err;
     } finally {
       // Report the physical metrics from the end of this step.
       context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
@@ -162,8 +170,8 @@ class TransformExecutor<T> implements Runnable {
       TransformEvaluator<T> evaluator, MetricsContainer metricsContainer,
       Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
-    TransformResult<T> result = evaluator.finishBundle()
-        .withLogicalMetricUpdates(metricsContainer.getCumulative());
+    TransformResult<T> result =
+        evaluator.finishBundle().withLogicalMetricUpdates(metricsContainer.getCumulative());
     CommittedResult outputs = onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {
       enforcement.afterFinish(inputBundle, result, outputs.getOutputs());

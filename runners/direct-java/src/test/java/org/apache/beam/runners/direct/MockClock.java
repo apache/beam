@@ -28,7 +28,7 @@ import org.joda.time.Instant;
  *
  * <p>For uses of the {@link Clock} interface in unit tests.
  */
-public class MockClock implements Clock {
+class MockClock implements Clock {
 
   private Instant now;
 
