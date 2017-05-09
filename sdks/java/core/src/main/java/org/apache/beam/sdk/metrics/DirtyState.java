@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.metrics;
 
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -41,7 +42,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * completed.
  */
 @Experimental(Kind.METRICS)
-class DirtyState {
+class DirtyState implements Serializable {
   private enum State {
     /** Indicates that there have been changes to the MetricCell since last commit. */
     DIRTY,

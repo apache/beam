@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
+import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -31,10 +32,10 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * in a thread-safe manner.
  */
 @Experimental(Kind.METRICS)
-public class MetricsMap<K, T> {
+public class MetricsMap<K, T> implements Serializable {
 
   /** Interface for creating instances to populate the {@link MetricsMap}. */
-  public interface Factory<K, T> {
+  public interface Factory<K, T> extends Serializable {
     /**
      * Create an instance of {@code T} to use with the given {@code key}.
      *

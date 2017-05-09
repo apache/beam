@@ -118,7 +118,7 @@ public class Metrics {
     @Override public void inc(long n) {
       MetricsContainer container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
-        container.getCounter(name).inc(n);
+        container.getCounter(name).update(n);
       }
     }
 

@@ -104,9 +104,13 @@ public class BoundedSourceWrapper<OutputT>
         numSubtasks,
         localSources);
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(stepName, getRuntimeContext());
+    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+
     ReaderInvocationUtil<OutputT, BoundedSource.BoundedReader<OutputT>> readerInvoker =
-        new ReaderInvocationUtil<>(serializedOptions.getPipelineOptions(), metricContainer);
+        new ReaderInvocationUtil<>(
+            stepName,
+            serializedOptions.getPipelineOptions(),
+            metricContainer);
 
     readers = new ArrayList<>();
     // initialize readers from scratch

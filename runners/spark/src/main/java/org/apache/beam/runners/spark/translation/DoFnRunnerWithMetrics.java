@@ -21,8 +21,8 @@ package org.apache.beam.runners.spark.translation;
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -37,12 +37,12 @@ import org.joda.time.Instant;
 class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> delegate;
   private final String stepName;
-  private final Accumulator<SparkMetricsContainer> metricsAccum;
+  private final Accumulator<MetricsContainerStepMap> metricsAccum;
 
   DoFnRunnerWithMetrics(
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
-      Accumulator<SparkMetricsContainer> metricsAccum) {
+      Accumulator<MetricsContainerStepMap> metricsAccum) {
     this.delegate = delegate;
     this.stepName = stepName;
     this.metricsAccum = metricsAccum;
