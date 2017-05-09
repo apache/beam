@@ -41,6 +41,17 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is only compatible with %s.",
+              GlobalWindows.class.getSimpleName(), GlobalWindows.class.getSimpleName()));
+    }
+  }
+
+  @Override
   public Coder<GlobalWindow> windowCoder() {
     return GlobalWindow.Coder.INSTANCE;
   }
