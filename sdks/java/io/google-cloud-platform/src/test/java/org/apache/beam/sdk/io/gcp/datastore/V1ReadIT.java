@@ -148,7 +148,7 @@ public class V1ReadIT {
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 
     for (long i = 0; i < numEntities; i++) {
-      Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace());
+      Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace(), 0);
       writer.write(entity);
     }
     writer.close();
