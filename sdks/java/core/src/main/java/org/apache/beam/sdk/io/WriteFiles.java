@@ -250,90 +250,48 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
   /**
    * Writes all the elements in a bundle using a {@link Writer} produced by the
-   * {@link WriteOperation} associated with the {@link FileBasedSink}.
+   * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes enabled.
    */
-  private class WriteBundles extends DoFn<T, FileResult> {
-    // Writer that will write the records in this bundle. Lazily
-    // initialized in processElement.
-    private Writer<T> writer = null;
-    private BoundedWindow window = null;
+  private class WriteWindowedBundles extends DoFn<T, FileResult> {
     private Map<KV<BoundedWindow, PaneInfo>, Writer<T>> windowedWriters;
-
-    Writer<T> getWriter(BoundedWindow window, PaneInfo paneInfo) throws Exception {
-      Writer<T> writer;
-      if (windowedWrites) {
-        // If we are doing windowed writes, we need to ensure that we have separate files for
-        // data in different windows.
-        KV<BoundedWindow, PaneInfo> key = KV.of(window, paneInfo);
-        writer = windowedWriters.get(key);
-        if (writer == null) {
-          LOG.info("Opening writer for write operation {}, window {}", writeOperation, window);
-          writer = writeOperation.createWriter();
-          writer.openWindowed(UUID.randomUUID().toString(), window, paneInfo, UNKNOWN_SHARDNUM);
-          windowedWriters.put(key, writer);
-          LOG.debug("Done opening writer {} for operation {} window {}", writer, writeOperation,
-              window);
-        }
-      } else {
-        // Unwindowed writes. Just cache a single writer for the bundle.
-        writer = this.writer;
-        if (writer == null) {
-          LOG.info("Opening writer for write operation {}", writeOperation);
-          writer = this.writer = writeOperation.createWriter();
-          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
-          LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
-        }
-        this.window = window;
-        LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
-      }
-      return writer;
-    }
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
       // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
-      writer = null;
-      if (windowedWrites) {
-        windowedWriters = Maps.newHashMap();
-      }
+      windowedWriters = Maps.newHashMap();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      Writer<T> writer = getWriter(window, c.pane());
-      try {
-        writer.write(c.element());
-      } catch (Exception e) {
-        // Discard write result and close the write.
-        try {
-          writer.close();
-          // The writer does not need to be reset, as this DoFn cannot be reused.
-        } catch (Exception closeException) {
-          if (closeException instanceof InterruptedException) {
-            // Do not silently ignore interrupted state.
-            Thread.currentThread().interrupt();
-          }
-          // Do not mask the exception that caused the write to fail.
-          e.addSuppressed(closeException);
-        }
-        throw e;
+      PaneInfo paneInfo = c.pane();
+      Writer<T> writer;
+      // If we are doing windowed writes, we need to ensure that we have separate files for
+      // data in different windows/panes.
+      KV<BoundedWindow, PaneInfo> key = KV.of(window, paneInfo);
+      writer = windowedWriters.get(key);
+      if (writer == null) {
+        String uuid = UUID.randomUUID().toString();
+        LOG.info(
+            "Opening writer {} for write operation {}, window {} pane {}",
+            uuid,
+            writeOperation,
+            window,
+            paneInfo);
+        writer = writeOperation.createWriter();
+        writer.openWindowed(uuid, window, paneInfo, UNKNOWN_SHARDNUM);
+        windowedWriters.put(key, writer);
+        LOG.debug("Done opening writer");
       }
+
+      writeOrClose(writer, c.element());
     }
 
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
-      if (writer != null) {
-        FileResult result = writer.close();
+      for (Map.Entry<KV<BoundedWindow, PaneInfo>, Writer<T>> entry : windowedWriters.entrySet()) {
+        FileResult result = entry.getValue().close();
+        BoundedWindow window = entry.getKey().getKey();
         c.output(result, window.maxTimestamp(), window);
-        // Reset state in case of reuse.
-        writer = null;
-      } else {
-        for (Map.Entry<KV<BoundedWindow, PaneInfo>, Writer<T>> entry :
-            windowedWriters.entrySet()) {
-          FileResult result = entry.getValue().close();
-          BoundedWindow window = entry.getKey().getKey();
-          c.output(result, window.maxTimestamp(), window);
-        }
       }
     }
 
@@ -344,10 +302,52 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   /**
-   * Like {@link WriteBundles}, but where the elements for each shard have been collected into
-   * a single iterable.
-   *
-   * @see WriteBundles
+   * Writes all the elements in a bundle using a {@link Writer} produced by the
+   * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes disabled.
+   */
+  private class WriteUnwindowedBundles extends DoFn<T, FileResult> {
+    // Writer that will write the records in this bundle. Lazily
+    // initialized in processElement.
+    private Writer<T> writer = null;
+    private BoundedWindow window = null;
+
+    @StartBundle
+    public void startBundle(StartBundleContext c) {
+      // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
+      writer = null;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+      // Cache a single writer for the bundle.
+      if (writer == null) {
+        LOG.info("Opening writer for write operation {}", writeOperation);
+        writer = writeOperation.createWriter();
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
+        LOG.debug("Done opening writer");
+      }
+      this.window = window;
+      writeOrClose(this.writer, c.element());
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      if (writer == null) {
+        return;
+      }
+      FileResult result = writer.close();
+      c.output(result, window.maxTimestamp(), window);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.delegate(WriteFiles.this);
+    }
+  }
+
+  /**
+   * Like {@link WriteWindowedBundles} and {@link WriteUnwindowedBundles}, but where the elements
+   * for each shard have been collected into a single iterable.
    */
   private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
     @ProcessElement
@@ -361,25 +361,11 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       } else {
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
       }
-      LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
+      LOG.debug("Done opening writer");
 
       try {
-        try {
-          for (T t : c.element().getValue()) {
-            writer.write(t);
-          }
-        } catch (Exception e) {
-          try {
-            writer.close();
-          } catch (Exception closeException) {
-            if (closeException instanceof InterruptedException) {
-              // Do not silently ignore interrupted state.
-              Thread.currentThread().interrupt();
-            }
-            // Do not mask the exception that caused the write to fail.
-            e.addSuppressed(closeException);
-          }
-          throw e;
+        for (T t : c.element().getValue()) {
+          writeOrClose(writer, t);
         }
 
         // Close the writer; if this throws let the error propagate.
@@ -395,6 +381,24 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       builder.delegate(WriteFiles.this);
+    }
+  }
+
+  private static <T> void writeOrClose(Writer<T> writer, T t) throws Exception {
+    try {
+      writer.write(t);
+    } catch (Exception e) {
+      try {
+        writer.close();
+      } catch (Exception closeException) {
+        if (closeException instanceof InterruptedException) {
+          // Do not silently ignore interrupted state.
+          Thread.currentThread().interrupt();
+        }
+        // Do not mask the exception that caused the write to fail.
+        e.addSuppressed(closeException);
+      }
+      throw e;
     }
   }
 
@@ -486,7 +490,10 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
-      results = input.apply("WriteBundles", ParDo.of(new WriteBundles()));
+      results =
+          input.apply(
+              "WriteBundles",
+              ParDo.of(windowedWrites ? new WriteWindowedBundles() : new WriteUnwindowedBundles()));
     } else {
       List<PCollectionView<?>> sideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
