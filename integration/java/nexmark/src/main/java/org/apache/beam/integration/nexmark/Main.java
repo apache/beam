@@ -52,12 +52,12 @@ import org.joda.time.Instant;
  * <p>See <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">
  * http://datalab.cs.pdx.edu/niagaraST/NEXMark/</a>
  */
-public class NexmarkDriver<OptionT extends NexmarkOptions> {
+public class Main<OptionT extends NexmarkOptions> {
 
   /**
    * Entry point.
    */
-  void runAll(OptionT options, NexmarkRunner runner) {
+  void runAll(OptionT options, NexmarkLauncher nexmarkLauncher) {
     Instant start = Instant.now();
     Map<NexmarkConfiguration, NexmarkPerf> baseline = loadBaseline(options.getBaselineFilename());
     Map<NexmarkConfiguration, NexmarkPerf> actual = new LinkedHashMap<>();
@@ -67,7 +67,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
     try {
       // Run all the configurations.
       for (NexmarkConfiguration configuration : configurations) {
-        NexmarkPerf perf = runner.run(configuration);
+        NexmarkPerf perf = nexmarkLauncher.run(configuration);
         if (perf != null) {
           if (perf.errors == null || perf.errors.size() > 0) {
             successful = false;
@@ -298,7 +298,7 @@ public class NexmarkDriver<OptionT extends NexmarkOptions> {
     NexmarkOptions options = PipelineOptionsFactory.fromArgs(args)
       .withValidation()
       .as(NexmarkOptions.class);
-    NexmarkRunner<NexmarkOptions> runner = new NexmarkRunner<>(options);
-    new NexmarkDriver<>().runAll(options, runner);
+    NexmarkLauncher<NexmarkOptions> nexmarkLauncher = new NexmarkLauncher<>(options);
+    new Main<>().runAll(options, nexmarkLauncher);
   }
 }
