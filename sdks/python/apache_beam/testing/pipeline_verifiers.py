@@ -29,7 +29,7 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.runner import PipelineState
-from apache_beam.tests import test_utils as utils
+from apache_beam.testing import test_utils as utils
 from apache_beam.utils import retry
 
 try:
