@@ -45,7 +45,7 @@ class SimpleSink extends FileBasedSink<String> {
     return new SimpleWriteOperation(this);
   }
 
-  static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
+  static final class SimpleWriteOperation extends WriteOperation<String> {
     public SimpleWriteOperation(SimpleSink sink, ResourceId tempOutputDirectory) {
       super(sink, tempOutputDirectory);
     }
@@ -60,7 +60,7 @@ class SimpleSink extends FileBasedSink<String> {
     }
   }
 
-  static final class SimpleWriter extends FileBasedWriter<String> {
+  static final class SimpleWriter extends Writer<String> {
     static final String HEADER = "header";
     static final String FOOTER = "footer";
 

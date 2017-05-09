@@ -49,12 +49,12 @@ class TextSink extends FileBasedSink<String> {
     this.footer = footer;
   }
   @Override
-  public FileBasedWriteOperation<String> createWriteOperation() {
+  public WriteOperation<String> createWriteOperation() {
     return new TextWriteOperation(this, header, footer);
   }
 
-  /** A {@link FileBasedWriteOperation FileBasedWriteOperation} for text files. */
-  private static class TextWriteOperation extends FileBasedWriteOperation<String> {
+  /** A {@link WriteOperation WriteOperation} for text files. */
+  private static class TextWriteOperation extends WriteOperation<String> {
     @Nullable private final String header;
     @Nullable private final String footer;
 
@@ -65,20 +65,20 @@ class TextSink extends FileBasedSink<String> {
     }
 
     @Override
-    public FileBasedWriter<String> createWriter() throws Exception {
+    public Writer<String> createWriter() throws Exception {
       return new TextWriter(this, header, footer);
     }
   }
 
-  /** A {@link FileBasedWriter FileBasedWriter} for text files. */
-  private static class TextWriter extends FileBasedWriter<String> {
+  /** A {@link Writer Writer} for text files. */
+  private static class TextWriter extends Writer<String> {
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;
     private OutputStreamWriter out;
 
     public TextWriter(
-        FileBasedWriteOperation<String> writeOperation,
+        WriteOperation<String> writeOperation,
         @Nullable String header,
         @Nullable String footer) {
       super(writeOperation, MimeTypes.TEXT);

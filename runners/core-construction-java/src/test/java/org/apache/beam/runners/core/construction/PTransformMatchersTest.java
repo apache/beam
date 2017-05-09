@@ -510,7 +510,7 @@ public class PTransformMatchersTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Integer>(StaticValueProvider.of(outputDirectory), policy) {
               @Override
-              public FileBasedWriteOperation<Integer> createWriteOperation() {
+              public WriteOperation<Integer> createWriteOperation() {
                 return null;
               }
             });
