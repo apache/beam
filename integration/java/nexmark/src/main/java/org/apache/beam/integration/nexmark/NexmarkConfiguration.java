@@ -140,15 +140,15 @@ public class NexmarkConfiguration implements Serializable {
 
   /** Ratio of bids to 'hot' auctions compared to all other auctions. */
   @JsonProperty
-  public int hotAuctionRatio = 1;
+  public int hotAuctionRatio = 2;
 
   /** Ratio of auctions for 'hot' sellers compared to all other people. */
   @JsonProperty
-  public int hotSellersRatio = 1;
+  public int hotSellersRatio = 4;
 
   /** Ratio of bids for 'hot' bidders compared to all other people. */
   @JsonProperty
-  public int hotBiddersRatio = 1;
+  public int hotBiddersRatio = 4;
 
   /** Window size, in seconds, for queries 3, 5, 7 and 8. */
   @JsonProperty
@@ -211,13 +211,13 @@ public class NexmarkConfiguration implements Serializable {
    * Length of occasional delay to impose on events (in seconds).
    */
   @JsonProperty
-  public long occasionalDelaySec = 0;
+  public long occasionalDelaySec = 3;
 
   /**
    * Probability that an event will be delayed by delayS.
    */
   @JsonProperty
-  public double probDelayedEvent = 0.0;
+  public double probDelayedEvent = 0.1;
 
   /**
    * Maximum size of each log file (in events). For Query10 only.
