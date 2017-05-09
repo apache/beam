@@ -24,7 +24,6 @@ import logging
 import Queue
 import sys
 import threading
-import traceback
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
