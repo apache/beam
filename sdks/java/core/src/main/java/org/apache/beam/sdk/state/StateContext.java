@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * For internal use only; no backwards-compatibility guarantees.
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  */
 @Internal

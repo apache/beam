@@ -21,16 +21,16 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * State containing no duplicate elements.
- * Items can be added to the set and the contents read out.
+ * A {@link ReadableState} cell containing a set of elements.
+ *
+ * <p>Implementations of this form of state are expected to implement set operations such as {@link
+ * #contains(Object)} efficiently, reading as little of the overall set as possible.
  *
  * @param <T> The type of elements in the set.
  */
 @Experimental(Kind.STATE)
 public interface SetState<T> extends GroupingState<T, Iterable<T>> {
-  /**
-   * Returns true if this set contains the specified element.
-   */
+  /** Returns true if this set contains the specified element. */
   ReadableState<Boolean> contains(T t);
 
   /**
@@ -39,9 +39,7 @@ public interface SetState<T> extends GroupingState<T, Iterable<T>> {
    */
   ReadableState<Boolean> addIfAbsent(T t);
 
-  /**
-   * Removes the specified element from this set if it is present.
-   */
+  /** Removes the specified element from this set if it is present. */
   void remove(T t);
 
   @Override
