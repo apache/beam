@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.io.StringReader;
 
+import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.io.TextIO;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -62,32 +64,36 @@ public class BeamTextCSVTableIOReader
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
 
-            StringReader reader = new StringReader(str);
-            CSVRecord rawRecord = null;
-            try {
-              CSVParser parser = csvFormat.parse(reader);
-              rawRecord = parser.getRecords().get(0);
-            } catch (IOException e) {
-              LOG.error("error record: " + str, e);
-            }
-
-            BeamSQLRow row = new BeamSQLRow(beamSqlRecordType);
-            if (rawRecord.size() != beamSqlRecordType.size()) {
-              LOG.error("invalid record: {}, expect {} fields, but actually {}",
-                  str, beamSqlRecordType.size(), rawRecord.size());
-            } else {
-              for (int idx = 0; idx < beamSqlRecordType.size(); idx++) {
-                String raw = rawRecord.get(idx);
-                addFieldWithAutoTypeCasting(row, idx, raw);
+            try (StringReader reader = new StringReader(str)) {
+              CSVRecord rawRecord = null;
+              try {
+                CSVParser parser = csvFormat.parse(reader);
+                rawRecord = parser.getRecords().get(0);
+              } catch (IOException e) {
+                throw new IllegalArgumentException("Invalid text filePattern: " + filePattern, e);
               }
-              ctx.output(row);
+
+              BeamSQLRow row = new BeamSQLRow(beamSqlRecordType);
+              if (rawRecord.size() != beamSqlRecordType.size()) {
+                throw new IllegalArgumentException(String.format(
+                    "Invalid filePattern: {}, expect %d fields, but actually %d", str,
+                    filePattern, beamSqlRecordType.size(), rawRecord.size()
+                ));
+              } else {
+                for (int idx = 0; idx < beamSqlRecordType.size(); idx++) {
+                  String raw = rawRecord.get(idx);
+                  addFieldWithAutoTypeCasting(row, idx, raw);
+                }
+                ctx.output(row);
+              }
             }
           }
         }));
   }
 
   public void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, String raw) {
-    switch (row.getDataType().getFieldsType().get(idx)) {
+    SqlTypeName columnType = row.getDataType().getFieldsType().get(idx);
+    switch (columnType) {
       case TINYINT:
         row.addField(idx, Byte.valueOf(raw));
         break;
@@ -110,7 +116,8 @@ public class BeamTextCSVTableIOReader
         row.addField(idx, raw);
         break;
       default:
-        row.addField(idx, raw);
+        throw new BeamSqlUnsupportedException(String.format(
+            "Column type %s is not supported yet!", columnType));
     }
   }
 }

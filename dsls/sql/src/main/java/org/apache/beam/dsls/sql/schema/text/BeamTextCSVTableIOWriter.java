@@ -66,7 +66,7 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSQLRow>
           }
           printer.println();
         } catch (IOException e) {
-          LOG.error("invalid record: " + row, e);
+          throw new IllegalArgumentException("Invalid filePattern: " + filePattern, e);
         }
 
         ctx.output(writer.toString());
