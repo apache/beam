@@ -53,19 +53,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Pipeline} manages a directed acyclic graph of {@link PTransform PTransforms}, and the
- * {@link PCollection PCollections} that the {@link PTransform}s consume and produce.
- *
- * <p>A {@link Pipeline} is initialized with a {@link PipelineRunner} that will later
- * execute the {@link Pipeline}.
- *
- * <p>{@link Pipeline Pipelines} are independent, so they can be constructed and executed
- * concurrently.
+ * {@link PCollection PCollections} that the {@link PTransform PTransforms} consume and produce.
  *
  * <p>Each {@link Pipeline} is self-contained and isolated from any other
  * {@link Pipeline}. The {@link PValue PValues} that are inputs and outputs of each of a
  * {@link Pipeline Pipeline's} {@link PTransform PTransforms} are also owned by that
  * {@link Pipeline}. A {@link PValue} owned by one {@link Pipeline} can be read only by
- * {@link PTransform PTransforms} also owned by that {@link Pipeline}.
+ * {@link PTransform PTransforms} also owned by that {@link Pipeline}. {@link Pipeline Pipelines}
+ * can safely be executed concurrently.
  *
  * <p>Here is a typical example of use:
  * <pre> {@code
@@ -130,9 +125,7 @@ public class Pipeline {
   // Public operations.
 
   /**
-   * Constructs a pipeline from default options.
-   *
-   * @return The newly created pipeline.
+   * Constructs a pipeline from default {@link PipelineOptions}.
    */
   public static Pipeline create() {
     Pipeline pipeline = new Pipeline(PipelineOptionsFactory.create());
@@ -141,9 +134,7 @@ public class Pipeline {
   }
 
   /**
-   * Constructs a pipeline from the provided options.
-   *
-   * @return The newly created pipeline.
+   * Constructs a pipeline from the provided {@link PipelineOptions}.
    */
   public static Pipeline create(PipelineOptions options) {
     // TODO: fix runners that mutate PipelineOptions in this method, then remove this line
@@ -155,9 +146,8 @@ public class Pipeline {
   }
 
   /**
-   * Returns a {@link PBegin} owned by this Pipeline.  This is useful
-   * as the input of a root PTransform such as {@link Read} or
-   * {@link Create}.
+   * Returns a {@link PBegin} owned by this Pipeline. This serves as the input of a root {@link
+   * PTransform} such as {@link Read} or {@link Create}.
    */
   public PBegin begin() {
     return PBegin.in(this);
@@ -175,12 +165,12 @@ public class Pipeline {
   }
 
   /**
-   * Adds a root {@link PTransform}, such as {@link Read} or {@link Create},
-   * to this {@link Pipeline}.
+   * Adds a root {@link PTransform}, such as {@link Read} or {@link Create}, to this {@link
+   * Pipeline}.
    *
-   * <p>The node in the {@link Pipeline} graph will use the provided {@code name}.
-   * This name is used in various places, including the monitoring UI, logging,
-   * and to stably identify this node in the {@link Pipeline} graph upon update.
+   * <p>The node in the {@link Pipeline} graph will use the provided {@code name}. This name is used
+   * in various places, including the monitoring UI, logging, and to stably identify this node in
+   * the {@link Pipeline} graph upon update.
    *
    * <p>Alias for {@code begin().apply(name, root)}.
    */
@@ -284,19 +274,16 @@ public class Pipeline {
   }
 
   /**
-   * Runs this {@link Pipeline} using the default {@link PipelineOptions} provided
-   * to {@link #create(PipelineOptions)}.
-   *
-   * <p>It is an error to call this method if the pipeline was created without
-   * a default set of options.
+   * Runs this {@link Pipeline} according to the {@link PipelineOptions} used to create the {@link
+   * Pipeline} via {@link #create(PipelineOptions)}.
    */
   public PipelineResult run() {
     return run(defaultOptions);
   }
 
   /**
-   * Runs this {@link Pipeline} using the given {@link PipelineOptions}, using the runner
-   * specified by the options.
+   * Runs this {@link Pipeline} using the given {@link PipelineOptions}, using the runner specified
+   * by the options.
    */
   public PipelineResult run(PipelineOptions options) {
     PipelineRunner runner = PipelineRunner.fromOptions(options);
@@ -316,9 +303,6 @@ public class Pipeline {
   }
 
 
-  /////////////////////////////////////////////////////////////////////////////
-  // Below here are operations that aren't normally called by users.
-
   /**
    * Returns the {@link CoderRegistry} that this {@link Pipeline} uses.
    */
@@ -329,9 +313,14 @@ public class Pipeline {
     return coderRegistry;
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  // Below here are operations that aren't normally called by users.
+
   /**
-   * Sets the {@link CoderRegistry} that this {@link Pipeline} uses.
+   * @deprecated this should never be used - every {@link Pipeline} has a registry throughout its
+   *     lifetime.
    */
+  @Deprecated
   public void setCoderRegistry(CoderRegistry coderRegistry) {
     this.coderRegistry = coderRegistry;
   }
@@ -554,8 +543,6 @@ public class Pipeline {
   /**
    * Returns a unique name for a transform with the given prefix (from
    * enclosing transforms) and initial name.
-   *
-   * <p>For internal use only.
    */
   private String uniquifyInternal(String namePrefix, String origName) {
     String name = origName;

@@ -24,10 +24,15 @@ import com.google.common.collect.Ordering;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.joda.time.Instant;
 
 /**
  * Policies for combining timestamps that occur within a window.
+ *
+ * <p>In particular, these govern the timestamp on the output of a grouping transform
+ * such as {@link GroupByKey} or {@link Combine}.
  */
 @Experimental(Experimental.Kind.OUTPUT_TIME)
 public enum TimestampCombiner {

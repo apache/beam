@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 import org.joda.time.Instant;
 
 /**
- * A trigger which never fires.
+ * A {@link Trigger} which never fires.
  *
  * <p>Using this trigger will only produce output when the watermark passes the end of the
  * {@link BoundedWindow window} plus the {@link Window#withAllowedLateness allowed
