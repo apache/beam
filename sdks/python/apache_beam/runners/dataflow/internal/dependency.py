@@ -72,7 +72,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 
 # Update this version to the next version whenever there is a change that will
 # require changes to the execution environment.
-BEAM_CONTAINER_VERSION = 'beam-0.7.0-20170505'
+BEAM_CONTAINER_VERSION = '2.0.0'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'

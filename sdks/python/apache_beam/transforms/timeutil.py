@@ -23,16 +23,6 @@ from abc import ABCMeta
 from abc import abstractmethod
 
 
-# For backwards compatibility.
-# TODO(robertwb): Remove.
-# pylint: disable=unused-import
-from apache_beam.utils.timestamp import Duration
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import Timestamp
-# pylint: enable=unused-import
-
-
 class TimeDomain(object):
   """Time domain for streaming timers."""
 
