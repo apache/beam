@@ -30,8 +30,10 @@ import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.io.iobase import Read
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.options.pipeline_options import TypeOptions
 import apache_beam.pvalue as pvalue
+from apache_beam.test_pipeline import TestPipeline
+from apache_beam.transforms import window
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -40,7 +42,7 @@ import apache_beam.typehints as typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
-from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
@@ -280,7 +282,7 @@ class PTransformTest(unittest.TestCase):
         pass
 
       def finish_bundle(self):
-        yield 'finish'
+        yield WindowedValue('finish', -1, [window.GlobalWindow()])
 
     pipeline = TestPipeline()
     pcoll = pipeline | 'Start' >> beam.Create([1, 2, 3])
@@ -303,7 +305,6 @@ class PTransformTest(unittest.TestCase):
 
       def start_bundle(self):
         self.state = 'started'
-        return None
 
       def process(self, element):
         if self.state == 'started':
