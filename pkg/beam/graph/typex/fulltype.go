@@ -57,7 +57,7 @@ func (t *tree) String() string {
 
 // TODO(herohde) 4/24/2017: fully validate types.
 
-// New constructs a new real type with the given elements. It panics
+// New constructs a new full type with the given elements. It panics
 // if not valid.
 func New(t reflect.Type, components ...FullType) FullType {
 	class := ClassOf(t)
