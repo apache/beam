@@ -52,7 +52,7 @@ public class DataflowPipelineRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
       return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          DataflowRunner.class);
+          DataflowRunner.class, TestDataflowRunner.class);
     }
   }
 }
