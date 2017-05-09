@@ -41,9 +41,9 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
     return beam.Pipeline(runner=maptask_executor_runner.MapTaskExecutorRunner())
 
   def test_assert_that(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegexp(BeamAssertException, 'bad_assert'):
       with self.create_pipeline() as p:
-        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
+        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']), 'bad_assert')
 
   def test_create(self):
     with self.create_pipeline() as p:
@@ -203,6 +203,21 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
              | beam.GroupByKey()
              | beam.Map(lambda (k, vs): (k, sorted(vs))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
+
+  def test_errors(self):
+    with self.assertRaises(BaseException) as e_cm:
+      with self.create_pipeline() as p:
+        def raise_error(x):
+          raise RuntimeError('x')
+        # pylint: disable=expression-not-assigned
+        (p
+         | beam.Create(['a', 'b'])
+         | 'StageA' >> beam.Map(lambda x: x)
+         | 'StageB' >> beam.Map(lambda x: x)
+         | 'StageC' >> beam.Map(raise_error)
+         | 'StageD' >> beam.Map(lambda x: x))
+    self.assertIn('StageC', e_cm.exception.args[0])
+    self.assertNotIn('StageB', e_cm.exception.args[0])
 
 
 if __name__ == '__main__':

@@ -20,6 +20,7 @@
 """Worker operations executor."""
 
 import sys
+import traceback
 
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
@@ -402,13 +403,17 @@ class DoFnRunner(Receiver):
   def _reraise_augmented(self, exn):
     if getattr(exn, '_tagged_with_step', False) or not self.step_name:
       raise
-    args = exn.args
-    if args and isinstance(args[0], str):
-      args = (args[0] + " [while running '%s']" % self.step_name,) + args[1:]
-      # Poor man's exception chaining.
-      raise type(exn), args, sys.exc_info()[2]
-    else:
-      raise
+    step_annotation = " [while running '%s']" % self.step_name
+    original_traceback = sys.exc_info()[2]
+    try:
+      new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
+      new_exn._tagged_with_step = True  # Could raise attribute error.
+    except:  # pylint: disable=bare-except
+      new_exn = RuntimeError(
+          traceback.format_exception_only(type(exn), exn)[-1].strip()
+          + step_annotation)
+      new_exn._tagged_with_step = True
+    raise new_exn, None, original_traceback
 
 
 class OutputProcessor(object):
