@@ -303,7 +303,6 @@ class PTransformTest(unittest.TestCase):
 
       def start_bundle(self):
         self.state = 'started'
-        return None
 
       def process(self, element):
         if self.state == 'started':
