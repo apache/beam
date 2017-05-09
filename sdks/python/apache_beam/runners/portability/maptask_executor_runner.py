@@ -30,6 +30,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners.dataflow.internal.dependency import _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -144,7 +145,7 @@ class MapTaskExecutorRunner(PipelineRunner):
 
   def _run_read_from(self, transform_node, source):
     """Used when this operation is the result of reading source."""
-    if not isinstance(source, iobase.NativeSource):
+    if not isinstance(source, NativeSource):
       source = iobase.SourceBundle(1.0, source, None, None)
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
