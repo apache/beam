@@ -81,6 +81,13 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(other, "Sessions is only compatible with Sessions.");
+    }
+  }
+
+  @Override
   public WindowMappingFn<IntervalWindow> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException("Sessions is not allowed in side inputs");
   }

@@ -118,6 +118,15 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   public abstract boolean isCompatible(WindowFn<?, ?> other);
 
   /**
+   * Throw {@link IncompatibleWindowException} if this WindowFn does not perform
+   * the same merging as the given ${@code WindowFn}.
+   *
+   * @throws IncompatibleWindowException if compared WindowFns are not compatible.
+   */
+  public abstract void verifyCompatibility(WindowFn<?, ?> other)
+      throws IncompatibleWindowException;
+
+  /**
    * Returns the {@link Coder} used for serializing the windows used
    * by this windowFn.
    */
