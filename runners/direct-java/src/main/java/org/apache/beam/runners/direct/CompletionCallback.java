@@ -40,4 +40,10 @@ interface CompletionCallback {
    * Handle a result that terminated abnormally due to the provided {@link Exception}.
    */
   void handleException(CommittedBundle<?> inputBundle, Exception t);
+
+  /**
+   * Handle a result that terminated abnormally due to the provided {@link Error}. The pipeline
+   * should be shut down, and the Error propagated.
+  */
+  void handleError(Error err);
 }
