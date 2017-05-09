@@ -51,9 +51,6 @@ import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlPositionExpre
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlSubstringExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlTrimExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlUpperExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
-import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowStartExpression;
 import org.apache.beam.dsls.sql.rel.BeamFilterRel;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
