@@ -305,7 +305,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *
    * <p>Subclasses may override to provide different behavior.
    */
-  protected boolean isSplittable() throws Exception {
+  protected boolean isSplittable() {
     if (mode == Mode.FILEPATTERN) {
       // split will expand file pattern and return single file or subrange sources that
       // may or may not be splittable.

@@ -364,7 +364,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * from the requested file name that the file is not compressed.
    */
   @Override
-  protected final boolean isSplittable() throws Exception {
+  protected final boolean isSplittable() {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;

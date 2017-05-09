@@ -474,7 +474,7 @@ public class TFRecordIO {
     }
 
     @Override
-    protected boolean isSplittable() throws Exception {
+    protected boolean isSplittable() {
       // TFRecord files are not splittable
       return false;
     }
