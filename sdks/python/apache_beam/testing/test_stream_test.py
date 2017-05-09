@@ -19,12 +19,12 @@
 
 import unittest
 
+from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import ProcessingTimeEvent
+from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
-from apache_beam.utils.test_stream import ElementEvent
-from apache_beam.utils.test_stream import ProcessingTimeEvent
-from apache_beam.utils.test_stream import TestStream
-from apache_beam.utils.test_stream import WatermarkEvent
 from apache_beam.utils.windowed_value import WindowedValue
 
 

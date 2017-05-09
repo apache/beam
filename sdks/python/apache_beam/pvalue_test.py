@@ -20,7 +20,7 @@
 import unittest
 
 from apache_beam.pvalue import PValue
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class PValueTest(unittest.TestCase):
