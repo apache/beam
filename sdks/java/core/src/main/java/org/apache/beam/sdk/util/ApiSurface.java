@@ -356,7 +356,7 @@ public class ApiSurface {
       try {
         clazz = classInfo.load();
       } catch (NoClassDefFoundError e) {
-        // TODO(BEAM-2231): Ignore any NoClassDefFoundError errors as a workaround.
+        // TODO: Ignore any NoClassDefFoundError errors as a workaround. (BEAM-2231)
         LOG.warn("Failed to load class: {}", classInfo.toString(), e);
         continue;
       }
