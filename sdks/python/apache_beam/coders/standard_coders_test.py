@@ -34,7 +34,7 @@ from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
-    os.path.dirname(__file__), '..', 'tests', 'data', 'standard_coders.yaml')
+    os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
 
 
 def _load_test_cases(test_yaml):
