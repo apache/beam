@@ -75,6 +75,14 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other, "Only InvalidWindows objects with the same originalWindowFn are compatible");
+    }
+  }
+
+  @Override
   public WindowMappingFn<W> getDefaultWindowMappingFn() {
     throw new UnsupportedOperationException("InvalidWindows is not allowed in side inputs");
   }
