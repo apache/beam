@@ -622,7 +622,7 @@ public class KafkaIO {
         String key = conf.getKey();
         if (!ignoredConsumerPropertiesKeys.contains(key)) {
           Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : conf.getValue().toString();
+              ? conf.getValue() : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
@@ -1422,7 +1422,7 @@ public class KafkaIO {
         String key = conf.getKey();
         if (!ignoredProducerPropertiesKeys.contains(key)) {
           Object value = DisplayData.inferType(conf.getValue()) != null
-              ? conf.getValue() : conf.getValue().toString();
+              ? conf.getValue() : String.valueOf(conf.getValue());
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
@@ -1523,14 +1523,6 @@ public class KafkaIO {
 
     KafkaWriter(Write<K, V> spec) {
       this.spec = spec;
-
-      // Set custom kafka serializers. We do not want to serialize user objects then pass the bytes
-      // to producer since key and value objects are used in Kafka Partitioner interface.
-      // This does not matter for default partitioner in Kafka as it uses just the serialized
-      // key bytes to pick a partition. But we don't want to limit use of custom partitions.
-      // We pass key and values objects the user writes directly Kafka and user supplied
-      // coders to serialize them are invoked inside CoderBasedKafkaSerializer.
-      // Use case : write all the events for a single session to same Kafka partition.
 
       this.producerConfig = new HashMap<>(spec.getProducerConfig());
 

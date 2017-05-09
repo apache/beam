@@ -47,13 +47,11 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.io.kafka.serialization.CoderBasedKafkaSerializer;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricMatchers;
@@ -267,34 +265,6 @@ public class KafkaIOTest {
     }
   }
 
-  /**
-   * Creates a consumer with two topics, with 10 partitions each.
-   * numElements are (round-robin) assigned all the 20 partitions.
-   * Coders are specified explicitly.
-   */
-  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithCoders(
-          int numElements,
-          @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
-
-    List<String> topics = ImmutableList.of("topic_a", "topic_b");
-
-    KafkaIO.Read<Integer, Long> reader =
-        CoderBasedKafkaSerializer.readerWithCoders(BigEndianIntegerCoder.of(),
-                                                   BigEndianLongCoder.of())
-            .withBootstrapServers("myServer1:9092,myServer2:9092")
-            .withTopics(topics)
-            .withConsumerFactoryFn(new ConsumerFactoryFn(
-                    topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
-            .withMaxNumRecords(numElements);
-
-    if (timestampFn != null) {
-      return reader.withTimestampFn(timestampFn);
-    } else {
-      return reader;
-    }
-  }
-
-
   private static class AssertMultipleOf implements SerializableFunction<Iterable<Long>, Void> {
     private final int num;
 
@@ -339,19 +309,6 @@ public class KafkaIOTest {
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create());
-
-    addCountingAsserts(input, numElements);
-    p.run();
-  }
-
-  @Test
-  public void testUnboundedSourceWithCoders() {
-    int numElements = 1000;
-
-    PCollection<Long> input = p
-            .apply(mkKafkaReadTransformWithCoders(numElements, new ValueAsTimestampFn())
-                    .withoutMetadata())
-            .apply(Values.<Long>create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -719,37 +676,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSinkWithCoders() throws Exception {
-    // Simply read from kafka source and write to kafka sink. Then verify the records
-    // are correctly published to mock kafka producer.
-
-    int numElements = 1000;
-
-    synchronized (MOCK_PRODUCER_LOCK) {
-
-      MOCK_PRODUCER.clear();
-
-      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
-
-      String topic = "test";
-
-      p
-          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
-          .apply(CoderBasedKafkaSerializer.writerWithCoders(BigEndianIntegerCoder.of(),
-                                                            BigEndianLongCoder.of())
-                     .withBootstrapServers("none")
-                     .withTopic(topic)
-                     .withProducerFactoryFn(new ProducerFactoryFn()));
-
-      p.run();
-
-      completionThread.shutdown();
-
-      verifyProducerRecords(topic, numElements, false);
-    }
-  }
-
-  @Test
   public void testValuesSink() throws Exception {
     // similar to testSink(), but use values()' interface.
 
@@ -840,23 +766,6 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testSourceDisplayDataWithCoders() {
-    KafkaIO.Read<Integer, Long> read = mkKafkaReadTransformWithCoders(10, null);
-
-    DisplayData displayData = DisplayData.from(read);
-
-    assertThat(displayData, hasDisplayItem("topics", "topic_a,topic_b"));
-    assertThat(displayData, hasDisplayItem("enable.auto.commit", false));
-    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
-    assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
-    assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
-    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForKey(),
-                                           "BigEndianIntegerCoder"));
-    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForValue(),
-                                           "BigEndianLongCoder"));
-  }
-
-  @Test
   public void testSourceWithExplicitPartitionsDisplayData() {
     KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
         .withBootstrapServers("myServer1:9092,myServer2:9092")
@@ -889,24 +798,6 @@ public class KafkaIOTest {
     assertThat(displayData, hasDisplayItem("topic", "myTopic"));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
     assertThat(displayData, hasDisplayItem("retries", 3));
-  }
-  @Test
-  public void testSinkDisplayDataWithCoders() {
-    KafkaIO.Write<Integer, Long> write = CoderBasedKafkaSerializer
-        .writerWithCoders(BigEndianIntegerCoder.of(), BigEndianLongCoder.of())
-        .withBootstrapServers("myServerA:9092,myServerB:9092")
-        .withTopic("myTopic")
-        .withProducerFactoryFn(new ProducerFactoryFn());
-
-    DisplayData displayData = DisplayData.from(write);
-
-    assertThat(displayData, hasDisplayItem("topic", "myTopic"));
-    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
-    assertThat(displayData, hasDisplayItem("retries", 3));
-    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForKey(),
-                                           "BigEndianIntegerCoder"));
-    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForValue(),
-                                           "BigEndianLongCoder"));
   }
 
   // interface for testing coder inference
