@@ -306,6 +306,9 @@ public class GcsUtil {
     return uploadBufferSizeBytes;
   }
 
+  private static BackOff createBackOff() {
+    return BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+  }
   /**
    * Returns the file size from GCS or throws {@link FileNotFoundException}
    * if the resource does not exist.
@@ -318,7 +321,7 @@ public class GcsUtil {
    * Returns the {@link StorageObject} for the given {@link GcsPath}.
    */
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
-    return getObject(gcsPath, BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+    return getObject(gcsPath, createBackOff(), Sleeper.DEFAULT);
   }
 
   @VisibleForTesting
@@ -377,7 +380,7 @@ public class GcsUtil {
     try {
       return ResilientOperation.retry(
           ResilientOperation.getGoogleRequestCallable(listObject),
-          BACKOFF_FACTORY.backoff(),
+          createBackOff(),
           RetryDeterminer.SOCKET_ERRORS,
           IOException.class);
     } catch (Exception e) {
@@ -469,7 +472,7 @@ public class GcsUtil {
   public boolean bucketAccessible(GcsPath path) throws IOException {
     return bucketAccessible(
         path,
-        BACKOFF_FACTORY.backoff(),
+        createBackOff(),
         Sleeper.DEFAULT);
   }
 
@@ -482,7 +485,7 @@ public class GcsUtil {
   public long bucketOwner(GcsPath path) throws IOException {
     return getBucket(
         path,
-        BACKOFF_FACTORY.backoff(),
+        createBackOff(),
         Sleeper.DEFAULT).getProjectNumber().longValue();
   }
 
@@ -492,7 +495,7 @@ public class GcsUtil {
    */
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     createBucket(
-        projectId, bucket, BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+        projectId, bucket, createBackOff(), Sleeper.DEFAULT);
   }
 
   /**

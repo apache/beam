@@ -15,33 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.testing;
+package org.apache.beam.sdk.util;
 
-import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
+import java.io.IOException;
 
 /**
- * This object quickly moves time forward based upon how much it has been asked to sleep,
- * without actually sleeping, to simulate the backoff.
+ * An adapter for converting between Apache Beam and Google API client representations of backoffs.
  */
-public class FastNanoClockAndSleeper extends ExternalResource
-    implements NanoClock, Sleeper, TestRule {
-  private long fastNanoTime;
+public class BackOffAdapter {
+  /**
+   * Returns an adapter to convert from {@link BackOff} to
+   * {@link com.google.api.client.util.BackOff}.
+   */
+  public static com.google.api.client.util.BackOff toGcpBackOff(final BackOff backOff) {
+    return new com.google.api.client.util.BackOff() {
+      @Override
+      public void reset() throws IOException {
+        backOff.reset();
+      }
 
-  @Override
-  public long nanoTime() {
-    return fastNanoTime;
-  }
-
-  @Override
-  protected void before() throws Throwable {
-    fastNanoTime = NanoClock.SYSTEM.nanoTime();
-  }
-
-  @Override
-  public void sleep(long millis) throws InterruptedException {
-    fastNanoTime += millis * 1000000L;
+      @Override
+      public long nextBackOffMillis() throws IOException {
+        return backOff.nextBackOffMillis();
+      }
+    };
   }
 }
