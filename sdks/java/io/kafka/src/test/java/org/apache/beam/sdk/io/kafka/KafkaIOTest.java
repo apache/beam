@@ -43,14 +43,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.io.kafka.serialization.CoderBasedKafkaSerializer;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricMatchers;
@@ -275,14 +278,13 @@ public class KafkaIOTest {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
-    KafkaIO.Read<Integer, Long> reader = KafkaIO
-            .<Integer, Long>readWithCoders(VarIntCoder.of(), VarLongCoder.of())
+    KafkaIO.Read<Integer, Long> reader =
+        CoderBasedKafkaSerializer.readerWithCoders(BigEndianIntegerCoder.of(),
+                                                   BigEndianLongCoder.of())
             .withBootstrapServers("myServer1:9092,myServer2:9092")
             .withTopics(topics)
             .withConsumerFactoryFn(new ConsumerFactoryFn(
                     topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
-            .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(LongDeserializer.class)
             .withMaxNumRecords(numElements);
 
     if (timestampFn != null) {
@@ -454,9 +456,9 @@ public class KafkaIOTest {
     // is used in the test.
     UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
         mkKafkaReadTransform(numElements, null)
-                .withKeyCoder(VarIntCoder.of())
-                .withValueCoder(VarLongCoder.of())
-                .makeSource();
+            .withKeyDeserializerAndCoder(IntegerDeserializer.class, BigEndianIntegerCoder.of())
+            .withValueDeserializerAndCoder(LongDeserializer.class, BigEndianLongCoder.of())
+            .makeSource();
 
     List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
         initial.split(numSplits, p.getOptions());
@@ -732,14 +734,12 @@ public class KafkaIOTest {
       String topic = "test";
 
       p
-              .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-                      .withoutMetadata())
-              .apply(KafkaIO.<Integer, Long>writeWithCoders(VarIntCoder.of(), VarLongCoder.of())
-                      .withBootstrapServers("none")
-                      .withTopic(topic)
-                      .withKeySerializer(IntegerSerializer.class)
-                      .withValueSerializer(LongSerializer.class)
-                      .withProducerFactoryFn(new ProducerFactoryFn()));
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(CoderBasedKafkaSerializer.writerWithCoders(BigEndianIntegerCoder.of(),
+                                                            BigEndianLongCoder.of())
+                     .withBootstrapServers("none")
+                     .withTopic(topic)
+                     .withProducerFactoryFn(new ProducerFactoryFn()));
 
       p.run();
 
@@ -850,6 +850,10 @@ public class KafkaIOTest {
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServer1:9092,myServer2:9092"));
     assertThat(displayData, hasDisplayItem("auto.offset.reset", "latest"));
     assertThat(displayData, hasDisplayItem("receive.buffer.bytes", 524288));
+    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForKey(),
+                                           "BigEndianIntegerCoder"));
+    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForValue(),
+                                           "BigEndianLongCoder"));
   }
 
   @Test
@@ -888,18 +892,21 @@ public class KafkaIOTest {
   }
   @Test
   public void testSinkDisplayDataWithCoders() {
-    KafkaIO.Write<Integer, Long> write = KafkaIO
-            .<Integer, Long>writeWithCoders(VarIntCoder.of(), VarLongCoder.of())
-            .withBootstrapServers("myServerA:9092,myServerB:9092")
-            .withTopic("myTopic")
-            .withValueSerializer(LongSerializer.class)
-            .withProducerFactoryFn(new ProducerFactoryFn());
+    KafkaIO.Write<Integer, Long> write = CoderBasedKafkaSerializer
+        .writerWithCoders(BigEndianIntegerCoder.of(), BigEndianLongCoder.of())
+        .withBootstrapServers("myServerA:9092,myServerB:9092")
+        .withTopic("myTopic")
+        .withProducerFactoryFn(new ProducerFactoryFn());
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("topic", "myTopic"));
     assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
     assertThat(displayData, hasDisplayItem("retries", 3));
+    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForKey(),
+                                           "BigEndianIntegerCoder"));
+    assertThat(displayData, hasDisplayItem(CoderBasedKafkaSerializer.configForValue(),
+                                           "BigEndianLongCoder"));
   }
 
   // interface for testing coder inference
