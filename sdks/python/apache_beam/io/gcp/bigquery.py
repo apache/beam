@@ -1120,12 +1120,8 @@ class BigQueryWrapper(object):
         value = cell['v'] if 'v' in cell else None
       if field.mode == 'REPEATED':
         if value is None:
-          # We receive 'None' for repeated fields without any values when
-          # 'flatten_results' is 'False'.
-          # When 'flatten_results' is 'True', we receive individual values
-          # instead of a list of values hence we do not hit this condition.
-          # We return an empty list here instead of 'None' to be consistent with
-          # other runners and to be backwards compatible to users.
+          # Ideally this should never happen as repeated fields default to
+          # returning an empty list
           result[field.name] = []
         else:
           result[field.name] = [self._convert_cell_value_to_dict(x['v'], field)

@@ -393,13 +393,6 @@ class AsDict(AsSideInput):
     return dict(it)
 
 
-# For backwards compatibility with worker code.
-SingletonPCollectionView = AsSingleton
-IterablePCollectionView = AsIter
-ListPCollectionView = AsList
-DictPCollectionView = AsDict
-
-
 class EmptySideInput(object):
   """Value indicating when a singleton side input was empty.
 
