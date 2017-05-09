@@ -20,9 +20,8 @@ package org.apache.beam.examples.complete.game;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
-import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
+import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -58,12 +57,11 @@ import org.joda.time.format.DateTimeFormatter;
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- *   --dataset=YOUR-DATASET
+ *   --tempLocation=YOUR_TEMP_DIRECTORY
+ *   --runner=YOUR_RUNNER
+ *   --output=YOUR_OUTPUT_DIRECTORY
  * }
  * </pre>
- * where the BigQuery dataset you specify must already exist.
  *
  * <p>Optionally include {@code --input} to specify the batch input file path.
  * To indicate a time after which the data should be filtered out, include the
@@ -107,39 +105,31 @@ public class HourlyTeamScore extends UserScore {
     @Default.String("2100-01-01-00-00")
     String getStopMin();
     void setStopMin(String value);
-
-    @Description("The BigQuery table name. Should not already exist.")
-    @Default.String("hourly_team_score")
-    String getHourlyTeamScoreTableName();
-    void setHourlyTeamScoreTableName(String value);
   }
 
   /**
-   * Create a map of information that describes how to write pipeline output to BigQuery. This map
-   * is passed to the {@link WriteWindowedToBigQuery} constructor to write team score sums and
+   * Create a map of information that describes how to write pipeline output to text. This map
+   * is passed to the {@link WriteToText} constructor to write team score sums and
    * includes information about window start time.
    */
-  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
-      configureWindowedTableWrite() {
-    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfig =
-        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfig.put(
+  protected static Map<String, WriteToText.FieldInfo<KV<String, Integer>>>
+      configureOutput() {
+    Map<String, WriteToText.FieldInfo<KV<String, Integer>>> config =
+        new HashMap<String, WriteToText.FieldInfo<KV<String, Integer>>>();
+    config.put(
         "team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> c.element().getKey()));
-    tableConfig.put(
+        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getKey()));
+    config.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "INTEGER", (c, w) -> c.element().getValue()));
-    tableConfig.put(
+        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getValue()));
+    config.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING",
+        new WriteToText.FieldInfo<KV<String, Integer>>(
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return fmt.print(window.start());
             }));
-    return tableConfig;
+    return config;
   }
 
 
@@ -186,12 +176,10 @@ public class HourlyTeamScore extends UserScore {
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       .apply("WriteTeamScoreSums",
-        new WriteWindowedToBigQuery<KV<String, Integer>>(
-            options.as(GcpOptions.class).getProject(),
-            options.getDataset(),
-            options.getHourlyTeamScoreTableName(),
-            configureWindowedTableWrite()));
-
+          new WriteToText<KV<String, Integer>>(
+              options.getOutput(),
+              configureOutput(),
+              true));
 
     pipeline.run().waitUntilFinish();
   }
