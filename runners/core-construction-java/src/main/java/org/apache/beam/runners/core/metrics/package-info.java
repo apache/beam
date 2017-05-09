@@ -15,27 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
-
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
- * Metrics are keyed by the step name they are associated with and the name of the metric.
+ * Utilities for runners to implement metrics.
  */
-@Experimental(Kind.METRICS)
-@AutoValue
-public abstract class MetricKey implements Serializable {
-
-  /** The step name that is associated with this metric. */
-  public abstract String stepName();
-
-  /** The name of the metric. */
-  public abstract MetricName metricName();
-
-  public static MetricKey create(String stepName, MetricName metricName) {
-    return new AutoValue_MetricKey(stepName, metricName);
-  }
-}
+package org.apache.beam.runners.core.metrics;

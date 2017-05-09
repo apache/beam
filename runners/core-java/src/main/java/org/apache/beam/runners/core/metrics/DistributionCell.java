@@ -15,47 +15,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+
+package org.apache.beam.runners.core.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.MetricName;
 
 /**
- * Tracks the current value (and delta) for a {@link Gauge} metric.
+ * Tracks the current value (and delta) for a Distribution metric.
  *
  * <p>This class generally shouldn't be used directly. The only exception is within a runner where
- * a gauge is being reported for a specific step (rather than the gauge in the current
+ * a distribution is being reported for a specific step (rather than the distribution in the current
  * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
  * of indirection.
  */
-@Experimental(Experimental.Kind.METRICS)
-public class GaugeCell implements MetricCell<Gauge, GaugeData> {
+@Experimental(Kind.METRICS)
+public class DistributionCell implements Distribution, MetricCell<DistributionData> {
 
   private final DirtyState dirty = new DirtyState();
-  private final AtomicReference<GaugeData> gaugeValue = new AtomicReference<>(GaugeData.empty());
+  private final AtomicReference<DistributionData> value =
+      new AtomicReference<>(DistributionData.EMPTY);
+  private final MetricName name;
 
-  /** Set the gauge to the given value. */
-  public void set(long value) {
-    update(GaugeData.create(value));
+  /**
+   * Package-visibility because all {@link DistributionCell DistributionCells} should be created by
+   * {@link MetricsContainerImpl#getDistribution(MetricName)}.
+   */
+  DistributionCell(MetricName name) {
+    this.name = name;
   }
 
+  /** Increment the distribution by the given amount. */
   @Override
-  public void update(GaugeData data) {
-    GaugeData original;
-    do {
-      original = gaugeValue.get();
-    } while (!gaugeValue.compareAndSet(original, original.combine(data)));
-    dirty.afterModification();
+  public void update(long n) {
+    update(DistributionData.singleton(n));
   }
 
-  @Override
-  public void update(MetricCell<Gauge, GaugeData> other) {
-    GaugeData original;
+  void update(DistributionData data) {
+    DistributionData original;
     do {
-      original = gaugeValue.get();
-    } while (!gaugeValue.compareAndSet(original, original.combine(other.getCumulative())));
+      original = value.get();
+    } while (!value.compareAndSet(original, original.combine(data)));
     dirty.afterModification();
-    update(other.getCumulative());
   }
 
   @Override
@@ -64,7 +68,13 @@ public class GaugeCell implements MetricCell<Gauge, GaugeData> {
   }
 
   @Override
-  public GaugeData getCumulative() {
-    return gaugeValue.get();
+  public DistributionData getCumulative() {
+    return value.get();
+  }
+
+  @Override
+  public MetricName getName() {
+    return name;
   }
 }
+

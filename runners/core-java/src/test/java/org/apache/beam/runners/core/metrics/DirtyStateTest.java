@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;

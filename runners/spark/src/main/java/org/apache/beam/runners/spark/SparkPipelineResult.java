@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.sdk.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
+import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import java.io.IOException;
 import java.util.Objects;

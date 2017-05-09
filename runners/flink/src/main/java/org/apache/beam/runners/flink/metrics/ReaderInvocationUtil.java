@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.metrics;
 
 import java.io.Closeable;
 import java.io.IOException;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -26,8 +27,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Util for invoking {@link Source.Reader} methods that might require a
- * {@link org.apache.beam.sdk.metrics.MetricsContainer} to be active.
- * Source.Reader decorator which registers {@link org.apache.beam.sdk.metrics.MetricsContainer}.
+ * {@link MetricsContainerImpl} to be active.
+ * Source.Reader decorator which registers {@link MetricsContainerImpl}.
  * It update metrics to Flink metric and accumulator in start and advance.
  */
 public class ReaderInvocationUtil<OutputT, ReaderT extends Source.Reader<OutputT>> {

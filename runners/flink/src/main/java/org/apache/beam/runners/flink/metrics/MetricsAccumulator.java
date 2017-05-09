@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink.metrics;
 
-import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SimpleAccumulator;
 
