@@ -24,7 +24,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 
 /**
- * For internal use only; no backwards-compatibility guarantees.
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
  * <p>Visitor for binding a {@link StateSpec} and to the associated {@link State}.

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * {@link TimeDomain} specifies whether an operation is based on timestamps of elements or current
@@ -38,8 +39,11 @@ public enum TimeDomain {
   PROCESSING_TIME,
 
   /**
-   * Same as the {@link #PROCESSING_TIME} domain, except it won't fire a timer set for time <i>t</i>
-   * until all timers from earlier stages set for a time earlier than <i>t</i> have fired.
+   * <b>For internal use only; no backwards compatibility guarantees.</b>
+   *
+   * <p>Same as the {@link #PROCESSING_TIME} domain, except it won't fire a timer set for time
+   * <i>t</i> until all timers from earlier stages set for a time earlier than <i>t</i> have fired.
    */
+  @Internal
   SYNCHRONIZED_PROCESSING_TIME
 }

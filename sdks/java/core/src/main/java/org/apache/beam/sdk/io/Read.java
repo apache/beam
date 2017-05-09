@@ -49,15 +49,15 @@ public class Read {
   }
 
   /**
-   * Returns a new {@code Read.Unbounded} {@code PTransform} reading from the given
-   * {@code UnboundedSource}.
+   * Returns a new {@link Read.Unbounded} {@link PTransform} reading from the given
+   * {@link UnboundedSource}.
    */
   public static <T> Unbounded<T> from(UnboundedSource<T, ?> source) {
     return new Unbounded<>(null, source);
   }
 
   /**
-   * Helper class for building {@code Read} transforms.
+   * Helper class for building {@link Read} transforms.
    */
   public static class Builder {
     private final String name;

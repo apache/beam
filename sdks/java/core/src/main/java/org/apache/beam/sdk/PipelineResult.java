@@ -25,6 +25,8 @@ import org.joda.time.Duration;
 
 /**
  * Result of {@link Pipeline#run()}.
+ *
+ * <p>This is often a job handle to an underlying data processing engine.
  */
 public interface PipelineResult {
 
@@ -65,7 +67,12 @@ public interface PipelineResult {
 
   // TODO: method to retrieve error messages.
 
-  /** Named constants for common values for the job state. */
+  /**
+   * Possible job states, for both completed and ongoing jobs.
+   *
+   * <p>When determining if a job is still running, consult the {@link #isTerminal()} method rather
+   * than inspecting the precise state.
+   */
   enum State {
 
     /** The job state could not be obtained or was not specified. */
@@ -114,7 +121,7 @@ public interface PipelineResult {
   }
 
   /**
-   * Return the object to access metrics from the pipeline.
+   * Returns the object to access metrics from the pipeline.
    *
    * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
    */

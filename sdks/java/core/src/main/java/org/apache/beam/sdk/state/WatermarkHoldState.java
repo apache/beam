@@ -24,8 +24,8 @@ import org.joda.time.Instant;
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
- * <p>A {@link State} accepting and aggregating output timestamps, which determines the time to
- * which the output watermark must be held.
+ * <p>A {@link State} accepting and aggregating timestamps according to a {@link TimestampCombiner},
+ * holding the output watermark to the resulting timestamp.
  */
 @Internal
 public interface WatermarkHoldState extends GroupingState<Instant, Instant> {

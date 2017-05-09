@@ -22,7 +22,8 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 
 /**
- * A registrar containing the default SDK options.
+ * A {@link PipelineOptionsRegistrar} containing the {@link PipelineOptions} subclasses available by
+ * default.
  */
 @AutoService(PipelineOptionsRegistrar.class)
 public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
