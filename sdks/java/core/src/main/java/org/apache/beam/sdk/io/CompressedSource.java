@@ -384,7 +384,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   @Override
   protected final FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
-    if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
+    if (channelFactory instanceof FileNameBasedDecompressingChannelFactory && isSplittable()) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;
       if (!fileNameBasedChannelFactory.isCompressed(getFileOrPatternSpec())) {
