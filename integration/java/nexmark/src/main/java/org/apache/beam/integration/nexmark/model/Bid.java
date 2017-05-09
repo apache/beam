@@ -40,25 +40,24 @@ public class Bid implements KnownSize, Serializable {
 
   public static final Coder<Bid> CODER = new CustomCoder<Bid>() {
     @Override
-    public void encode(Bid value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(Bid value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.auction, outStream, Context.NESTED);
-      LONG_CODER.encode(value.bidder, outStream, Context.NESTED);
-      LONG_CODER.encode(value.price, outStream, Context.NESTED);
-      LONG_CODER.encode(value.dateTime, outStream, Context.NESTED);
-      STRING_CODER.encode(value.extra, outStream, Context.NESTED);
+      LONG_CODER.encode(value.auction, outStream);
+      LONG_CODER.encode(value.bidder, outStream);
+      LONG_CODER.encode(value.price, outStream);
+      LONG_CODER.encode(value.dateTime, outStream);
+      STRING_CODER.encode(value.extra, outStream);
     }
 
     @Override
     public Bid decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      long auction = LONG_CODER.decode(inStream, Context.NESTED);
-      long bidder = LONG_CODER.decode(inStream, Context.NESTED);
-      long price = LONG_CODER.decode(inStream, Context.NESTED);
-      long dateTime = LONG_CODER.decode(inStream, Context.NESTED);
-      String extra = STRING_CODER.decode(inStream, Context.NESTED);
+      long auction = LONG_CODER.decode(inStream);
+      long bidder = LONG_CODER.decode(inStream);
+      long price = LONG_CODER.decode(inStream);
+      long dateTime = LONG_CODER.decode(inStream);
+      String extra = STRING_CODER.decode(inStream);
       return new Bid(auction, bidder, price, dateTime, extra);
     }
 

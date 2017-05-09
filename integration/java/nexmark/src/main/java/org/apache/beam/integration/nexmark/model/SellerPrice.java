@@ -37,19 +37,18 @@ public class SellerPrice implements KnownSize, Serializable {
 
   public static final Coder<SellerPrice> CODER = new CustomCoder<SellerPrice>() {
     @Override
-    public void encode(SellerPrice value, OutputStream outStream,
-        Coder.Context context)
+    public void encode(SellerPrice value, OutputStream outStream)
         throws CoderException, IOException {
-      LONG_CODER.encode(value.seller, outStream, Context.NESTED);
-      LONG_CODER.encode(value.price, outStream, Context.NESTED);
+      LONG_CODER.encode(value.seller, outStream);
+      LONG_CODER.encode(value.price, outStream);
     }
 
     @Override
     public SellerPrice decode(
-        InputStream inStream, Coder.Context context)
+        InputStream inStream)
         throws CoderException, IOException {
-      long seller = LONG_CODER.decode(inStream, Context.NESTED);
-      long price = LONG_CODER.decode(inStream, Context.NESTED);
+      long seller = LONG_CODER.decode(inStream);
+      long price = LONG_CODER.decode(inStream);
       return new SellerPrice(seller, price);
     }
     @Override public void verifyDeterministic() throws NonDeterministicException {}

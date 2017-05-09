@@ -739,7 +739,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
 
     PubsubIO.Read<PubsubMessage> io =
-        PubsubIO.readPubsubMessagesWithAttributes().fromSubscription(shortSubscription)
+        PubsubIO.readMessagesWithAttributes().fromSubscription(shortSubscription)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
@@ -784,7 +784,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
 
     PubsubIO.Write<PubsubMessage> io =
-        PubsubIO.writePubsubMessages().to(shortTopic)
+        PubsubIO.writeMessages().to(shortTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
