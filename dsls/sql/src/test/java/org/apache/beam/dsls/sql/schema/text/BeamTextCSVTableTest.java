@@ -37,14 +37,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
-import org.apache.beam.dsls.sql.schema.BeamSQLRecordTypeCoder;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.calcite.rel.type.RelDataType;
@@ -55,12 +49,19 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * Tests for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableTest {
+
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
+  public TestPipeline pipeline2 = TestPipeline.create();
 
   /**
    * testData.
@@ -82,7 +83,6 @@ public class BeamTextCSVTableTest {
 
 
   @Test public void testBuildIOReader() {
-    Pipeline pipeline = preparePipeline();
     pipeline.apply(
         new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader())
         .apply(ParDo.of(new TeeFn()));
@@ -93,7 +93,6 @@ public class BeamTextCSVTableTest {
 
   @Test public void testBuildIOWriter() {
     // reader from a source file, then write into a target file
-    Pipeline pipeline = preparePipeline();
     pipeline.apply(
         new BeamTextCSVTable(buildRowType(), readerSourceFile.getAbsolutePath()).buildIOReader())
         .apply(ParDo.of(new TeeFn())).apply(
@@ -102,7 +101,7 @@ public class BeamTextCSVTableTest {
 
     // read from the target file
     actualData.clear();
-    Pipeline pipeline2 = preparePipeline();
+
     pipeline2.apply(
         new BeamTextCSVTable(buildRowType(), writerTargetFile.getAbsolutePath()).buildIOReader())
         .apply(ParDo.of(new TeeFn()));
@@ -110,16 +109,6 @@ public class BeamTextCSVTableTest {
 
     // confirm the two reads match
     equalsIgnoreOrder(testData, actualData);
-  }
-
-  private Pipeline preparePipeline() {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class);
-    Pipeline pipeline = Pipeline.create(options);
-    CoderRegistry cr = pipeline.getCoderRegistry();
-    cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
-    cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
-    return pipeline;
   }
 
   @BeforeClass public static void setUp() throws IOException {
