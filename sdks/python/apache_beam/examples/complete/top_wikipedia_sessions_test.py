@@ -23,7 +23,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import top_wikipedia_sessions
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class ComputeTopSessionsTest(unittest.TestCase):

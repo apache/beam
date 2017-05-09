@@ -26,6 +26,7 @@ import mock
 import apache_beam as beam
 import apache_beam.transforms as ptransform
 
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline, AppliedPTransform
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import create_runner
@@ -34,10 +35,9 @@ from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
