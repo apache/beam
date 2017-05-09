@@ -28,7 +28,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * @param <T> the type of the underlying PCollectionView
  */
-public final class PCollectionViewWindow<T> {
+final class PCollectionViewWindow<T> {
 
   private final PCollectionView<T> view;
   private final BoundedWindow window;
