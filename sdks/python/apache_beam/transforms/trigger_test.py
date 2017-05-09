@@ -523,7 +523,8 @@ class TranscriptTest(unittest.TestCase):
     accumulation_mode = getattr(
         AccumulationMode, spec.get('accumulation_mode', 'ACCUMULATING').upper())
     timestamp_combiner = getattr(
-        TimestampCombiner, spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
+        TimestampCombiner,
+        spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
         Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))

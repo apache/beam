@@ -909,11 +909,11 @@ class GeneralTriggerDriver(TriggerDriver):
 
   def __init__(self, windowing):
     self.window_fn = windowing.windowfn
-    self.timestamp_combiner_impl = TimestampCombiner.get_impl(windowing.timestamp_combiner,
-                                                     self.window_fn)
+    self.timestamp_combiner_impl = TimestampCombiner.get_impl(
+        windowing.timestamp_combiner, self.window_fn)
     # pylint: disable=invalid-name
-    self.WATERMARK_HOLD = WatermarkHoldStateTag('watermark',
-                                                self.timestamp_combiner_impl)
+    self.WATERMARK_HOLD = WatermarkHoldStateTag(
+        'watermark', self.timestamp_combiner_impl)
     # pylint: enable=invalid-name
     self.trigger_fn = windowing.triggerfn
     self.accumulation_mode = windowing.accumulation_mode

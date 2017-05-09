@@ -1192,7 +1192,8 @@ class Windowing(object):
     self.windowfn = windowfn
     self.triggerfn = triggerfn
     self.accumulation_mode = accumulation_mode
-    self.timestamp_combiner = timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW
+    self.timestamp_combiner = (
+        timestamp_combiner or TimestampCombiner.OUTPUT_AT_EOW)
     self._is_default = (
         self.windowfn == GlobalWindows() and
         self.triggerfn == DefaultTrigger() and
