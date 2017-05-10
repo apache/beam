@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Dataflow client utility functions."""
+""" For internal use only. No backwards compatibility guarantees.
+
+Dataflow client utility functions."""
 
 import codecs
 import getpass
@@ -49,7 +51,9 @@ from apache_beam.options.pipeline_options import WorkerOptions
 
 
 class Step(object):
-  """Wrapper for a dataflow Step protobuf."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Wrapper for a dataflow Step protobuf."""
 
   def __init__(self, step_kind, step_name, additional_properties=None):
     self.step_kind = step_kind
@@ -109,7 +113,9 @@ class Step(object):
 
 
 class Environment(object):
-  """Wrapper for a dataflow Environment protobuf."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Wrapper for a dataflow Environment protobuf."""
 
   def __init__(self, packages, options, environment_version):
     self.standard_options = options.view_as(StandardOptions)
@@ -245,7 +251,9 @@ class Environment(object):
 
 
 class Job(object):
-  """Wrapper for a dataflow Job protobuf."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Wrapper for a dataflow Job protobuf."""
 
   def __str__(self):
     def encode_shortstrings(input_buffer, errors='strict'):
@@ -358,7 +366,9 @@ class Job(object):
 
 
 class DataflowApplicationClient(object):
-  """A Dataflow API client used by application code to create and query jobs."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A Dataflow API client used by application code to create and query jobs."""
 
   def __init__(self, options, environment_version):
     """Initializes a Dataflow API client object."""
@@ -637,7 +647,9 @@ class DataflowApplicationClient(object):
 
 
 class MetricUpdateTranslators(object):
-  """Translators between accumulators and dataflow metric updates."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Translators between accumulators and dataflow metric updates."""
 
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):

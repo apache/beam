@@ -125,7 +125,7 @@ class GetPValues(_PValueishTransform):
       super(GetPValues, self).visit(node, pvalues)
 
 
-class ZipPValues(_PValueishTransform):
+class _ZipPValues(_PValueishTransform):
   """Pairs each PValue in a pvalueish with a value in a parallel out sibling.
 
   Sibling should have the same nested structure as pvalueish.  Leaves in
@@ -148,7 +148,7 @@ class ZipPValues(_PValueishTransform):
     elif isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pairs.append((context, pvalueish, sibling))
     else:
-      super(ZipPValues, self).visit(pvalueish, sibling, pairs, context)
+      super(_ZipPValues, self).visit(pvalueish, sibling, pairs, context)
 
   def visit_list(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, (list, tuple)):
@@ -264,7 +264,7 @@ class PTransform(WithTypeHints, HasDisplayData):
               self.__class__, input_or_output))
     root_hint = (
         arg_hints[0] if len(arg_hints) == 1 else arg_hints or kwarg_hints)
-    for context, pvalue_, hint in ZipPValues().visit(pvalueish, root_hint):
+    for context, pvalue_, hint in _ZipPValues().visit(pvalueish, root_hint):
       if pvalue_.element_type is None:
         # TODO(robertwb): It's a bug that we ever get here. (typecheck)
         continue
@@ -341,7 +341,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def __or__(self, right):
     """Used to compose PTransforms, e.g., ptransform1 | ptransform2."""
     if isinstance(right, PTransform):
-      return ChainedPTransform(self, right)
+      return _ChainedPTransform(self, right)
     return NotImplemented
 
   def __ror__(self, left, label=None):
@@ -453,10 +453,10 @@ PTransform.register_urn(
     PTransform.from_runner_api_parameter)
 
 
-class ChainedPTransform(PTransform):
+class _ChainedPTransform(PTransform):
 
   def __init__(self, *parts):
-    super(ChainedPTransform, self).__init__(label=self._chain_label(parts))
+    super(_ChainedPTransform, self).__init__(label=self._chain_label(parts))
     self._parts = parts
 
   def _chain_label(self, parts):
@@ -466,7 +466,7 @@ class ChainedPTransform(PTransform):
     if isinstance(right, PTransform):
       # Create a flat list rather than a nested tree of composite
       # transforms for better monitoring, etc.
-      return ChainedPTransform(*(self._parts + (right,)))
+      return _ChainedPTransform(*(self._parts + (right,)))
     return NotImplemented
 
   def expand(self, pval):

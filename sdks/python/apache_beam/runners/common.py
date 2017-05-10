@@ -32,6 +32,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class LoggingContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def enter(self):
     pass
@@ -41,7 +42,9 @@ class LoggingContext(object):
 
 
 class Receiver(object):
-  """An object that consumes a WindowedValue.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An object that consumes a WindowedValue.
 
   This class can be efficiently used to pass values between the
   sdk and worker harnesses.
@@ -52,7 +55,9 @@ class Receiver(object):
 
 
 class DoFnMethodWrapper(object):
-  """Represents a method of a DoFn object."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Represents a method of a DoFn object."""
 
   def __init__(self, do_fn, method_name):
     """
@@ -72,7 +77,9 @@ class DoFnMethodWrapper(object):
 
 
 class DoFnSignature(object):
-  """Represents the signature of a given ``DoFn`` object.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Represents the signature of a given ``DoFn`` object.
 
   Signature of a ``DoFn`` provides a view of the properties of a given ``DoFn``.
   Among other things, this will give an extensible way for for (1) accessing the
@@ -113,7 +120,9 @@ class DoFnSignature(object):
 
 
 class DoFnInvoker(object):
-  """An abstraction that can be used to execute DoFn methods.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An abstraction that can be used to execute DoFn methods.
 
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
@@ -170,7 +179,9 @@ class DoFnInvoker(object):
 
 
 class SimpleInvoker(DoFnInvoker):
-  """An invoker that processes elements ignoring windowing information."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An invoker that processes elements ignoring windowing information."""
 
   def __init__(self, output_processor, signature):
     super(SimpleInvoker, self).__init__(output_processor, signature)
@@ -182,7 +193,9 @@ class SimpleInvoker(DoFnInvoker):
 
 
 class PerWindowInvoker(DoFnInvoker):
-  """An invoker that processes elements considering windowing information."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An invoker that processes elements considering windowing information."""
 
   def __init__(self, output_processor, signature, context,
                side_inputs, input_args, input_kwargs):
@@ -299,7 +312,9 @@ class PerWindowInvoker(DoFnInvoker):
 
 
 class DoFnRunner(Receiver):
-  """A helper class for executing ParDo operations.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A helper class for executing ParDo operations.
   """
 
   def __init__(self,
@@ -361,7 +376,7 @@ class DoFnRunner(Receiver):
 
     # Optimize for the common case.
     main_receivers = as_receiver(tagged_receivers[None])
-    output_processor = OutputProcessor(
+    output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
@@ -411,7 +426,7 @@ class DoFnRunner(Receiver):
       raise
 
 
-class OutputProcessor(object):
+class _OutputProcessor(object):
   """Processes output produced by DoFn method invocations."""
 
   def __init__(self, window_fn, main_receivers, tagged_receivers):
@@ -497,7 +512,7 @@ class OutputProcessor(object):
         self.tagged_receivers[tag].output(windowed_value)
 
 
-class NoContext(WindowFn.AssignContext):
+class _NoContext(WindowFn.AssignContext):
   """An uninspectable WindowFn.AssignContext."""
   NO_VALUE = object()
 
@@ -518,7 +533,9 @@ class NoContext(WindowFn.AssignContext):
 
 
 class DoFnState(object):
-  """Keeps track of state that DoFns want, currently, user counters.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Keeps track of state that DoFns want, currently, user counters.
   """
 
   def __init__(self, counter_factory):
@@ -533,6 +550,7 @@ class DoFnState(object):
 
 # TODO(robertwb): Replace core.DoFnContext with this.
 class DoFnContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, label, element=None, state=None):
     self.label = label
@@ -597,6 +615,8 @@ class _ReceiverAdapter(Receiver):
 
 
 def as_receiver(maybe_receiver):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   if isinstance(maybe_receiver, Receiver):
     return maybe_receiver
   return _ReceiverAdapter(maybe_receiver)

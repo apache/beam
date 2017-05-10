@@ -44,6 +44,8 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class MapTaskExecutorRunner(PipelineRunner):
   """Beam runner translating a pipeline into map tasks that are then executed.

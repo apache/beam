@@ -77,7 +77,7 @@ cdef class DoFnRunner(Receiver):
   cpdef process(self, WindowedValue windowed_value)
 
 
-cdef class OutputProcessor(object):
+cdef class _OutputProcessor(object):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers

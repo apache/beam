@@ -72,7 +72,9 @@ from apache_beam.typehints import typehints
 
 
 class CoderRegistry(object):
-  """A coder registry for typehint/coder associations."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder registry for typehint/coder associations."""
 
   def __init__(self, fallback_coder=None):
     self._coders = {}
@@ -160,7 +162,9 @@ class CoderRegistry(object):
 
 
 class FirstOf(object):
-  """A class used to get the first matching coder from a list of coders."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A class used to get the first matching coder from a list of coders."""
 
   def __init__(self, coders):
     self._coders = coders
