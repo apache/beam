@@ -25,15 +25,14 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
 /**
- * A {@link PipelineRunner} can execute, translate, or otherwise process a
- * {@link Pipeline}.
+ * A {@link PipelineRunner} runs a {@link Pipeline}.
  *
- * @param <ResultT> the type of the result of {@link #run}.
+ * @param <ResultT> the type of the result of {@link #run}, often a handle to a running job.
  */
 public abstract class PipelineRunner<ResultT extends PipelineResult> {
 
   /**
-   * Constructs a runner from the provided options.
+   * Constructs a runner from the provided {@link PipelineOptions}.
    *
    * @return The newly created runner.
    */
@@ -55,7 +54,8 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
   }
 
   /**
-   * Processes the given Pipeline, returning the results.
+   * Processes the given {@link Pipeline}, potentially asynchronously, returning a runner-specific
+   * type of result.
    */
   public abstract ResultT run(Pipeline pipeline);
 }

@@ -36,7 +36,7 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   }
 
   /**
-   * Returns the reason that this {@code WindowFn} is invalid.
+   * Returns the reason that this {@link WindowFn} is invalid.
    */
   public String getCause() {
     return cause;

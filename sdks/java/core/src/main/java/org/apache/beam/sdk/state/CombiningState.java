@@ -22,33 +22,32 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
- * State for a single value that is managed by a {@link CombineFn}. This is an internal extension
- * to {@link GroupingState} that includes the {@code AccumT} type.
+ * A {@link ReadableState} cell defined by a {@link CombineFn}, accepting multiple input values,
+ * combining them as specified into accumulators, and producing a single output value.
+ *
+ * <p>Implementations of this form of state are expected to implement {@link #add} efficiently, not
+ * via a sequence of read-modify-write.
  *
  * @param <InputT> the type of values added to the state
  * @param <AccumT> the type of accumulator
  * @param <OutputT> the type of value extracted from the state
  */
 @Experimental(Kind.STATE)
-public interface CombiningState<InputT, AccumT, OutputT>
-    extends GroupingState<InputT, OutputT> {
+public interface CombiningState<InputT, AccumT, OutputT> extends GroupingState<InputT, OutputT> {
 
   /**
-   * Read the merged accumulator for this combining value. It is implied that reading the
-   * state involes reading the accumulator, so {@link #readLater} is sufficient to prefetch for
-   * this.
+   * Read the merged accumulator for this state cell. It is implied that reading the state involves
+   * reading the accumulator, so {@link #readLater} is sufficient to prefetch for this.
    */
   AccumT getAccum();
 
   /**
-   * Add an accumulator to this combining value. Depending on implementation this may immediately
-   * merge it with the previous accumulator, or may buffer this accumulator for a future merge.
+   * Add an accumulator to this state cell. Depending on implementation this may immediately merge
+   * it with the previous accumulator, or may buffer this accumulator for a future merge.
    */
   void addAccum(AccumT accum);
 
-  /**
-   * Merge the given accumulators according to the underlying combiner.
-   */
+  /** Merge the given accumulators according to the underlying {@link CombineFn}. */
   AccumT mergeAccumulators(Iterable<AccumT> accumulators);
 
   @Override

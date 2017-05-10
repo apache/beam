@@ -21,10 +21,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * A utility function for merging overlapping {@link IntervalWindow}s.
+ * <b>For internal use only; no backwards compatibility guarantees.</b>
+ *
+ * <p>A utility function for merging overlapping {@link IntervalWindow IntervalWindows}.
  */
+@Internal
 public class MergeOverlappingIntervalWindows {
 
   /**

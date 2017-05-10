@@ -21,9 +21,7 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
-/**
- * Static methods for working with {@link TimerSpec}.
- */
+/** Static methods for working with {@link TimerSpec TimerSpecs}. */
 @Experimental(Kind.TIMERS)
 public class TimerSpecs {
 
