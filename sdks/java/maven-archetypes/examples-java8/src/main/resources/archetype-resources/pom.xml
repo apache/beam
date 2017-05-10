@@ -75,6 +75,13 @@
         </dependencies>
       </plugin>
 
+      <!-- Ensure that the Maven jar plugin runs before the Maven
+        shade plugin by listing the plugin higher within the file. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+
       <!--
         Configures `mvn package` to produce a bundled jar ("fat jar") for runners
         that require this for job submission to a cluster.
@@ -82,7 +89,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
+        <version>3.0.0</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -90,7 +97,6 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
               <filters>
                 <filter>
                   <artifact>*:*</artifact>

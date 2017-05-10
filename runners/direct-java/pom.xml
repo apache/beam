@@ -77,6 +77,13 @@
         </executions>
       </plugin>
 
+      <!-- Ensure that the Maven jar plugin runs before the Maven
+        shade plugin by listing the plugin higher within the file. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -88,6 +95,7 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <shadeTestJar>true</shadeTestJar>
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
