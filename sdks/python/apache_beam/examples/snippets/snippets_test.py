@@ -36,7 +36,7 @@ from apache_beam.examples.snippets import snippets
 from apache_beam.utils.windowed_value import WindowedValue
 
 # pylint: disable=expression-not-assigned
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

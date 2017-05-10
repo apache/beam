@@ -26,7 +26,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode

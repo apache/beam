@@ -25,10 +25,10 @@ from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
 from apache_beam.io.localfilesystem import LocalFileSystem
-from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.tests import pipeline_verifiers as verifiers
-from apache_beam.tests.test_utils import patch_retry
+from apache_beam.runners.runner import PipelineState
+from apache_beam.testing.test_utils import patch_retry
+from apache_beam.testing import pipeline_verifiers as verifiers
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position

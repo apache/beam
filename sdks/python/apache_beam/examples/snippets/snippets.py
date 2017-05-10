@@ -31,8 +31,8 @@ string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
-from apache_beam.test_pipeline import TestPipeline
 from apache_beam.metrics import Metrics
+from apache_beam.testing.test_pipeline import TestPipeline
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
