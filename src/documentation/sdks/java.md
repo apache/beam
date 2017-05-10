@@ -23,3 +23,11 @@ The Java SDK supports all features currently supported by the Beam model.
 
 ## Pipeline I/O
 See the [Beam-provided I/O Transforms]({{site.baseurl }}/documentation/io/built-in/) page for a list of the currently available I/O transforms.
+
+
+## Extensions
+
+The Java SDK has the following extensions:
+
+- [join-library]({{site.baseurl}}/documentation/sdks/java-extensions/#join-library) provides inner join, outer left join, and outer right join functions.
+- [sorter]({{site.baseurl}}/documentation/sdks/java-extensions/#sorter) is an efficient and scalable sorter for large iterables.
