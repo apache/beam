@@ -45,7 +45,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -67,13 +66,6 @@ public class MetricsTest implements Serializable {
         MetricsFilter.builder()
             .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
             .build());
-  }
-
-  private MetricsContainer mockContainer;
-
-  @Before
-  public void setUp() {
-    mockContainer = Mockito.mock(MetricsContainer.class);
   }
 
   @Rule
@@ -104,6 +96,7 @@ public class MetricsTest implements Serializable {
 
   @Test
   public void testDistributionToCell() {
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
     Distribution mockDistribution = Mockito.mock(Distribution.class);
     when(mockContainer.getDistribution(METRIC_NAME)).thenReturn(mockDistribution);
 
@@ -122,6 +115,7 @@ public class MetricsTest implements Serializable {
 
   @Test
   public void testCounterToCell() {
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
     Counter mockCounter = Mockito.mock(Counter.class);
     when(mockContainer.getCounter(METRIC_NAME)).thenReturn(mockCounter);
 
