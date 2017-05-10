@@ -31,9 +31,7 @@ JAVA8_EXAMPLES_ROOT="${HERE}/../../../../examples/java8"
 # The root of the examples archetype
 ARCHETYPE_ROOT="${HERE}/src/main/resources/archetype-resources"
 
-rm -r "${ARCHETYPE_ROOT}/src/main/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/main/java"
-rm -r "${ARCHETYPE_ROOT}/src/test/java"
 mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 
 #
@@ -41,11 +39,13 @@ mkdir -p "${ARCHETYPE_ROOT}/src/test/java"
 #
 rsync -a --exclude cookbook --exclude complete                  \
     "${EXAMPLES_ROOT}"/src/main/java/org/apache/beam/examples/  \
-    "${ARCHETYPE_ROOT}/src/main/java"
+    "${ARCHETYPE_ROOT}/src/main/java"				            \
+    --delete
 
 rsync -a --exclude cookbook --exclude complete --exclude '*IT.java'  \
-    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/        \
-    "${ARCHETYPE_ROOT}/src/test/java"
+    "${EXAMPLES_ROOT}"/src/test/java/org/apache/beam/examples/       \
+    "${ARCHETYPE_ROOT}/src/test/java"				                 \
+    --delete
 
 #
 # Copy in MinimalWordCountJava8 and mobile gaming example
