@@ -1195,6 +1195,9 @@
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <skipIfEmpty>true</skipIfEmpty>
+          </configuration>
         </plugin>
 
         <plugin>
