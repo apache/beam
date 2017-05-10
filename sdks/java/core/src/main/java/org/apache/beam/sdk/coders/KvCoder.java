@@ -93,8 +93,8 @@ public class KvCoder<K, V> extends StructuredCoder<KV<K, V>> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(this, "Key coder must be deterministic", getKeyCoder());
-    verifyDeterministic(this, "Value coder must be deterministic", getValueCoder());
+    verifyComponentDeterministic("Key coder must be deterministic", getKeyCoder());
+    verifyComponentDeterministic("Value coder must be deterministic", getValueCoder());
   }
 
   @Override

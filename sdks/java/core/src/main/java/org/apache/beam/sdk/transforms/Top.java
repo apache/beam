@@ -552,7 +552,7 @@ public class Top {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(this, "HeapCoder requires a deterministic list coder", listCoder);
+      verifyComponentDeterministic("HeapCoder requires a deterministic list coder", listCoder);
     }
 
     @Override

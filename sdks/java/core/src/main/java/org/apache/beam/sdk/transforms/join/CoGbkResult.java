@@ -293,8 +293,8 @@ public class CoGbkResult {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(
-          this, "CoGbkResult requires the union coder to be deterministic", unionCoder);
+      verifyComponentDeterministic(
+          "CoGbkResult requires the union coder to be deterministic", unionCoder);
     }
   }
 

@@ -108,7 +108,7 @@ public class NullableCoder<T> extends StructuredCoder<T> {
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(this, "Value coder must be deterministic", valueCoder);
+    verifyComponentDeterministic("Value coder must be deterministic", valueCoder);
   }
 
   /**

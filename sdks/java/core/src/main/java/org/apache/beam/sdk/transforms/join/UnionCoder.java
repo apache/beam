@@ -144,7 +144,9 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-    verifyDeterministic(
-        this, "UnionCoder is only deterministic if all element coders are", elementCoders);
+    for (Coder<?> elementCoder : elementCoders) {
+      verifyComponentDeterministic(
+          "UnionCoder is only deterministic if all element coders are", elementCoder);
+    }
   }
 }

@@ -264,7 +264,7 @@ public interface TimerInternals {
 
     @Override
     public void verifyDeterministic() throws NonDeterministicException {
-      verifyDeterministic(this, "window coder must be deterministic", windowCoder);
+      verifyComponentDeterministic("window coder must be deterministic", windowCoder);
     }
   }
 }
