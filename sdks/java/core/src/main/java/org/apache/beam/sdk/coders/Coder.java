@@ -24,6 +24,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -260,6 +261,24 @@ public abstract class Coder<T> implements Serializable {
       } catch (Exception exn) {
         throw new IllegalArgumentException(
             "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
+      }
+    }
+  }
+
+  /**
+   * Give a {@link Object} returned by {@link #fromStructuralValue}, returns the original encoded
+   * object.
+   */
+  public T fromStructuralValue(Object o) {
+    if (consistentWithEquals()) {
+      return (T) o;
+    } else {
+      try {
+        StructuralByteArray structuralByteArray = (StructuralByteArray) o;
+        return decode(new ByteArrayInputStream(structuralByteArray.getValue()), Context.OUTER);
+      } catch (Exception e) {
+        throw new IllegalArgumentException("Unable to decode element '" + o + "' with coder '"
+        + this + "'.", e);
       }
     }
   }

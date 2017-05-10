@@ -40,12 +40,13 @@ import org.joda.time.format.ISODateTimeFormat;
  * lessons.
  */
 public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone> {
-
   private static final DateTimeFormatter FORMATTER = ISODateTimeFormat.hourMinute();
-  private final String filenamePrefix;
+  private String filenamePrefix;
+  private boolean dynamicSharding;
 
-  public WriteOneFilePerWindow(String filenamePrefix) {
+  public WriteOneFilePerWindow(String filenamePrefix, boolean dynamicSharding) {
     this.filenamePrefix = filenamePrefix;
+    this.dynamicSharding = dynamicSharding;
   }
 
   @Override
@@ -61,12 +62,15 @@ public class WriteOneFilePerWindow extends PTransform<PCollection<String>, PDone
           resource);
     }
 
-    return input.apply(
-        TextIO.write()
-            .to(resource.getCurrentDirectory())
-            .withFilenamePolicy(new PerWindowFiles(prefix))
-            .withWindowedWrites()
-            .withNumShards(3));
+
+    TextIO.Write write = TextIO.write()
+        .to(resource.getCurrentDirectory())
+        .withFilenamePolicy(new PerWindowFiles(prefix))
+        .withWindowedWrites();
+    if (!dynamicSharding) {
+      write = write.withNumShards(3);
+    }
+    return input.apply(write);
   }
 
   /**

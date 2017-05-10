@@ -161,6 +161,10 @@ public class WindowedWordCount {
     @Default.InstanceFactory(DefaultToMinTimestampPlusOneHour.class)
     Long getMaxTimestampMillis();
     void setMaxTimestampMillis(Long value);
+
+    @Description("Whether to use dynamic (runner-determined) sharding or not")
+    Boolean getDynamicSharding();
+    void setDynamicSharding(Boolean dynamicSharding);
   }
 
   public static void main(String[] args) throws IOException {
@@ -207,7 +211,7 @@ public class WindowedWordCount {
      */
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(new WriteOneFilePerWindow(output));
+        .apply(new WriteOneFilePerWindow(output, options.getDynamicSharding()));
 
     PipelineResult result = pipeline.run();
     try {

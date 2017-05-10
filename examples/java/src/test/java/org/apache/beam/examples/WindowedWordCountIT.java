@@ -86,14 +86,25 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws Exception {
-    testWindowedWordCountPipeline(defaultOptions());
+  public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    options.setDynamicSharding(true);
+    testWindowedWordCountPipeline(options);
+  }
+
+  @Test
+  public void testWindowedWordCountInBatchStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    options.setDynamicSharding(false);
+    testWindowedWordCountPipeline(options);
   }
 
   @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws Exception {
-    testWindowedWordCountPipeline(streamingOptions());
+  public void testWindowedWordCountInStreamingStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = streamingOptions();
+    options.setDynamicSharding(false);
+    testWindowedWordCountPipeline(options);
   }
 
   private WindowedWordCountITOptions defaultOptions() throws Exception {
