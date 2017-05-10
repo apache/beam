@@ -13,9 +13,17 @@ This guide shows you how to set up your Python development environment, get the 
 
 ## Set up your environment
 
+### Check your Python version
+
+The Beam SDK for Python requires Python version 2.7.x. Check that you have version 2.7.x by running:
+
+```
+python --version
+```
+
 ### Install pip
 
-Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer, by running:
+Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
 
 ```
 pip --version
