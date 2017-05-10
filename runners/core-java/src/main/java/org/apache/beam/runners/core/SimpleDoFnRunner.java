@@ -988,11 +988,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
     }
 
-    @Override
-    public void cancel() {
-      timerInternals.deleteTimer(namespace, timerId);
-    }
-
     private Instant getCurrentTime() {
       switch(spec.getTimeDomain()) {
         case EVENT_TIME:
