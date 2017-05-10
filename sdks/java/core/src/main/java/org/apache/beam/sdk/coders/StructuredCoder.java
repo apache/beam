@@ -32,11 +32,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>To extend {@link StructuredCoder}, override the following methods as appropriate:
  *
  * <ul>
- *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.</li>
- *   <li>{@link #getEncodedElementByteSize} and
- *       {@link #isRegisterByteSizeObserverCheap}: the
+ *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.
+ *   <li>{@link #getEncodedElementByteSize} and {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
- *       expensive.</li>
+ *       expensive. The default element byte size observer uses the value returned by
+ *       {@link #getEncodedElementByteSize}.
  * </ul>
  */
 public abstract class StructuredCoder<T> extends Coder<T> {
@@ -44,6 +44,8 @@ public abstract class StructuredCoder<T> extends Coder<T> {
 
   /**
    * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
+   *
+   * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
   public List<? extends Coder<?>> getComponents() {
     List<? extends Coder<?>> coderArguments = getCoderArguments();
