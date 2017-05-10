@@ -18,13 +18,18 @@
 package org.apache.beam.sdk.values;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * The interface for values that can be input to and output from {@link PTransform PTransforms}.
+ * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
+ *
+ * <p>The interface for primitive values that can be input to and output from
+ * {@link PTransform PTransforms}.
  *
  * <p>It is recommended to extend {@link PValueBase}
  */
+@Internal
 public interface PValue extends POutput, PInput {
 
   /**
@@ -45,13 +50,13 @@ public interface PValue extends POutput, PInput {
    * After building, finalizes this {@code PValue} to make it ready for being used as an input to a
    * {@link org.apache.beam.sdk.transforms.PTransform}.
    *
-   * <p>Automatically invoked whenever {@code apply()} is invoked on this {@code PValue}, after
-   * {@link PValue#finishSpecifying(PInput, PTransform)} has been called on each component {@link
-   * PValue}, so users do not normally call this explicitly.
+   * <p>Automatically invoked whenever {@code apply()} is invoked on this {@code PValue}. Users
+   * should not normally call this explicitly.
    *
    * @param upstreamInput the {@link PInput} the {@link PTransform} was applied to to produce this
    *     output
    * @param upstreamTransform the {@link PTransform} that produced this {@link PValue}
    */
+  @Internal
   void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform);
 }
