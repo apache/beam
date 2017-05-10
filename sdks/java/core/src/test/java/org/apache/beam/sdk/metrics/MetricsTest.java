@@ -29,16 +29,19 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCommittedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
 import org.apache.beam.sdk.testing.UsesDistributionMetrics;
 import org.apache.beam.sdk.testing.UsesGaugeMetrics;
+import org.apache.beam.sdk.testing.UsesWatermarkMetrics;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.CoreMatchers;
@@ -59,6 +62,8 @@ public class MetricsTest implements Serializable {
   private static final MetricName METRIC_NAME = MetricName.named(NS, NAME);
   private static final String NAMESPACE = MetricsTest.class.getName();
   private static final MetricName ELEMENTS_READ = SourceMetrics.elementsRead().getName();
+  private static final MetricName SOURCE_WATERMARK_SPLIT =
+      SourceMetrics.sourceWatermarkOfSplit("0").getName();
 
   private static MetricQueryResults queryTestMetrics(PipelineResult result) {
     return result.metrics().queryMetrics(
@@ -336,4 +341,33 @@ public class MetricsTest implements Serializable {
             "Read(UnboundedCountingSource)",
             1000L)));
   }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesWatermarkMetrics.class})
+  public void testUnboundedSourceWatermarkMetrics() {
+
+    final long numElements = 1000;
+
+    pipeline.apply(Read.from(new UnboundedCountingTestSource(numElements)));
+
+    PipelineResult pipelineResult = pipeline.run();
+
+    MetricQueryResults metrics =
+        pipelineResult
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(SOURCE_WATERMARK_SPLIT.namespace(),
+                            SOURCE_WATERMARK_SPLIT.name()))
+                    .build());
+
+    assertThat(metrics.gauges(), hasItem(
+        attemptedMetricsResult(
+            SOURCE_WATERMARK_SPLIT.namespace(),
+            SOURCE_WATERMARK_SPLIT.name(),
+            "Read(UnboundedCountingTestSource)",
+            GaugeResult.create(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis(), Instant.now()))));
+  }
+
 }

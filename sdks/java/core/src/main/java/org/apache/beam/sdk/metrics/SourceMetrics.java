@@ -24,6 +24,8 @@ import com.google.common.base.Joiner;
  */
 public class SourceMetrics {
 
+  private static final int METRIC_MAX_SPLITS = 10_000;
+
   private static final String SOURCE_NAMESPACE = "source";
   private static final String SOURCE_SPLITS_NAMESPACE = "source.splits";
   private static final String SEPARATOR = ".";
@@ -32,6 +34,7 @@ public class SourceMetrics {
   private static final String BYTES_READ = "bytes_read";
   private static final String BACKLOG_BYTES = "backlog_bytes";
   private static final String BACKLOG_ELEMENTS = "backlog_elements";
+  private static final String WATERMARK = "watermark";
 
   private static final Counter ELEMENTS_READ_COUNTER =
       Metrics.counter(SOURCE_NAMESPACE, ELEMENTS_READ);
@@ -110,7 +113,22 @@ public class SourceMetrics {
     return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, BACKLOG_ELEMENTS));
   }
 
+  /**
+   * Gauge for source split watermark.
+   *
+   * <p>Should only be used when there is a small, fixed set of split IDs so as not to overload
+   * metrics backends.</p>
+   */
+  public static Gauge sourceWatermarkOfSplit(String splitId) {
+    return Metrics.gauge(SOURCE_SPLITS_NAMESPACE, renderName(splitId, WATERMARK));
+  }
+
   private static String renderName(String... nameParts) {
     return Joiner.on(SEPARATOR).join(nameParts);
   }
+
+  public static boolean shouldSetMetricOfSplit(int totalSplits) {
+    return totalSplits <= METRIC_MAX_SPLITS;
+  }
+
 }
