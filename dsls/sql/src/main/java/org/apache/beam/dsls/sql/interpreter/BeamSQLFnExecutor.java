@@ -22,6 +22,7 @@ import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlAndExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
@@ -159,6 +160,8 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "INITCAP":
           return new BeamSqlInitCapExpression(subExps);
 
+        case "CASE":
+          return new BeamSqlCaseExpression(subExps);
 
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
