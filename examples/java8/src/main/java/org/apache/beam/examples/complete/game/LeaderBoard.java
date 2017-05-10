@@ -106,6 +106,11 @@ public class LeaderBoard extends HourlyTeamScore {
    */
   interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
 
+    @Description("BigQuery Dataset to write tables to. Must already exist.")
+    @Validation.Required
+    String getDataset();
+    void setDataset(String value);
+
     @Description("Pub/Sub topic to read from")
     @Validation.Required
     String getTopic();
@@ -162,6 +167,27 @@ public class LeaderBoard extends HourlyTeamScore {
             "STRING", (c, w) -> c.pane().getTiming().toString()));
     return tableConfigure;
   }
+
+
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   */
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
+  configureBigQueryWrite() {
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
+        new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
+    tableConfigure.put(
+        "user",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    return tableConfigure;
+  }
+
 
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
