@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 import java.util.Iterator;
@@ -25,9 +27,12 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
 
@@ -39,15 +44,18 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
+  private Iterator<TimerInternals.TimerData> timerDataIterator;
 
   SparkProcessContext(
       DoFn<FnInputT, FnOutputT> doFn,
       DoFnRunner<FnInputT, FnOutputT> doFnRunner,
-      SparkOutputManager<OutputT> outputManager) {
+      SparkOutputManager<OutputT> outputManager,
+      Iterator<TimerInternals.TimerData> timerDataIterator) {
 
     this.doFn = doFn;
     this.doFnRunner = doFnRunner;
     this.outputManager = outputManager;
+    this.timerDataIterator = timerDataIterator;
   }
 
   Iterable<OutputT> processPartition(
@@ -137,6 +145,10 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
           // grab the next element and process it.
           doFnRunner.processElement(inputIterator.next());
           outputIterator = getOutputIterator();
+        } else if (timerDataIterator.hasNext()) {
+          clearOutput();
+          fireTimer(timerDataIterator.next());
+          outputIterator = getOutputIterator();
         } else {
           // no more input to consume, but finishBundle can produce more output
           if (!calledFinish) {
@@ -152,5 +164,14 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
         }
       }
     }
+
+    private void fireTimer(
+        TimerInternals.TimerData timer) {
+      StateNamespace namespace = timer.getNamespace();
+      checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+      BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+      doFnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+    }
+
   }
 }
