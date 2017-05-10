@@ -278,7 +278,7 @@ class PipelineTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
-        p | Create([ValueError]) | Map(raise_exception)
+        p | Create([ValueError('msg')]) | Map(raise_exception)
 
   # TODO(BEAM-1894).
   # def test_eager_pipeline(self):
