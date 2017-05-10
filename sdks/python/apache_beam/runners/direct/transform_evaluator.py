@@ -41,7 +41,9 @@ from apache_beam.options.pipeline_options import TypeOptions
 
 
 class TransformEvaluatorRegistry(object):
-  """Creates instances of TransformEvaluator for the application of a transform.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates instances of TransformEvaluator for the application of a transform.
   """
 
   def __init__(self, evaluation_context):
@@ -253,7 +255,7 @@ class _TaggedReceivers(dict):
     def output(self, element):
       pass
 
-  class InMemoryReceiver(object):
+  class _InMemoryReceiver(object):
     """Buffers undeclared outputs to the given dictionary."""
 
     def __init__(self, target, tag):
@@ -267,7 +269,7 @@ class _TaggedReceivers(dict):
     if self._evaluation_context.has_cache:
       if not self._undeclared_in_memory_tag_values:
         self._undeclared_in_memory_tag_values = collections.defaultdict(list)
-      receiver = _TaggedReceivers.InMemoryReceiver(
+      receiver = _TaggedReceivers._InMemoryReceiver(
           self._undeclared_in_memory_tag_values, key)
     else:
       if not self._null_receiver:

@@ -31,6 +31,8 @@ from apache_beam.coders import coder_impl
 from apache_beam.runners.api import beam_fn_api_pb2
 import grpc
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class ClosableOutputStream(type(coder_impl.create_OutputStream())):
   """A Outputstream for use with CoderImpls that has a close() method."""

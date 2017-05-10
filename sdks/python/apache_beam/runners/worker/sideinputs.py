@@ -26,6 +26,8 @@ import traceback
 from apache_beam.io import iobase
 from apache_beam.transforms import window
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 # Maximum number of reader threads for reading side input sources, per side
 # input.

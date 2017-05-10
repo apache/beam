@@ -29,7 +29,9 @@ SERIALIZED_SOURCE_KEY = 'serialized_source'
 
 
 class TransformNames(object):
-  """Transform strings as they are expected in the CloudWorkflow protos."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Transform strings as they are expected in the CloudWorkflow protos."""
   COLLECTION_TO_SINGLETON = 'CollectionToSingleton'
   COMBINE = 'CombineValues'
   CREATE_PCOLLECTION = 'CreateCollection'
@@ -41,7 +43,9 @@ class TransformNames(object):
 
 
 class PropertyNames(object):
-  """Property strings as they are expected in the CloudWorkflow protos."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Property strings as they are expected in the CloudWorkflow protos."""
   BIGQUERY_CREATE_DISPOSITION = 'create_disposition'
   BIGQUERY_DATASET = 'dataset'
   BIGQUERY_QUERY = 'bigquery_query'
