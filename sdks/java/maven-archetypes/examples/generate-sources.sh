@@ -21,7 +21,7 @@
 # Usage: Invoke with no arguments from any working directory.
 
 # The directory of this script. Assumes root of the maven-archetypes module.
-HERE="$( cd "$( dirname $0 )" && pwd )"
+HERE="$( cd "$( dirname '$0' )" && pwd )"
 
 # The directory of the examples-java module
 EXAMPLES_ROOT="${HERE}/../../../../examples/java"
