@@ -77,8 +77,8 @@ class Pipeline(object):
   the PValues are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
-  If same transform instance needs to be applied then a clone should be created
-  with a new label (e.g., transform.clone('new label')).
+  If same transform instance needs to be applied then the right shift operator
+  should be used to designate new names (e.g. `input | "label" >> my_tranform`).
   """
 
   def __init__(self, runner=None, options=None, argv=None):
