@@ -60,7 +60,9 @@ class _PipelineContextMap(object):
 
 
 class PipelineContext(object):
-  """Used for accessing and constructing the referenced objects of a Pipeline.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Used for accessing and constructing the referenced objects of a Pipeline.
   """
 
   _COMPONENT_TYPES = {

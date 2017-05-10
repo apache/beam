@@ -16,6 +16,8 @@
 #
 
 """Dataflow native sources and sinks.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 
 import logging
