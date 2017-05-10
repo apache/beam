@@ -20,7 +20,9 @@
 
 
 class ObservableMixin(object):
-  """An observable iterable.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An observable iterable.
 
   Subclasses need to call self.notify_observers with any object yielded.
   """

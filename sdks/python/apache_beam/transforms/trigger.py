@@ -47,7 +47,7 @@ class AccumulationMode(object):
   # RETRACTING = 3
 
 
-class StateTag(object):
+class _StateTag(object):
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this stage.  If CombineFn is None then
@@ -60,22 +60,22 @@ class StateTag(object):
     self.tag = tag
 
 
-class ValueStateTag(StateTag):
+class _ValueStateTag(_StateTag):
   """StateTag pointing to an element."""
 
   def __repr__(self):
     return 'ValueStateTag(%s)' % (self.tag)
 
   def with_prefix(self, prefix):
-    return ValueStateTag(prefix + self.tag)
+    return _ValueStateTag(prefix + self.tag)
 
 
-class CombiningValueStateTag(StateTag):
+class _CombiningValueStateTag(_StateTag):
   """StateTag pointing to an element, accumulated with a combiner."""
 
   # TODO(robertwb): Also store the coder (perhaps extracted from the combine_fn)
   def __init__(self, tag, combine_fn):
-    super(CombiningValueStateTag, self).__init__(tag)
+    super(_CombiningValueStateTag, self).__init__(tag)
     if not combine_fn:
       raise ValueError('combine_fn must be specified.')
     if not isinstance(combine_fn, core.CombineFn):
@@ -86,22 +86,22 @@ class CombiningValueStateTag(StateTag):
     return 'CombiningValueStateTag(%s, %s)' % (self.tag, self.combine_fn)
 
   def with_prefix(self, prefix):
-    return CombiningValueStateTag(prefix + self.tag, self.combine_fn)
+    return _CombiningValueStateTag(prefix + self.tag, self.combine_fn)
 
 
-class ListStateTag(StateTag):
+class _ListStateTag(_StateTag):
   """StateTag pointing to a list of elements."""
   def __repr__(self):
     return 'ListStateTag(%s)' % self.tag
 
   def with_prefix(self, prefix):
-    return ListStateTag(prefix + self.tag)
+    return _ListStateTag(prefix + self.tag)
 
 
-class WatermarkHoldStateTag(StateTag):
+class _WatermarkHoldStateTag(_StateTag):
 
   def __init__(self, tag, timestamp_combiner_impl):
-    super(WatermarkHoldStateTag, self).__init__(tag)
+    super(_WatermarkHoldStateTag, self).__init__(tag)
     self.timestamp_combiner_impl = timestamp_combiner_impl
 
   def __repr__(self):
@@ -109,8 +109,8 @@ class WatermarkHoldStateTag(StateTag):
                                               self.timestamp_combiner_impl)
 
   def with_prefix(self, prefix):
-    return WatermarkHoldStateTag(prefix + self.tag,
-                                 self.timestamp_combiner_impl)
+    return _WatermarkHoldStateTag(prefix + self.tag,
+                                  self.timestamp_combiner_impl)
 
 
 # pylint: disable=unused-argument
@@ -251,7 +251,7 @@ class AfterWatermark(TriggerFn):
       late: if not None, a speculative trigger to repeatedly evaluate after
         the watermark passes the end of the window
   """
-  LATE_TAG = CombiningValueStateTag('is_late', any)
+  LATE_TAG = _CombiningValueStateTag('is_late', any)
 
   def __init__(self, early=None, late=None):
     self.early = Repeatedly(early) if early else None
@@ -355,7 +355,7 @@ class AfterWatermark(TriggerFn):
 class AfterCount(TriggerFn):
   """Fire when there are at least count elements in this window pane."""
 
-  COUNT_TAG = CombiningValueStateTag('count', combiners.CountCombineFn())
+  COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 
   def __init__(self, count):
     self.count = count
@@ -432,7 +432,7 @@ class Repeatedly(TriggerFn):
             subtrigger=self.underlying.to_runner_api(context)))
 
 
-class ParallelTriggerFn(TriggerFn):
+class _ParallelTriggerFn(TriggerFn):
 
   __metaclass__ = ABCMeta
 
@@ -506,7 +506,7 @@ class ParallelTriggerFn(TriggerFn):
       raise NotImplementedError(self)
 
 
-class AfterAny(ParallelTriggerFn):
+class AfterAny(_ParallelTriggerFn):
   """Fires when any subtrigger fires.
 
   Also finishes when any subtrigger finishes.
@@ -514,7 +514,7 @@ class AfterAny(ParallelTriggerFn):
   combine_op = any
 
 
-class AfterAll(ParallelTriggerFn):
+class AfterAll(_ParallelTriggerFn):
   """Fires when all subtriggers have fired.
 
   Also finishes when all subtriggers have finished.
@@ -524,7 +524,7 @@ class AfterAll(ParallelTriggerFn):
 
 class AfterEach(TriggerFn):
 
-  INDEX_TAG = CombiningValueStateTag('index', (
+  INDEX_TAG = _CombiningValueStateTag('index', (
       lambda indices: 0 if not indices else max(indices)))
 
   def __init__(self, *triggers):
@@ -711,7 +711,7 @@ class MergeableStateAdapter(SimpleState):
   # TODO(robertwb): A similar indirection could be used for sliding windows
   # or other window_fns when a single element typically belongs to many windows.
 
-  WINDOW_IDS = ValueStateTag('window_ids')
+  WINDOW_IDS = _ValueStateTag('window_ids')
 
   def __init__(self, raw_state):
     self.raw_state = raw_state
@@ -726,7 +726,7 @@ class MergeableStateAdapter(SimpleState):
       self.raw_state.clear_timer(window_id, name, time_domain)
 
   def add_state(self, window, tag, value):
-    if isinstance(tag, ValueStateTag):
+    if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
     self.raw_state.add_state(self._get_id(window), tag, value)
@@ -734,10 +734,10 @@ class MergeableStateAdapter(SimpleState):
   def get_state(self, window, tag):
     values = [self.raw_state.get_state(window_id, tag)
               for window_id in self._get_ids(window)]
-    if isinstance(tag, ValueStateTag):
+    if isinstance(tag, _ValueStateTag):
       raise ValueError(
           'Merging requested for non-mergeable state tag: %r.' % tag)
-    elif isinstance(tag, CombiningValueStateTag):
+    elif isinstance(tag, _CombiningValueStateTag):
       # TODO(robertwb): Strip combine_fn.extract_output from raw_state tag.
       if not values:
         accumulator = tag.combine_fn.create_accumulator()
@@ -747,9 +747,9 @@ class MergeableStateAdapter(SimpleState):
         accumulator = tag.combine_fn.merge_accumulators(values)
         # TODO(robertwb): Store the merged value in the first tag.
       return tag.combine_fn.extract_output(accumulator)
-    elif isinstance(tag, ListStateTag):
+    elif isinstance(tag, _ListStateTag):
       return [v for vs in values for v in vs]
-    elif isinstance(tag, WatermarkHoldStateTag):
+    elif isinstance(tag, _WatermarkHoldStateTag):
       return tag.timestamp_combiner_impl.combine_all(values)
     else:
       raise ValueError('Invalid tag.', tag)
@@ -904,15 +904,15 @@ class GeneralTriggerDriver(TriggerDriver):
 
   Suitable for all variants of Windowing.
   """
-  ELEMENTS = ListStateTag('elements')
-  TOMBSTONE = CombiningValueStateTag('tombstone', combiners.CountCombineFn())
+  ELEMENTS = _ListStateTag('elements')
+  TOMBSTONE = _CombiningValueStateTag('tombstone', combiners.CountCombineFn())
 
   def __init__(self, windowing):
     self.window_fn = windowing.windowfn
     self.timestamp_combiner_impl = TimestampCombiner.get_impl(
         windowing.timestamp_combiner, self.window_fn)
     # pylint: disable=invalid-name
-    self.WATERMARK_HOLD = WatermarkHoldStateTag(
+    self.WATERMARK_HOLD = _WatermarkHoldStateTag(
         'watermark', self.timestamp_combiner_impl)
     # pylint: enable=invalid-name
     self.trigger_fn = windowing.triggerfn
@@ -1035,7 +1035,7 @@ class InMemoryUnmergedState(UnmergedState):
     self.defensive_copy = defensive_copy
 
   def set_global_state(self, tag, value):
-    assert isinstance(tag, ValueStateTag)
+    assert isinstance(tag, _ValueStateTag)
     if self.defensive_copy:
       value = copy.deepcopy(value)
     self.global_state[tag.tag] = value
@@ -1055,26 +1055,26 @@ class InMemoryUnmergedState(UnmergedState):
   def add_state(self, window, tag, value):
     if self.defensive_copy:
       value = copy.deepcopy(value)
-    if isinstance(tag, ValueStateTag):
+    if isinstance(tag, _ValueStateTag):
       self.state[window][tag.tag] = value
-    elif isinstance(tag, CombiningValueStateTag):
+    elif isinstance(tag, _CombiningValueStateTag):
       self.state[window][tag.tag].append(value)
-    elif isinstance(tag, ListStateTag):
+    elif isinstance(tag, _ListStateTag):
       self.state[window][tag.tag].append(value)
-    elif isinstance(tag, WatermarkHoldStateTag):
+    elif isinstance(tag, _WatermarkHoldStateTag):
       self.state[window][tag.tag].append(value)
     else:
       raise ValueError('Invalid tag.', tag)
 
   def get_state(self, window, tag):
     values = self.state[window][tag.tag]
-    if isinstance(tag, ValueStateTag):
+    if isinstance(tag, _ValueStateTag):
       return values
-    elif isinstance(tag, CombiningValueStateTag):
+    elif isinstance(tag, _CombiningValueStateTag):
       return tag.combine_fn.apply(values)
-    elif isinstance(tag, ListStateTag):
+    elif isinstance(tag, _ListStateTag):
       return values
-    elif isinstance(tag, WatermarkHoldStateTag):
+    elif isinstance(tag, _WatermarkHoldStateTag):
       return tag.timestamp_combiner_impl.combine_all(values)
     else:
       raise ValueError('Invalid tag.', tag)

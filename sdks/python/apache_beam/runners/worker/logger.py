@@ -24,6 +24,8 @@ import traceback
 
 from apache_beam.runners.common import LoggingContext
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 # Per-thread worker information. This is used only for logging to set
 # context information that changes while work items get executed:

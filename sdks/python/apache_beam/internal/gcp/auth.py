@@ -38,7 +38,9 @@ executing_project = None
 
 
 def set_running_in_gce(worker_executing_project):
-  """Informs the authentication library that we are running in GCE.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Informs the authentication library that we are running in GCE.
 
   When we are running in GCE, we have the option of using the VM metadata
   credentials for authentication to Google services.
@@ -57,8 +59,10 @@ class AuthenticationException(retry.PermanentException):
   pass
 
 
-class GCEMetadataCredentials(OAuth2Credentials):
-  """Credential object initialized using access token from GCE VM metadata."""
+class _GCEMetadataCredentials(OAuth2Credentials):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Credential object initialized using access token from GCE VM metadata."""
 
   def __init__(self, user_agent=None):
     """Create an instance of GCEMetadataCredentials.
@@ -69,7 +73,7 @@ class GCEMetadataCredentials(OAuth2Credentials):
     Args:
       user_agent: string, The HTTP User-Agent to provide for this application.
     """
-    super(GCEMetadataCredentials, self).__init__(
+    super(_GCEMetadataCredentials, self).__init__(
         None,  # access_token
         None,  # client_id
         None,  # client_secret
@@ -94,7 +98,9 @@ class GCEMetadataCredentials(OAuth2Credentials):
 
 
 def get_service_credentials():
-  """Get credentials to access Google services."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Get credentials to access Google services."""
   user_agent = 'beam-python-sdk/1.0'
   if is_running_in_gce:
     # We are currently running as a GCE taskrunner worker.
@@ -102,7 +108,7 @@ def get_service_credentials():
     # TODO(ccy): It's not entirely clear if these credentials are thread-safe.
     # If so, we can cache these credentials to save the overhead of creating
     # them again.
-    return GCEMetadataCredentials(user_agent=user_agent)
+    return _GCEMetadataCredentials(user_agent=user_agent)
   else:
     client_scopes = [
         'https://www.googleapis.com/auth/bigquery',

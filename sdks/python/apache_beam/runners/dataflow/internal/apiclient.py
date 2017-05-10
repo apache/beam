@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Dataflow client utility functions."""
+""" For internal use only. No backwards compatibility guarantees.
+
+Dataflow client utility functions."""
 
 import codecs
 import getpass

@@ -227,7 +227,9 @@ def _fn_takes_side_inputs(fn):
 
 
 class CallableWrapperDoFn(DoFn):
-  """A DoFn (function) object wrapping a callable object.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A DoFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
   them in transforms.
@@ -410,7 +412,9 @@ class CombineFn(WithTypeHints, HasDisplayData):
 
 
 class CallableWrapperCombineFn(CombineFn):
-  """A CombineFn (function) object wrapping a callable object.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A CombineFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
   them in Combine transforms.
@@ -537,7 +541,9 @@ class PartitionFn(WithTypeHints):
 
 
 class CallableWrapperPartitionFn(PartitionFn):
-  """A PartitionFn object wrapping a callable object.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A PartitionFn object wrapping a callable object.
 
   Instances of this class wrap simple functions for use in Partition operations.
   """
