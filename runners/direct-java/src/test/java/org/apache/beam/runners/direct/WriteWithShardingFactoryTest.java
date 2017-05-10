@@ -134,7 +134,7 @@ public class WriteWithShardingFactoryTest {
     WriteFiles<Object> original = WriteFiles.to(
         new FileBasedSink<Object>(StaticValueProvider.of(outputDirectory), policy) {
           @Override
-          public FileBasedWriteOperation<Object> createWriteOperation() {
+          public WriteOperation<Object> createWriteOperation() {
             throw new IllegalArgumentException("Should not be used");
           }
         });

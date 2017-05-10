@@ -567,7 +567,7 @@ public class TFRecordIO {
     }
 
     @Override
-    public FileBasedWriteOperation<byte[]> createWriteOperation() {
+    public WriteOperation<byte[]> createWriteOperation() {
       return new TFRecordWriteOperation(this);
     }
 
@@ -587,29 +587,29 @@ public class TFRecordIO {
     }
 
     /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation
-     * FileBasedWriteOperation} for TFRecord files.
+     * A {@link WriteOperation
+     * WriteOperation} for TFRecord files.
      */
-    private static class TFRecordWriteOperation extends FileBasedWriteOperation<byte[]> {
+    private static class TFRecordWriteOperation extends WriteOperation<byte[]> {
       private TFRecordWriteOperation(TFRecordSink sink) {
         super(sink);
       }
 
       @Override
-      public FileBasedWriter<byte[]> createWriter() throws Exception {
+      public Writer<byte[]> createWriter() throws Exception {
         return new TFRecordWriter(this);
       }
     }
 
     /**
-     * A {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter FileBasedWriter}
+     * A {@link Writer Writer}
      * for TFRecord files.
      */
-    private static class TFRecordWriter extends FileBasedWriter<byte[]> {
+    private static class TFRecordWriter extends Writer<byte[]> {
       private WritableByteChannel outChannel;
       private TFRecordCodec codec;
 
-      private TFRecordWriter(FileBasedWriteOperation<byte[]> writeOperation) {
+      private TFRecordWriter(WriteOperation<byte[]> writeOperation) {
         super(writeOperation, MimeTypes.BINARY);
       }
 
