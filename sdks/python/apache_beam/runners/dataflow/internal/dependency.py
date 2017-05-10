@@ -244,7 +244,9 @@ def _populate_requirements_cache(requirements_file, cache_dir):
 def stage_job_resources(
     options, file_copy=_dependency_file_copy, build_setup_args=None,
     temp_dir=None, populate_requirements_cache=_populate_requirements_cache):
-  """Creates (if needed) and stages job resources to options.staging_location.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates (if needed) and stages job resources to options.staging_location.
 
   Args:
     options: Command line options. More specifically the function will expect
@@ -467,7 +469,9 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
 
 
 def get_required_container_version():
-  """Returns the Google Cloud Dataflow container version for remote execution.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the Google Cloud Dataflow container version for remote execution.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
@@ -487,7 +491,9 @@ def get_required_container_version():
 
 
 def get_sdk_name_and_version():
-  """Returns name and version of SDK reported to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns name and version of SDK reported to Google Cloud Dataflow."""
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
@@ -496,7 +502,9 @@ def get_sdk_name_and_version():
 
 
 def get_sdk_package_name():
-  """Returns the PyPI package name to be staged to Google Cloud Dataflow."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Returns the PyPI package name to be staged to Google Cloud Dataflow."""
   container_version = get_required_container_version()
   if container_version == BEAM_CONTAINER_VERSION:
     return BEAM_PACKAGE_NAME

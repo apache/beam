@@ -28,6 +28,8 @@ from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
