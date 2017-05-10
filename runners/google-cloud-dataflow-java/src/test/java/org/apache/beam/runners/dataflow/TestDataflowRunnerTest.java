@@ -562,7 +562,7 @@ public class TestDataflowRunnerTest {
    * Tests that when a streaming pipeline terminates in FAIL that the {@link
    * TestPipelineOptions#setOnSuccessMatcher(SerializableMatcher) on success matcher} is not
    * invoked.
-   */t ad
+   */
   @Test
   public void testStreamingOnSuccessMatcherWhenPipelineFails() throws Exception {
     options.setStreaming(true);
