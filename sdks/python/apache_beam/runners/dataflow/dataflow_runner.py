@@ -160,7 +160,7 @@ class DataflowRunner(PipelineRunner):
 
     class GroupByKeyInputVisitor(PipelineVisitor):
       """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` or `GroupByKeyOnly` with a `KV` type.
+      a `GroupByKey` or `_GroupByKeyOnly` with a `KV` type.
 
       TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
@@ -169,8 +169,8 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam.transforms.core import GroupByKey, GroupByKeyOnly
-        if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
+        from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
+        if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
           pcoll = transform_node.inputs[0]
           input_type = pcoll.element_type
           # If input_type is not specified, then treat it as `Any`.

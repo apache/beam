@@ -53,7 +53,7 @@ class TransformEvaluatorRegistry(object):
         io.Read: _BoundedReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
-        core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
     }
 
@@ -83,7 +83,7 @@ class TransformEvaluatorRegistry(object):
     """Returns True if this applied_ptransform should run one bundle at a time.
 
     Some TransformEvaluators use a global state object to keep track of their
-    global execution state. For example evaluator for GroupByKeyOnly uses this
+    global execution state. For example evaluator for _GroupByKeyOnly uses this
     state as an in memory dictionary to buffer keys.
 
     Serially executed evaluators will act as syncing point in the graph and
@@ -99,7 +99,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     return isinstance(applied_ptransform.transform,
-                      (core.GroupByKeyOnly, _NativeWrite))
+                      (core._GroupByKeyOnly, _NativeWrite))
 
 
 class _TransformEvaluator(object):
@@ -325,7 +325,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
-  """TransformEvaluator for GroupByKeyOnly transform."""
+  """TransformEvaluator for _GroupByKeyOnly transform."""
 
   MAX_ELEMENT_PER_BUNDLE = None
 
@@ -369,7 +369,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       k, v = element.value
       self.state.output[self.key_coder.encode(k)].append(v)
     else:
-      raise TypeCheckError('Input to GroupByKeyOnly must be a PCollection of '
+      raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
                            'windowed key-value pairs. Instead received: %r.'
                            % element)
 

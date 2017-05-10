@@ -109,7 +109,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
     self.dofn = dofn
-    self._process_fn = self.dofn.process_argspec_fn()
+    self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
       self._input_hints = getcallargs_forhints(
