@@ -51,12 +51,12 @@ class AvroSink<T> extends FileBasedSink<T> {
   }
 
   @Override
-  public FileBasedWriteOperation<T> createWriteOperation() {
+  public WriteOperation<T> createWriteOperation() {
     return new AvroWriteOperation<>(this, coder, codec, metadata);
   }
 
-  /** A {@link FileBasedWriteOperation FileBasedWriteOperation} for Avro files. */
-  private static class AvroWriteOperation<T> extends FileBasedWriteOperation<T> {
+  /** A {@link WriteOperation WriteOperation} for Avro files. */
+  private static class AvroWriteOperation<T> extends WriteOperation<T> {
     private final AvroCoder<T> coder;
     private final SerializableAvroCodecFactory codec;
     private final ImmutableMap<String, Object> metadata;
@@ -72,19 +72,19 @@ class AvroSink<T> extends FileBasedSink<T> {
     }
 
     @Override
-    public FileBasedWriter<T> createWriter() throws Exception {
+    public Writer<T> createWriter() throws Exception {
       return new AvroWriter<>(this, coder, codec, metadata);
     }
   }
 
-  /** A {@link FileBasedWriter FileBasedWriter} for Avro files. */
-  private static class AvroWriter<T> extends FileBasedWriter<T> {
+  /** A {@link Writer Writer} for Avro files. */
+  private static class AvroWriter<T> extends Writer<T> {
     private final AvroCoder<T> coder;
     private DataFileWriter<T> dataFileWriter;
     private SerializableAvroCodecFactory codec;
     private final ImmutableMap<String, Object> metadata;
 
-    public AvroWriter(FileBasedWriteOperation<T> writeOperation,
+    public AvroWriter(WriteOperation<T> writeOperation,
                       AvroCoder<T> coder,
                       SerializableAvroCodecFactory codec,
                       ImmutableMap<String, Object> metadata) {
