@@ -101,14 +101,6 @@ public class WindowedWordCountIT {
 
   @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreamingDynamicSharding() throws Exception {
-    WindowedWordCountITOptions options = streamingOptions();
-    options.setDynamicSharding(true);
-    testWindowedWordCountPipeline(options);
-  }
-
-  @Test
-  @Category(StreamingIT.class)
   public void testWindowedWordCountInStreamingStaticSharding() throws Exception {
     WindowedWordCountITOptions options = streamingOptions();
     options.setDynamicSharding(false);
