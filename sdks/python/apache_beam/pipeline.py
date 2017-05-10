@@ -361,9 +361,10 @@ class Pipeline(object):
 
 
 class PipelineVisitor(object):
-  """Visitor pattern class used to traverse a DAG of transforms.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  Visitor pattern class used to traverse a DAG of transforms
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def visit_value(self, value, producer_node):
@@ -390,9 +391,10 @@ class PipelineVisitor(object):
 
 
 class AppliedPTransform(object):
-  """A transform node representing an instance of applying a PTransform.
+  """For internal use only; no backwards-compatibility guarantees.
 
-  This is an internal class used for bookkeeping by a Pipeline.
+  A transform node representing an instance of applying a PTransform
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def __init__(self, parent, transform, full_label, inputs):
