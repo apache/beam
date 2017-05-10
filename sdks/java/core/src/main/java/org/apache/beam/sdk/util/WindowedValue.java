@@ -685,9 +685,17 @@ public abstract class WindowedValue<T> {
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * @return a singleton list containing the {@code valueCoder} of this
+     *         {@link FullWindowedValueCoder}.
+     */
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      // The value type is the only generic type parameter exposed by this coder. The component
+      // coders include the window coder as well
+      return Collections.singletonList(valueCoder);
     }
 
     @Override
@@ -758,7 +766,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return Arrays.<Coder<?>>asList(valueCoder);
+      return Collections.singletonList(valueCoder);
     }
   }
 }

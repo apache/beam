@@ -318,11 +318,6 @@ public class AvroCoder<T> extends CustomCoder<T> {
     return reader.get().read(null, decoderInstance);
   }
 
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
-  }
-
   /**
    * @throws NonDeterministicException when the type may not be deterministically
    * encoded using the given {@link Schema}, the {@code directBinaryEncoder}, and the
