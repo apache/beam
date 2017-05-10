@@ -19,7 +19,6 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -38,10 +37,17 @@ import org.apache.calcite.rel.type.RelProtoDataType;
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
 
-  public static final List<String> CONTENT = new ArrayList<>();
+  public static final List<BeamSQLRow> CONTENT = new ArrayList<>();
+
+  private List<BeamSQLRow> inputRecords;
 
   public MockedBeamSQLTable(RelProtoDataType protoRowType) {
     super(protoRowType);
+  }
+
+  public MockedBeamSQLTable withInputRecords(List<BeamSQLRow> inputRecords){
+    this.inputRecords = inputRecords;
+    return this;
   }
 
   @Override
@@ -51,31 +57,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
 
   @Override
   public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
-    BeamSQLRow row1 = new BeamSQLRow(beamSqlRecordType);
-    row1.addField(0, 12345L);
-    row1.addField(1, 0);
-    row1.addField(2, 10.5);
-    row1.addField(3, 123.4f);
-
-    BeamSQLRow row2 = new BeamSQLRow(beamSqlRecordType);
-    row2.addField(0, 12345L);
-    row2.addField(1, 1);
-    row2.addField(2, 20.5);
-    row2.addField(3, 234.5f);
-
-    BeamSQLRow row3 = new BeamSQLRow(beamSqlRecordType);
-    row3.addField(0, 12345L);
-    row3.addField(1, 0);
-    row3.addField(2, 20.5);
-    row3.addField(3, 345.6f);
-
-    BeamSQLRow row4 = new BeamSQLRow(beamSqlRecordType);
-    row4.addField(0, null);
-    row4.addField(1, null);
-    row4.addField(2, 20.5);
-    row4.addField(3, 456.7f);
-
-    return Create.of(row1, row2, row3);
+    return Create.of(inputRecords);
   }
 
   @Override
@@ -100,7 +82,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
 
         @ProcessElement
         public void processElement(ProcessContext c) {
-          CONTENT.add(c.element().valueInString());
+          CONTENT.add(c.element());
         }
 
         @Teardown

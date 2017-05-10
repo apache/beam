@@ -56,14 +56,14 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = planCreator.getLatestStream();
+    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
 
     BeamSQLExpressionExecutor executor = new BeamSQLFnExecutor(this);
 
     PCollection<BeamSQLRow> projectStream = upstream.apply(stageName,
         ParDo.of(new BeamSQLFilterFn(getRelTypeName(), executor)));
 
-    planCreator.setLatestStream(projectStream);
+    planCreator.pushUpstream(projectStream);
 
     return planCreator.getPipeline();
   }

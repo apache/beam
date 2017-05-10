@@ -15,28 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.dsls.sql.planner;
+package org.apache.beam.dsls.sql.interpreter.operator;
 
-import org.apache.beam.sdk.Pipeline;
-import org.junit.Assert;
-import org.junit.Test;
+import java.util.Date;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Tests to execute a query.
+ * {@code BeamSqlExpression} for {@code HOP_START}, {@code TUMBLE_START},
+ * {@code SESSION_START} operation.
  *
+ * <p>These operators returns the <em>start</em> timestamp of window.
  */
-public class BeamPlannerSubmitTest extends BasePlanner {
-  @Test
-  public void insertSelectFilter() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+public class BeamSqlWindowStartExpression extends BeamSqlExpression {
 
-    pipeline.run().waitUntilFinish();
-
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.get(0).valueInString()
-        .contains("order_id=12345,site_id=0,price=20.5,order_time="));
+  @Override
+  public boolean accept() {
+    return true;
   }
+
+  @Override
+  public BeamSqlPrimitive<Date> evaluate(BeamSQLRow inputRecord) {
+    return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
+        new Date(inputRecord.getWindowStart().getMillis()));
+  }
+
 }

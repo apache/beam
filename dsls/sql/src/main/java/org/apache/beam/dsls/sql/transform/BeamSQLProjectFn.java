@@ -23,6 +23,7 @@ import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  *
@@ -48,10 +49,13 @@ public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) {
-    List<Object> results = executor.execute(c.element());
+  public void processElement(ProcessContext c, BoundedWindow window) {
+    BeamSQLRow inputRecord = c.element();
+    List<Object> results = executor.execute(inputRecord);
 
     BeamSQLRow outRow = new BeamSQLRow(outputRecordType);
+    outRow.updateWindowRange(inputRecord, window);
+
     for (int idx = 0; idx < results.size(); ++idx) {
       outRow.addField(idx, results.get(idx));
     }

@@ -42,6 +42,11 @@ public class BeamSQLRecordType implements Serializable {
     return record;
   }
 
+  public void addField(String fieldName, SqlTypeName fieldType) {
+    fieldsName.add(fieldName);
+    fieldsType.add(fieldType);
+  }
+
   public int size() {
     return fieldsName.size();
   }
