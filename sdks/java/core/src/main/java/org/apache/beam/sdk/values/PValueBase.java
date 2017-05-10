@@ -22,22 +22,17 @@ import static com.google.common.base.Preconditions.checkState;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.NameUtils;
 
 /**
- * A {@link PValueBase} is an abstract base class that provides
- * sensible default implementations for methods of {@link PValue}.
- * In particular, this includes functionality for getting/setting:
+ * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
  *
- * <ul>
- *   <li> The {@link Pipeline} that the {@link PValue} is part of.</li>
- *   <li> Whether the {@link PValue} has bee finalized (as an input
- *     or an output), after which its properties can no longer be changed.</li>
- * </ul>
- *
- * <p>For internal use.
+ * <p>An abstract base class that provides default implementations for some methods of
+ * {@link PValue}.
  */
+@Internal
 public abstract class PValueBase implements PValue {
 
   private final Pipeline pipeline;
