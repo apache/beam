@@ -21,5 +21,5 @@
 from apache_beam.transforms import combiners
 from apache_beam.transforms.core import *
 from apache_beam.transforms.ptransform import *
-from apache_beam.transforms.timeutil import *
+from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.util import *
