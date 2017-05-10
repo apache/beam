@@ -28,7 +28,7 @@ import io.netty.channel.unix.DomainSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.runners.dataflow.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**

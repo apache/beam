@@ -15,37 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.options;
+package org.apache.beam.runners.dataflow;
 
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link DataflowProfilingOptions}.
- */
+/** Tests for {@link DataflowPipelineDebugOptions}. */
 @RunWith(JUnit4.class)
-public class DataflowProfilingOptionsTest {
-
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-
+public class DataflowPipelineDebugOptionsTest {
   @Test
-  public void testOptionsObject() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
-        "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}")
-        .as(DataflowPipelineOptions.class);
-    assertThat(options.getSaveProfilesToGcs(), equalTo("path"));
-
-    String json = MAPPER.writeValueAsString(options);
-    assertThat(json, Matchers.containsString(
-        "\"profilingAgentConfiguration\":{\"interval\":21}"));
+  public void testTransformNameMapping() throws Exception {
+    DataflowPipelineDebugOptions options = PipelineOptionsFactory
+        .fromArgs("--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}")
+        .as(DataflowPipelineDebugOptions.class);
+    assertEquals(3, options.getTransformNameMapping().size());
+    assertThat(options.getTransformNameMapping(), hasEntry("a", "b"));
+    assertThat(options.getTransformNameMapping(), hasEntry("foo", ""));
+    assertThat(options.getTransformNameMapping(), hasEntry("bar", "baz"));
   }
 }
