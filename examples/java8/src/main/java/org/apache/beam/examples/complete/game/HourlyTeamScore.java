@@ -53,13 +53,12 @@ import org.joda.time.format.DateTimeFormatter;
  * {@link UserScore} pipeline. However, our batch processing is high-latency, in that we don't get
  * results from plays at the beginning of the batch's time period until the batch is processed.
  *
- * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
- * like this:
+ * <p>To execute this pipeline, specify the pipeline configuration like this:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
  *   --tempLocation=YOUR_TEMP_DIRECTORY
  *   --runner=YOUR_RUNNER
  *   --output=YOUR_OUTPUT_DIRECTORY
+ *   (possibly options specific to your runner or permissions for your temp/output locations)
  * }
  * </pre>
  *
