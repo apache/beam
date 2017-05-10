@@ -394,7 +394,7 @@ class AppliedPTransform(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A transform node representing an instance of applying a PTransform
-  (used internally by Pipeline for bookeeping purposes)..
+  (used internally by Pipeline for bookeeping purposes).
   """
 
   def __init__(self, parent, transform, full_label, inputs):
