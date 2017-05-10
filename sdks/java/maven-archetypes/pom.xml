@@ -69,6 +69,25 @@
         </plugin>
       </plugins>
     </pluginManagement>
+    
+    <plugins>
+      <!-- Disable the Maven jar plugin because Maven archetypes
+         are packaged using the Maven archetype packaging plugin. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-jar</id>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <id>default-test-jar</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
 
   <profiles>
