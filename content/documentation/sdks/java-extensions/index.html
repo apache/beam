@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Beam Java SDK</title>
+  <title>Beam Java SDK Extensions</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -15,7 +15,7 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java-extensions/" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -151,31 +151,63 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="apache-beam-java-sdk">Apache Beam Java SDK</h1>
+        <h1 id="apache-beam-java-sdk-extensions">Apache Beam Java SDK Extensions</h1>
 
-<p>The Java SDK for Apache Beam provides a simple, powerful API for building both batch and streaming parallel data processing pipelines in Java.</p>
+<h2 id="a-namejoin-libraryajoin-library"><a name="join-library"></a>Join-library</h2>
 
-<h2 id="get-started-with-the-java-sdk">Get Started with the Java SDK</h2>
+<p>Join-library provides inner join, outer left join, and outer right join functions. The aim
+is to simplify the most common cases of join to a simple function call.</p>
 
-<p>Get started with the <a href="/documentation/programming-guide/">Beam Programming Model</a> to learn the basic concepts that apply to all SDKs in Beam.</p>
+<p>The functions are generic and support joins of any Beam-supported types.
+Input to the join functions are <code class="highlighter-rouge">PCollections</code> of <code class="highlighter-rouge">Key</code> / <code class="highlighter-rouge">Value</code>s. Both
+the left and right <code class="highlighter-rouge">PCollection</code>s need the same type for the key. All the join
+functions return a <code class="highlighter-rouge">Key</code> / <code class="highlighter-rouge">Value</code> where <code class="highlighter-rouge">Key</code> is the join key and value is
+a <code class="highlighter-rouge">Key</code> / <code class="highlighter-rouge">Value</code> where the key is the left value and right is the value.</p>
 
-<p>See the <a href="/documentation/sdks/javadoc/">Java API Reference</a> for more information on individual APIs.</p>
+<p>For outer joins, the user must provide a value that represents <code class="highlighter-rouge">null</code> because <code class="highlighter-rouge">null</code>
+cannot be serialized.</p>
 
-<h2 id="supported-features">Supported Features</h2>
+<p>Example usage:</p>
 
-<p>The Java SDK supports all features currently supported by the Beam model.</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, String&gt;&gt; leftPcollection = ...
+PCollection&lt;KV&lt;String, Long&gt;&gt; rightPcollection = ...
 
-<h2 id="pipeline-io">Pipeline I/O</h2>
-<p>See the <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a> page for a list of the currently available I/O transforms.</p>
+PCollection&lt;KV&lt;String, KV&lt;String, Long&gt;&gt;&gt; joinedPcollection =
+  Join.innerJoin(leftPcollection, rightPcollection);
+</code></pre>
+</div>
 
-<h2 id="extensions">Extensions</h2>
+<h2 id="a-namesorterasorter"><a name="sorter"></a>Sorter</h2>
 
-<p>The Java SDK has the following extensions:</p>
+<p>This module provides the <code class="highlighter-rouge">SortValues</code> transform, which takes a <code class="highlighter-rouge">PCollection&lt;KV&lt;K, Iterable&lt;KV&lt;K2, V&gt;&gt;&gt;&gt;</code> and produces a <code class="highlighter-rouge">PCollection&lt;KV&lt;K, Iterable&lt;KV&lt;K2, V&gt;&gt;&gt;&gt;</code> where, for each primary key <code class="highlighter-rouge">K</code> the paired <code class="highlighter-rouge">Iterable&lt;KV&lt;K2, V&gt;&gt;</code> has been sorted by the byte encoding of secondary key (<code class="highlighter-rouge">K2</code>). It is an efficient and scalable sorter for iterables, even if they are large (do not fit in memory).</p>
+
+<h3 id="caveats">Caveats</h3>
 
 <ul>
-  <li><a href="/documentation/sdks/java-extensions/#join-library">join-library</a> provides inner join, outer left join, and outer right join functions.</li>
-  <li><a href="/documentation/sdks/java-extensions/#sorter">sorter</a> is an efficient and scalable sorter for large iterables.</li>
+  <li>This transform performs value-only sorting; the iterable accompanying each key is sorted, but <em>there is no relationship between different keys</em>, as Beam does not support any defined relationship between different elements in a <code class="highlighter-rouge">PCollection</code>.</li>
+  <li>Each <code class="highlighter-rouge">Iterable&lt;KV&lt;K2, V&gt;&gt;</code> is sorted on a single worker using local memory and disk. This means that <code class="highlighter-rouge">SortValues</code> may be a performance and/or scalability bottleneck when used in different pipelines. For example, users are discouraged from using <code class="highlighter-rouge">SortValues</code> on a <code class="highlighter-rouge">PCollection</code> of a single element to globally sort a large <code class="highlighter-rouge">PCollection</code>. A (rough) estimate of the number of bytes of disk space utilized if sorting spills to disk is <code class="highlighter-rouge">numRecords * (numSecondaryKeyBytesPerRecord + numValueBytesPerRecord + 16) * 3</code>.</li>
 </ul>
+
+<h3 id="options">Options</h3>
+
+<ul>
+  <li>The user can customize the temporary location used if sorting requires spilling to disk and the maximum amount of memory to use by creating a custom instance of <code class="highlighter-rouge">BufferedExternalSorter.Options</code> to pass into <code class="highlighter-rouge">SortValues.create</code>.</li>
+</ul>
+
+<h3 id="example-usage-of-sortvalues">Example usage of <code class="highlighter-rouge">SortValues</code></h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, KV&lt;String, Integer&gt;&gt;&gt; input = ...
+
+// Group by primary key, bringing &lt;SecondaryKey, Value&gt; pairs for the same key together.
+PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; grouped =
+    input.apply(GroupByKey.&lt;String, KV&lt;String, Integer&gt;&gt;create());
+
+// For every primary key, sort the iterable of &lt;SecondaryKey, Value&gt; pairs by secondary key.
+PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; groupedAndSorted =
+    grouped.apply(
+        SortValues.&lt;String, String, Integer&gt;create(new BufferedExternalSorter.Options()));
+</code></pre>
+</div>
 
       </div>
 
