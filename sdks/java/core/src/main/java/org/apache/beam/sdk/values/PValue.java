@@ -24,10 +24,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 /**
  * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
  *
- * <p>The interface for primitive values that can be input to and output from
- * {@link PTransform PTransforms}.
- *
- * <p>It is recommended to extend {@link PValueBase}
+ * <p>A primitive value within Beam.
  */
 @Internal
 public interface PValue extends POutput, PInput {

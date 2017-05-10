@@ -29,15 +29,8 @@ import org.apache.beam.sdk.util.NameUtils;
 /**
  * <b><i>For internal use. No backwards compatibility guarantees.</i></b>
  *
- * <p>A {@link PValueBase} is an abstract base class that provides
- * sensible default implementations for methods of {@link PValue}.
- * In particular, this includes functionality for getting/setting:
- *
- * <ul>
- *   <li> The {@link Pipeline} that the {@link PValue} is part of.</li>
- *   <li> Whether the {@link PValue} has bee finalized (as an input
- *     or an output), after which its properties can no longer be changed.</li>
- * </ul>
+ * <p>An abstract base class that provides default implementations for some methods of
+ * {@link PValue}.
  */
 @Internal
 public abstract class PValueBase implements PValue {
