@@ -54,12 +54,6 @@ public interface Timer {
   void set(Instant absoluteTime);
 
   /**
-   * Unsets this timer. It is permitted to {@code cancel()} whether or not the timer was actually
-   * set.
-   */
-  void cancel();
-
-  /**
    * Sets the timer relative to the current time, according to any offset and alignment specified.
    * Using {@link #offset(Duration)} and {@link #align(Duration)}.
    */
