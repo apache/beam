@@ -124,6 +124,10 @@ public class TestDataflowRunnerTest {
     assertEquals(mockJob, runner.run(p, mockRunner));
   }
 
+  /**
+   * Tests that when a batch job terminates in a failure state even if all assertions
+   * passed, it throws an error to that effect.
+   */
   @Test
   public void testRunBatchJobThatFails() throws Exception {
     Pipeline p = TestPipeline.create(options);
@@ -140,12 +144,9 @@ public class TestDataflowRunnerTest {
 
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
     when(mockClient.getJobMetrics(anyString()))
-        .thenReturn(generateMockMetricResponse(false /* success */, false /* tentative */));
-    try {
-      runner.run(p, mockRunner);
-    } catch (AssertionError expected) {
-      return;
-    }
+        .thenReturn(generateMockMetricResponse(true /* success */, false /* tentative */));
+    expectedException.expect(RuntimeException.class);
+    runner.run(p, mockRunner);
     // Note that fail throws an AssertionError which is why it is placed out here
     // instead of inside the try-catch block.
     fail("AssertionError expected");
@@ -357,22 +358,6 @@ public class TestDataflowRunnerTest {
   }
 
   /**
-   * Tests that if a streaming pipeline terminates with FAIL that the check for PAssert
-   * success is a conclusive failure.
-   */
-  @Test
-  public void testStreamingPipelineFailsIfServiceFails() throws Exception {
-    DataflowPipelineJob job = spy(new DataflowPipelineJob(mockClient, "test-job", options, null));
-    Pipeline p = TestPipeline.create(options);
-    PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
-    PAssert.that(pc).containsInAnyOrder(1, 2, 3);
-
-    TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    doReturn(State.FAILED).when(job).getState();
-    assertThat(runner.checkForPAssertSuccess(job), equalTo(Optional.of(false)));
-  }
-
-  /**
    * Tests that if a streaming pipeline crash loops for a non-assertion reason that the test run
    * throws an {@link AssertionError}.
    *
@@ -411,12 +396,8 @@ public class TestDataflowRunnerTest {
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
 
-    try {
-      runner.run(pipeline, mockRunner);
-    } catch (AssertionError exc) {
-      return;
-    }
-    fail("AssertionError expected");
+    expectedException.expect(RuntimeException.class);
+    runner.run(pipeline, mockRunner);
   }
 
   @Test
@@ -581,7 +562,7 @@ public class TestDataflowRunnerTest {
    * Tests that when a streaming pipeline terminates in FAIL that the {@link
    * TestPipelineOptions#setOnSuccessMatcher(SerializableMatcher) on success matcher} is not
    * invoked.
-   */
+   */t ad
   @Test
   public void testStreamingOnSuccessMatcherWhenPipelineFails() throws Exception {
     options.setStreaming(true);
@@ -603,8 +584,9 @@ public class TestDataflowRunnerTest {
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenReturn(State.FAILED);
 
+    expectedException.expect(RuntimeException.class);
     runner.run(p, mockRunner);
-    // If the onSuccessMatcher were invoked, it would have crashed here.
+    // If the onSuccessMatcher were invoked, it would have crashed here with AssertionError
   }
 
   static class TestSuccessMatcher extends BaseMatcher<PipelineResult> implements
