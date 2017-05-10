@@ -40,8 +40,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Simple aggregation of logs in Apache log format.
- * Counts number of daily hits per client.
+ * Simple aggregation of logs in Apache log format. Counts the number of daily
+ * hits per client. This is a word-count like program utilizing time windowing
+ * based on event time.
+ * <p>
+ * If newly coming the euphoria API, you are advised to first study the
+ * {@link SimpleWordCount} program.
  * <p>
  *
  * Example usage on flink:
@@ -77,18 +81,89 @@ public class AccessLogCount {
     final String executorName = args[0];
     final String inputPath = args[1];
 
+    // As with the {@code SimpleWordCount} we define a source to read data from ...
     DataSource<String> dataSource = new SimpleHadoopTextFileSource(inputPath);
+    // ... and a sink to write the business logic's output to. In this particular
+    // case we use a sink that eventually writes out the data to the executors
+    // standard output. This is rarely useful in production environments but
+    // is handy in local executions.
     DataSink<String> dataSink = new StdoutSink<>();
 
+    //  We start by allocating a new flow, a container to encapsulates the
+    // chain of transformations.
     Flow flow = Flow.create("Access log processor");
 
+    // From the data source describing the actual input data location and
+    // physical form, we create an abstract data set to be processed in the
+    // context of the created flow.
+    //
+    // As in other examples, reading the actual input source is deferred
+    // until the flow's execution. The data itself is _not_ touched at this
+    // point in time yet.
     Dataset<String> input = flow.createInput(dataSource);
 
+    // We assume the actual input data to have a particular format; in this
+    // case, each element is expected to be a log line from the Apache's access
+    // log. We "map" the "parseLine" function over each such line to transform
+    // the raw log entry into a more structured object.
+    //
+    // Note: Using `MapElements` implies that for each input we generate an
+    // output. In the context of this program it means, that we are not able
+    // to naturally "skip" invalid log lines.
+    //
+    // Note: Generally, user defined functions must be thread-safe. If you
+    // inspect the `parseLine` fuction, you'll see that it allocates a new
+    // `SimpleDateFormat` instance for every input element since sharing such
+    // an instance between threads without explicit synchronization is not
+    // thread-safe. (In this example we have intentionally used the
+    // `SimpleDateFormat` to make this point. In a read-world program you
+    // would probably hand out to `DateTimeFormatter` which can be safely
+    // be re-used across threads.)
     Dataset<LogLine> parsed = MapElements.named("LOG-PARSER")
             .of(input)
             .using(LogParser::parseLine)
             .output();
 
+    // In the previous step we derived a data set specifying points in time
+    // at which particular IPs accessed our web-server. Our goal is now to
+    // count how often a particular IP accessed the web-server, per day. This
+    // is, instead of deriving the count of a particular IP from the whole
+    // input, we want to know the number of hits per IP for every day
+    // distinctly (we're not interested in zero hit counts, of course.)
+    //
+    // Actually, this computation is merely a word-count problem explained
+    // in the already mentioned {@link SimpleWordCount}. We just count the
+    // number of occurrences of a particular IP. However, we also specify
+    // how the input is to be "windowed."
+    //
+    // Windowing splits the input into fixed sections of chunks. Such as we
+    // can divide a data set into chunks by a certain size, we can split
+    // a data set into chunks defined by time, e.g. a chunk for day one,
+    // another chunk for day two, etc. provided that elements of the data
+    // set have a notion of time. Once the input data set is logically divided
+    // into these "time windows", the computation takes place separately on
+    // each of them, and, produces a results for each window separately.
+    //
+    // Here, we specify time based windowing using the `Time.of(..)` method
+    // specifying the size of the windows, in particular "one day" in this
+    // example. Then, we also specify how to determine the time of the
+    // elements, such that these are placed into the right windows.
+    //
+    // Note: There are a few different windowing strategies and you can
+    // investigate each by looking for classes implementing {@link Windowing}.
+    //
+    // Note: You might wonder why we didn't just a
+    // "select ip, count(*) from input group by (ip, day)". First, windowing
+    // as such is a separate concern to the actual computation; there is no
+    // need to mix them up and further complicate the actual computation.
+    // Being a separate concern it allows for easier exchange and
+    // experimentation. Second, by specifying windowing as a separate concern,
+    // we can make the computation work even on unbounded, i.e. endless, input
+    // streams. Windowing strategies generally work together with the
+    // executor and can define a point when a window is determined to be
+    // "filled" at which point the windows data can be processed, calculated,
+    // and the corresponding results emitted. This makes endless stream
+    // processing work.
     Dataset<Pair<String, Long>> aggregated = ReduceByKey.named("AGGREGATE")
             .of(parsed)
             .keyBy(LogLine::getIp)
@@ -97,6 +172,14 @@ public class AccessLogCount {
             .windowBy(Time.of(Duration.ofDays(1)), line -> line.getDate().getTime())
             .output();
 
+    // At the final stage of our flow, we nicely format the previously emitted
+    // results before persisting them to a given data sink, e.g. external storage.
+    //
+    // The elements emitted from the previous operator specify the windowed
+    // results of the "IP-count". This is, for each IP we get a count of the
+    // number of its occurrences (within a window.) The window information
+    // itself - if desired - can be accessed from the `FlatMap`'s context
+    // parameter as demonstrated below.
     FlatMap.named("FORMAT-OUTPUT")
             .of(aggregated)
             .using(((Pair<String, Long> elem, Context<String> context) -> {
@@ -108,6 +191,7 @@ public class AccessLogCount {
             .output()
             .persist(dataSink);
 
+    // Finally, we allocate an executor and submit our flow for execution on it.
     Executor executor = Executors.createExecutor(executorName);
     executor.submit(flow).get();
   }
@@ -120,7 +204,11 @@ public class AccessLogCount {
       Matcher matcher = pattern.matcher(line);
       if (matcher.matches()) {
         try {
-          SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
+          // SDF is not thread-safe, so we need to allocate one here. Ideally,
+          // we'd use `DateTimeFormatter` and re-use it across input elements.
+          // see the corresponding note at the operator utilizing `parseLine`.
+          SimpleDateFormat sdf =
+              new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.ENGLISH);
 
           String ip = matcher.group(1);
           Date date = sdf.parse(matcher.group(4));
