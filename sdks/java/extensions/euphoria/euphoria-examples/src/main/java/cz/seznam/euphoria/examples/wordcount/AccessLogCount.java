@@ -112,7 +112,7 @@ public class AccessLogCount {
     // to naturally "skip" invalid log lines.
     //
     // Note: Generally, user defined functions must be thread-safe. If you
-    // inspect the `parseLine` fuction, you'll see that it allocates a new
+    // inspect the `parseLine` function, you'll see that it allocates a new
     // `SimpleDateFormat` instance for every input element since sharing such
     // an instance between threads without explicit synchronization is not
     // thread-safe. (In this example we have intentionally used the
