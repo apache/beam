@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.game.utils;
 
-import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
 
 import java.io.Serializable;
@@ -108,7 +108,8 @@ public class WriteToText<InputT>
     @Override
     public PDone expand(PCollection<String> input) {
       // Verify that the input has a compatible window type.
-      verify(input.getWindowingStrategy().getWindowFn().windowCoder() == IntervalWindow.getCoder());
+      checkArgument(
+          input.getWindowingStrategy().getWindowFn().windowCoder() == IntervalWindow.getCoder());
 
       // filenamePrefix may contain a directory and a filename component. Pull out only the filename
       // component from that path for the PerWindowFiles.
