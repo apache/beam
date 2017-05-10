@@ -21,7 +21,7 @@ import logging
 import unittest
 
 from apache_beam.examples.complete import estimate_pi
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import BeamAssertException
 

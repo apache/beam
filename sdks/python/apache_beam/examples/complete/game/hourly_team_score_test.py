@@ -21,8 +21,8 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.test_pipeline import TestPipeline
 from apache_beam.examples.complete.game import hourly_team_score
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 class HourlyTeamScoreTest(unittest.TestCase):
