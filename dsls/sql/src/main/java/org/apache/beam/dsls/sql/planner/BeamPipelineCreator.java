@@ -19,6 +19,9 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.Map;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
@@ -38,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class BeamPipelineCreator {
   private Map<String, BaseBeamTable> sourceTables;
-  private PCollection<BeamSQLRow> latestStream;
+  private Queue<PCollection<BeamSQLRow>> upStreamQueue;
 
   private PipelineOptions options;
 
@@ -53,18 +56,20 @@ public class BeamPipelineCreator {
         .as(PipelineOptions.class); // FlinkPipelineOptions.class
     options.setJobName("BeamPlanCreator");
 
+    upStreamQueue = new ConcurrentLinkedQueue<>();
+
     pipeline = Pipeline.create(options);
     CoderRegistry cr = pipeline.getCoderRegistry();
     cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
     cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
   }
 
-  public PCollection<BeamSQLRow> getLatestStream() {
-    return latestStream;
+  public PCollection<BeamSQLRow> popUpstream() {
+    return upStreamQueue.poll();
   }
 
-  public void setLatestStream(PCollection<BeamSQLRow> latestStream) {
-    this.latestStream = latestStream;
+  public void pushUpstream(PCollection<BeamSQLRow> upstream) {
+    this.upStreamQueue.add(upstream);
   }
 
   public Map<String, BaseBeamTable> getSourceTables() {
@@ -75,7 +80,7 @@ public class BeamPipelineCreator {
     return pipeline;
   }
 
-  public boolean isHasPersistent() {
+  public boolean hasPersistent() {
     return hasPersistent;
   }
 
