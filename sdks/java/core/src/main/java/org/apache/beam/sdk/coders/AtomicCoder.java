@@ -35,14 +35,22 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
   /**
    * {@inheritDoc}.
    *
-   * @throws NonDeterministicException
+   * <p>Unless overridden, does not throw. An {@link AtomicCoder} is presumed to be deterministic
+   *
+   * @throws NonDeterministicException if overridden to indicate that this sublcass of
+   *         {@link AtomicCoder} is not deterministic
    */
   @Override
   public void verifyDeterministic() throws NonDeterministicException {}
 
+  /**
+   * {@inheritDoc}.
+   *
+   * @return the empty list
+   */
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return Collections.emptyList();
   }
 
   /**
@@ -65,6 +73,11 @@ public abstract class AtomicCoder<T> extends StructuredCoder<T> {
     return other != null && this.getClass().equals(other.getClass());
   }
 
+  /**
+   * {@inheritDoc}.
+   *
+   * @return the {@link #hashCode()} of the {@link Class} of this {@link AtomicCoder}.
+   */
   @Override
   public final int hashCode() {
     return this.getClass().hashCode();
