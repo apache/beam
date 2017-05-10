@@ -199,7 +199,7 @@ public abstract class Coder<T> implements Serializable {
   protected final void verifyComponentDeterministic(String message, Coder<?> component)
       throws NonDeterministicException {
     checkArgument(
-        this.equals(component),
+        !this.equals(component),
         "Cannot call verifyComponentDeterministic with the current %s %s as the component",
         Coder.class.getSimpleName(),
         this);
@@ -207,7 +207,7 @@ public abstract class Coder<T> implements Serializable {
       component.verifyDeterministic();
     } catch (NonDeterministicException e) {
       throw new NonDeterministicException(this, message, e);
-      }
+    }
   }
 
   /**
