@@ -77,9 +77,7 @@ class DoFnMethodWrapper(object):
 
 
 class DoFnSignature(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Represents the signature of a given ``DoFn`` object.
+  """Represents the signature of a given ``DoFn`` object.
 
   Signature of a ``DoFn`` provides a view of the properties of a given ``DoFn``.
   Among other things, this will give an extensible way for for (1) accessing the
@@ -120,9 +118,7 @@ class DoFnSignature(object):
 
 
 class DoFnInvoker(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  An abstraction that can be used to execute DoFn methods.
+  """An abstraction that can be used to execute DoFn methods.
 
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
@@ -179,9 +175,7 @@ class DoFnInvoker(object):
 
 
 class SimpleInvoker(DoFnInvoker):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  An invoker that processes elements ignoring windowing information."""
+  """An invoker that processes elements ignoring windowing information."""
 
   def __init__(self, output_processor, signature):
     super(SimpleInvoker, self).__init__(output_processor, signature)
@@ -193,9 +187,7 @@ class SimpleInvoker(DoFnInvoker):
 
 
 class PerWindowInvoker(DoFnInvoker):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  An invoker that processes elements considering windowing information."""
+  """An invoker that processes elements considering windowing information."""
 
   def __init__(self, output_processor, signature, context,
                side_inputs, input_args, input_kwargs):
@@ -430,7 +422,7 @@ class _OutputProcessor(object):
   """Processes output produced by DoFn method invocations."""
 
   def __init__(self, window_fn, main_receivers, tagged_receivers):
-    """Initializes ``OutputProcessor``.
+    """Initializes ``_OutputProcessor``.
 
     Args:
       window_fn: a windowing function (WindowFn).

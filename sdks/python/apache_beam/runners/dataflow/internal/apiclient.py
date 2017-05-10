@@ -51,9 +51,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 
 
 class Step(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Wrapper for a dataflow Step protobuf."""
+  """Wrapper for a dataflow Step protobuf."""
 
   def __init__(self, step_kind, step_name, additional_properties=None):
     self.step_kind = step_kind
@@ -113,9 +111,7 @@ class Step(object):
 
 
 class Environment(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Wrapper for a dataflow Environment protobuf."""
+  """Wrapper for a dataflow Environment protobuf."""
 
   def __init__(self, packages, options, environment_version):
     self.standard_options = options.view_as(StandardOptions)
@@ -251,9 +247,7 @@ class Environment(object):
 
 
 class Job(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Wrapper for a dataflow Job protobuf."""
+  """Wrapper for a dataflow Job protobuf."""
 
   def __str__(self):
     def encode_shortstrings(input_buffer, errors='strict'):
@@ -366,9 +360,7 @@ class Job(object):
 
 
 class DataflowApplicationClient(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  A Dataflow API client used by application code to create and query jobs."""
+  """A Dataflow API client used by application code to create and query jobs."""
 
   def __init__(self, options, environment_version):
     """Initializes a Dataflow API client object."""
@@ -647,9 +639,7 @@ class DataflowApplicationClient(object):
 
 
 class MetricUpdateTranslators(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Translators between accumulators and dataflow metric updates."""
+  """Translators between accumulators and dataflow metric updates."""
 
   @staticmethod
   def translate_boolean(accumulator, metric_update_proto):

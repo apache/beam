@@ -72,9 +72,7 @@ from apache_beam.typehints import typehints
 
 
 class CoderRegistry(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  A coder registry for typehint/coder associations."""
+  """A coder registry for typehint/coder associations."""
 
   def __init__(self, fallback_coder=None):
     self._coders = {}

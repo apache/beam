@@ -59,7 +59,7 @@ class AuthenticationException(retry.PermanentException):
   pass
 
 
-class GCEMetadataCredentials(OAuth2Credentials):
+class _GCEMetadataCredentials(OAuth2Credentials):
   """For internal use only; no backwards-compatibility guarantees.
 
   Credential object initialized using access token from GCE VM metadata."""
@@ -73,7 +73,7 @@ class GCEMetadataCredentials(OAuth2Credentials):
     Args:
       user_agent: string, The HTTP User-Agent to provide for this application.
     """
-    super(GCEMetadataCredentials, self).__init__(
+    super(_GCEMetadataCredentials, self).__init__(
         None,  # access_token
         None,  # client_id
         None,  # client_secret
@@ -108,7 +108,7 @@ def get_service_credentials():
     # TODO(ccy): It's not entirely clear if these credentials are thread-safe.
     # If so, we can cache these credentials to save the overhead of creating
     # them again.
-    return GCEMetadataCredentials(user_agent=user_agent)
+    return _GCEMetadataCredentials(user_agent=user_agent)
   else:
     client_scopes = [
         'https://www.googleapis.com/auth/bigquery',

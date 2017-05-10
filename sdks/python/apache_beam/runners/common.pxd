@@ -43,7 +43,7 @@ cdef class DoFnSignature(object):
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
-  cdef OutputProcessor output_processor
+  cdef _OutputProcessor output_processor
 
   cpdef invoke_process(self, WindowedValue windowed_value)
   cpdef invoke_start_bundle(self)

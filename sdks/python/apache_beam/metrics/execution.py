@@ -16,7 +16,7 @@
 #
 
 """
-Internal classes for Metrics API.
+This module is for internal use only; no backwards-compatibility guarantees.
 
 The classes in this file keep shared state, and organize metrics information.
 
@@ -36,7 +36,7 @@ from apache_beam.metrics.cells import CounterCell, DistributionCell
 
 
 class MetricKey(object):
-  """For internal use only; no backwards-compatibility guarantees.
+  """
 
   Key used to identify instance of metric cell.
 
@@ -66,9 +66,7 @@ class MetricKey(object):
 
 
 class MetricResult(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Keeps track of the status of a metric within a single bundle.
+  """Keeps track of the status of a metric within a single bundle.
 
   It contains the physical and logical updates to the metric. Physical updates
   are updates that have not necessarily been committed, but that have been made
@@ -104,9 +102,7 @@ class MetricResult(object):
 
 
 class _MetricsEnvironment(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Holds the MetricsContainer for every thread and other metric information.
+  """Holds the MetricsContainer for every thread and other metric information.
 
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
@@ -150,9 +146,7 @@ MetricsEnvironment = _MetricsEnvironment()
 
 
 class MetricsContainer(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Holds the metrics of a single step and a single bundle."""
+  """Holds the metrics of a single step and a single bundle."""
   def __init__(self, step_name):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
@@ -201,7 +195,6 @@ class MetricsContainer(object):
 
 
 class ScopedMetricsContainer(object):
-  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, container=None):
     self._stack = MetricsEnvironment.container_stack()
@@ -221,9 +214,7 @@ class ScopedMetricsContainer(object):
 
 
 class MetricUpdates(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Contains updates for several metrics.
+  """Contains updates for several metrics.
 
   A metric update is an object containing information to update a metric.
   For Distribution metrics, it is DistributionData, and for Counter metrics,
