@@ -70,8 +70,10 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           intCoder.encode(value.getInteger(idx), outStream, context.nested());
           break;
         case SMALLINT:
-        case TINYINT:
           intCoder.encode((int) value.getShort(idx), outStream, context.nested());
+          break;
+        case TINYINT:
+          intCoder.encode((int) value.getByte(idx), outStream, context.nested());
           break;
         case DOUBLE:
           doubleCoder.encode(value.getDouble(idx), outStream, context.nested());
