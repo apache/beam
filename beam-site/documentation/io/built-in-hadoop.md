@@ -70,7 +70,7 @@ p.apply("read",
 
 #### Read data with configuration and key translation 
 
-For example scenario: Beam `Coder` is not available for key class hence key translation is required.
+For example, a Beam `Coder` is not available for `Key` class, so key translation is required.
 
 ```java
 p.apply("read",
@@ -85,7 +85,7 @@ p.apply("read",
 
 #### Read data with configuration and value translation
 
-For example scenario: Beam `Coder` is not available for value class hence value translation is required.
+For example, a Beam `Coder` is not available for `Value` class, so value translation is required.
 
 ```java
 p.apply("read",
@@ -100,7 +100,7 @@ p.apply("read",
 
 #### Read data with configuration, value translation and key translation 
 
-For example scenario: Beam Coders are not available for both `Key` class and `Value` class of `InputFormat` hence key and value translation is required.
+For example, Beam Coders are not available for both `Key` class and `Value` classes of `InputFormat`, so key and value translation are required.
 
 ```java
 p.apply("read",
