@@ -56,7 +56,9 @@ _ALL_KNOWN_RUNNERS = (
 
 
 def create_runner(runner_name):
-  """Creates a runner instance from a runner class name.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates a runner instance from a runner class name.
 
   Args:
     runner_name: Name of the pipeline runner. Possible values are:
@@ -170,7 +172,9 @@ class PipelineRunner(object):
 
 
 class PValueCache(object):
-  """Local cache for arbitrary information computed for PValue objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Local cache for arbitrary information computed for PValue objects."""
 
   def __init__(self, use_disk_backed_cache=False):
     # Cache of values computed while a runner executes a pipeline. This is a

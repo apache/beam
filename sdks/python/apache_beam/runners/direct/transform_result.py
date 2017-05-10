@@ -21,7 +21,9 @@ from __future__ import absolute_import
 
 
 class TransformResult(object):
-  """The result of evaluating an AppliedPTransform with a TransformEvaluator."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles, state,
                timer_update, counters, watermark_hold,

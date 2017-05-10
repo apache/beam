@@ -40,6 +40,10 @@ from apache_beam.utils import counters
 from apache_beam.runners.api import beam_fn_api_pb2
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
+
+# This module is experimental. No backwards-compatibility guarantees.
+
+
 try:
   from apache_beam.runners.worker import statesampler
 except ImportError:

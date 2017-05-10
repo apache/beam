@@ -24,6 +24,8 @@ import threading
 from apache_beam.runners.api import beam_fn_api_pb2
 import grpc
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class FnApiLogRecordHandler(logging.Handler):
   """A handler that writes log records to the fn API."""
