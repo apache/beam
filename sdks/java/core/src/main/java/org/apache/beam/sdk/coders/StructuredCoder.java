@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -96,22 +95,6 @@ public abstract class StructuredCoder<T> extends Coder<T> {
       builder.append(')');
     }
     return builder.toString();
-  }
-
-  protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)
-      throws NonDeterministicException {
-    for (Coder<?> coder : coders) {
-      try {
-        coder.verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new NonDeterministicException(this, message, e);
-      }
-    }
-  }
-
-  protected void verifyDeterministic(String message, Coder<?>... coders)
-      throws NonDeterministicException {
-    verifyDeterministic(message, Arrays.asList(coders));
   }
 
   /**
