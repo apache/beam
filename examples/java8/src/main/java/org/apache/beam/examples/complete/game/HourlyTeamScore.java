@@ -112,23 +112,18 @@ public class HourlyTeamScore extends UserScore {
    * is passed to the {@link WriteToText} constructor to write team score sums and
    * includes information about window start time.
    */
-  protected static Map<String, WriteToText.FieldInfo<KV<String, Integer>>>
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
-    Map<String, WriteToText.FieldInfo<KV<String, Integer>>> config =
-        new HashMap<String, WriteToText.FieldInfo<KV<String, Integer>>>();
-    config.put(
-        "team",
-        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getKey()));
-    config.put(
-        "total_score",
-        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getValue()));
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
+        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+    config.put("team", (c, w) -> c.element().getKey());
+    config.put("total_score", (c, w) -> c.element().getValue());
     config.put(
         "window_start",
-        new WriteToText.FieldInfo<KV<String, Integer>>(
-            (c, w) -> {
+        (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return fmt.print(window.start());
-            }));
+            });
     return config;
   }
 

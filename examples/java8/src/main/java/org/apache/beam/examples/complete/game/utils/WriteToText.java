@@ -17,11 +17,15 @@
  */
 package org.apache.beam.examples.complete.game.utils;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.TextIO;
@@ -50,7 +54,7 @@ public class WriteToText<InputT>
           .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
 
   protected String filenamePrefix;
-  protected Map<String, FieldInfo<InputT>> fieldInfo;
+  protected Map<String, FieldFn<InputT>> fieldFn;
   protected boolean windowed;
 
   public WriteToText() {
@@ -58,10 +62,10 @@ public class WriteToText<InputT>
 
   public WriteToText(
       String filenamePrefix,
-      Map<String, FieldInfo<InputT>> fieldInfo,
+      Map<String, FieldFn<InputT>> fieldFn,
       boolean windowed) {
     this.filenamePrefix = filenamePrefix;
-    this.fieldInfo = fieldInfo;
+    this.fieldFn = fieldFn;
     this.windowed = windowed;
   }
 
@@ -73,35 +77,18 @@ public class WriteToText<InputT>
     Object apply(DoFn<InputT, String>.ProcessContext context, BoundedWindow window);
   }
 
-  /** Define a class to hold information about output table field definitions. */
-  public static class FieldInfo<InputT> implements Serializable {
-    // A lambda function to generate the field value
-    private FieldFn<InputT> fieldFn;
-
-    public FieldInfo(FieldFn<InputT> fieldFn) {
-      this.fieldFn = fieldFn;
-    }
-
-    FieldFn<InputT> getFieldFn() {
-      return this.fieldFn;
-    }
-  }
   /** Convert each key/score pair into a row as specified by fieldFn. */
   protected class BuildRowFn extends DoFn<InputT, String> {
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      StringBuilder row = new StringBuilder();
-      for (Map.Entry<String, FieldInfo<InputT>> entry : fieldInfo.entrySet()) {
+      List<String> fields = new ArrayList<String>();
+      for (Map.Entry<String, FieldFn<InputT>> entry : fieldFn.entrySet()) {
         String key = entry.getKey();
-        FieldInfo<InputT> fcnInfo = entry.getValue();
-        FieldFn<InputT> fcn = fcnInfo.getFieldFn();
-        row.append(key);
-        row.append(": ");
-        row.append(fcn.apply(c, window));
-        row.append(", ");
+        FieldFn<InputT> fcn = entry.getValue();
+        fields.add(key + ": " + fcn.apply(c, window));
       }
-      String result = row.length() > 0 ? row.substring(0, row.length() - 2) : "";
+      String result = fields.stream().collect(Collectors.joining(", "));
       c.output(result);
     }
   }
@@ -120,6 +107,9 @@ public class WriteToText<InputT>
 
     @Override
     public PDone expand(PCollection<String> input) {
+      // Verify that the input has a compatible window type.
+      verify(input.getWindowingStrategy().getWindowFn().windowCoder() == IntervalWindow.getCoder());
+
       // filenamePrefix may contain a directory and a filename component. Pull out only the filename
       // component from that path for the PerWindowFiles.
       String prefix = "";

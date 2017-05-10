@@ -196,16 +196,12 @@ public class UserScore {
    * Create a map of information that describes how to write pipeline output to text. This map
    * is passed to the {@link WriteToText} constructor to write user score sums.
    */
-  protected static Map<String, WriteToText.FieldInfo<KV<String, Integer>>>
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
-    Map<String, WriteToText.FieldInfo<KV<String, Integer>>> config =
-        new HashMap<String, WriteToText.FieldInfo<KV<String, Integer>>>();
-    config.put(
-        "user",
-        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getKey()));
-    config.put(
-        "total_score",
-        new WriteToText.FieldInfo<KV<String, Integer>>((c, w) -> c.element().getValue()));
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
+        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+    config.put("user", (c, w) -> c.element().getKey());
+    config.put("total_score", (c, w) -> c.element().getValue());
     return config;
   }
 
