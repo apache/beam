@@ -86,14 +86,29 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws Exception {
-    testWindowedWordCountPipeline(defaultOptions());
+  public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
+    WindowedWordCountITOptions options = batchOptions();
+    // This is the default value, but make it explicit
+    options.setNumShards(null);
+    testWindowedWordCountPipeline(options);
   }
 
   @Test
+  public void testWindowedWordCountInBatchStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = batchOptions();
+    options.setNumShards(3);
+    testWindowedWordCountPipeline(options);
+  }
+
+  // TODO: add a test with streaming and dynamic sharding after resolving
+  // https://issues.apache.org/jira/browse/BEAM-1438
+
+  @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws Exception {
-    testWindowedWordCountPipeline(streamingOptions());
+  public void testWindowedWordCountInStreamingStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = streamingOptions();
+    options.setNumShards(3);
+    testWindowedWordCountPipeline(options);
   }
 
   private WindowedWordCountITOptions defaultOptions() throws Exception {
