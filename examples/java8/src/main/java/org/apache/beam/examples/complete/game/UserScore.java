@@ -45,8 +45,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This class is the first in a series of four pipelines that tell a story in a 'gaming' domain.
- * Concepts: batch processing; reading input from Google Cloud Storage and writing output to
- * BigQuery; using standalone DoFns; use of the sum by key transform; examples of
+ * Concepts: batch processing, reading input from text files, writing output to
+ * text files, using standalone DoFns, use of the sum per key transform, and use of
  * Java 8 lambda syntax.
  *
  * <p>In this gaming scenario, many users play, as members of different teams, over the course of a
@@ -57,16 +57,14 @@ import org.slf4j.LoggerFactory;
  * sum of scores per user, over an entire batch of gaming data (collected, say, for each day). The
  * batch processing will not include any late data that arrives after the day's cutoff point.
  *
- * <p>To execute this pipeline using the Dataflow service and static example input data, specify
- * the pipeline configuration like this:
+ * <p>To execute this pipeline, specify the pipeline configuration like this:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
  *   --tempLocation=YOUR_TEMP_DIRECTORY
  *   --runner=YOUR_RUNNER
  *   --output=YOUR_OUTPUT_DIRECTORY
+ *   (possibly options specific to your runner or permissions for your temp/output locations)
  * }
  * </pre>
- * where the BigQuery dataset you specify must already exist.
  *
  * <p>Optionally include the --input argument to specify a batch input file.
  * See the --input default value for example batch data file, or use {@code injector.Injector} to

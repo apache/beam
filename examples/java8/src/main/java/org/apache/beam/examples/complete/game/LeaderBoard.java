@@ -77,18 +77,18 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
- * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
- * like this:
+ * <p>To execute this pipeline, specify the pipeline configuration like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_RUNNER
  *   --dataset=YOUR-DATASET
  *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
  * }
  * </pre>
- * where the BigQuery dataset you specify must already exist.
- * The PubSub topic you specify should be the same topic to which the Injector is publishing.
+ *
+ * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
+ * the same topic to which the Injector is publishing.
  */
 public class LeaderBoard extends HourlyTeamScore {
 
