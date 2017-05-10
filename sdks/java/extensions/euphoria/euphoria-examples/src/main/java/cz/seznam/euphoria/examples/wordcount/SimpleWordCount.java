@@ -127,7 +127,7 @@ public class SimpleWordCount {
     // these all will be independent. Dependencies between operation
     // can be expressed only within a single flow.
     //
-    // It is usually good practise to give each flow within a program a
+    // It is usually good practice to give each flow within a program a
     // unique name to make it easier to distinguish corresponding statistics
     // or otherwise displayed information from other flow which may be
     // potentially part of the program.
