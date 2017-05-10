@@ -18,15 +18,13 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.util.List;
-import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.dsls.sql.transform.BeamAggregationTransform;
+import org.apache.beam.dsls.sql.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -79,7 +77,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
     if (windowFieldIdx != -1) {
       upstream = upstream.apply("assignEventTimestamp", WithTimestamps
-          .<BeamSQLRow>of(new BeamAggregationTransform.WindowTimestampFn(windowFieldIdx)));
+          .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)));
     }
 
     PCollection<BeamSQLRow> windowStream = upstream.apply("window",
@@ -88,32 +86,26 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         .withAllowedLateness(allowedLatence)
         .accumulatingFiredPanes());
 
+    //1. extract fields in group-by key part
     PCollection<KV<BeamSQLRow, BeamSQLRow>> exGroupByStream = windowStream.apply("exGroupBy",
         WithKeys
-            .of(new BeamAggregationTransform.AggregationGroupByKeyFn(windowFieldIdx, groupSet)));
+            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(windowFieldIdx, groupSet)));
 
+    //2. apply a GroupByKey.
     PCollection<KV<BeamSQLRow, Iterable<BeamSQLRow>>> groupedStream = exGroupByStream
         .apply("groupBy", GroupByKey.<BeamSQLRow, BeamSQLRow>create());
 
-    if (aggCalls.size() > 1) {
-      throw new BeamSqlUnsupportedException("only single aggregation is supported now.");
-    }
+    //3. run aggregation functions
+    PCollection<KV<BeamSQLRow, BeamSQLRow>> aggregatedStream = groupedStream.apply("aggregation",
+        Combine.<BeamSQLRow, BeamSQLRow, BeamSQLRow>groupedValues(
+            new BeamAggregationTransforms.AggregationCombineFn(getAggCallList(),
+                BeamSQLRecordType.from(input.getRowType()))));
 
-    AggregateCall aggCall = aggCalls.get(0);
-    switch (aggCall.getAggregation().getName()) {
-    case "COUNT":
-      PCollection<KV<BeamSQLRow, Long>> aggregatedStream = groupedStream.apply("count",
-          Combine.<BeamSQLRow, BeamSQLRow, Long>groupedValues(Count.combineFn()));
-      PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
-          ParDo.of(new BeamAggregationTransform.MergeAggregationRecord(
-              BeamSQLRecordType.from(getRowType()), aggCall.getName())));
-      planCreator.pushUpstream(mergedStream);
-      break;
-    default:
-      //Only support COUNT now, more are added in BEAM-2008
-      throw new BeamSqlUnsupportedException(
-          String.format("Unsupported aggregation [%s]", aggCall.getAggregation().getName()));
-    }
+    //4. flat KV to a single record
+    PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
+        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
+            BeamSQLRecordType.from(getRowType()), getAggCallList())));
+    planCreator.pushUpstream(mergedStream);
 
     return planCreator.getPipeline();
   }
