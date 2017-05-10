@@ -29,6 +29,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -150,7 +152,7 @@ public class KafkaIOTest {
     }
 
     int numPartitions = partitions.size();
-    long[] offsets = new long[numPartitions];
+    final long[] offsets = new long[numPartitions];
 
     for (int i = 0; i < numElements; i++) {
       int pIdx = i % numPartitions;
@@ -182,6 +184,29 @@ public class KafkaIOTest {
             for (TopicPartition tp : assigned) {
               updateBeginningOffsets(ImmutableMap.of(tp, 0L));
               updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
+            }
+          }
+          public Map offsetsForTimes(Map<TopicPartition, Long> timestampsToSearch) {
+            HashMap<TopicPartition, Object> result = new HashMap<>();
+            try {
+              Class<?> cls = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp");
+              // OffsetAndTimestamp(long offset, long timestamp)
+              Constructor constructor = cls.getDeclaredConstructor(long.class, long.class);
+
+              // In test scope, timestamp == offset.
+              for (Map.Entry<TopicPartition, Long> entry : timestampsToSearch.entrySet()) {
+                long maxOffset = offsets[partitions.indexOf(entry.getKey())];
+                Long offset = entry.getValue();
+                if (offset >= maxOffset) {
+                  offset = null;
+                }
+                result.put(
+                    entry.getKey(), constructor.newInstance(entry.getValue(), offset));
+              }
+              return result;
+            } catch (ClassNotFoundException | IllegalAccessException
+                | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
+              throw new RuntimeException(e);
             }
           }
         };
@@ -239,12 +264,19 @@ public class KafkaIOTest {
     }
   }
 
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+      int numElements,
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+    return mkKafkaReadTransform(numElements, numElements, timestampFn);
+  }
+
   /**
    * Creates a consumer with two topics, with 10 partitions each.
    * numElements are (round-robin) assigned all the 20 partitions.
    */
   private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
+      int maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
@@ -256,7 +288,7 @@ public class KafkaIOTest {
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
         .withKeyDeserializer(IntegerDeserializer.class)
         .withValueDeserializer(LongDeserializer.class)
-        .withMaxNumRecords(numElements);
+        .withMaxNumRecords(maxNumRecords);
 
     if (timestampFn != null) {
       return reader.withTimestampFn(timestampFn);
@@ -283,22 +315,31 @@ public class KafkaIOTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    PAssert
-      .thatSingleton(input.apply("Count", Count.<Long>globally()))
-      .isEqualTo(numElements);
     // Unique count == numElements
-    PAssert
-      .thatSingleton(input.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(numElements);
     // Min == 0
-    PAssert
-      .thatSingleton(input.apply("Min", Min.<Long>globally()))
-      .isEqualTo(0L);
     // Max == numElements-1
+    addCountingAsserts(input, numElements, numElements, 0L, numElements - 1);
+  }
+
+  public static void addCountingAsserts(
+      PCollection<Long> input, long count, long uniqueCount, long min, long max) {
+
     PAssert
-      .thatSingleton(input.apply("Max", Max.<Long>globally()))
-      .isEqualTo(numElements - 1);
+        .thatSingleton(input.apply("Count", Count.<Long>globally()))
+        .isEqualTo(count);
+
+    PAssert
+        .thatSingleton(input.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally()))
+        .isEqualTo(uniqueCount);
+
+    PAssert
+        .thatSingleton(input.apply("Min", Min.<Long>globally()))
+        .isEqualTo(min);
+
+    PAssert
+        .thatSingleton(input.apply("Max", Max.<Long>globally()))
+        .isEqualTo(max);
   }
 
   @Test
@@ -746,6 +787,48 @@ public class KafkaIOTest {
         completionThreadWithErrors.shutdown();
       }
     }
+  }
+
+  @Test
+  public void testUnboundedSourceStartReadTime() {
+
+    if (new ConsumerSpEL().hasOffsetsForTimes()) {
+      int numElements = 1000;
+      int startTime = numElements / 20 / 2; // half elements
+      int maxNumRecords = numElements / 2;
+
+      PCollection<Long> input = p
+          .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+              .withStartReadTime(new Instant(startTime))
+              .withoutMetadata())
+          .apply(Values.<Long>create());
+
+      addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
+      p.run();
+    }
+
+  }
+
+  @Rule public ExpectedException noMessagesException = ExpectedException.none();
+
+  @Test
+  public void testUnboundedSourceStartReadTimeException() {
+
+    if (new ConsumerSpEL().hasOffsetsForTimes()) {
+
+      noMessagesException.expect(RuntimeException.class);
+
+      int numElements = 1000;
+      int startTime = 1000 / 20;
+
+      p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+              .withStartReadTime(new Instant(startTime))
+              .withoutMetadata())
+          .apply(Values.<Long>create());
+
+      p.run();
+    }
+
   }
 
   @Test

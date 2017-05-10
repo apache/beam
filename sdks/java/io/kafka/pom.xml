@@ -30,7 +30,7 @@
   <description>Library to read Kafka topics.</description>
 
   <properties>
-    <kafka.clients.version>0.9.0.1</kafka.clients.version>
+    <kafka.clients.version>0.10.1.0</kafka.clients.version>
   </properties>
 
   <build>
