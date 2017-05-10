@@ -32,6 +32,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 
 class LoggingContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def enter(self):
     pass
@@ -41,7 +42,9 @@ class LoggingContext(object):
 
 
 class Receiver(object):
-  """An object that consumes a WindowedValue.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  An object that consumes a WindowedValue.
 
   This class can be efficiently used to pass values between the
   sdk and worker harnesses.
@@ -52,7 +55,9 @@ class Receiver(object):
 
 
 class DoFnMethodWrapper(object):
-  """Represents a method of a DoFn object."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Represents a method of a DoFn object."""
 
   def __init__(self, do_fn, method_name):
     """
@@ -299,7 +304,9 @@ class PerWindowInvoker(DoFnInvoker):
 
 
 class DoFnRunner(Receiver):
-  """A helper class for executing ParDo operations.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A helper class for executing ParDo operations.
   """
 
   def __init__(self,
@@ -361,7 +368,7 @@ class DoFnRunner(Receiver):
 
     # Optimize for the common case.
     main_receivers = as_receiver(tagged_receivers[None])
-    output_processor = OutputProcessor(
+    output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
@@ -411,11 +418,11 @@ class DoFnRunner(Receiver):
       raise
 
 
-class OutputProcessor(object):
+class _OutputProcessor(object):
   """Processes output produced by DoFn method invocations."""
 
   def __init__(self, window_fn, main_receivers, tagged_receivers):
-    """Initializes ``OutputProcessor``.
+    """Initializes ``_OutputProcessor``.
 
     Args:
       window_fn: a windowing function (WindowFn).
@@ -497,7 +504,7 @@ class OutputProcessor(object):
         self.tagged_receivers[tag].output(windowed_value)
 
 
-class NoContext(WindowFn.AssignContext):
+class _NoContext(WindowFn.AssignContext):
   """An uninspectable WindowFn.AssignContext."""
   NO_VALUE = object()
 
@@ -518,7 +525,9 @@ class NoContext(WindowFn.AssignContext):
 
 
 class DoFnState(object):
-  """Keeps track of state that DoFns want, currently, user counters.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Keeps track of state that DoFns want, currently, user counters.
   """
 
   def __init__(self, counter_factory):
@@ -533,6 +542,7 @@ class DoFnState(object):
 
 # TODO(robertwb): Replace core.DoFnContext with this.
 class DoFnContext(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, label, element=None, state=None):
     self.label = label
@@ -597,6 +607,8 @@ class _ReceiverAdapter(Receiver):
 
 
 def as_receiver(maybe_receiver):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   if isinstance(maybe_receiver, Receiver):
     return maybe_receiver
   return _ReceiverAdapter(maybe_receiver)
