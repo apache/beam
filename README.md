@@ -71,8 +71,8 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 Please refer to the [Quickstart](http://beam.apache.org/get-started/quickstart/) available on our website.
 
-If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed 
-in your system. In a Debian-based distribution: 
+If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed
+in your system. In a Debian-based distribution:
 
 ```
 sudo apt-get install \
