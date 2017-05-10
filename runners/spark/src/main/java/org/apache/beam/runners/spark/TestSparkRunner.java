@@ -83,26 +83,25 @@ import org.slf4j.LoggerFactory;
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TestSparkRunner.class);
-  private final TestSparkPipelineOptions testSparkPipelineOptions;
-
+  private final PipelineOptions options;
   private SparkRunner delegate;
-  private boolean isForceStreaming;
 
-  private TestSparkRunner(TestSparkPipelineOptions options) {
+  private TestSparkRunner(PipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
-    this.isForceStreaming = options.isForceStreaming();
-    this.testSparkPipelineOptions = options;
+    this.options = options;
   }
 
   public static TestSparkRunner fromOptions(PipelineOptions options) {
-    // Default options suffice to set it up as a test runner
-    TestSparkPipelineOptions sparkOptions =
-        PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
-    return new TestSparkRunner(sparkOptions);
+    return new TestSparkRunner(options);
   }
 
   @Override
   public SparkPipelineResult run(Pipeline pipeline) {
+    // Default options suffice to set it up as a test runner
+    TestSparkPipelineOptions testSparkOptions =
+        PipelineOptionsValidator.validate(TestSparkPipelineOptions.class, options);
+
+    boolean isForceStreaming = testSparkOptions.isForceStreaming();
     // if the pipeline forces execution as a streaming pipeline,
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.
@@ -116,13 +115,13 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     MetricsAccumulator.clear();
     GlobalWatermarkHolder.clear();
 
-    LOG.info("About to run test pipeline " + testSparkPipelineOptions.getJobName());
+    LOG.info("About to run test pipeline " + options.getJobName());
 
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {
       try {
         result = delegate.run(pipeline);
-        awaitWatermarksOrTimeout(testSparkPipelineOptions, result);
+        awaitWatermarksOrTimeout(testSparkOptions, result);
         result.stop();
         PipelineResult.State finishState = result.getState();
         // assert finish state.
@@ -133,7 +132,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       } finally {
         try {
           // cleanup checkpoint dir.
-          FileUtils.deleteDirectory(new File(testSparkPipelineOptions.getCheckpointDir()));
+          FileUtils.deleteDirectory(new File(testSparkOptions.getCheckpointDir()));
         } catch (IOException e) {
           throw new RuntimeException("Failed to clear checkpoint tmp dir.", e);
         }
@@ -150,8 +149,8 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
           finishState,
           is(PipelineResult.State.DONE));
       // assert via matchers.
-      assertThat(result, testSparkPipelineOptions.getOnCreateMatcher());
-      assertThat(result, testSparkPipelineOptions.getOnSuccessMatcher());
+      assertThat(result, testSparkOptions.getOnCreateMatcher());
+      assertThat(result, testSparkOptions.getOnSuccessMatcher());
     }
     return result;
   }
