@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Iterator;
 
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
+import org.apache.beam.dsls.sql.rule.BeamAggregationRule;
 import org.apache.beam.dsls.sql.rule.BeamFilterRule;
 import org.apache.beam.dsls.sql.rule.BeamIOSinkRule;
 import org.apache.beam.dsls.sql.rule.BeamIOSourceRule;
@@ -38,7 +39,8 @@ import org.apache.calcite.tools.RuleSet;
 public class BeamRuleSets {
   private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet
       .<RelOptRule>builder().add(BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE,
-          BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE)
+          BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE,
+          BeamAggregationRule.INSTANCE)
       .build();
 
   public static RuleSet[] getRuleSets() {

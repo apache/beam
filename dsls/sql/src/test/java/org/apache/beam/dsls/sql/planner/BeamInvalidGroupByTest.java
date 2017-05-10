@@ -17,26 +17,28 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
-import org.apache.beam.sdk.Pipeline;
-import org.junit.Assert;
+import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
 
 /**
- * Tests to execute a query.
+ * Test group-by methods.
  *
  */
-public class BeamPlannerSubmitTest extends BasePlanner {
-  @Test
-  public void insertSelectFilter() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
-        + " order_id, site_id, price "
-        + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+public class BeamInvalidGroupByTest extends BasePlanner {
 
-    pipeline.run().waitUntilFinish();
-
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.get(0).valueInString()
-        .contains("order_id=12345,site_id=0,price=20.5,order_time="));
+  @Test(expected = ValidationException.class)
+  public void testTumble2Explain() throws Exception {
+    String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
+        + "WHERE SITE_ID = 0 " + "GROUP BY order_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
+    String plan = runner.explainQuery(sql);
   }
+
+  @Test(expected = ValidationException.class)
+  public void testTumble3Explain() throws Exception {
+    String sql = "SELECT order_id, site_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
+        + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
+        + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
+    String plan = runner.explainQuery(sql);
+  }
+
 }

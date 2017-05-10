@@ -34,7 +34,7 @@
   <properties>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
-    <calcite-version>1.11.0</calcite-version>
+    <calcite-version>1.12.0</calcite-version>
   </properties>
 
   <build>
@@ -208,6 +208,10 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-csv</artifactId>
       <version>1.4</version>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
     </dependency>
   </dependencies>
 </project>

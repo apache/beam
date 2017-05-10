@@ -20,9 +20,14 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.dsls.sql.exception.InvalidFieldException;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.Instant;
 
 /**
  * Repersent a generic ROW record in Beam SQL.
@@ -33,6 +38,9 @@ public class BeamSQLRow implements Serializable {
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
   private BeamSQLRecordType dataType;
+
+  private Instant windowStart = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MIN_VALUE));
+  private Instant windowEnd = new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
   public BeamSQLRow(BeamSQLRecordType dataType) {
     this.dataType = dataType;
@@ -47,6 +55,17 @@ public class BeamSQLRow implements Serializable {
     this(dataType);
     for (int idx = 0; idx < dataValues.size(); ++idx) {
       addField(idx, dataValues.get(idx));
+    }
+  }
+
+  public void updateWindowRange(BeamSQLRow upstreamRecord, BoundedWindow window){
+    windowStart = upstreamRecord.windowStart;
+    windowEnd = upstreamRecord.windowEnd;
+
+    if (window instanceof IntervalWindow) {
+      IntervalWindow iWindow = (IntervalWindow) window;
+      windowStart = iWindow.start();
+      windowEnd = iWindow.end();
     }
   }
 
@@ -103,6 +122,18 @@ public class BeamSQLRow implements Serializable {
       break;
     case VARCHAR:
       if (!(fieldValue instanceof String)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      }
+      break;
+    case TIME:
+      if (!(fieldValue instanceof GregorianCalendar)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      }
+      break;
+    case TIMESTAMP:
+      if (!(fieldValue instanceof Date)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
@@ -203,6 +234,20 @@ public class BeamSQLRow implements Serializable {
       } else {
         return fieldValue;
       }
+    case TIME:
+      if (!(fieldValue instanceof GregorianCalendar)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      } else {
+        return fieldValue;
+      }
+    case TIMESTAMP:
+      if (!(fieldValue instanceof Date)) {
+        throw new InvalidFieldException(
+            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+      } else {
+        return fieldValue;
+      }
     default:
       throw new UnsupportedDataTypeException(fieldType);
     }
@@ -236,9 +281,26 @@ public class BeamSQLRow implements Serializable {
     return nullFields;
   }
 
+  public Instant getWindowStart() {
+    return windowStart;
+  }
+
+  public Instant getWindowEnd() {
+    return windowEnd;
+  }
+
+  public void setWindowStart(Instant windowStart) {
+    this.windowStart = windowStart;
+  }
+
+  public void setWindowEnd(Instant windowEnd) {
+    this.windowEnd = windowEnd;
+  }
+
   @Override
   public String toString() {
-    return "BeamSQLRow [dataValues=" + dataValues + ", dataType=" + dataType + "]";
+    return "BeamSQLRow [nullFields=" + nullFields + ", dataValues=" + dataValues + ", dataType="
+        + dataType + ", windowStart=" + windowStart + ", windowEnd=" + windowEnd + "]";
   }
 
   /**

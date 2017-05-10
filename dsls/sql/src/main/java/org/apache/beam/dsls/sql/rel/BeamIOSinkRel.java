@@ -60,7 +60,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = planCreator.getLatestStream();
+    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
