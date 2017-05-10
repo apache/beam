@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -360,7 +361,7 @@ public class  CombineFnsTest {
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return Collections.emptyList();
     }
 
     @Override
