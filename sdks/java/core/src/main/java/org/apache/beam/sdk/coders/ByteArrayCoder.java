@@ -21,7 +21,6 @@ import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
@@ -110,11 +109,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
       ByteStreams.readFully(inStream, value);
       return value;
     }
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
   }
 
   @Override

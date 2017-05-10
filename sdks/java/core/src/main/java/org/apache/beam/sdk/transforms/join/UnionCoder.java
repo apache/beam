@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.join;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -94,7 +95,7 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return Collections.emptyList();
   }
 
   @Override
