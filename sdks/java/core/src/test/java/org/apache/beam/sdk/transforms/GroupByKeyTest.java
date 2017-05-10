@@ -472,31 +472,31 @@ public class GroupByKeyTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, LargeKeys.UpTo10KB.class})
+  @Category({ValidatesRunner.class, LargeKeys.Above10KB.class})
   public void testLargeKeys10KB() throws Exception {
     runLargeKeysTest(p, 10 << 10);
   }
 
   @Test
-  @Category({ValidatesRunner.class, LargeKeys.UpTo100KB.class})
+  @Category({ValidatesRunner.class, LargeKeys.Above100KB.class})
   public void testLargeKeys100KB() throws Exception {
     runLargeKeysTest(p, 100 << 10);
   }
 
   @Test
-  @Category({ValidatesRunner.class, LargeKeys.UpTo1MB.class})
+  @Category({ValidatesRunner.class, LargeKeys.Above1MB.class})
   public void testLargeKeys1MB() throws Exception {
     runLargeKeysTest(p, 1 << 20);
   }
 
   @Test
-  @Category({ValidatesRunner.class, LargeKeys.UpTo10MB.class})
+  @Category({ValidatesRunner.class, LargeKeys.Above10MB.class})
   public void testLargeKeys10MB() throws Exception {
     runLargeKeysTest(p, 10 << 20);
   }
 
   @Test
-  @Category({ValidatesRunner.class, LargeKeys.UpTo100MB.class})
+  @Category({ValidatesRunner.class, LargeKeys.Above100MB.class})
   public void testLargeKeys100MB() throws Exception {
     runLargeKeysTest(p, 100 << 20);
   }

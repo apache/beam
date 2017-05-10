@@ -63,10 +63,7 @@
                   <configuration>
                     <skip>false</skip>
                     <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
-		    <excludedGroups>
-		      org.apache.beam.sdk.testing.LargeKeys.UpTo10MB,
-		      org.apache.beam.sdk.testing.LargeKeys.UpTo100MB,
-		    </excludedGroups>
+                    <excludedGroups>org.apache.beam.sdk.testing.LargeKeys.Above10MB</excludedGroups>
                     <parallel>all</parallel>
                     <threadCount>4</threadCount>
                     <dependenciesToScan>

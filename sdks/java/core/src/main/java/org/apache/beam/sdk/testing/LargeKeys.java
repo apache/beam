@@ -24,25 +24,25 @@ public interface LargeKeys {
   /**
    * Tests if a runner supports 10KB keys.
    */
-  public interface UpTo10KB {}
+  public interface Above10KB {}
 
   /**
    * Tests if a runner supports 100KB keys.
    */
-  public interface UpTo100KB {}
+  public interface Above100KB extends Above10KB {}
 
   /**
    * Tests if a runner supports 1MB keys.
    */
-  public interface UpTo1MB {}
+  public interface Above1MB extends Above100KB {}
 
   /**
    * Tests if a runner supports 10MB keys.
    */
-  public interface UpTo10MB {}
+  public interface Above10MB extends Above1MB {}
 
   /**
    * Tests if a runner supports 100MB keys.
    */
-  public interface UpTo100MB {}
+  public interface Above100MB extends Above10MB {}
 }
