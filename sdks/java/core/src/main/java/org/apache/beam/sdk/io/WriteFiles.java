@@ -325,7 +325,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
         c.output(result, window.maxTimestamp(), window);
         // Reset state in case of reuse.
         writer = null;
-      } else {
+      } else if (windowedWrites) {
         for (Map.Entry<KV<Object, PaneInfo>, Writer<T>> entry : windowedWriters.entrySet()) {
           FileResult result = entry.getValue().close();
           BoundedWindow window = windowCoder.fromStructuralValue(entry.getKey().getKey());
