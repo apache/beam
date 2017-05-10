@@ -124,6 +124,7 @@
   </profiles>
 
   <properties>
+    <guava.version>19.0</guava.version>
     <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
     <netty.transport.native.epoll.version>4.1.0.CR3</netty.transport.native.epoll.version>
     <elasticsearch.version>5.0.0</elasticsearch.version>
