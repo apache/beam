@@ -20,11 +20,10 @@ package org.apache.beam.examples.complete.game;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.reflect.Nullable;
-import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
+import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -62,9 +61,9 @@ import org.slf4j.LoggerFactory;
  * the pipeline configuration like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- *   --dataset=YOUR-DATASET
+ *   --tempLocation=YOUR_TEMP_DIRECTORY
+ *   --runner=YOUR_RUNNER
+ *   --output=YOUR_OUTPUT_DIRECTORY
  * }
  * </pre>
  * where the BigQuery dataset you specify must already exist.
@@ -186,36 +185,25 @@ public class UserScore {
     String getInput();
     void setInput(String value);
 
-    @Description("BigQuery Dataset to write tables to. Must already exist.")
+    // Set this required option to specify where to write the output.
+    @Description("Path of the file to write to.")
     @Validation.Required
-    String getDataset();
-    void setDataset(String value);
-
-    @Description("The BigQuery table name. Should not already exist.")
-    @Default.String("user_score")
-    String getUserScoreTableName();
-    void setUserScoreTableName(String value);
+    String getOutput();
+    void setOutput(String value);
   }
 
   /**
-   * Create a map of information that describes how to write pipeline output to BigQuery. This map
-   * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   * Create a map of information that describes how to write pipeline output to text. This map
+   * is passed to the {@link WriteToText} constructor to write user score sums.
    */
-  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
-      configureBigQueryWrite() {
-    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put(
-        "user",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> c.element().getKey()));
-    tableConfigure.put(
-        "total_score",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
-            "INTEGER", (c, w) -> c.element().getValue()));
-    return tableConfigure;
+  protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
+      configureOutput() {
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
+        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+    config.put("user", (c, w) -> c.element().getKey());
+    config.put("total_score", (c, w) -> c.element().getValue());
+    return config;
   }
-
 
   /**
    * Run a batch pipeline.
@@ -234,15 +222,13 @@ public class UserScore {
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
             "WriteUserScoreSums",
-            new WriteToBigQuery<KV<String, Integer>>(
-                options.as(GcpOptions.class).getProject(),
-                options.getDataset(),
-                options.getUserScoreTableName(),
-                configureBigQueryWrite()));
+            new WriteToText<KV<String, Integer>>(
+                options.getOutput(),
+                configureOutput(),
+                false));
 
     // Run the batch pipeline.
     pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
-
 }
