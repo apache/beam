@@ -28,6 +28,15 @@ from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
+__all__ = [
+    'Event',
+    'ElementEvent',
+    'WatermarkEvent',
+    'ProcessingTimeEvent',
+    'TestStream',
+    ]
+
+
 class Event(object):
   """Test stream event to be emitted during execution of a TestStream."""
 

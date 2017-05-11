@@ -23,6 +23,13 @@ from mock import Mock, patch
 
 from apache_beam.utils import retry
 
+
+__all__ = [
+    'compute_hash',
+    'patch_retry',
+    ]
+
+
 DEFAULT_HASHING_ALG = 'sha1'
 
 
