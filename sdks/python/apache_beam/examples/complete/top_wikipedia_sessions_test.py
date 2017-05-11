@@ -24,6 +24,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.examples.complete import top_wikipedia_sessions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class ComputeTopSessionsTest(unittest.TestCase):
@@ -54,7 +56,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
     edits = p | beam.Create(self.EDITS)
     result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
-    beam.assert_that(result, beam.equal_to(self.EXPECTED))
+    assert_that(result, equal_to(self.EXPECTED))
     p.run()
 
 

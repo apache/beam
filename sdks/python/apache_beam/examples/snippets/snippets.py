@@ -33,6 +33,8 @@ string. The tags can contain only letters, digits and _.
 import apache_beam as beam
 from apache_beam.metrics import Metrics
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -566,8 +568,9 @@ def examples_wordcount_debugging(renames):
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
-  beam.assert_that(
-      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.testing.util.assert_that(
+      filtered_words, beam.testing.util.equal_to(
+          [('Flourish', 3), ('stomach', 1)]))
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
@@ -661,8 +664,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_new_source]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   p.run().wait_until_finish()
@@ -691,8 +694,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_ptransform]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   # Don't test runner api due to pickling errors.
@@ -872,7 +875,7 @@ def model_textio_compressed(renames, expected):
       compression_type=beam.io.filesystem.CompressionTypes.GZIP)
   # [END model_textio_write_compressed]
 
-  beam.assert_that(lines, beam.equal_to(expected))
+  assert_that(lines, equal_to(expected))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run().wait_until_finish()
 

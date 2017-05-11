@@ -36,6 +36,8 @@ from apache_beam.io.tfrecordio import _TFRecordUtil
 from apache_beam.io.tfrecordio import ReadFromTFRecord
 from apache_beam.io.tfrecordio import WriteToTFRecord
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 import crcmod
 
 
@@ -254,7 +256,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                         coder=coders.BytesCoder(),
                         compression_type=CompressionTypes.AUTO,
                         validate=True)))
-      beam.assert_that(result, beam.equal_to(['foo']))
+      assert_that(result, equal_to(['foo']))
 
   def test_process_multiple(self):
     path = os.path.join(self._new_tempdir(), 'result')
@@ -267,7 +269,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                         coder=coders.BytesCoder(),
                         compression_type=CompressionTypes.AUTO,
                         validate=True)))
-      beam.assert_that(result, beam.equal_to(['foo', 'bar']))
+      assert_that(result, equal_to(['foo', 'bar']))
 
   def test_process_gzip(self):
     path = os.path.join(self._new_tempdir(), 'result')
@@ -280,7 +282,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                         coder=coders.BytesCoder(),
                         compression_type=CompressionTypes.GZIP,
                         validate=True)))
-      beam.assert_that(result, beam.equal_to(['foo', 'bar']))
+      assert_that(result, equal_to(['foo', 'bar']))
 
   def test_process_auto(self):
     path = os.path.join(self._new_tempdir(), 'result.gz')
@@ -293,7 +295,7 @@ class TestTFRecordSource(_TestCaseWithTempDirCleanUp):
                         coder=coders.BytesCoder(),
                         compression_type=CompressionTypes.AUTO,
                         validate=True)))
-      beam.assert_that(result, beam.equal_to(['foo', 'bar']))
+      assert_that(result, equal_to(['foo', 'bar']))
 
 
 class TestReadFromTFRecordSource(TestTFRecordSource):
@@ -305,7 +307,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
       result = (p
                 | ReadFromTFRecord(
                     path, compression_type=CompressionTypes.GZIP))
-      beam.assert_that(result, beam.equal_to(['foo', 'bar']))
+      assert_that(result, equal_to(['foo', 'bar']))
 
   def test_process_gzip_auto(self):
     path = os.path.join(self._new_tempdir(), 'result.gz')
@@ -314,7 +316,7 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
       result = (p
                 | ReadFromTFRecord(
                     path, compression_type=CompressionTypes.AUTO))
-      beam.assert_that(result, beam.equal_to(['foo', 'bar']))
+      assert_that(result, equal_to(['foo', 'bar']))
 
 
 class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
@@ -337,7 +339,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     # Read the file back and compare.
     with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '-*')
-      beam.assert_that(actual_data, beam.equal_to(expected_data))
+      assert_that(actual_data, equal_to(expected_data))
 
   def test_end2end_auto_compression(self):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
@@ -351,7 +353,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     # Read the file back and compare.
     with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '-*')
-      beam.assert_that(actual_data, beam.equal_to(expected_data))
+      assert_that(actual_data, equal_to(expected_data))
 
   def test_end2end_auto_compression_unsharded(self):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
@@ -365,7 +367,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     # Read the file back and compare.
     with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(file_path_prefix + '.gz')
-      beam.assert_that(actual_data, beam.equal_to(expected_data))
+      assert_that(actual_data, equal_to(expected_data))
 
   @unittest.skipIf(tf is None, 'tensorflow not installed.')
   def test_end2end_example_proto(self):
@@ -385,7 +387,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
       actual_data = (p | ReadFromTFRecord(
           file_path_prefix + '-*',
           coder=beam.coders.ProtoCoder(example.__class__)))
-      beam.assert_that(actual_data, beam.equal_to([example]))
+      assert_that(actual_data, equal_to([example]))
 
   def test_end2end_read_write_read(self):
     path = os.path.join(self._new_tempdir(), 'result')
@@ -400,7 +402,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     # Read the file back and compare.
     with TestPipeline() as p:
       actual_data = p | ReadFromTFRecord(path+'-*', validate=True)
-      beam.assert_that(actual_data, beam.equal_to(expected_data))
+      assert_that(actual_data, equal_to(expected_data))
 
 
 if __name__ == '__main__':
