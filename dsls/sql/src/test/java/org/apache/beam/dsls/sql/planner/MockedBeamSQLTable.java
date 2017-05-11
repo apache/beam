@@ -19,8 +19,10 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -29,7 +31,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * A mock table use to check input/output.
@@ -50,6 +55,64 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     return this;
   }
 
+  /**
+   * Convenient way to build a mocked table with mock data:
+   *
+   * <p>e.g.
+   *
+   * <pre>{@code
+   * MockedBeamSQLTable
+   *   .of(SqlTypeName.BIGINT, "order_id",
+   *       SqlTypeName.INTEGER, "site_id",
+   *       SqlTypeName.DOUBLE, "price",
+   *       SqlTypeName.TIMESTAMP, "order_time",
+   *
+   *       1L, 2, 1.0, new Date(),
+   *       1L, 1, 2.0, new Date(),
+   *       2L, 4, 3.0, new Date(),
+   *       2L, 1, 4.0, new Date(),
+   *       5L, 5, 5.0, new Date(),
+   *       6L, 6, 6.0, new Date(),
+   *       7L, 7, 7.0, new Date(),
+   *       8L, 8888, 8.0, new Date(),
+   *       8L, 999, 9.0, new Date(),
+   *       10L, 100, 10.0, new Date())
+   * }</pre>
+   */
+  public static MockedBeamSQLTable of(final Object... args){
+    final RelProtoDataType protoRowType = new RelProtoDataType() {
+      @Override
+      public RelDataType apply(RelDataTypeFactory a0) {
+        RelDataTypeFactory.FieldInfoBuilder builder = a0.builder();
+
+        int lastTypeIndex = 0;
+        for (; lastTypeIndex < args.length; lastTypeIndex += 2) {
+          if (args[lastTypeIndex] instanceof SqlTypeName) {
+            builder.add(args[lastTypeIndex + 1].toString(),
+                (SqlTypeName) args[lastTypeIndex]);
+          } else {
+            break;
+          }
+        }
+        return builder.build();
+      }
+    };
+
+    List<BeamSQLRow> rows = new ArrayList<>();
+    BeamSQLRecordType beamSQLRecordType = BeamSQLRecordType.from(
+        protoRowType.apply(BeamQueryPlanner.TYPE_FACTORY));
+    int fieldCount = beamSQLRecordType.size();
+
+    for (int i = fieldCount * 2; i < args.length; i += fieldCount) {
+      BeamSQLRow row = new BeamSQLRow(beamSQLRecordType);
+      for (int j = 0; j < fieldCount; j++) {
+        row.addField(j, args[i + j]);
+      }
+      rows.add(row);
+    }
+    return new MockedBeamSQLTable(protoRowType).withInputRecords(rows);
+  }
+
   @Override
   public BeamIOType getSourceType() {
     return BeamIOType.UNBOUNDED;
@@ -63,6 +126,10 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   @Override
   public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
     return new OutputStore();
+  }
+
+  public List<BeamSQLRow> getInputRecords() {
+    return inputRecords;
   }
 
   /**
@@ -93,7 +160,6 @@ public class MockedBeamSQLTable extends BaseBeamTable {
       }));
       return PDone.in(input.getPipeline());
     }
-
   }
 
 }
