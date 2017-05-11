@@ -37,6 +37,8 @@ from apache_beam.options.value_provider import check_accessible
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
+__all__ = ['FileBasedSink']
+
 
 class FileSink(iobase.Sink):
   """A sink to a GCS or local files.
@@ -278,6 +280,10 @@ class FileSink(iobase.Sink):
     # TODO: Clean up workitem_test which uses this.
     # pylint: disable=unidiomatic-typecheck
     return type(self) == type(other) and self.__dict__ == other.__dict__
+
+
+class FileBasedSink(FileSink):
+  pass
 
 
 class FileSinkWriter(iobase.Writer):
