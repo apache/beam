@@ -26,6 +26,8 @@ from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 from apache_beam.io.gcp import gcsio
 
+__all__ = ['GCSFileSystem']
+
 
 class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.

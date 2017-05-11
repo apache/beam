@@ -24,6 +24,9 @@ import threading
 
 from apache_beam.io import iobase
 
+__all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
+           'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
+
 
 class OffsetRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for non-negative positions of type 'long'."""
@@ -191,7 +194,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
 
 
 class GroupedShuffleRangeTracker(iobase.RangeTracker):
-  """A 'RangeTracker' for positions used by'GroupedShuffleReader'.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A 'RangeTracker' for positions used by'GroupedShuffleReader'.
 
   These positions roughly correspond to hashes of keys. In case of hash
   collisions, multiple groups can have the same position. In that case, the
