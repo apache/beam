@@ -65,6 +65,12 @@ import org.slf4j.LoggerFactory;
  * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
  *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Pubsub you should use
+ * {@code PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your
+ * local emulator.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
