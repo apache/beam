@@ -1133,7 +1133,7 @@ class GroupByKey(PTransform):
       return (pcoll
               | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | 'GroupByKey' >> (GroupByKeyOnly()
+              | 'GroupByKey' >> (_GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
               | ('GroupByWindow' >> ParDo(
@@ -1144,14 +1144,14 @@ class GroupByKey(PTransform):
       # The input_type is None, run the default
       return (pcoll
               | 'ReifyWindows' >> ParDo(self.ReifyWindows())
-              | 'GroupByKey' >> GroupByKeyOnly()
+              | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> ParDo(
                     self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
-class GroupByKeyOnly(PTransform):
+class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)
