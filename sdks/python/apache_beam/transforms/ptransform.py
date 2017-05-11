@@ -46,16 +46,16 @@ from google.protobuf import wrappers_pb2
 
 from apache_beam import error
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.typehints import getcallargs_forhints
-from apache_beam.typehints import TypeCheckError
-from apache_beam.typehints import validate_composite_type_param
-from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints import typehints
+from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.trivial_inference import instance_to_type
+from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
@@ -484,7 +484,7 @@ class PTransformWithSideInputs(PTransform):
   """
 
   def __init__(self, fn, *args, **kwargs):
-    if isinstance(fn, type) and issubclass(fn, typehints.WithTypeHints):
+    if isinstance(fn, type) and issubclass(fn, WithTypeHints):
       # Don't treat Fn class objects as callables.
       raise ValueError('Use %s() not %s.' % (fn.__name__, fn.__name__))
     self.fn = self.make_fn(fn)
@@ -570,7 +570,7 @@ class PTransformWithSideInputs(PTransform):
           continue
         if not typehints.is_consistent_with(
             bindings.get(arg, typehints.Any), hint):
-          raise typehints.TypeCheckError(
+          raise TypeCheckError(
               'Type hint violation for \'%s\': requires %s but got %s for %s'
               % (self.label, hint, bindings[arg], arg))
 

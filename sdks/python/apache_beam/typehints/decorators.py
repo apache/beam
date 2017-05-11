@@ -86,11 +86,20 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import types
 
-from apache_beam.typehints import check_constraint
-from apache_beam.typehints import CompositeTypeHintError
-from apache_beam.typehints import SimpleTypeHintError
 from apache_beam.typehints import typehints
-from apache_beam.typehints import validate_composite_type_param
+from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import CompositeTypeHintError
+from apache_beam.typehints.typehints import SimpleTypeHintError
+from apache_beam.typehints.typehints import validate_composite_type_param
+
+
+__all__ = [
+    'with_input_types',
+    'with_output_types',
+    'WithTypeHints',
+    'TypeCheckError',
+]
+
 
 # This is missing in the builtin types module.  str.upper is arbitrary, any
 # method on a C-implemented type will do.
