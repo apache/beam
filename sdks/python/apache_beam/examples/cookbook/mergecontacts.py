@@ -121,11 +121,11 @@ def run(argv=None, assert_results=None):
   if assert_results is not None:
     expected_luddites, expected_writers, expected_nomads = assert_results
     assert_that(num_luddites, equal_to([expected_luddites]),
-                     label='assert:luddites')
+                label='assert:luddites')
     assert_that(num_writers, equal_to([expected_writers]),
-                     label='assert:writers')
+                label='assert:writers')
     assert_that(num_nomads, equal_to([expected_nomads]),
-                     label='assert:nomads')
+                label='assert:nomads')
   # Execute pipeline.
   return p.run()
 

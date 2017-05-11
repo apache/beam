@@ -159,9 +159,9 @@ class ParDoTest(unittest.TestCase):
 
     assert_that(small_words, equal_to(['a', 'bb', 'ccc']))
     assert_that(larger_than_average, equal_to(['ccc', 'dddd']),
-                     label='larger_than_average')
+                label='larger_than_average')
     assert_that(small_but_nontrivial, equal_to(['bb']),
-                     label='small_but_not_trivial')
+                label='small_but_not_trivial')
     p.run()
 
   def test_pardo_side_input_dofn(self):
@@ -834,7 +834,7 @@ class CombineTest(unittest.TestCase):
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
     assert_that(unkeyed,
-                     equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
+                equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
     p.run()
 
   def test_setting_session_windows(self):
@@ -853,7 +853,7 @@ class CombineTest(unittest.TestCase):
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
     assert_that(unkeyed,
-                     equal_to([29, 27]))
+                equal_to([29, 27]))
     p.run()
 
   def test_setting_global_window(self):
