@@ -716,7 +716,6 @@ public class BigtableIOTest {
 
     BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
     bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
-    bulkOptionsBuilder.setUseBulkApi(true);
 
     RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
     retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);

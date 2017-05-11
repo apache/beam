@@ -482,7 +482,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withBigtableOptions(BigtableOptions options) {
-      return toBuilder().setBigtableOptions(options).build();
+      return withBigtableOptions(options.toBuilder());
     }
 
     /**
