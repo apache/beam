@@ -36,6 +36,9 @@ from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 
 
+__all__ = ['DirectRunner']
+
+
 class DirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 

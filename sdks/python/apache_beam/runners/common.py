@@ -17,7 +17,10 @@
 
 # cython: profile=True
 
-"""Worker operations executor."""
+"""Worker operations executor.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import sys
 import traceback
