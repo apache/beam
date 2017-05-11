@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
+import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -50,6 +51,23 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     return this;
   }
 
+  public MockedBeamSQLTable withInputRecords(Object... args){
+    List<BeamSQLRow> rows = buildRows(beamSqlRecordType, args);
+    return withInputRecords(rows);
+  }
+
+  public static List<BeamSQLRow> buildRows(BeamSQLRecordType beamSqlRecordType, Object[] args) {
+    List<BeamSQLRow> rows = new ArrayList<>();
+    for (int i = 0; i < args.length; i += beamSqlRecordType.size()) {
+      BeamSQLRow row = new BeamSQLRow(beamSqlRecordType);
+      for (int j = 0; j < beamSqlRecordType.size(); j++) {
+        row.addField(j, args[i + j]);
+      }
+      rows.add(row);
+    }
+    return rows;
+  }
+
   @Override
   public BeamIOType getSourceType() {
     return BeamIOType.UNBOUNDED;
@@ -63,6 +81,10 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   @Override
   public PTransform<? super PCollection<BeamSQLRow>, PDone> buildIOWriter() {
     return new OutputStore();
+  }
+
+  public List<BeamSQLRow> getInputRecords() {
+    return inputRecords;
   }
 
   /**
