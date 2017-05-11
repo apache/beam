@@ -34,11 +34,12 @@ import threading
 
 from apache_beam.metrics.cells import CounterCell, DistributionCell
 
+__all__ = [
+    'MetricKey', 'MetricResult', 'MetricsEnvironment', 'MetricsContainer']
+
 
 class MetricKey(object):
-  """
-
-  Key used to identify instance of metric cell.
+  """Key used to identify instance of metric cell.
 
   Metrics are internally keyed by the step name they associated with and
   the name of the metric.

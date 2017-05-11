@@ -31,6 +31,8 @@ from apache_beam.metrics.metricbase import Counter, Distribution
 from apache_beam.metrics.metricbase import MetricName
 
 
+__all__ = ['Metrics', 'MetricsFilter']
+
 class Metrics(object):
   """Lets users create/access metric objects during pipeline execution."""
   @staticmethod
