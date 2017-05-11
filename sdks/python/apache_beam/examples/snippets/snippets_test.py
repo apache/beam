@@ -892,7 +892,7 @@ class CombineTest(unittest.TestCase):
         unix_timestamp = extract_timestamp_from_log_entry(element)
         # Wrap and emit the current entry and new timestamp in a
         # TimestampedValue.
-        yield beam.TimestampedValue(element, unix_timestamp)
+        yield beam.window.TimestampedValue(element, unix_timestamp)
 
     timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
     # [END setting_timestamp]
