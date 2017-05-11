@@ -25,8 +25,6 @@ import threading
 
 from apache_beam.io import iobase
 
-__all__ = []
-
 
 class ConcatSource(iobase.BoundedSource):
   """For internal use only; no backwards-compatibility guarantees.
