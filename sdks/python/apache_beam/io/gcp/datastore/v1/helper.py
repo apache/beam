@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Cloud Datastore helper functions."""
+"""Cloud Datastore helper functions.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 import sys
 
 # Protect against environments where datastore library is not available.
