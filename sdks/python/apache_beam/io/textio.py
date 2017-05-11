@@ -21,7 +21,7 @@
 from __future__ import absolute_import
 import logging
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
 from apache_beam.io import iobase
