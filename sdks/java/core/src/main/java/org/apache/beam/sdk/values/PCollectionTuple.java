@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -189,11 +190,14 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   /**
-   * Returns a {@link PCollectionTuple} with each of the given tags mapping to a new
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns a {@link PCollectionTuple} with each of the given tags mapping to a new
    * output {@link PCollection}.
    *
    * <p>For use by primitive transformations only.
    */
+  @Internal
   public static PCollectionTuple ofPrimitiveOutputsInternal(
       Pipeline pipeline,
       TupleTagList outputTags,
