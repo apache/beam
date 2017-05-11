@@ -28,6 +28,8 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class CombinersTest(unittest.TestCase):
@@ -49,7 +51,7 @@ class CombinersTest(unittest.TestCase):
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(sum))
 
-    beam.assert_that(result, beam.equal_to([('a', 6), ('b', 30), ('c', 100)]))
+    assert_that(result, equal_to([('a', 6), ('b', 30), ('c', 100)]))
     result.pipeline.run()
 
   def test_combine_per_key_with_custom_callable(self):
@@ -65,7 +67,7 @@ class CombinersTest(unittest.TestCase):
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(multiply))
 
-    beam.assert_that(result, beam.equal_to([('a', 6), ('b', 200), ('c', 100)]))
+    assert_that(result, equal_to([('a', 6), ('b', 200), ('c', 100)]))
     result.pipeline.run()
 
 
