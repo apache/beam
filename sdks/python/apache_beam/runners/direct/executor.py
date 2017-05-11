@@ -155,7 +155,7 @@ class _SerialEvaluationState(_TransformEvaluationState):
   item of work will be submitted to the ExecutorService at any time.
 
   A principal use of this is for evaluators that keeps a global state such as
-  GroupByKeyOnly.
+  _GroupByKeyOnly.
   """
 
   def __init__(self, executor_service, scheduled):
