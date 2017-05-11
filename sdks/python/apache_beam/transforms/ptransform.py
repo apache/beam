@@ -60,6 +60,13 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
 
+__all__ = [
+    'PTransform',
+    'ptransform_fn',
+    'label_from_callable',
+    ]
+
+
 class _PValueishTransform(object):
   """Visitor for PValueish objects.
 
@@ -638,6 +645,8 @@ class CallablePTransform(PTransform):
 
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
+
+  Experimental; no backwards-compatibility guarantees.
 
   Args:
     fn: A function implementing a custom PTransform.
