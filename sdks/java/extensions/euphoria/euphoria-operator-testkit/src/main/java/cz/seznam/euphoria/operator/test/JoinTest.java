@@ -259,18 +259,12 @@ public class JoinTest extends AbstractOperatorTest {
 
       @Override
       protected Partitions<Pair<String, Long>> getLeftInput() {
-        return Partitions.add(
-            Pair.of("fi", 1L),
-            Pair.of("fa", 2L))
-            .build();
+        return Partitions.add(Pair.of("fi", 1L), Pair.of("fa", 2L)).build();
       }
 
       @Override
       protected Partitions<Pair<String, Long>> getRightInput() {
-        return Partitions.add(
-            Pair.of("ha", 1L),
-            Pair.of("ho", 4L))
-            .build(Duration.ofMillis(100), Duration.ofMillis(100));
+        return Partitions.add(Pair.of("ha", 1L), Pair.of("ho", 4L)).build();
       }
 
       @Override
