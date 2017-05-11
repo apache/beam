@@ -15,7 +15,11 @@
 # limitations under the License.
 #
 
-"""Fake datastore used for unit testing."""
+"""Fake datastore used for unit testing.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 import uuid
 
 # Protect against environments where datastore library is not available.
@@ -26,7 +30,6 @@ try:
 except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
-
 
 def create_run_query(entities, batch_size):
   """A fake datastore run_query method that returns entities in batches.
