@@ -41,10 +41,10 @@ from apache_beam.io.filebasedsource import FileBasedSource
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
 
 
 class LineSource(FileBasedSource):

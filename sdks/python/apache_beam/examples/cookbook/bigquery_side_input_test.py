@@ -23,6 +23,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.examples.cookbook import bigquery_side_input
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class BigQuerySideInputTest(unittest.TestCase):
@@ -42,7 +44,7 @@ class BigQuerySideInputTest(unittest.TestCase):
                                                words_pcoll, ignore_corpus_pcoll,
                                                ignore_word_pcoll)
 
-    beam.assert_that(groups, beam.equal_to(
+    assert_that(groups, equal_to(
         [('A', 'corpus2', 'word2'),
          ('B', 'corpus2', 'word2'),
          ('C', 'corpus2', 'word2')]))

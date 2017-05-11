@@ -44,9 +44,8 @@ from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.filesystem import CompressionTypes
 
 from apache_beam.testing.test_pipeline import TestPipeline
-
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 # TODO: Refactor code so all io tests are using same library
