@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Provides TestStream for verifying streaming runner semantics."""
+"""Provides TestStream for verifying streaming runner semantics.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 from abc import ABCMeta
 from abc import abstractmethod
