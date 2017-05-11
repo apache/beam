@@ -53,7 +53,7 @@ import abc
 
 from google.protobuf import struct_pb2
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
