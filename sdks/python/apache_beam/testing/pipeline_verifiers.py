@@ -32,6 +32,14 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils as utils
 from apache_beam.utils import retry
 
+
+__all__ = [
+    'PipelineStateMatcher',
+    'FileChecksumMatcher',
+    'retry_on_io_error_and_server_error',
+    ]
+
+
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:

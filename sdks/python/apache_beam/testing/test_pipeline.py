@@ -27,6 +27,11 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from nose.plugins.skip import SkipTest
 
 
+__all__ = [
+    'TestPipeline',
+    ]
+
+
 class TestPipeline(Pipeline):
   """TestPipeline class is used inside of Beam tests that can be configured to
   run against pipeline runner.
