@@ -295,12 +295,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.http-client</groupId>
-      <artifactId>google-http-client-protobuf</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-dataflow</artifactId>
     </dependency>
@@ -351,11 +345,6 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <dependency>
