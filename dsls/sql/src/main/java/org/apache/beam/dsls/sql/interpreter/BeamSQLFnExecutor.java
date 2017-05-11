@@ -42,6 +42,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.functions.BeamSqlPowerExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlInitCapExpression;
@@ -159,6 +160,9 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
         case "INITCAP":
           return new BeamSqlInitCapExpression(subExps);
 
+        // function operators
+        case "POWER":
+          return new BeamSqlPowerExpression(subExps);
 
         case "IS NULL":
           return new BeamSqlIsNullExpression(subExps.get(0));
