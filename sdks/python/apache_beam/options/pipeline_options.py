@@ -25,6 +25,21 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import ValueProvider
 
 
+__all__ = [
+    'PipelineOptions',
+    'StandardOptions',
+    'TypeOptions',
+    'DirectOptions',
+    'GoogleCloudOptions',
+    'WorkerOptions',
+    'DebugOptions',
+    'ProfilingOptions',
+    'SetupOptions',
+    'TestOptions',
+    'OptionsContext',
+    ]
+
+
 def _static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
 
@@ -42,7 +57,7 @@ def _static_value_provider_of(value_type):
   return _f
 
 
-class BeamArgumentParser(argparse.ArgumentParser):
+class _BeamArgumentParser(argparse.ArgumentParser):
   """An ArgumentParser that supports ValueProvider options.
 
   Example Usage::
@@ -133,7 +148,7 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    parser = BeamArgumentParser()
+    parser = _BeamArgumentParser()
 
     for cls in type(self).mro():
       if cls == PipelineOptions:
@@ -187,7 +202,7 @@ class PipelineOptions(HasDisplayData):
     # TODO(BEAM-1319): PipelineOption sub-classes in the main session might be
     # repeated. Pick last unique instance of each subclass to avoid conflicts.
     subset = {}
-    parser = BeamArgumentParser()
+    parser = _BeamArgumentParser()
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
