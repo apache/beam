@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Collection of useful coders."""
+"""Collection of useful coders.
+
+Only those coders listed in __all__ are part of the public API of this module.
+"""
 
 import base64
 import cPickle as pickle
@@ -43,6 +46,13 @@ except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
+
+
+__all__ = ['Coder',
+           'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
+           'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
+           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
 def serialize_coder(coder):
@@ -116,6 +126,10 @@ class Coder(object):
                                         self.estimate_size)
 
   def get_impl(self):
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the CoderImpl backing this Coder.
+    """
     if not hasattr(self, '_impl'):
       self._impl = self._create_impl()
       assert isinstance(self._impl, coder_impl.CoderImpl)
