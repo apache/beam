@@ -169,7 +169,7 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam import GroupByKey, GroupByKeyOnly
+        from apache_beam.transforms.core import GroupByKey, GroupByKeyOnly
         if isinstance(transform_node.transform, (GroupByKey, GroupByKeyOnly)):
           pcoll = transform_node.inputs[0]
           input_type = pcoll.element_type
