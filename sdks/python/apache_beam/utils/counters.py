@@ -18,7 +18,10 @@
 # cython: profile=False
 # cython: overflowcheck=True
 
-"""Counters collect the progress of the Worker for reporting to the service."""
+"""Counters collect the progress of the Worker for reporting to the service.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import threading
 from apache_beam.transforms import cy_combiners

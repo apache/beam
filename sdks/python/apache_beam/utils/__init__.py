@@ -15,4 +15,7 @@
 # limitations under the License.
 #
 
-"""A package containing utilities."""
+"""A package containing internal utilities.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
