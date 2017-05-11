@@ -555,16 +555,15 @@ TAG="v${VERSION}-RC${RC_NUM}"
 
     <div class="highlighter-rouge"><pre class="highlight"><code> cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
  cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
- cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip
- apache-beam-${VERSION}-python.zip
+ cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip apache-beam-${VERSION}-python.zip
 </code></pre>
     </div>
   </li>
   <li>
     <p>Create hashes for source files and sign the python source file file</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> sha1sum apache-beam-${VERSION}.tar.gz &gt; apache-beam-${VERSION}.tar.gz.sha1
- md5sum apache-beam-${VERSION}.tar.gz &gt; apache-beam-${VERSION}.tar.gz.md5
+    <div class="highlighter-rouge"><pre class="highlight"><code> sha1sum apache-beam-${VERSION}-source-release.zip &gt; apache-beam-${VERSION}-source-release.zip.sha1
+ md5sum apache-beam-${VERSION}-source-release.zip &gt; apache-beam-${VERSION}-source-release.zip.md5
  gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
  sha1sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.sha1
  md5sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.md5

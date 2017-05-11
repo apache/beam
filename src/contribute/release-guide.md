@@ -286,13 +286,12 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
         cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip .
         cp ${BEAM_ROOT}/target/apache-beam-${VERSION}-source-release.zip.asc .
-        cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip
-        apache-beam-${VERSION}-python.zip
+        cp ${BEAM_ROOT}/sdks/python/target/apache-beam-${VERSION}.zip apache-beam-${VERSION}-python.zip
 
 1. Create hashes for source files and sign the python source file file
 
-        sha1sum apache-beam-${VERSION}.tar.gz > apache-beam-${VERSION}.tar.gz.sha1
-        md5sum apache-beam-${VERSION}.tar.gz > apache-beam-${VERSION}.tar.gz.md5
+        sha1sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.sha1
+        md5sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.md5
         gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
         sha1sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha1
         md5sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.md5
