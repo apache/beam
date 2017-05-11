@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.coders.coders import ToStringCoder
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -422,7 +423,7 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
-        self.coder = coders.ToStringCoder()
+        self.coder = ToStringCoder()
 
       def start_bundle(self):
         assert self.file_to_write

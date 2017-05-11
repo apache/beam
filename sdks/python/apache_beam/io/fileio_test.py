@@ -29,7 +29,7 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.io import fileio
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData

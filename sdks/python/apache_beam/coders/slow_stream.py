@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""A pure Python implementation of stream.pyx."""
+"""A pure Python implementation of stream.pyx.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import struct
 
