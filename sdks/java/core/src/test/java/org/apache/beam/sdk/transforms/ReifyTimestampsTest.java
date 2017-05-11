@@ -101,4 +101,40 @@ public class ReifyTimestampsTest implements Serializable {
 
     pipeline.run();
   }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void extractFromValuesWhenValueTimestampedLaterSucceeds() {
+    PCollection<KV<String, TimestampedValue<Integer>>> preified =
+        pipeline.apply(
+            Create.timestamped(
+                TimestampedValue.of(
+                    KV.of("foo", TimestampedValue.of(0, new Instant((0)))), new Instant(100)),
+                TimestampedValue.of(
+                    KV.of("foo", TimestampedValue.of(1, new Instant(1))), new Instant(101L)),
+                TimestampedValue.of(
+                    KV.of("bar", TimestampedValue.of(2, new Instant(2))), new Instant(102L)),
+                TimestampedValue.of(
+                    KV.of("baz", TimestampedValue.of(3, new Instant(3))), new Instant(103L))));
+
+    PCollection<KV<String, Integer>> timestamped =
+        preified.apply(ReifyTimestamps.<String, Integer>extractFromValues());
+
+    PAssert.that(timestamped)
+        .containsInAnyOrder(KV.of("foo", 0), KV.of("foo", 1), KV.of("bar", 2), KV.of("baz", 3));
+
+    timestamped.apply(
+        "AssertElementTimestamps",
+        ParDo.of(
+            new DoFn<KV<String, Integer>, Void>() {
+              @ProcessElement
+              public void verifyTimestampsEqualValue(ProcessContext context) {
+                assertThat(
+                    new Instant(context.element().getValue().longValue()),
+                    equalTo(context.timestamp()));
+              }
+            }));
+
+    pipeline.run();
+  }
 }

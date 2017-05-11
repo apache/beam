@@ -159,7 +159,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
     /** Is {@code window} expired w.r.t. the garbage collection watermark? */
     private boolean canDropDueToExpiredWindow(BoundedWindow window) {
       Instant inputWM = timerInternals.currentInputWatermarkTime();
-      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness()).isBefore(inputWM);
+      return LateDataUtils.garbageCollectionTime(window, windowingStrategy).isBefore(inputWM);
     }
   }
 }
