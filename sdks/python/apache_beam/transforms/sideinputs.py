@@ -27,6 +27,12 @@ from __future__ import absolute_import
 from apache_beam.transforms import window
 
 
+__all__ = [
+    'default_window_mapping_fn',
+    'SideInputMap',
+    ]
+
+
 # Top-level function so we can identify it later.
 def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
   return global_window

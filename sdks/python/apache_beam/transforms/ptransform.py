@@ -60,6 +60,17 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
 
+__all__ = [
+    'GetPValues',
+    'PTransform',
+    'PTransformWithSideInputs',
+    'CallablePTransform',
+    'CustomMapper',
+    'ptransform_fn',
+    'label_from_callable',
+    ]
+
+
 class _PValueishTransform(object):
   """Visitor for PValueish objects.
 
