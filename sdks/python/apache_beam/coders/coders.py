@@ -166,13 +166,17 @@ class Coder(object):
       raise ValueError('Not a KV coder: %s.' % self)
 
   def _get_component_coders(self):
-    """Returns the internal component coders of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns the internal component coders of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
     return []
 
   def as_cloud_object(self):
-    """Returns Google Cloud Dataflow API description of this coder."""
+    """For internal use only; no backwards-compatibility guarantees.
+
+    Returns Google Cloud Dataflow API description of this coder."""
     # This is an internal detail of the Coder API and does not need to be
     # refined in user-defined Coders.
 
@@ -198,6 +202,8 @@ class Coder(object):
     # pylint: enable=protected-access
 
   def to_runner_api(self, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
     # TODO(BEAM-115): Use specialized URNs and components.
     from apache_beam.runners.api import beam_runner_api_pb2
     return beam_runner_api_pb2.Coder(
@@ -210,6 +216,8 @@ class Coder(object):
 
   @staticmethod
   def from_runner_api(proto, context):
+    """For internal use only; no backwards-compatibility guarantees.
+    """
     any_proto = proto.spec.spec.parameter
     bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
     any_proto.Unpack(bytes_proto)
@@ -793,7 +801,9 @@ class WindowedValueCoder(FastCoder):
 
 
 class LengthPrefixCoder(FastCoder):
-  """Coder which prefixes the length of the encoded object in the stream."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the length of the encoded object in the stream."""
 
   def __init__(self, value_coder):
     self._value_coder = value_coder
