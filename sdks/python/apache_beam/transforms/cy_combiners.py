@@ -25,9 +25,6 @@ from __future__ import absolute_import
 from apache_beam.transforms import core
 
 
-__all__ = []
-
-
 class AccumulatorCombineFn(core.CombineFn):
   # singleton?
   def create_accumulator(self):

@@ -646,7 +646,7 @@ class CallablePTransform(PTransform):
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
 
-  For internal use only; no backwards-compatibility guarantees.
+  Experimental; no backwards-compatibility guarantees.
 
   Args:
     fn: A function implementing a custom PTransform.
