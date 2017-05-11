@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+"""For internal use only; no backwards-compatibility guarantees."""
+
 import abc
 import inspect
 
