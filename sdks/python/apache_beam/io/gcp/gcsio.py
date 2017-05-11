@@ -34,6 +34,9 @@ import traceback
 
 from apache_beam.utils import retry
 
+__all__ = ['GcsIO']
+
+
 # Issue a friendlier error message if the storage library is not available.
 # TODO(silviuc): Remove this guard when storage is available everywhere.
 try:

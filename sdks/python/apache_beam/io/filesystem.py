@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 
+__all__ = ['CompressionTypes', 'CompressedFile', 'FileMetadata', 'FileSystem',
+           'BeamIOError', 'MatchResult']
+
 
 class CompressionTypes(object):
   """Enum-like class representing known compression types."""

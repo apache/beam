@@ -33,6 +33,8 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-position, unused-import
 
+__all__ = ['FileSystems']
+
 
 class FileSystems(object):
   """A class that defines the functions that can be performed on a filesystem.
