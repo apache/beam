@@ -23,6 +23,8 @@ import unittest
 import apache_beam as beam
 from apache_beam.examples.cookbook import filters
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class FiltersTest(unittest.TestCase):
@@ -45,22 +47,22 @@ class FiltersTest(unittest.TestCase):
   def test_basic(self):
     """Test that the correct result is returned for a simple dataset."""
     results = self._get_result_for_month(1)
-    beam.assert_that(
+    assert_that(
         results,
-        beam.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
-                       {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
+        equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
+                  {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
     results.pipeline.run()
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""
     results = self._get_result_for_month(3)
-    beam.assert_that(results, beam.equal_to([]))
+    assert_that(results, equal_to([]))
     results.pipeline.run()
 
   def test_basic_empty_missing(self):
     """Test that the correct empty result is returned for a missing month."""
     results = self._get_result_for_month(4)
-    beam.assert_that(results, beam.equal_to([]))
+    assert_that(results, equal_to([]))
     results.pipeline.run()
 
 

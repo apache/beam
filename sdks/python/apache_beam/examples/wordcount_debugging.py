@@ -51,6 +51,8 @@ from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class FilterTextFn(beam.DoFn):
@@ -133,8 +135,8 @@ def run(argv=None):
   # of the Pipeline implies that the expectations were  met. Learn more at
   # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
   # test your pipeline.
-  beam.assert_that(
-      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  assert_that(
+      filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
 
   # Format the counts into a PCollection of strings and write the output using a
   # "Write" transform that has side effects.

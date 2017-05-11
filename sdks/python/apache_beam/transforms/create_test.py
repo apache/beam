@@ -20,9 +20,10 @@ import unittest
 
 from apache_beam.io import source_test_utils
 
-from apache_beam import Create, assert_that, equal_to
+from apache_beam import Create
 from apache_beam.coders import FastPrimitivesCoder
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 
 
 class CreateTest(unittest.TestCase):
