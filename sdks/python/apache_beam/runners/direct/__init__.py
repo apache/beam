@@ -15,5 +15,9 @@
 # limitations under the License.
 #
 
-"""Inprocess runner executes pipelines locally in a single process."""
+"""Inprocess runner executes pipelines locally in a single process.
+
+Anything in this package not imported here is an internal implementation detail
+with no backwards-compatibility guarantees.
+"""
 from apache_beam.runners.direct.direct_runner import DirectRunner
