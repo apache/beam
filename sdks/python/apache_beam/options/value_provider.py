@@ -24,6 +24,14 @@ from functools import wraps
 from apache_beam import error
 
 
+__all__ = [
+    'ValueProvider',
+    'StaticValueProvider',
+    'RuntimeValueProvider',
+    'check_accessible',
+    ]
+
+
 class ValueProvider(object):
   def is_accessible(self):
     raise NotImplementedError(

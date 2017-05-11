@@ -16,6 +16,8 @@
 #
 
 """Pipeline options validator.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 import re
 
