@@ -282,8 +282,9 @@ class FileSink(iobase.Sink):
     return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
-class FileBasedSink(FileSink):
-  pass
+# Using FileBasedSink for the public API to be symmetric with FileBasedSource.
+# TODO: move code from FileSink to here and delete that class.
+FileBasedSink = FileSink
 
 
 class FileSinkWriter(iobase.Writer):
