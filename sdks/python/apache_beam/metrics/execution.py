@@ -24,7 +24,7 @@ Available classes:
 
 - MetricKey - Internal key for a metric.
 - MetricResult - Current status of a metric's updates/commits.
-- MetricsEnvironment - Keeps track of MetricsContainer and other metrics
+- _MetricsEnvironment - Keeps track of MetricsContainer and other metrics
     information for every single execution working thread.
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
@@ -33,9 +33,6 @@ from collections import defaultdict
 import threading
 
 from apache_beam.metrics.cells import CounterCell, DistributionCell
-
-__all__ = [
-    'MetricKey', 'MetricResult', 'MetricsEnvironment', 'MetricsContainer']
 
 
 class MetricKey(object):
