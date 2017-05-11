@@ -66,7 +66,7 @@ public class Top {
    * given {@code Comparator<T>}.  The {@code Comparator<T>} must also
    * be {@code Serializable}.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting
    * {@code List}, albeit in sorted order.
@@ -110,7 +110,7 @@ public class Top {
    * {@code PCollection<T>}, in increasing order, sorted according to
    * their natural order.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
@@ -154,7 +154,7 @@ public class Top {
    * {@code PCollection<T>}, in decreasing order, sorted according to
    * their natural order.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
