@@ -24,15 +24,46 @@ import com.google.common.collect.Iterables;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /**
  * Utils to handle late data.
  */
 public class LateDataUtils {
+  private LateDataUtils() {}
+
+  /**
+   * Return when {@code window} should be garbage collected. If the window's expiration time is on
+   * or after the end of the global window, it will be truncated to the end of the global window.
+   */
+  public static Instant garbageCollectionTime(
+      BoundedWindow window, WindowingStrategy windowingStrategy) {
+    return garbageCollectionTime(window, windowingStrategy.getAllowedLateness());
+  }
+
+  /**
+   * Return when {@code window} should be garbage collected. If the window's expiration time is on
+   * or after the end of the global window, it will be truncated to the end of the global window.
+   */
+  public static Instant garbageCollectionTime(BoundedWindow window, Duration allowedLateness) {
+
+    // If the end of the window + allowed lateness is beyond the "end of time" aka the end of the
+    // global window, then we truncate it. The conditional is phrased like it is because the
+    // addition of EOW + allowed lateness might even overflow the maximum allowed Instant
+    if (GlobalWindow.INSTANCE
+        .maxTimestamp()
+        .minus(allowedLateness)
+        .isBefore(window.maxTimestamp())) {
+      return GlobalWindow.INSTANCE.maxTimestamp();
+    } else {
+      return window.maxTimestamp().plus(allowedLateness);
+    }
+  }
 
   /**
    * Returns an {@code Iterable<WindowedValue<InputT>>} that only contains non-late input elements.

@@ -48,7 +48,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -663,7 +662,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       W window = directContext.window();
       this.isEndOfWindow = TimeDomain.EVENT_TIME == timer.getDomain()
           && timer.getTimestamp().equals(window.maxTimestamp());
-      Instant cleanupTime = garbageCollectionTime(window);
+      Instant cleanupTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       this.isGarbageCollection = !timer.getTimestamp().isBefore(cleanupTime);
     }
 
@@ -769,9 +768,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           // cleanup event and handled by the above).
           // Note we must do this even if the trigger is finished so that we are sure to cleanup
           // any final trigger finished bits.
-          checkState(windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
+          checkState(
+              windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO),
               "Unexpected zero getAllowedLateness");
-          Instant cleanupTime = garbageCollectionTime(directContext.window());
+          Instant cleanupTime =
+              LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
           WindowTracing.debug(
               "ReduceFnRunner.onTimer: Scheduling cleanup timer for key:{}; window:{} at {} with "
                   + "inputWatermark:{}; outputWatermark:{}",
@@ -957,6 +958,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
         watermarkHold.extractAndRelease(renamedContext, isFinished).read();
+    // TODO: This isn't accurate if the elements are late. See BEAM-2262
     final Instant outputTimestamp = pair.oldHold;
     @Nullable Instant newHold = pair.newHold;
 
@@ -972,11 +974,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       if (newHold.isAfter(directContext.window().maxTimestamp())) {
         // The hold must be for garbage collection, which can't have happened yet.
         checkState(
-          newHold.isEqual(garbageCollectionTime(directContext.window())),
-          "new hold %s should be at garbage collection for window %s plus %s",
-          newHold,
-          directContext.window(),
-          windowingStrategy.getAllowedLateness());
+            newHold.isEqual(
+                LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy)),
+            "new hold %s should be at garbage collection for window %s plus %s",
+            newHold,
+            directContext.window(),
+            windowingStrategy.getAllowedLateness());
       } else {
         // The hold must be for the end-of-window, which can't have happened yet.
         checkState(
@@ -1042,7 +1045,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     String which;
     Instant timer;
     if (endOfWindow.isBefore(inputWM)) {
-      timer = garbageCollectionTime(directContext.window());
+      timer = LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
       which = "garbage collection";
     } else {
       timer = endOfWindow;
@@ -1072,28 +1075,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         timerInternals.currentOutputWatermarkTime());
     Instant eow = directContext.window().maxTimestamp();
     directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
-    Instant gc = garbageCollectionTime(directContext.window());
+    Instant gc = LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
     if (gc.isAfter(eow)) {
       directContext.timers().deleteTimer(gc, TimeDomain.EVENT_TIME);
     }
   }
 
-  /**
-   * Return when {@code window} should be garbage collected. If the window's expiration time is on
-   * or after the end of the global window, it will be truncated to the end of the global window.
-   */
-  private Instant garbageCollectionTime(W window) {
-
-    // If the end of the window + allowed lateness is beyond the "end of time" aka the end of the
-    // global window, then we truncate it. The conditional is phrased like it is because the
-    // addition of EOW + allowed lateness might even overflow the maximum allowed Instant
-    if (GlobalWindow.INSTANCE
-        .maxTimestamp()
-        .minus(windowingStrategy.getAllowedLateness())
-        .isBefore(window.maxTimestamp())) {
-      return GlobalWindow.INSTANCE.maxTimestamp();
-    } else {
-      return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
-    }
-  }
 }

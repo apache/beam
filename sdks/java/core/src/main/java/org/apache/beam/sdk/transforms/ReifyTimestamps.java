@@ -21,6 +21,7 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Duration;
 
 /**
  * {@link PTransform PTransforms} for reifying the timestamp of values and reemitting the original
@@ -63,6 +64,11 @@ class ReifyTimestamps {
 
   private static class ExtractTimestampedValueDoFn<K, V>
       extends DoFn<KV<K, TimestampedValue<V>>, KV<K, V>> {
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(Long.MAX_VALUE);
+    }
+
     @ProcessElement
     public void processElement(ProcessContext context) {
       KV<K, TimestampedValue<V>> kv = context.element();
