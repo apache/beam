@@ -40,6 +40,8 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 def run(argv=None, assert_results=None):
@@ -118,11 +120,11 @@ def run(argv=None, assert_results=None):
   # TODO(silviuc): Move the assert_results logic to the unit test.
   if assert_results is not None:
     expected_luddites, expected_writers, expected_nomads = assert_results
-    beam.assert_that(num_luddites, beam.equal_to([expected_luddites]),
+    assert_that(num_luddites, equal_to([expected_luddites]),
                      label='assert:luddites')
-    beam.assert_that(num_writers, beam.equal_to([expected_writers]),
+    assert_that(num_writers, equal_to([expected_writers]),
                      label='assert:writers')
-    beam.assert_that(num_nomads, beam.equal_to([expected_nomads]),
+    assert_that(num_nomads, equal_to([expected_nomads]),
                      label='assert:nomads')
   # Execute pipeline.
   return p.run()

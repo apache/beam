@@ -38,9 +38,6 @@ __all__ = [
     'KvSwap',
     'RemoveDuplicates',
     'Values',
-    'assert_that',
-    'equal_to',
-    'is_empty',
     ]
 
 

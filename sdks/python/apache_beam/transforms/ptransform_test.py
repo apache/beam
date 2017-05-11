@@ -33,11 +33,11 @@ from apache_beam.io.iobase import Read
 from apache_beam.options.pipeline_options import TypeOptions
 import apache_beam.pvalue as pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms import window
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.display import DisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.util import assert_that, equal_to
 import apache_beam.typehints as typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types

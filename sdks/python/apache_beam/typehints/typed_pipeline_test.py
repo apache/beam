@@ -25,7 +25,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.options.pipeline_options import OptionsContext
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.typehints import WithTypeHints
 
 # These test often construct a pipeline as value | PTransform to test side
