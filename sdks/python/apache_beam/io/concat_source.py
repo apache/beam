@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Concat Source, which reads the union of several other sources.
+"""For internal use only; no backwards-compatibility guarantees.
+
+Concat Source, which reads the union of several other sources.
 """
 
 import bisect
