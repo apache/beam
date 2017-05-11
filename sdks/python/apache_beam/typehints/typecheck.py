@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Runtime type checking support."""
+"""Runtime type checking support.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import collections
 import inspect
@@ -25,13 +28,13 @@ import types
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
-from apache_beam.typehints import check_constraint
-from apache_beam.typehints import CompositeTypeHintError
-from apache_beam.typehints import GeneratorWrapper
-from apache_beam.typehints import SimpleTypeHintError
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import getcallargs_forhints
+from apache_beam.typehints.decorators import GeneratorWrapper
+from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints.typehints import check_constraint
+from apache_beam.typehints.typehints import CompositeTypeHintError
+from apache_beam.typehints.typehints import SimpleTypeHintError
 
 
 class AbstractDoFnWrapper(DoFn):
