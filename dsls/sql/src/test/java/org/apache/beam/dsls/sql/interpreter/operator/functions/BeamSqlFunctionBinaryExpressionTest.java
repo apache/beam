@@ -1,5 +1,8 @@
 package org.apache.beam.dsls.sql.interpreter.operator.functions;
 
+import static org.junit.Assert.assertEquals;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
@@ -8,10 +11,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test for {@link BeamSqlFunctionBinaryExpression}.
