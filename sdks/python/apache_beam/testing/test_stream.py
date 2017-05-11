@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Provides TestStream for verifying streaming runner semantics."""
+"""Provides TestStream for verifying streaming runner semantics.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 from abc import ABCMeta
 from abc import abstractmethod
@@ -26,6 +29,15 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+
+
+__all__ = [
+    'Event',
+    'ElementEvent',
+    'WatermarkEvent',
+    'ProcessingTimeEvent',
+    'TestStream',
+    ]
 
 
 class Event(object):
