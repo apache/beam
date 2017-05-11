@@ -27,8 +27,11 @@ import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -260,6 +263,30 @@ public class ReshuffleTest implements Serializable {
     assertEquals(
         input.getWindowingStrategy(),
         output.getWindowingStrategy());
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesTestStream.class})
+  public void testReshuffleWithTimestampsStreaming() {
+    TestStream<Long> stream =
+        TestStream.create(VarLongCoder.of())
+            .advanceWatermarkTo(new Instant(0L).plus(Duration.standardDays(48L)))
+            .addElements(
+                TimestampedValue.of(0L, new Instant(0L)),
+                TimestampedValue.of(1L, new Instant(0L).plus(Duration.standardDays(48L))),
+                TimestampedValue.of(
+                    2L, BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.standardDays(48L))))
+            .advanceWatermarkToInfinity();
+    PCollection<KV<String, Long>> input =
+        pipeline
+            .apply(stream).apply(WithKeys.<String, Long>of(""))
+            .apply(
+                Window.<KV<String, Long>>into(FixedWindows.of(Duration.standardMinutes(10L))));
+
+    PCollection<KV<String, Long>> reshuffled = input.apply(Reshuffle.<String, Long>of());
+    PAssert.that(reshuffled.apply(Values.<Long>create())).containsInAnyOrder(0L, 1L, 2L);
 
     pipeline.run();
   }
