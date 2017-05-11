@@ -37,6 +37,8 @@ from apache_beam.options.value_provider import check_accessible
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
+__all__ = ['FileSink']
+
 
 class FileSink(iobase.Sink):
   """A sink to a GCS or local files.

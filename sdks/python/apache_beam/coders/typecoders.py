@@ -70,6 +70,8 @@ import warnings
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 
+__all__ = ['CoderRegistry']
+
 
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""

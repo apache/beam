@@ -23,6 +23,8 @@ import threading
 
 from apache_beam.io import iobase
 
+__all__ = ['ConcatSource', 'ConcatRangeTracker']
+
 
 class ConcatSource(iobase.BoundedSource):
   """For internal use only; no backwards-compatibility guarantees.

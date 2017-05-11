@@ -38,6 +38,8 @@ from apache_beam.options.value_provider import check_accessible
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
+__all__ = ['FileBasedSource']
+
 
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
