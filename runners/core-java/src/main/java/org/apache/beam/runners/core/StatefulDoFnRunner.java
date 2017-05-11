@@ -104,7 +104,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   private boolean isLate(BoundedWindow window) {
-    Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+    Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
     Instant inputWM = cleanupTimer.currentInputWatermarkTime();
     return gcTime.isBefore(inputWM);
   }
@@ -208,7 +208,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
     @Override
     public void setForWindow(BoundedWindow window) {
-      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       // make sure this fires after any window.maxTimestamp() timers
       gcTime = gcTime.plus(GC_DELAY_MS);
       timerInternals.setTimer(StateNamespaces.window(windowCoder, window),
@@ -222,7 +222,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
         Instant timestamp,
         TimeDomain timeDomain) {
       boolean isEventTimer = timeDomain.equals(TimeDomain.EVENT_TIME);
-      Instant gcTime = window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
+      Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
       gcTime = gcTime.plus(GC_DELAY_MS);
       return isEventTimer && GC_TIMER_ID.equals(timerId) && gcTime.equals(timestamp);
     }
