@@ -23,6 +23,8 @@ encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 from types import NoneType
 

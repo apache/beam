@@ -16,7 +16,10 @@
 #
 
 
-"""Observable base class for iterables."""
+"""Observable base class for iterables.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 
 class ObservableMixin(object):
