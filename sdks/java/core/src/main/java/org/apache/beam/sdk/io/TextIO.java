@@ -430,6 +430,8 @@ public class TextIO {
           (getFilenamePolicy() == null)
               || (getShardTemplate() == null && getFilenameSuffix() == null),
           "Cannot set a filename policy and also a filename template or suffix.");
+      checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
+          "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
 
       FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
       if (usedFilenamePolicy == null) {
