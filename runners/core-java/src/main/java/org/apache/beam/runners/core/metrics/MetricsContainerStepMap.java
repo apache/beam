@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+
+package org.apache.beam.runners.core.metrics;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -24,7 +25,14 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 
 /**
  * Metrics containers by step.
@@ -32,7 +40,7 @@ import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
  * <p>This class is not thread-safe.</p>
  */
 public class MetricsContainerStepMap implements Serializable {
-  private Map<String, MetricsContainer> metricsContainers;
+  private Map<String, MetricsContainerImpl> metricsContainers;
 
   public MetricsContainerStepMap() {
     this.metricsContainers = new ConcurrentHashMap<>();
@@ -41,9 +49,9 @@ public class MetricsContainerStepMap implements Serializable {
   /**
    * Returns the container for the given step name.
    */
-  public MetricsContainer getContainer(String stepName) {
+  public MetricsContainerImpl getContainer(String stepName) {
     if (!metricsContainers.containsKey(stepName)) {
-      metricsContainers.put(stepName, new MetricsContainer(stepName));
+      metricsContainers.put(stepName, new MetricsContainerImpl(stepName));
     }
     return metricsContainers.get(stepName);
   }
@@ -53,16 +61,16 @@ public class MetricsContainerStepMap implements Serializable {
    * {@link MetricsContainerStepMap}.
    */
   public void updateAll(MetricsContainerStepMap other) {
-    for (Map.Entry<String, MetricsContainer> container : other.metricsContainers.entrySet()) {
+    for (Map.Entry<String, MetricsContainerImpl> container : other.metricsContainers.entrySet()) {
       getContainer(container.getKey()).update(container.getValue());
     }
   }
 
   /**
-   * Update {@link MetricsContainer} for given step in this map with all values from given
-   * {@link MetricsContainer}.
+   * Update {@link MetricsContainerImpl} for given step in this map with all values from given
+   * {@link MetricsContainerImpl}.
    */
-  public void update(String step, MetricsContainer container) {
+  public void update(String step, MetricsContainerImpl container) {
     getContainer(step).update(container);
   }
 
@@ -94,7 +102,7 @@ public class MetricsContainerStepMap implements Serializable {
     return new MetricsContainerStepMapMetricResults(attemptedMetricsContainers);
   }
 
-  private Map<String, MetricsContainer> getMetricsContainers() {
+  private Map<String, MetricsContainerImpl> getMetricsContainers() {
     return metricsContainers;
   }
 
@@ -120,7 +128,7 @@ public class MetricsContainerStepMap implements Serializable {
         MetricsContainerStepMap attemptedMetricsContainers,
         MetricsContainerStepMap committedMetricsContainers,
         boolean isCommittedSupported) {
-      for (MetricsContainer container
+      for (MetricsContainerImpl container
           : attemptedMetricsContainers.getMetricsContainers().values()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), attemptedCounterUpdateFn());
@@ -128,7 +136,7 @@ public class MetricsContainerStepMap implements Serializable {
             attemptedDistributionUpdateFn());
         mergeGauges(gauges, cumulative.gaugeUpdates(), attemptedGaugeUpdateFn());
       }
-      for (MetricsContainer container
+      for (MetricsContainerImpl container
           : committedMetricsContainers.getMetricsContainers().values()) {
         MetricUpdates cumulative = container.getCumulative();
         mergeCounters(counters, cumulative.counterUpdates(), committedCounterUpdateFn());

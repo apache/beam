@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
 

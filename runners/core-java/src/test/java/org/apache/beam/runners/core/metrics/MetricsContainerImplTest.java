@@ -16,27 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.metrics;
+package org.apache.beam.runners.core.metrics;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricUpdate;
+import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUpdate;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link MetricsContainer}.
+ * Tests for {@link MetricsContainerImpl}.
  */
 @RunWith(JUnit4.class)
-public class MetricsContainerTest {
+public class MetricsContainerImplTest {
 
   @Test
   public void testCounterDeltas() {
-    MetricsContainer container = new MetricsContainer("step1");
+    MetricsContainerImpl container = new MetricsContainerImpl("step1");
     CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
     CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
     assertThat("All counters should start out dirty",
@@ -47,8 +48,8 @@ public class MetricsContainerTest {
     assertThat("After commit no counters should be dirty",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.update(5L);
-    c2.update(4L);
+    c1.inc(5L);
+    c2.inc(4L);
 
     assertThat(container.getUpdates().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 5L),
@@ -63,19 +64,19 @@ public class MetricsContainerTest {
     assertThat("After commit there are no updates",
         container.getUpdates().counterUpdates(), emptyIterable());
 
-    c1.update(8L);
+    c1.inc(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
         metricUpdate("name1", 13L)));
   }
 
   @Test
   public void testCounterCumulatives() {
-    MetricsContainer container = new MetricsContainer("step1");
+    MetricsContainerImpl container = new MetricsContainerImpl("step1");
     CounterCell c1 = container.getCounter(MetricName.named("ns", "name1"));
     CounterCell c2 = container.getCounter(MetricName.named("ns", "name2"));
-    c1.update(2L);
-    c2.update(4L);
-    c1.update(3L);
+    c1.inc(2L);
+    c2.inc(4L);
+    c1.inc(3L);
 
     container.getUpdates();
     container.commitUpdates();
@@ -84,7 +85,7 @@ public class MetricsContainerTest {
         metricUpdate("name1", 5L),
         metricUpdate("name2", 4L)));
 
-    c1.update(8L);
+    c1.inc(8L);
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 13L),
         metricUpdate("name2", 4L)));
@@ -92,7 +93,7 @@ public class MetricsContainerTest {
 
   @Test
   public void testDistributionDeltas() {
-    MetricsContainer container = new MetricsContainer("step1");
+    MetricsContainerImpl container = new MetricsContainerImpl("step1");
     DistributionCell c1 = container.getDistribution(MetricName.named("ns", "name1"));
     DistributionCell c2 = container.getDistribution(MetricName.named("ns", "name2"));
 

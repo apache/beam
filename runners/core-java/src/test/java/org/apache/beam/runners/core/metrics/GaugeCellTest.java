@@ -15,18 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.metrics;
+
+package org.apache.beam.runners.core.metrics;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
 
 /**
  * Tests for {@link GaugeCell}.
  */
 public class GaugeCellTest {
-  private GaugeCell cell = new GaugeCell();
+  private GaugeCell cell = new GaugeCell(MetricName.named("hello", "world"));
 
   @Test
   public void testDeltaAndCumulative() {
