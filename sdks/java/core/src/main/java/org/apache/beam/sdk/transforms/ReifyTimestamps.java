@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -67,7 +66,7 @@ class ReifyTimestamps {
       extends DoFn<KV<K, TimestampedValue<V>>, KV<K, V>> {
     @Override
     public Duration getAllowedTimestampSkew() {
-      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+      return Duration.millis(Long.MAX_VALUE);
     }
 
     @ProcessElement
