@@ -61,11 +61,7 @@ from apache_beam.utils import urns
 
 
 __all__ = [
-    'GetPValues',
     'PTransform',
-    'PTransformWithSideInputs',
-    'CallablePTransform',
-    'CustomMapper',
     'ptransform_fn',
     'label_from_callable',
     ]
@@ -649,6 +645,8 @@ class CallablePTransform(PTransform):
 
 def ptransform_fn(fn):
   """A decorator for a function-based PTransform.
+
+  For internal use only; no backwards-compatibility guarantees.
 
   Args:
     fn: A function implementing a custom PTransform.
