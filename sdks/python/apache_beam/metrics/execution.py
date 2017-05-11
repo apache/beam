@@ -24,7 +24,7 @@ Available classes:
 
 - MetricKey - Internal key for a metric.
 - MetricResult - Current status of a metric's updates/commits.
-- MetricsEnvironment - Keeps track of MetricsContainer and other metrics
+- _MetricsEnvironment - Keeps track of MetricsContainer and other metrics
     information for every single execution working thread.
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
@@ -36,9 +36,7 @@ from apache_beam.metrics.cells import CounterCell, DistributionCell
 
 
 class MetricKey(object):
-  """
-
-  Key used to identify instance of metric cell.
+  """Key used to identify instance of metric cell.
 
   Metrics are internally keyed by the step name they associated with and
   the name of the metric.
