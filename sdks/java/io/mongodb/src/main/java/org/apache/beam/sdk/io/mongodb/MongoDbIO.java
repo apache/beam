@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientURI;
@@ -184,7 +185,11 @@ public class MongoDbIO {
     }
   }
 
-  private static class BoundedMongoDbSource extends BoundedSource<Document> {
+  /**
+   * A MongoDB {@link BoundedSource} reading {@link Document} from  a given instance.
+   */
+  @VisibleForTesting
+  protected static class BoundedMongoDbSource extends BoundedSource<Document> {
     private Read spec;
 
     private BoundedMongoDbSource(Read spec) {
@@ -294,7 +299,8 @@ public class MongoDbIO {
      * @param additionalFilter A custom (user) additional filter to append to the range filters.
      * @return A list of filters containing the ranges.
      */
-    private static List<String> splitKeysToFilters(List<Document> splitKeys, String
+    @VisibleForTesting
+    protected static List<String> splitKeysToFilters(List<Document> splitKeys, String
         additionalFilter) {
       ArrayList<String> filters = new ArrayList<>();
       String lowestBound = null; // lower boundary (previous split in the iteration)
@@ -306,29 +312,43 @@ public class MongoDbIO {
           // the range from the beginning up to this split
           rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}",
               splitKey);
+          filters.add(formatFilter(rangeFilter, additionalFilter));
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filter defines
           // the range from the split up to the end
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
+              + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
+          filters.add(formatFilter(rangeFilter, additionalFilter));
           rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}",
               splitKey);
+          filters.add(formatFilter(rangeFilter, additionalFilter));
         } else {
           // we are between two splits
           rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\"),"
               + "$lte:ObjectId(\"%s\")}}", lowestBound, splitKey);
+          filters.add(formatFilter(rangeFilter, additionalFilter));
         }
-        if (additionalFilter != null && !additionalFilter.isEmpty()) {
-          // user provided a filter, we append the user filter to the range filter
-          rangeFilter = String.format("%s,%s ]}", rangeFilter, additionalFilter);
-        } else {
-          // user didn't provide a filter, just cleany close the range filter
-          rangeFilter = String.format("%s ]}", rangeFilter);
-        }
-
-        filters.add(rangeFilter);
 
         lowestBound = splitKey;
       }
       return filters;
+    }
+
+    /**
+     * Cleanly format range filter, eventually adding an user additional filter.
+     *
+     * @param filter The range filter.
+     * @param additionalFilter An optional user additional filter.
+     * @return The cleanly formatted range filter.
+     */
+    private static String formatFilter(String filter, @Nullable String additionalFilter) {
+      if (additionalFilter != null && !additionalFilter.isEmpty()) {
+        // user provided a filter, we append the user filter to the range filter
+        return String.format("%s,%s ]}", filter, additionalFilter);
+      } else {
+        // user didn't provide a filter, just cleanly close the range filter
+        return String.format("%s ]}", filter);
+      }
     }
   }
 
