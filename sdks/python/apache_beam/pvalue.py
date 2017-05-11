@@ -31,6 +31,17 @@ import itertools
 from apache_beam import typehints
 
 
+__all__ = [
+    'PCollection',
+    'TaggedOutput',
+    'AsSingleton',
+    'AsIter',
+    'AsList',
+    'AsDict',
+    'EmptySideInput',
+]
+
+
 class PValue(object):
   """Base class for PCollection.
 
