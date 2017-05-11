@@ -18,13 +18,14 @@
 
 package org.apache.beam.sdk.metrics;
 
-import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
-import static org.apache.beam.sdk.metrics.MetricMatchers.distributionMinMax;
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricsResult;
-import static org.hamcrest.Matchers.equalTo;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.distributionMinMax;
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.PipelineResult;
@@ -41,13 +42,13 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.hamcrest.CoreMatchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.mockito.Mockito;
 
 /**
  * Tests for {@link Metrics}.
@@ -95,40 +96,40 @@ public class MetricsTest implements Serializable {
 
   @Test
   public void testDistributionToCell() {
-    MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setCurrentContainer(container);
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
+    Distribution mockDistribution = Mockito.mock(Distribution.class);
+    when(mockContainer.getDistribution(METRIC_NAME)).thenReturn(mockDistribution);
 
     Distribution distribution = Metrics.distribution(NS, NAME);
 
+    MetricsEnvironment.setCurrentContainer(mockContainer);
     distribution.update(5L);
 
-    DistributionCell cell = container.getDistribution(METRIC_NAME);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(5, 1, 5, 5)));
+    verify(mockDistribution).update(5L);
 
     distribution.update(36L);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(41, 2, 5, 36)));
-
     distribution.update(1L);
-    assertThat(cell.getCumulative(), equalTo(DistributionData.create(42, 3, 1, 36)));
+    verify(mockDistribution).update(36L);
+    verify(mockDistribution).update(1L);
   }
 
   @Test
   public void testCounterToCell() {
-    MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setCurrentContainer(container);
+    MetricsContainer mockContainer = Mockito.mock(MetricsContainer.class);
+    Counter mockCounter = Mockito.mock(Counter.class);
+    when(mockContainer.getCounter(METRIC_NAME)).thenReturn(mockCounter);
+
     Counter counter = Metrics.counter(NS, NAME);
-    CounterCell cell = container.getCounter(METRIC_NAME);
+
+    MetricsEnvironment.setCurrentContainer(mockContainer);
     counter.inc();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(1L));
+    verify(mockCounter).inc(1);
 
     counter.inc(47L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(48L));
+    verify(mockCounter).inc(47);
 
     counter.dec(5L);
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(43L));
-
-    counter.dec();
-    assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
+    verify(mockCounter).inc(-5);
   }
 
   @Category({ValidatesRunner.class, UsesCommittedMetrics.class, UsesCounterMetrics.class,

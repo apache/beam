@@ -25,10 +25,10 @@ import static org.mockito.Mockito.when;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
 import org.apache.beam.runners.core.BaseExecutionContext.StepContext;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -93,7 +93,8 @@ public class StatefulDoFnRunnerTest {
 
   @Test
   public void testLateDropping() throws Exception {
-    MetricsEnvironment.setCurrentContainer(new MetricsContainer("any"));
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
 
     timerInternals.advanceInputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
     timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MAX_VALUE));
@@ -117,9 +118,8 @@ public class StatefulDoFnRunnerTest {
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
 
-    long droppedValues = MetricsEnvironment.getCurrentContainer().getCounter(
-        MetricName.named(StatefulDoFnRunner.class,
-            StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER)).getCumulative().longValue();
+    long droppedValues = container.getCounter(MetricName.named(StatefulDoFnRunner.class,
+        StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER)).getCumulative().longValue();
     assertEquals(1L, droppedValues);
 
     runner.finishBundle();

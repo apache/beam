@@ -22,7 +22,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -71,7 +71,7 @@ public class LateDataUtils {
                         .isBefore(timerInternals.currentInputWatermarkTime());
                 if (expired) {
                   // The element is too late for this window.
-                  droppedDueToLateness.update(1L);
+                  droppedDueToLateness.inc();
                   WindowTracing.debug(
                       "GroupAlsoByWindow: Dropping element at {} for key: {}; "
                           + "window: {} since it is too far behind inputWatermark: {}",
