@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import java.time.Duration;
 import java.util.Arrays;
 
@@ -45,7 +46,8 @@ public class ReduceWindowTest {
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) producer.getReducer().apply(Arrays.asList("blah")));
+    assertEquals(1L, (long) collectSingle(
+        producer.getReducer(), Arrays.asList("blah")));
     assertEquals(2, producer.partitioning.getNumPartitions());
     assertEquals("", producer.valueExtractor.apply("blah"));
   }
@@ -65,10 +67,20 @@ public class ReduceWindowTest {
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
-    assertEquals(1L, (long) producer.getReducer().apply(Arrays.asList("blah")));
+    assertEquals(1L, (long) collectSingle(
+        producer.getReducer(), Arrays.asList("blah")));
     assertEquals(1, producer.partitioning.getNumPartitions());
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
+  }
+
+  private <IN, OUT> OUT collectSingle(
+      ReduceFunctor<IN, OUT> fn, Iterable<IN> values) {
+
+    ReduceByKey.SingleValueContext<OUT> context;
+    context = new ReduceByKey.SingleValueContext<>();
+    fn.apply(values, context);
+    return context.getValue();
   }
 
 

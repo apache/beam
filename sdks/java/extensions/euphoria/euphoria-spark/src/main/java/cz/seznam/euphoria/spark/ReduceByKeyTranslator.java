@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -49,7 +50,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @SuppressWarnings("unchecked")
     final JavaRDD<SparkElement> input = (JavaRDD<SparkElement>) context.getSingleInput(operator);
     @SuppressWarnings("unchecked")
-    final UnaryFunction<Iterable<Object>, Object> reducer = operator.getReducer();
+    final ReduceFunctor<Iterable<Object>, Object> reducer = operator.getReducer();
 
     final Partitioning partitioning = operator.getPartitioning();
     final Windowing windowing =
@@ -132,24 +133,29 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
   private static class Reducer implements
           Function2<TimestampedElement, TimestampedElement, TimestampedElement> {
 
-    private final UnaryFunction<Iterable<Object>, Object> reducer;
+    private final ReduceFunctor<Iterable<Object>, Object> reducer;
 
     // cached array to avoid repeated allocation
     private Object[] iterable;
+    private ReduceByKey.SingleValueContext<Object> context;
 
-    private Reducer(UnaryFunction<Iterable<Object>, Object> reducer) {
+    private Reducer(ReduceFunctor<Iterable<Object>, Object> reducer) {
       this.reducer = reducer;
       this.iterable = new Object[2];
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public TimestampedElement call(TimestampedElement o1, TimestampedElement o2) {
+      if (context == null) {
+        context = new ReduceByKey.SingleValueContext<>();
+      }
       iterable[0] = o1.getElement();
       iterable[1] = o2.getElement();
-      Object result = reducer.apply(Arrays.asList(iterable));
+      reducer.apply((Iterable) Arrays.asList(iterable), context);
 
       return new TimestampedElement(
-              Math.max(o1.getTimestamp(), o2.getTimestamp()), result);
+              Math.max(o1.getTimestamp(), o2.getTimestamp()), context.getValue());
     }
   }
 }
