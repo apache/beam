@@ -40,15 +40,15 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import Any
-from apache_beam.typehints import get_type_hints
-from apache_beam.typehints import is_consistent_with
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import KV
 from apache_beam.typehints import trivial_inference
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
-from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
 from apache_beam.options.pipeline_options import TypeOptions
 
