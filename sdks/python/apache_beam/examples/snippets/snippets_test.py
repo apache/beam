@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
+from apache_beam.coders.coders import ToStringCoder
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 from apache_beam.testing.util import assert_that
