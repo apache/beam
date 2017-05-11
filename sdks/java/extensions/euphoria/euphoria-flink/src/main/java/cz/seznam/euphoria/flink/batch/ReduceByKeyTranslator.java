@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
@@ -20,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -65,7 +67,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceByKey origOperator = operator.getOriginalOperator();
-    final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
+    final UnaryFunctor<Iterable, Object> reducer = origOperator.getReducer();
     final Windowing windowing =
         origOperator.getWindowing() == null
         ? AttachedWindowing.INSTANCE
@@ -160,9 +162,10 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           GroupCombineFunction<BatchElement<Window, Pair>, BatchElement<Window, Pair>>,
           ResultTypeQueryable<BatchElement<Window, Pair>> {
 
-    final UnaryFunction<Iterable, Object> reducer;
+    final UnaryFunctor<Iterable, Object> reducer;
+    transient ReduceByKey.SingleValueContext<Object> singleValueContext;
 
-    RBKReducer(UnaryFunction<Iterable, Object> reducer) {
+    RBKReducer(UnaryFunctor<Iterable, Object> reducer) {
       this.reducer = reducer;
     }
 
@@ -176,11 +179,16 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       doReduce(values, out);
     }
 
-    private void doReduce(Iterable<BatchElement<Window, Pair>> values,
-                       org.apache.flink.util.Collector<BatchElement<Window, Pair>> out) {
+    private void doReduce(
+        Iterable<BatchElement<Window, Pair>> values,
+        org.apache.flink.util.Collector<BatchElement<Window, Pair>> out) {
 
       // Tuple2[Key, Window] => Reduced Value
       Map<Tuple2, TimestampedElement> reducedValues = new HashMap<>();
+
+      if (singleValueContext == null) {
+        singleValueContext = new ReduceByKey.SingleValueContext<>();
+      }
 
       for (BatchElement<Window, Pair> batchElement : values) {
         Object key = batchElement.getElement().getFirst();
@@ -205,9 +213,11 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
                   batchElement.getTimestamp(),
                   batchElement.getElement().getSecond()));
         } else {
-          Object reduced =
-                  reducer.apply(Arrays.asList(val.getElement(),
-                          batchElement.getElement().getSecond()));
+
+          reducer.apply(Arrays.asList(
+              val.getElement(), batchElement.getElement().getSecond()),
+              singleValueContext);
+          Object reduced = singleValueContext.getValue();
 
           val.setElement(reduced);
           val.setTimestamp(Math.max(val.getTimestamp(), batchElement.getTimestamp()));
