@@ -285,6 +285,13 @@ public class BeamSQLRow implements Serializable {
     return nullFields;
   }
 
+  /**
+   * is the specified field NULL?
+   */
+  public boolean isNull(int idx) {
+    return nullFields.contains(idx);
+  }
+
   public Instant getWindowStart() {
     return windowStart;
   }
