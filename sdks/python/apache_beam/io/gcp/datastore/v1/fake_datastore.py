@@ -31,6 +31,7 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
+
 def create_run_query(entities, batch_size):
   """A fake datastore run_query method that returns entities in batches.
 
