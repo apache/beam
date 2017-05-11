@@ -78,7 +78,10 @@ public class InvalidWindows<W extends BoundedWindow> extends WindowFn<Object, W>
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
-          other, "Only InvalidWindows objects with the same originalWindowFn are compatible");
+          other,
+          String.format(
+              "Only %s objects with the same originalWindowFn are compatible.",
+              InvalidWindows.class.getSimpleName()));
     }
   }
 

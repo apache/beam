@@ -152,7 +152,9 @@ public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
           other,
-          "Only SlidingWindows objects with the same size, period and offset are compatible");
+          String.format(
+              "Only %s objects with the same size, period and offset are compatible.",
+              SlidingWindows.class.getSimpleName()));
     }
   }
 

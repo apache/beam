@@ -44,7 +44,10 @@ public class GlobalWindows extends NonMergingWindowFn<Object, GlobalWindow> {
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
-          other, "GlobalWindows is only compatible with GlobalWindows.");
+          other,
+          String.format(
+              "%s is only compatible with %s.",
+              GlobalWindows.class.getSimpleName(), GlobalWindows.class.getSimpleName()));
     }
   }
 

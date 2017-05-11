@@ -101,7 +101,10 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
-          other, "Only StaticWindows objects with the same window supplier are compatible");
+          other,
+          String.format(
+              "Only %s objects with the same window supplier are compatible.",
+              StaticWindows.class.getSimpleName()));
     }
   }
 

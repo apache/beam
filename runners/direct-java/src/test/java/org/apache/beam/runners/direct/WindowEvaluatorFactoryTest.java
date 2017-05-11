@@ -307,7 +307,10 @@ public class WindowEvaluatorFactoryTest {
     @Override
     public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
       throw new IncompatibleWindowException(
-          other, "EvaluatorTestWindowFn is not compatible with any other WindowFn.");
+          other,
+          String.format(
+              "%s is not compatible with any other %s.",
+              EvaluatorTestWindowFn.class.getSimpleName(), WindowFn.class.getSimpleName()));
     }
 
     @Override

@@ -32,7 +32,7 @@ public class IncompatibleWindowException extends Exception {
 
   @Override
   public String getMessage() {
-    return String.format(
-        "The given WindowFn is %s. " + reason, givenWindowFn.getClass().getCanonicalName());
+    String windowFn = givenWindowFn == null ? "null" : givenWindowFn.getClass().getSimpleName();
+    return String.format("The given WindowFn is %s. %s", windowFn, reason);
   }
 }

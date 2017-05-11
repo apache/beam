@@ -149,8 +149,10 @@ public class CalendarWindows {
       if (!this.isCompatible(other)) {
         throw new IncompatibleWindowException(
             other,
-            "Only DaysWindows objects with the same "
-                + "number of days, start date and time zone are compatible");
+            String.format(
+                "Only %s objects with the same number of days, start date "
+                    + "and time zone are compatible.",
+                DaysWindows.class.getSimpleName()));
       }
     }
 
@@ -259,8 +261,10 @@ public class CalendarWindows {
       if (!this.isCompatible(other)) {
         throw new IncompatibleWindowException(
             other,
-            "Only MonthsWindows objects with the same number of months,"
-                + " day of month, start date and time zone are compatible");
+            String.format(
+                "Only %s objects with the same number of months, "
+                    + "day of month, start date and time zone are compatible.",
+                MonthsWindows.class.getSimpleName()));
       }
     }
 
@@ -378,8 +382,10 @@ public class CalendarWindows {
       if (!this.isCompatible(other)) {
         throw new IncompatibleWindowException(
             other,
-            "Only YearsWindows objects with the same number of years,"
-                + " month of year, day of month, start date and time zone are compatible");
+            String.format(
+                "Only %s objects with the same number of years, month of year, "
+                    + "day of month, start date and time zone are compatible.",
+                YearsWindows.class.getSimpleName()));
       }
     }
 

@@ -155,14 +155,17 @@ public class PCollectionsTest {
 
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
-      return other instanceof CustomWindows;
+      return other != null && this.getClass().equals(other.getClass());
     }
 
     @Override
     public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
       if (!this.isCompatible(other)) {
         throw new IncompatibleWindowException(
-            other, "CustomWindows is only compatible with CustomWindows.");
+            other,
+            String.format(
+                "%s is only compatible with %s.",
+                CustomWindows.class.getSimpleName(), CustomWindows.class.getSimpleName()));
       }
     }
 

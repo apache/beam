@@ -105,7 +105,10 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
       throw new IncompatibleWindowException(
-          other, "Only FixedWindows objects with the same size and offset are compatible");
+          other,
+          String.format(
+              "Only %s objects with the same size and offset are compatible.",
+              FixedWindows.class.getSimpleName()));
     }
   }
 

@@ -82,7 +82,11 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   @Override
   public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
     if (!this.isCompatible(other)) {
-      throw new IncompatibleWindowException(other, "Sessions is only compatible with Sessions.");
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is only compatible with %s.",
+              Sessions.class.getSimpleName(), Sessions.class.getSimpleName()));
     }
   }
 
