@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
+import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
@@ -100,6 +101,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
   
   interface ReduceBy<IN, KEY, VALUE> {
+
     /**
      * Define a function that reduces all values related to one key into one result object.
      * The function is not combinable - i.e. partial results cannot be made up before shuffle.
@@ -111,7 +113,26 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      * 
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(ReduceFunction<VALUE, OUT> reducer);
+    default <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
+        ReduceFunction<VALUE, OUT> reducer) {
+      return reduceBy((Iterable<VALUE> in, Context<OUT> ctx) -> {
+        ctx.collect(reducer.apply(in));
+      });
+    }
+
+
+    /**
+     * Define a function that reduces all values related to one key into one result object.
+     * The function is not combinable - i.e. partial results cannot be made up before shuffle.
+     * To get better performance use {@link #combineBy} method.
+     *
+     * @param <OUT> type of output element
+     *
+     * @param reducer function that reduces all values into one output object
+     *
+     * @return next builder to complete the setup of the {@link ReduceByKey} operator
+     */
+    <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(ReduceFunctor<VALUE, OUT> reducer);
     
     /**
      * Define a function that reduces all values related to one key into one result object.
@@ -123,8 +144,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      */
     default DatasetBuilder4<IN, KEY, VALUE, VALUE> combineBy(
         CombinableReduceFunction<VALUE> reducer) {
-      return reduceBy(reducer);
+      return reduceBy(toReduceFunctor(reducer));
     }
+
   }
 
   public static class DatasetBuilder2<IN, KEY> implements ReduceBy<IN, KEY, IN> {
@@ -155,7 +177,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
     
     @Override
-    public <OUT> DatasetBuilder4<IN, KEY, IN, OUT> reduceBy(ReduceFunction<IN, OUT> reducer) {
+    public <OUT> DatasetBuilder4<IN, KEY, IN, OUT> reduceBy(ReduceFunctor<IN, OUT> reducer) {
       return new DatasetBuilder4<>(name, input, keyExtractor, e-> e, reducer);
     }
   }
@@ -177,8 +199,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     @Override
     public <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
-        ReduceFunction<VALUE, OUT> reducer) {
-      return new DatasetBuilder4<>(name, input, keyExtractor, valueExtractor, reducer);
+        ReduceFunctor<VALUE, OUT> reducer) {
+      return new DatasetBuilder4<>(
+          name, input, keyExtractor, valueExtractor, reducer);
     }
   }
 
@@ -189,12 +212,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final ReduceFunction<VALUE, OUT> reducer;
+    private final ReduceFunctor<VALUE, OUT> reducer;
     DatasetBuilder4(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    ReduceFunction<VALUE, OUT> reducer) {
+                    ReduceFunctor<VALUE, OUT> reducer) {
 
       // initialize default partitioning according to input
       super(new DefaultPartitioning<>(input.getNumPartitions()));
@@ -210,7 +233,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public <W extends Window>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
     windowBy(Windowing<IN, W> windowing) {
-      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
+      return new DatasetBuilder5<>(
+          name, input, keyExtractor, valueExtractor,
           reducer, Objects.requireNonNull(windowing), this);
     }
     
@@ -229,7 +253,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final ReduceFunction<VALUE, OUT> reducer;
+    private final ReduceFunctor<VALUE, OUT> reducer;
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -237,7 +261,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    ReduceFunction<VALUE, OUT> reducer,
+                    ReduceFunctor<VALUE, OUT> reducer,
                     @Nullable Windowing<IN, W> windowing,
                     PartitioningBuilder<KEY, ?> partitioning) {
 
@@ -255,9 +279,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       Flow flow = input.getFlow();
-      ReduceByKey<IN, KEY, VALUE, OUT, W>
-          reduce =
-          new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
+      ReduceByKey<IN, KEY, VALUE, OUT, W> reduce = new ReduceByKey<>(
+              name, flow, input, keyExtractor, valueExtractor,
               windowing, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
@@ -292,8 +315,24 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     return new OfBuilder(name);
   }
 
-  final ReduceFunction<VALUE, OUT> reducer;
+  final ReduceFunctor<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
+
+  @SuppressWarnings("unchecked")
+  ReduceByKey(String name,
+              Flow flow,
+              Dataset<IN> input,
+              UnaryFunction<IN, KEY> keyExtractor,
+              UnaryFunction<IN, VALUE> valueExtractor,
+              @Nullable Windowing<IN, W> windowing,
+              CombinableReduceFunction<OUT> reducer,
+              Partitioning<KEY> partitioning) {
+    this(
+        name, flow, input, keyExtractor, valueExtractor,
+        windowing, (ReduceFunctor<VALUE, OUT>) toReduceFunctor(reducer),
+        partitioning);
+  }
+
 
   ReduceByKey(String name,
               Flow flow,
@@ -301,26 +340,24 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               UnaryFunction<IN, KEY> keyExtractor,
               UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              ReduceFunction<VALUE, OUT> reducer,
+              ReduceFunctor<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning) {
+    
     super(name, flow, input, keyExtractor, windowing, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
   }
 
-  public ReduceFunction<VALUE, OUT> getReducer() {
+  public ReduceFunctor<VALUE, OUT> getReducer() {
     return reducer;
+  }
+
+  public boolean isCombinable() {
+    return reducer.isCombinable();
   }
 
   public UnaryFunction<IN, VALUE> getValueExtractor() {
     return valueExtractor;
-  }
-
-  /**
-   * @return {@code TRUE} when combinable reduce function provided
-   */
-  public boolean isCombinable() {
-    return reducer instanceof CombinableReduceFunction;
   }
 
   @SuppressWarnings("unchecked")
@@ -328,8 +365,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   public DAG<Operator<?, ?>> getBasicOps() {
     StateSupport.MergeFromStateMerger stateCombine =
             new StateSupport.MergeFromStateMerger<>();
-    StateFactory stateFactory = isCombinable()
-            ? new CombiningReduceState.Factory<>((CombinableReduceFunction) reducer)
+    StateFactory stateFactory = reducer.isCombinable()
+            ? new CombiningReduceState.Factory<>((ReduceFunctor) reducer)
             : new NonCombiningReduceState.Factory<>(reducer);
     Flow flow = getFlow();
     Operator reduceState = new ReduceStateByKey(getName(),
@@ -340,19 +377,58 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     return DAG.of(reduceState);
   }
 
+  static <VALUE> ReduceFunctor<VALUE, VALUE> toReduceFunctor(
+      CombinableReduceFunction<VALUE> reducer1) {
+
+    return new ReduceFunctor<VALUE, VALUE>() {
+      @Override
+      public boolean isCombinable() {
+        return true;
+      }
+
+      @Override
+      public void apply(Iterable<VALUE> elem, Context<VALUE> context) {
+        context.collect(reducer1.apply(elem));
+      }
+    };
+  }
+
+
+  public static class SingleValueContext<T> implements Context<T> {
+
+    T value;
+
+    @Override
+    public void collect(T elem) {
+      value = elem;
+    }
+
+    @Override
+    public Object getWindow() {
+      throw new UnsupportedOperationException(
+          "The window is unknown when applying combinable function");
+    }
+
+    public T getValue() {
+      return value;
+    }
+
+  };
+
 
   static class CombiningReduceState<E>
           implements State<E, E>, StateSupport.MergeFrom<CombiningReduceState<E>> {
 
     static final class Factory<E> implements StateFactory<E, E, State<E, E>> {
-      private final CombinableReduceFunction<E> r;
+      private final ReduceFunctor<E, E> r;
 
-      Factory(CombinableReduceFunction<E> r) {
+      Factory(ReduceFunctor<E, E> r) {
         this.r = Objects.requireNonNull(r);
       }
 
       @Override
-      public State<E, E> createState(StorageProvider storageProvider, Context<E> context) {
+      public State<E, E> createState(
+          StorageProvider storageProvider, Context<E> context) {
         return new CombiningReduceState<>(storageProvider, r);
       }
     }
@@ -361,11 +437,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private static final ValueStorageDescriptor STORAGE_DESC =
             ValueStorageDescriptor.of("rbsk-value", (Class) Object.class, null);
 
-    private final CombinableReduceFunction<E> reducer;
+    private final ReduceFunctor<E, E> reducer;
     private final ValueStorage<E> storage;
+    private final SingleValueContext<E> context = new SingleValueContext<>();
 
     CombiningReduceState(StorageProvider storageProvider,
-                         CombinableReduceFunction<E> reducer) {
+                         ReduceFunctor<E, E> reducer) {
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -379,7 +456,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       if (v == null) {
         this.storage.set(element);
       } else {
-        this.storage.set(this.reducer.apply(Arrays.asList(v, element)));
+        this.reducer.apply(Arrays.asList(v, element), context);
+        this.storage.set(context.getValue());
       }
     }
 
@@ -404,9 +482,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     static final class Factory<IN, OUT>
             implements StateFactory<IN, OUT, NonCombiningReduceState<IN, OUT>> {
-      private final ReduceFunction<IN, OUT> r;
+      private final ReduceFunctor<IN, OUT> r;
 
-      Factory(ReduceFunction<IN, OUT> r) {
+      Factory(ReduceFunctor<IN, OUT> r) {
         this.r = Objects.requireNonNull(r);
       }
 
@@ -421,11 +499,11 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private static final ListStorageDescriptor STORAGE_DESC =
             ListStorageDescriptor.of("values", (Class) Object.class);
 
-    private final ReduceFunction<IN, OUT> reducer;
+    private final ReduceFunctor<IN, OUT> reducer;
     private final ListStorage<IN> reducibleValues;
 
     NonCombiningReduceState(StorageProvider storageProvider,
-                            ReduceFunction<IN, OUT> reducer) {
+                            ReduceFunctor<IN, OUT> reducer) {
       this.reducer = Objects.requireNonNull(reducer);
 
       @SuppressWarnings("unchecked")
@@ -440,7 +518,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     @Override
     public void flush(Context<OUT> ctx) {
-      ctx.collect(reducer.apply(reducibleValues.get()));
+      reducer.apply(reducibleValues.get(), ctx);
     }
 
     @Override
