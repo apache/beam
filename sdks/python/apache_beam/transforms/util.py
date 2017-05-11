@@ -20,14 +20,10 @@
 
 from __future__ import absolute_import
 
-from apache_beam import pvalue
-from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
-from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
-from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 
