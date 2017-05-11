@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -24,6 +25,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
@@ -87,7 +89,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         return ReduceByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> e)
-            .reduceBy(Sets::newHashSet)
+            .reduceBy((ReduceFunction<Integer, HashSet<Integer>>) Sets::newHashSet)
             .windowBy(Count.of(3))
             .output();
       }
@@ -123,6 +125,64 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
     });
   }
+
+  /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
+  @Test
+  public void testReductionType0MultiValues() {
+    execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
+      @Override
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(asList(1, 2, 3, 4, 5, 6, 7, 9)).build();
+      }
+
+      @Override
+      protected Dataset<Pair<Integer, Integer>>
+      getOutput(Dataset<Integer> input) {
+        return ReduceByKey.of(input)
+            .keyBy(e -> e % 2)
+            .valueBy(e -> e)
+            .reduceBy((Iterable<Integer> in, Context<Integer> ctx) -> {
+              // start with seed based on window
+              int sum = 0;
+              for (Integer i : in) {
+                sum += i;
+                ctx.collect(sum);
+              }
+            })
+            .windowBy(Count.of(3))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(Partitions<Pair<Integer, Integer>> partitions) {
+        List<Pair<Integer, Integer>> ps = partitions.get(0);
+        HashMap<Integer, List<Integer>> byKey = new HashMap<>();
+        for (Pair<Integer, Integer> p : ps) {
+          List<Integer> xs = byKey.computeIfAbsent(p.getFirst(), k -> new ArrayList<>());
+          xs.add(p.getSecond());
+        }
+
+        assertEquals(2, byKey.size());
+
+        assertNotNull(byKey.get(0));
+        assertEquals(3, byKey.get(0).size());
+        assertEquals(Arrays.asList(2, 6, 12), byKey.get(0));
+
+        // ~ cannot make any assumption about the order of the elements in the windows
+        // (on batch) since we have no event-time order for the test data
+        assertNotNull(byKey.get(1));
+        assertEquals(
+            Sets.newHashSet(1, 4, 9, 7, 16),
+            byKey.get(1).stream().collect(Collectors.toSet()));
+      }
+    });
+  }
+
 
   @Test
   public void testEventTime() {
@@ -486,7 +546,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             ReduceByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
-                .reduceBy(Sets::newHashSet)
+                .reduceBy((ReduceFunction<String, HashSet<String>>) Sets::newHashSet)
                 .windowBy(Session.of(Duration.ofSeconds(5)))
                 .setNumPartitions(1)
                 .output();
