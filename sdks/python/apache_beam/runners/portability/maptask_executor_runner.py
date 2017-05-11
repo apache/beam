@@ -243,7 +243,7 @@ class MapTaskExecutorRunner(PipelineRunner):
         (label, write_sideinput_op))
     return output_buffer
 
-  def run_GroupByKeyOnly(self, transform_node):
+  def run__GroupByKeyOnly(self, transform_node):
     map_task_index, producer_index, output_index = self.outputs[
         transform_node.inputs[0]]
     grouped_element_coder = self._get_coder(transform_node.outputs[None],
