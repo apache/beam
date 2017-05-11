@@ -29,7 +29,6 @@ import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.schema.UnsupportedDataTypeException;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -50,25 +49,28 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
- * <p>
- * Since Beam does not fully supported global sort we are using {@link Top} to implement
- * the {@code Sort} algebra.
- *
- * The following types of ORDER BY are supported:
+ * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
+ * the {@code Sort} algebra. The following types of ORDER BY are supported:
  *
  *   <pre>{@code
  *     select * from t order by id desc limit 10;
  *     select * from t order by id desc limit 10, 5;
  *   }</pre>
  *
- *   but Order BY without a limit is NOT supported:
+ * <p>but Order BY without a limit is NOT supported:
  *
  *   <pre>{@code
  *     select * from t order by id desc
  *   }</pre>
  *
- * NOTE: Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into
- * the memory of a single machine.
+ * <h3>Constraints</h3>
+ * <ul>
+ *   <li>Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT`
+ *   must fit into the memory of a single machine.</li>
+ *   <li>Since `WINDOW`(HOP, TUMBLE, SESSION etc) is always associated with `GroupBy`,
+ *   it does not make much sense to use `ORDER BY` with `WINDOW`.
+ *   </li>
+ * </ul>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
@@ -116,11 +118,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  @Override public PCollection<BeamSQLRow> buildBeamPipeline(
+      BeamPipelineCreator planCreator) throws Exception {
     RelNode input = getInput();
-    BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
-
-    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
+    PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
+        .buildBeamPipeline(planCreator);
 
     BeamSQLRowComparator comparator = new BeamSQLRowComparator(fieldIndices, orientation,
         nullsFirst);
@@ -137,10 +139,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
 
     PCollection<BeamSQLRow> orderedStream = rawStream.apply(
         "flatten", Flatten.<BeamSQLRow>iterables());
-
-    planCreator.pushUpstream(orderedStream);
-
-    return planCreator.getPipeline();
+    return orderedStream;
   }
 
   private static class SubListFn<T> extends DoFn<List<T>, List<T>> {

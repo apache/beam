@@ -18,8 +18,6 @@
 
 package org.apache.beam.dsls.sql.rel;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -60,6 +58,7 @@ public class BeamSortRelTest {
   @Test
   public void testOrderBy_basic() throws Exception {
     prepare();
+
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
@@ -72,7 +71,6 @@ public class BeamSortRelTest {
             SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
-
             1L, 2, 1.0,
             1L, 1, 2.0,
             2L, 4, 3.0,
@@ -216,73 +214,5 @@ public class BeamSortRelTest {
     for (int i = 0; i < rows1.size(); i++) {
       Assert.assertEquals(rows1.get(i), rows2.get(i));
     }
-  }
-
-  @Test
-  public void testOrderBy_window() throws Exception {
-    runner.addTable("ORDER_DETAILS", MockedBeamSQLTable.of(
-        SqlTypeName.BIGINT, "order_id",
-        SqlTypeName.INTEGER, "site_id",
-        SqlTypeName.DOUBLE, "price",
-        SqlTypeName.TIMESTAMP, "order_time",
-
-        // 1 -> window1 -> size:4
-        1L, 2, 1.0, df("20170512 10:01:00"),
-        1L, 1, 2.0, df("20170512 10:02:00"),
-        1L, 4, 3.0, df("20170512 10:05:00"),
-        1L, 1, 4.0, df("20170512 10:07:00"),
-
-        // 1 -> window2 -> size:1
-        1L, 5, 5.0, df("20170512 10:11:00"),
-
-        // 1 -> window3 -> size:1
-        1L, 6, 6.0, df("20170512 10:21:00"),
-
-        // 1 -> window4 -> size:4
-        1L, 7, 7.0, df("20170512 10:32:00"),
-        1L, 8888, 8.0, df("20170512 10:33:00"),
-        1L, 999, 9.0, df("20170512 10:34:00"),
-        1L, 100, 10.0, df("20170512 10:35:00"),
-
-        // 2 -> window1 -> size:2
-        2L, 2, 1.0, df("20170512 10:01:00"),
-        2L, 1, 2.0, df("20170512 10:02:00"),
-
-        // 2 -> window2 -> size:3
-        2L, 4, 3.0, df("20170512 10:11:00"),
-        2L, 1, 4.0, df("20170512 10:12:00"),
-        2L, 5, 5.0, df("20170512 10:13:00"),
-
-        // 2 -> window3 -> size:5
-        2L, 6, 6.0, df("20170512 10:21:00"),
-        2L, 7, 7.0, df("20170512 10:22:00"),
-        2L, 8888, 8.0, df("20170512 10:23:00"),
-        2L, 999, 9.0, df("20170512 10:24:00"),
-        2L, 100, 10.0, df("20170512 10:25:00")
-    ));
-    runner.addTable("SUB_ORDER_RAM", subOrderRamTable);
-
-    String sql =
-        "INSERT INTO SUB_ORDER_RAM (order_id, price) "
-            + "SELECT order_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
-            + " GROUP BY order_id, TUMBLE(order_time, INTERVAL '10' MINUTE) "
-            + " ORDER BY order_id LIMIT 2";
-
-    runner.submitQuery(sql);
-
-    System.out.println();
-    System.out.println();
-    for (BeamSQLRow row : MockedBeamSQLTable.CONTENT) {
-      System.out.println(row.valueInString());
-    }
-  }
-
-  public static Date df(String input) {
-    try {
-      return new SimpleDateFormat("YYYYMMDD HH:mm:ss").parse(input);
-    } catch (ParseException e) {
-      e.printStackTrace();
-    }
-    return null;
   }
 }
