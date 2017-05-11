@@ -22,6 +22,9 @@ from apache_beam.options.pipeline_options import TestOptions, GoogleCloudOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 
 
+__all__ = ['TestDataflowRunner']
+
+
 class TestDataflowRunner(DataflowRunner):
   def run(self, pipeline):
     """Execute test pipeline and verify test matcher"""
