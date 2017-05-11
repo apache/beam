@@ -166,7 +166,8 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public long insertAll(
-      TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+      TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+      InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
       throws IOException, InterruptedException {
     synchronized (BigQueryIOTest.tables) {
       if (insertIdList != null) {

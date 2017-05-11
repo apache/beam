@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** PTransform that uses BigQuery batch-load jobs to write a PCollection to BigQuery. */
 class BatchLoads<DestinationT>
@@ -333,6 +334,7 @@ class BatchLoads<DestinationT>
                         dynamicDestinations))
                 .withSideInputs(writeTablesSideInputs));
 
-    return WriteResult.in(input.getPipeline());
+    PCollection<TableRow> empty = p.apply(Create.empty(TypeDescriptor.of(TableRow.class)));
+    return WriteResult.in(input.getPipeline(), empty);
   }
 }

@@ -318,7 +318,8 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4L),
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
-    fakeDatasetService.insertAll(tableReference, expected, null);
+    fakeDatasetService.insertAll(tableReference, expected, null,
+        InsertRetryPolicy.alwaysRetry(), null);
 
     Pipeline p = TestPipeline.create(bqOptions);
 
@@ -431,7 +432,8 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
         new TableRow().set("name", "c").set("number", 3L));
-    fakeDatasetService.insertAll(sometable.getTableReference(), records, null);
+    fakeDatasetService.insertAll(sometable.getTableReference(), records, null,
+        InsertRetryPolicy.alwaysRetry(), null);
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
@@ -1356,7 +1358,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
     datasetService.createDataset(table.getProjectId(), table.getDatasetId(), "", "");
     datasetService.createTable(new Table().setTableReference(table));
-    datasetService.insertAll(table, expected, null);
+    datasetService.insertAll(table, expected, null, InsertRetryPolicy.alwaysRetry(),
+        null);
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
     String stepUuid = "testStepUuid";
@@ -1396,7 +1399,8 @@ public class BigQueryIOTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER")))));
-    fakeDatasetService.insertAll(table, expected, null);
+    fakeDatasetService.insertAll(table, expected, null, InsertRetryPolicy.alwaysRetry(),
+        null);
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceInitSplit");
 
@@ -1991,7 +1995,8 @@ public class BigQueryIOTest implements Serializable {
         for (int k = 0; k < numRecordsPerTempTable; ++k) {
           rows.add(new TableRow().set("number", j * numTempTablesPerFinalTable + k));
         }
-        datasetService.insertAll(tempTable, rows, null);
+        datasetService.insertAll(tempTable, rows, null, InsertRetryPolicy.alwaysRetry(),
+            null);
         expectedRows.addAll(rows);
         tables.add(BigQueryHelpers.toJsonString(tempTable));
       }

@@ -35,6 +35,7 @@ public class StreamingInserts<DestinationT>
   private BigQueryServices bigQueryServices;
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private InsertRetryPolicy retryPolicy;
 
   /** Constructor. */
   StreamingInserts(CreateDisposition createDisposition,
@@ -42,10 +43,15 @@ public class StreamingInserts<DestinationT>
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = new BigQueryServicesImpl();
+    this.retryPolicy = InsertRetryPolicy.alwaysRetry();
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
+  }
+
+  void setInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+    this.retryPolicy = retryPolicy;
   }
 
   @Override
@@ -61,6 +67,9 @@ public class StreamingInserts<DestinationT>
             new CreateTables<DestinationT>(createDisposition, dynamicDestinations)
                 .withTestServices(bigQueryServices));
 
-    return writes.apply(new StreamingWriteTables().withTestServices(bigQueryServices));
+    StreamingWriteTables streamingWriteTables =
+        new StreamingWriteTables().withTestServices(bigQueryServices);
+    streamingWriteTables.setInsertRetryPolicy(retryPolicy);
+    return writes.apply(streamingWriteTables);
   }
 }

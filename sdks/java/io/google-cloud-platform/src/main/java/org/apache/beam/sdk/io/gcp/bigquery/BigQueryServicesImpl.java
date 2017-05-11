@@ -657,7 +657,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @VisibleForTesting
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-        BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
+                   BackOff backoff, final Sleeper sleeper, InsertRetryPolicy retryPolicy,
+                   List<TableRow> failedInserts) throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -745,15 +746,20 @@ class BigQueryServicesImpl implements BigQueryServices {
             List<TableDataInsertAllResponse.InsertErrors> errors = futures.get(i).get();
             if (errors != null) {
               for (TableDataInsertAllResponse.InsertErrors error : errors) {
-                allErrors.add(error);
                 if (error.getIndex() == null) {
                   throw new IOException("Insert failed: " + allErrors);
                 }
 
                 int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
-                retryRows.add(rowsToPublish.get(errorIndex));
-                if (retryIds != null) {
-                  retryIds.add(idsToPublish.get(errorIndex));
+                boolean skipRetry = !retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
+                if (skipRetry) {
+                  failedInserts.add(rowsToPublish.get(errorIndex));
+                } else {
+                  allErrors.add(error);
+                  retryRows.add(rowsToPublish.get(errorIndex));
+                  if (retryIds != null) {
+                    retryIds.add(idsToPublish.get(errorIndex));
+                  }
                 }
               }
             }
@@ -793,13 +799,14 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+        InsertRetryPolicy retryPolicy, List<TableRow> failedInserts)
         throws IOException, InterruptedException {
       return insertAll(
           ref, rowList, insertIdList,
           BackOffAdapter.toGcpBackOff(
               INSERT_BACKOFF_FACTORY.backoff()),
-          Sleeper.DEFAULT);
+          Sleeper.DEFAULT, retryPolicy, failedInserts);
     }
 
 

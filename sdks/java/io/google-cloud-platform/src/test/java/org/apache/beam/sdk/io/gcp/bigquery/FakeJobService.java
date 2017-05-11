@@ -308,7 +308,8 @@ class FakeJobService implements JobService, Serializable {
     for (ResourceId filename : sourceFiles) {
       rows.addAll(readRows(filename.toString()));
     }
-    datasetService.insertAll(destination, rows, null);
+    datasetService.insertAll(destination, rows, null, InsertRetryPolicy.alwaysRetry(),
+        null);
     return new JobStatus().setState("DONE");
   }
 
@@ -329,7 +330,8 @@ class FakeJobService implements JobService, Serializable {
           source.getProjectId(), source.getDatasetId(), source.getTableId()));
     }
     datasetService.createTable(new Table().setTableReference(destination));
-    datasetService.insertAll(destination, allRows, null);
+    datasetService.insertAll(destination, allRows, null, InsertRetryPolicy.alwaysRetry(),
+        null);
     return new JobStatus().setState("DONE");
   }
 
@@ -353,7 +355,8 @@ class FakeJobService implements JobService, Serializable {
       throws IOException, InterruptedException  {
     List<TableRow> rows = FakeBigQueryServices.rowsFromEncodedQuery(query.getQuery());
     datasetService.createTable(new Table().setTableReference(query.getDestinationTable()));
-    datasetService.insertAll(query.getDestinationTable(), rows, null);
+    datasetService.insertAll(query.getDestinationTable(), rows, null,
+        InsertRetryPolicy.alwaysRetry(), null);
     return new JobStatus().setState("DONE");
   }
 

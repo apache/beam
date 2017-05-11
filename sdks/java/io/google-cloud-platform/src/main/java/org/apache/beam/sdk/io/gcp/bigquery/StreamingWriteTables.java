@@ -28,6 +28,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 /**
  * This transform takes in key-value pairs of {@link TableRow} entries and the
@@ -40,6 +43,7 @@ import org.apache.beam.sdk.values.PCollection;
 public class StreamingWriteTables extends PTransform<
     PCollection<KV<TableDestination, TableRow>>, WriteResult> {
   private BigQueryServices bigQueryServices;
+  private InsertRetryPolicy retryPolicy;
 
   public StreamingWriteTables() {
     this(new BigQueryServicesImpl());
@@ -47,10 +51,15 @@ public class StreamingWriteTables extends PTransform<
 
   private StreamingWriteTables(BigQueryServices bigQueryServices) {
     this.bigQueryServices = bigQueryServices;
+    this.retryPolicy = InsertRetryPolicy.alwaysRetry();
   }
 
   StreamingWriteTables withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingWriteTables(bigQueryServices);
+  }
+
+  void setInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+    this.retryPolicy = retryPolicy;
   }
 
   @Override
@@ -77,7 +86,9 @@ public class StreamingWriteTables extends PTransform<
     // different unique ids, this implementation relies on "checkpointing", which is
     // achieved as a side effect of having StreamingWriteFn immediately follow a GBK,
     // performed by Reshuffle.
-    tagged
+    TupleTag<Void> mainOutput = new TupleTag<Void>() {};
+    TupleTag<TableRow> failedOutput = new TupleTag<TableRow>() {};
+    PCollectionTuple tuple = tagged
         .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
         .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
         // Put in the global window to ensure that DynamicDestinations side inputs are accessed
@@ -87,7 +98,8 @@ public class StreamingWriteTables extends PTransform<
             .triggering(DefaultTrigger.of()).discardingFiredPanes())
         .apply("StreamingWrite",
             ParDo.of(
-                new StreamingWriteFn(bigQueryServices)));
-    return WriteResult.in(input.getPipeline());
+                new StreamingWriteFn(bigQueryServices, retryPolicy, failedOutput))
+            .withOutputTags(mainOutput, TupleTagList.of(failedOutput)));
+    return WriteResult.in(input.getPipeline(), tuple.get(failedOutput));
   }
 }

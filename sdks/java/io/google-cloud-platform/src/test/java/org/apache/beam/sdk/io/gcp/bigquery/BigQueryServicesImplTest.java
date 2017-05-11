@@ -505,7 +505,8 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(ref, rows, null,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(), null);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -542,7 +543,8 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(ref, rows, insertIds,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(), null);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -584,7 +586,8 @@ public class BigQueryServicesImplTest {
     // Expect it to fail.
     try {
       dataService.insertAll(ref, rows, null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(), null);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -625,7 +628,8 @@ public class BigQueryServicesImplTest {
 
     try {
       dataService.insertAll(ref, rows, null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(), null);
       fail();
     } catch (RuntimeException e) {
       verify(response, times(1)).getStatusCode();
