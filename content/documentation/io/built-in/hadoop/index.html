@@ -219,7 +219,7 @@
 
 <h4 id="read-data-with-configuration-and-key-translation">Read data with configuration and key translation</h4>
 
-<p>For example scenario: Beam <code class="highlighter-rouge">Coder</code> is not available for key class hence key translation is required.</p>
+<p>For example, a Beam <code class="highlighter-rouge">Coder</code> is not available for <code class="highlighter-rouge">Key</code> class, so key translation is required.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
   <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">MyKeyClass</span><span class="o">,</span> <span class="n">InputFormatKeyClass</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
@@ -234,7 +234,7 @@
 
 <h4 id="read-data-with-configuration-and-value-translation">Read data with configuration and value translation</h4>
 
-<p>For example scenario: Beam <code class="highlighter-rouge">Coder</code> is not available for value class hence value translation is required.</p>
+<p>For example, a Beam <code class="highlighter-rouge">Coder</code> is not available for <code class="highlighter-rouge">Value</code> class, so value translation is required.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
   <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">InputFormatKeyClass</span><span class="o">,</span> <span class="n">MyValueClass</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
@@ -249,7 +249,7 @@
 
 <h4 id="read-data-with-configuration-value-translation-and-key-translation">Read data with configuration, value translation and key translation</h4>
 
-<p>For example scenario: Beam Coders are not available for both <code class="highlighter-rouge">Key</code> class and <code class="highlighter-rouge">Value</code> class of <code class="highlighter-rouge">InputFormat</code> hence key and value translation is required.</p>
+<p>For example, Beam Coders are not available for both <code class="highlighter-rouge">Key</code> class and <code class="highlighter-rouge">Value</code> classes of <code class="highlighter-rouge">InputFormat</code>, so key and value translation are required.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"read"</span><span class="o">,</span>
   <span class="n">HadoopInputFormatIO</span><span class="o">.&lt;</span><span class="n">MyKeyClass</span><span class="o">,</span> <span class="n">MyValueClass</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()</span>
