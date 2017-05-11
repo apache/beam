@@ -1,9 +1,9 @@
 package org.apache.beam.dsls.sql.interpreter.operator.functions;
 
+import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.util.List;
 
 /**
  * Base class for all unary functions.
@@ -27,12 +27,12 @@ public abstract class BeamSqlFunctionUnaryExpression extends BeamSqlExpression {
   }
 
   /**
-   * For the operands of type {@link SqlTypeName#INT_TYPES}
+   * For the operands of type {@link SqlTypeName#INT_TYPES}.
    * */
   public abstract Long calculate(Long leftOp, Long rightOp);
 
   /**
-   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}
+   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}.
    * */
   public abstract Double calculate(Double leftOp, Double rightOp);
 }

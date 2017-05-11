@@ -1,11 +1,11 @@
 package org.apache.beam.dsls.sql.interpreter.operator.functions;
 
+import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.util.List;
 
 /**
  * Base class for all binary functions.
@@ -50,12 +50,12 @@ public abstract class BeamSqlFunctionBinaryExpression extends BeamSqlExpression 
   }
 
   /**
-   * For the operands of type {@link SqlTypeName#INT_TYPES}
+   * For the operands of type {@link SqlTypeName#INT_TYPES}.
    * */
   public abstract Long calculate(Long leftOp, Long rightOp);
 
   /**
-   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}
+   * For the operands of other type {@link SqlTypeName#NUMERIC_TYPES}.
    * */
   public abstract Double calculate(Number leftOp, Number rightOp);
 }

@@ -1,9 +1,9 @@
 package org.apache.beam.dsls.sql.interpreter.operator.functions;
 
+import java.util.List;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.runtime.SqlFunctions;
 
-import java.util.List;
 
 /**
  * {@code BeamSqlFunctionBinaryExpression} for 'POWER' function.
@@ -15,7 +15,7 @@ public class BeamSqlPowerExpression extends BeamSqlFunctionBinaryExpression {
   }
 
   @Override public Long calculate(Long leftOp, Long rightOp) {
-    return (long)SqlFunctions.power(leftOp, rightOp);
+    return (long) SqlFunctions.power(leftOp, rightOp);
   }
 
   @Override public Double calculate(Number leftOp, Number rightOp) {
