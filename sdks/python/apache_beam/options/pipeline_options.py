@@ -36,7 +36,6 @@ __all__ = [
     'ProfilingOptions',
     'SetupOptions',
     'TestOptions',
-    'OptionsContext',
     ]
 
 
