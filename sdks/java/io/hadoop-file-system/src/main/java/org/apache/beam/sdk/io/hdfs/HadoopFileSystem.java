@@ -21,7 +21,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
@@ -82,8 +81,9 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
         List<Metadata> metadata = new ArrayList<>();
         for (FileStatus fileStatus : fileStatuses) {
           if (fileStatus.isFile()) {
+            URI uri = dropEmptyAuthority(fileStatus.getPath().toUri().toString());
             metadata.add(Metadata.builder()
-                .setResourceId(new HadoopResourceId(fileStatus.getPath().toUri()))
+                .setResourceId(new HadoopResourceId(uri))
                 .setIsReadSeekEfficient(true)
                 .setSizeBytes(fileStatus.getLen())
                 .build());
@@ -151,19 +151,13 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
 
   @Override
   protected HadoopResourceId matchNewResource(String singleResourceSpec, boolean isDirectory) {
-    try {
-      if (singleResourceSpec.endsWith("/") && !isDirectory) {
-        throw new IllegalArgumentException(String.format(
-            "Expected file path but received directory path %s", singleResourceSpec));
-      }
-      return !singleResourceSpec.endsWith("/") && isDirectory
-          ? new HadoopResourceId(new URI(singleResourceSpec + "/"))
-          : new HadoopResourceId(new URI(singleResourceSpec));
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(
-          String.format("Invalid spec %s directory %s", singleResourceSpec, isDirectory),
-          e);
+    if (singleResourceSpec.endsWith("/") && !isDirectory) {
+      throw new IllegalArgumentException(String.format(
+          "Expected file path but received directory path %s", singleResourceSpec));
     }
+    return !singleResourceSpec.endsWith("/") && isDirectory
+        ? new HadoopResourceId(dropEmptyAuthority(singleResourceSpec + "/"))
+        : new HadoopResourceId(dropEmptyAuthority(singleResourceSpec));
   }
 
   @Override
@@ -235,6 +229,16 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     public void close() throws IOException {
       closed = true;
       inputStream.close();
+    }
+  }
+
+  private static URI dropEmptyAuthority(String uriStr) {
+    URI uri = URI.create(uriStr);
+    String prefix = uri.getScheme() + ":///";
+    if (uriStr.startsWith(prefix)) {
+      return URI.create(uri.getScheme() + ":/" + uriStr.substring(prefix.length()));
+    } else {
+      return uri;
     }
   }
 }
