@@ -191,7 +191,7 @@ public static void main(String[] args) {
 
     // Create the PCollection 'lines' by applying a 'Read' transform.
     PCollection<String> lines = p.apply(
-      "ReadMyFile", TextIO.Read.from("protocol://path/to/some/inputData.txt"));
+      "ReadMyFile", TextIO.read().from("protocol://path/to/some/inputData.txt"));
 }
 ```
 
@@ -479,8 +479,8 @@ PCollection<String> words = ...;
 // Apply a MapElements with an anonymous lambda function to the PCollection words.
 // Save the result as the PCollection wordLengths.
 PCollection<Integer> wordLengths = words.apply(
-  MapElements.via((String word) -> word.length())
-      .withOutputType(new TypeDescriptor<Integer>() {});
+  MapElements.into(TypeDescriptors.integers())
+             .via((String word) -> word.length()));
 ```
 
 ```py
@@ -862,16 +862,18 @@ Side inputs are useful if your `ParDo` needs to inject additional data when proc
 
   // Apply a ParDo that takes maxWordLengthCutOffView as a side input.
   PCollection<String> wordsBelowCutOff =
-  words.apply(ParDo.withSideInputs(maxWordLengthCutOffView)
-                    .of(new DoFn<String, String>() {
-      public void processElement(ProcessContext c) {
-        String word = c.element();
-        // In our DoFn, access the side input.
-        int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
-        if (word.length() <= lengthCutOff) {
-          c.output(word);
-        }
-  }}));
+  words.apply(ParDo
+      .of(new DoFn<String, String>() {
+          public void processElement(ProcessContext c) {
+            String word = c.element();
+            // In our DoFn, access the side input.
+            int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
+            if (word.length() <= lengthCutOff) {
+              c.output(word);
+            }
+          }
+      }).withSideInputs(maxWordLengthCutOffView)
+  );
 ```
 
 ```py
@@ -943,17 +945,16 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
 // to our ParDo. Note that all of the outputs (including the main output PCollection) are bundled into the returned PCollectionTuple.
 
   PCollectionTuple results =
-      words.apply(
-          ParDo
+      words.apply(ParDo
+          .of(new DoFn<String, String>() {
+            // DoFn continues here.
+            ...
+          })
           // Specify the tag for the main output.
           .withOutputTags(wordsBelowCutOffTag,
           // Specify the tags for the two additional outputs as a TupleTagList.
                           TupleTagList.of(wordLengthsAboveCutOffTag)
-                                      .and(markedWordsTag))
-          .of(new DoFn<String, String>() {
-            // DoFn continues here.
-            ...
-          }
+                                      .and(markedWordsTag)));
 ```
 
 ```py
@@ -1114,7 +1115,7 @@ Read transforms read data from an external source and return a `PCollection` rep
 #### Using a read transform:
 
 ```java
-PCollection<String> lines = p.apply(TextIO.Read.from("gs://some/inputData.txt"));
+PCollection<String> lines = p.apply(TextIO.read().from("gs://some/inputData.txt"));
 ```
 
 ```py
@@ -1128,7 +1129,7 @@ Write transforms write the data in a `PCollection` to an external data source. Y
 #### Using a Write transform:
 
 ```java
-output.apply(TextIO.Write.to("gs://some/outputData"));
+output.apply(TextIO.write().to("gs://some/outputData"));
 ```
 
 ```py
@@ -1143,7 +1144,7 @@ Many read transforms support reading from multiple input files matching a glob o
 
 ```java
 p.apply(“ReadFromText”,
-    TextIO.Read.from("protocol://my_bucket/path/to/input-*.csv");
+    TextIO.read().from("protocol://my_bucket/path/to/input-*.csv");
 ```
 
 ```py
@@ -1161,7 +1162,7 @@ The following write transform example writes multiple output files to a location
 
 ```java
 records.apply("WriteToText",
-    TextIO.Write.to("protocol://my_bucket/path/to/numbers")
+    TextIO.write().to("protocol://my_bucket/path/to/numbers")
                 .withSuffix(".csv"));
 ```
 
@@ -1563,7 +1564,7 @@ You can allow late data by invoking the `.withAllowedLateness` operation when yo
               .withAllowedLateness(Duration.standardDays(2)));
 ```
 
-When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness propagates forward to any subsequent `PCollection` derived from the first `PCollection` you applied allowed lateness to. If you want to change the allowed lateness later in your pipeline, you must do so explictly by applying `Window.withAllowedLateness()` again.
+When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness propagates forward to any subsequent `PCollection` derived from the first `PCollection` you applied allowed lateness to. If you want to change the allowed lateness later in your pipeline, you must do so explictly by applying `Window.configure().withAllowedLateness()`.
 
 
 ### Adding timestamps to a PCollection's elements
@@ -1737,7 +1738,7 @@ You set the allowed lateness by using `.withAllowedLateness()` when you set your
   # The Beam SDK for Python does not support triggers.
 ```
 
-This allowed lateness propagates to all `PCollection`s derived as a result of applying transforms to the original `PCollection`. If you want to change the allowed lateness later in your pipeline, you can apply `Window.withAllowedLateness()` again, explicitly.
+This allowed lateness propagates to all `PCollection`s derived as a result of applying transforms to the original `PCollection`. If you want to change the allowed lateness later in your pipeline, you can apply `Window.configure().withAllowedLateness()` again, explicitly.
 
 
 ### <a name="composite-triggers"></a>Composite Triggers
@@ -1770,6 +1771,7 @@ You can express this pattern using `AfterWatermark.pastEndOfWindow`. For example
 
 ```java
   .apply(Window
+      .configure()
       .triggering(AfterWatermark
            .pastEndOfWindow()
            .withLateFirings(AfterProcessingTime

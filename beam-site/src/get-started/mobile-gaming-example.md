@@ -107,9 +107,9 @@ public static class ExtractAndSumScore
 
     return gameInfo
       .apply(MapElements
-          .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore()))
-          .withOutputType(
-              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers())))
+          .into(
+              TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+          .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore())))
       .apply(Sum.<String>integersPerKey());
   }
 }
@@ -148,7 +148,7 @@ public static void main(String[] args) throws Exception {
   Pipeline pipeline = Pipeline.create(options);
 
   // Read events from a text file and parse them.
-  pipeline.apply(TextIO.Read.from(options.getInput()))
+  pipeline.apply(TextIO.read().from(options.getInput()))
     .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
     // Extract and sum username/score pairs from the event data.
     .apply("ExtractUserScore", new ExtractAndSumScore("user"))
@@ -314,7 +314,7 @@ public static void main(String[] args) throws Exception {
   final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
 
   // Read 'gaming' events from a text file.
-  pipeline.apply(TextIO.Read.from(options.getInput()))
+  pipeline.apply(TextIO.read().from(options.getInput()))
     // Parse the incoming data.
     .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
@@ -601,8 +601,6 @@ public static class CalculateSpammyUsers
     // Filter the user sums using the global mean.
     PCollection<KV<String, Integer>> filtered = sumScores
         .apply("ProcessAndFilter", ParDo
-            // use the derived mean total score as a side input
-            .withSideInputs(globalMeanScore)
             .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
               private final Aggregator<Long, Long> numSpammerUsers =
                 createAggregator("SpammerUsers", new Sum.SumLongFn());
@@ -617,7 +615,9 @@ public static class CalculateSpammyUsers
                   c.output(c.element());
                 }
               }
-            }));
+            })
+            // use the derived mean total score as a side input
+            .withSideInputs(globalMeanScore));
     return filtered;
   }
 }
@@ -635,7 +635,6 @@ rawEvents
       FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
   // Filter out the detected spammer users, using the side input derived above.
   .apply("FilterOutSpammers", ParDo
-          .withSideInputs(spammersView)
           .of(new DoFn<GameActionInfo, GameActionInfo>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
@@ -644,7 +643,8 @@ rawEvents
                 c.output(c.element());
               }
             }
-          }))
+          })
+          .withSideInputs(spammersView))
   // Extract and sum teamname/score pairs from the event data.
   .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
 ```
