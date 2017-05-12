@@ -81,8 +81,8 @@ def retry_on_io_error_and_server_error(exception):
 class FileChecksumMatcher(BaseMatcher):
   """Matcher that verifies file(s) content by comparing file checksum.
 
-  Use apache_beam.io.fileio to fetch file(s) from given path. File checksum
-  is a hash string computed from content of file(s).
+  Use apache_beam.io.filebasedsink to fetch file(s) from given path.
+  File checksum is a hash string computed from content of file(s).
   """
 
   def __init__(self, file_path, expected_checksum, sleep_secs=None):

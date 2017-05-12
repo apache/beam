@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""File-based sources and sinks."""
+"""File-based sink."""
 
 from __future__ import absolute_import
 
@@ -40,7 +40,7 @@ DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 __all__ = ['FileBasedSink']
 
 
-class FileSink(iobase.Sink):
+class FileBasedSink(iobase.Sink):
   """A sink to a GCS or local files.
 
   To implement a file-based sink, extend this class and override
@@ -171,7 +171,7 @@ class FileSink(iobase.Sink):
     file_name_suffix = self.file_name_suffix.get()
     suffix = (
         '.' + os.path.basename(file_path_prefix) + file_name_suffix)
-    return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
+    return FileBasedSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
   def finalize_write(self, init_result, writer_results):
@@ -179,7 +179,7 @@ class FileSink(iobase.Sink):
     file_name_suffix = self.file_name_suffix.get()
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
-    min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
+    min_threads = min(num_shards, FileBasedSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
 
     source_files = []
@@ -282,13 +282,8 @@ class FileSink(iobase.Sink):
     return type(self) == type(other) and self.__dict__ == other.__dict__
 
 
-# Using FileBasedSink for the public API to be symmetric with FileBasedSource.
-# TODO: move code from FileSink to here and delete that class.
-FileBasedSink = FileSink
-
-
-class FileSinkWriter(iobase.Writer):
-  """The writer for FileSink.
+class FileBasedSinkWriter(iobase.Writer):
+  """The writer for FileBasedSink.
   """
 
   def __init__(self, sink, temp_shard_path):

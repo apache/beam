@@ -27,7 +27,7 @@ from avro import schema
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
@@ -335,7 +335,7 @@ class WriteToAvro(beam.transforms.PTransform):
     return {'sink_dd': self._sink}
 
 
-class _AvroSink(fileio.FileSink):
+class _AvroSink(filebasedsink.FileBasedSink):
   """A sink to avro files."""
 
   def __init__(self,

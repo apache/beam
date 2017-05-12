@@ -23,7 +23,7 @@ import struct
 
 from apache_beam import coders
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -210,7 +210,7 @@ class ReadFromTFRecord(PTransform):
     return pvalue.pipeline | Read(self._source)
 
 
-class _TFRecordSink(fileio.FileSink):
+class _TFRecordSink(filebasedsink.FileBasedSink):
   """Sink for writing TFRecords files.
 
   For detailed TFRecord format description see:
@@ -242,7 +242,7 @@ class WriteToTFRecord(PTransform):
                coder=coders.BytesCoder(),
                file_name_suffix='',
                num_shards=0,
-               shard_name_template=fileio.DEFAULT_SHARD_NAME_TEMPLATE,
+               shard_name_template=filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE,
                compression_type=CompressionTypes.AUTO,
                **kwargs):
     """Initialize WriteToTFRecord transform.
