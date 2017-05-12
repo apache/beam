@@ -144,7 +144,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline p = Pipeline.create(options);
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
      .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));

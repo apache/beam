@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.net.URI;
 import java.util.Objects;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.hadoop.fs.Path;
 
@@ -35,7 +38,18 @@ class HadoopResourceId implements ResourceId {
 
   @Override
   public ResourceId resolve(String other, ResolveOptions resolveOptions) {
-    return new HadoopResourceId(uri.resolve(other));
+    if (resolveOptions == StandardResolveOptions.RESOLVE_DIRECTORY) {
+      if (!other.endsWith("/")) {
+        other += '/';
+      }
+      return new HadoopResourceId(uri.resolve(other));
+    } else if (resolveOptions == StandardResolveOptions.RESOLVE_FILE) {
+      checkArgument(!other.endsWith("/"), "Resolving a file with a directory path: %s", other);
+      return new HadoopResourceId(uri.resolve(other));
+    } else {
+      throw new UnsupportedOperationException(
+          String.format("Unexpected StandardResolveOptions %s", resolveOptions));
+    }
   }
 
   @Override

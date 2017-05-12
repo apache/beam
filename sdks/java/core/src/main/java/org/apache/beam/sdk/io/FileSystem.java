@@ -23,6 +23,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Collection;
 import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -35,6 +37,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
  * <p>All methods are protected, and they are for file system providers to implement.
  * Clients should use {@link FileSystems} utility.
  */
+@Experimental(Kind.FILESYSTEM)
 public abstract class FileSystem<ResourceIdT extends ResourceId> {
   /**
    * This is the entry point to convert user-provided specs to {@link ResourceIdT ResourceIds}.

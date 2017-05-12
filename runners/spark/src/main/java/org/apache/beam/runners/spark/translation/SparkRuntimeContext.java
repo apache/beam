@@ -90,7 +90,7 @@ public class SparkRuntimeContext implements Serializable {
           }
         }
         // Register standard FileSystems.
-        FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+        FileSystems.setDefaultPipelineOptions(pipelineOptions);
       }
       return pipelineOptions;
     }
