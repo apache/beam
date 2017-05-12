@@ -18,16 +18,12 @@
 package com.alibaba.jstorm.beam.translation.runtime;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import avro.shaded.com.google.common.base.Joiner;
 import avro.shaded.com.google.common.collect.Sets;
+import backtype.storm.tuple.ITupleExt;
+import backtype.storm.tuple.TupleImplExt;
 import com.alibaba.jstorm.beam.translation.util.CommonInstance;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
@@ -35,6 +31,7 @@ import com.alibaba.jstorm.cluster.Common;
 import com.alibaba.jstorm.window.Watermark;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Maps;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -58,10 +55,11 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
     protected TimerService timerService;
 
     // map from input tag to executor inside bolt
-    protected final Map<TupleTag, Executor> inputTagToExecutor = new HashMap<>();
+    protected final Map<TupleTag, Executor> inputTagToExecutor = Maps.newHashMap();
     // set of all output tags that will be emit outside bolt
-    protected final Set<TupleTag> outputTags = new HashSet<>();
-    protected final Set<TupleTag> externalOutputTags = new HashSet<>();
+    protected final Set<TupleTag> outputTags = Sets.newHashSet();
+    protected final Set<TupleTag> externalOutputTags = Sets.newHashSet();
+    protected final Set<DoFnExecutor> doFnExecutors = Sets.newHashSet();
 
     protected OutputCollector collector;
 
@@ -120,6 +118,9 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
             // init all internal executors
             for (Executor executor : Sets.newHashSet(inputTagToExecutor.values())) {
                 executor.init(executorContext);
+                if (executor instanceof DoFnExecutor) {
+                    doFnExecutors.add((DoFnExecutor) executor);
+                }
             }
 
             LOG.info("ExecutorsBolt finished init. LocalExecutors={}", inputTagToExecutor.values());
@@ -153,16 +154,27 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
 
     @Override
     public void execute(Tuple input) {
-        if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(input.getSourceStreamId())) {
-            processWatermark(input);
+        // process a batch
+        LOG.debug("ProcessElement: input=" + input);
+        String streamId = input.getSourceStreamId();
+        ITupleExt tuple = (ITupleExt) input;
+        Iterator<List<Object>> valueIterator = tuple.valueIterator();
+        if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(streamId)) {
+            while(valueIterator.hasNext()) {
+                processWatermark((Watermark) valueIterator.next().get(0), input.getSourceTask());
+            }
         } else {
-            processElement(input);
+            doFnStartBundle();
+            while(valueIterator.hasNext()) {
+                processElement(valueIterator.next(), streamId);
+            }
+            doFnFinishBundle();
         }
     }
 
-    private void processWatermark(Tuple input) {
-        long watermark = ((Watermark) input.getValue(0)).getTimestamp();
-        timerService.updateInputWatermark(input.getSourceTask(), watermark);
+    private void processWatermark(Watermark watermark, int sourceTask) {
+        long watermarkTs = watermark.getTimestamp();
+        timerService.updateInputWatermark(sourceTask, watermarkTs);
 
         if (!externalOutputTags.isEmpty()) {
             collector.flush();
@@ -172,10 +184,9 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
         }
     }
 
-    private void processElement(Tuple input) {
-        LOG.debug("ProcessElement: input=" + input);
-        TupleTag inputTag = new TupleTag(input.getSourceStreamId());
-        WindowedValue windowedValue = retrieveWindowedValueFromTuple(input);
+    private void processElement(List<Object> values, String streamId) {
+        TupleTag inputTag = new TupleTag(streamId);
+        WindowedValue windowedValue = retrieveWindowedValueFromTupleValue(values);
         processExecutorElem(inputTag, windowedValue);
     }
 
@@ -215,14 +226,14 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
         timerService = service;
     }
 
-    private WindowedValue retrieveWindowedValueFromTuple(Tuple tuple) {
+    private WindowedValue retrieveWindowedValueFromTupleValue(List<Object> values) {
         WindowedValue wv = null;
-        if (tuple.getValues().size() > 1) {
-            Object key = tuple.getValue(0);
-            WindowedValue value = (WindowedValue) tuple.getValue(1);
+        if (values.size() > 1) {
+            Object key = values.get(0);
+            WindowedValue value = (WindowedValue) values.get(1);
             wv = value.withValue(KV.of(key, value.getValue()));
         } else {
-            wv = (WindowedValue) tuple.getValue(0);
+            wv = (WindowedValue) values.get(0);
         }
         return wv;
     }
@@ -239,6 +250,18 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
             }
         } else
             collector.emit(outputTag.getId(), new Values(outputValue));
+    }
+
+    private void doFnStartBundle() {
+        for (DoFnExecutor doFnExecutor : doFnExecutors) {
+            doFnExecutor.getRunner().startBundle();
+        }
+    }
+
+    private void doFnFinishBundle() {
+        for (DoFnExecutor doFnExecutor : doFnExecutors) {
+            doFnExecutor.getRunner().finishBundle();
+        }
     }
 
     @Override

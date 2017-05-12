@@ -31,7 +31,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <jstorm.core.version>2.3.1-SNAPSHOT</jstorm.core.version>
+    <jstorm.core.version>2.4.0-SNAPSHOT</jstorm.core.version>
   </properties>
 
   <profiles>
