@@ -31,7 +31,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
@@ -75,7 +74,6 @@ public class BeamTextCSVTableTest {
       add(buildRow(data));
     }
   }};
-  private static ConcurrentLinkedQueue<Object[]> actualData = new ConcurrentLinkedQueue<>();
 
   private static Path tempFolder;
   private static File readerSourceFile;
