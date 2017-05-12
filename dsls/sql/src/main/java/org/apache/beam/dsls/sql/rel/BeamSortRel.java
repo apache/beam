@@ -69,7 +69,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  * NOTE: Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into
  * the memory of a single machine.
- * </p>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
@@ -127,17 +126,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         nullsFirst);
     // first find the top (offset + count)
     PCollection<List<BeamSQLRow>> rawStream =
-        upstream.apply("extractTopOffset_plus_Fetch",
+        upstream.apply("extractTopOffsetAndFetch",
             Top.of(startIndex + count, comparator).withoutDefaults());
 
     // strip the `leading offset`
     if (startIndex > 0) {
-      rawStream = rawStream.apply(ParDo.of(
+      rawStream = rawStream.apply("stripLeadingOffset", ParDo.of(
           new SubListFn<BeamSQLRow>(startIndex, startIndex + count)));
     }
 
     PCollection<BeamSQLRow> orderedStream = rawStream.apply(
-        "extractTopOffset_plus_Fetch__Flatten", Flatten.<BeamSQLRow>iterables());
+        "flatten", Flatten.<BeamSQLRow>iterables());
 
     planCreator.pushUpstream(orderedStream);
 
@@ -182,7 +181,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
         SqlTypeName fieldType = row1.getDataType().getFieldsType().get(fieldIndex);
-        // whether NULL should be ordered first or last depends on
+        // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         if (row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {
           continue;

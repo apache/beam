@@ -218,9 +218,6 @@ public class BeamSortRelTest {
     }
   }
 
-  // TODO add windowed ORDER BY test case.
-  // TODO add test for streaming table
-
   @Test
   public void testOrderBy_window() throws Exception {
     runner.addTable("ORDER_DETAILS", MockedBeamSQLTable.of(
