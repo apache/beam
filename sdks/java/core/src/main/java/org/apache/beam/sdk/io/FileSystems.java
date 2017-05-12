@@ -66,8 +66,8 @@ import org.apache.beam.sdk.values.KV;
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
-  private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
-      "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
+  private static final Pattern FILE_SCHEME_PATTERN =
+      Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
@@ -416,7 +416,7 @@ public class FileSystems {
     // from their use in the URI spec. ('*' is not reserved).
     // Here, we just need the scheme, which is so circumscribed as to be
     // very easy to extract with a regex.
-    Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
+    Matcher matcher = FILE_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
       return "file";
