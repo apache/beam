@@ -107,7 +107,7 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
-  private final TypeDescriptor<T> typeDescriptor;
+  private transient TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;
@@ -166,6 +166,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
   @Override
   public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    if (typeDescriptor == null) {
+      typeDescriptor = TypeDescriptor.of(type);
+    }
     return typeDescriptor;
   }
 
