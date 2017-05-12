@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import org.apache.flink.api.java.DataSet;
@@ -28,6 +29,16 @@ class FlatMapTranslator implements BatchOperatorTranslator<FlatMap> {
                               BatchExecutorContext context) {
     DataSet<?> input = context.getSingleInputStream(operator);
     UnaryFunctor mapper = operator.getOriginalOperator().getFunctor();
+    ExtractEventTime timeAssigner = operator.getOriginalOperator().getEventTimeExtractor();
+    if (timeAssigner != null) {
+      input = input.map(i -> {
+            BatchElement wel = (BatchElement) i;
+            wel.setTimestamp(timeAssigner.extractTimestamp(wel.getElement()));
+            return wel;
+          })
+          .returns((Class) BatchElement.class);
+    }
+
     return input
         .flatMap(new BatchUnaryFunctorWrapper(mapper))
         .returns((Class) BatchElement.class)
