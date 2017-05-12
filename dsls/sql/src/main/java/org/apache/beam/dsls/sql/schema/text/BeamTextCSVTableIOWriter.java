@@ -18,9 +18,9 @@
 
 package org.apache.beam.dsls.sql.schema.text;
 
-import java.io.IOException;
+import static org.apache.beam.dsls.sql.schema.BeamTableUtils.beamSQLRow2CsvLine;
+
 import java.io.Serializable;
-import java.io.StringWriter;
 
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
@@ -31,17 +31,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * IOWriter for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSQLRow>, PDone>
     implements Serializable {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamTextCSVTableIOWriter.class);
-
   private String filePattern;
   protected BeamSQLRecordType beamSqlRecordType;
   protected CSVFormat csvFormat;
@@ -58,18 +53,7 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamSQLRow>
 
       @ProcessElement public void processElement(ProcessContext ctx) {
         BeamSQLRow row = ctx.element();
-        StringWriter writer = new StringWriter();
-
-        try (CSVPrinter printer = csvFormat.print(writer)) {
-          for (int i = 0; i < row.size(); i++) {
-            printer.print(row.getFieldValue(i).toString());
-          }
-          printer.println();
-        } catch (IOException e) {
-          throw new IllegalArgumentException("Invalid filePattern: " + filePattern, e);
-        }
-
-        ctx.output(writer.toString());
+        ctx.output(beamSQLRow2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.Write.to(filePattern));
   }
