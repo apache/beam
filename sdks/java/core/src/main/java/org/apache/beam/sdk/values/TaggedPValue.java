@@ -21,11 +21,15 @@ package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
- * A (TupleTag, PValue) pair used in the expansion of a {@link PInput} or {@link POutput}.
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>A (TupleTag, PValue) pair used in the expansion of a {@link PInput} or {@link POutput}.
  */
 @AutoValue
+@Internal
 public abstract class TaggedPValue {
   public static TaggedPValue of(TupleTag<?> tag, PValue value) {
     return new AutoValue_TaggedPValue(tag, value);
