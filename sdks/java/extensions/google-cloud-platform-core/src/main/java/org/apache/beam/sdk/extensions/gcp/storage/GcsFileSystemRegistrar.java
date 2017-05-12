@@ -40,7 +40,7 @@ public class GcsFileSystemRegistrar implements FileSystemRegistrar {
   public Iterable<FileSystem> fromOptions(@Nonnull PipelineOptions options) {
     checkNotNull(
         options,
-        "Expect the runner have called FileSystems.setDefaultConfigInWorkers().");
+        "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
     return ImmutableList.<FileSystem>of(new GcsFileSystem(options.as(GcsOptions.class)));
   }
 }

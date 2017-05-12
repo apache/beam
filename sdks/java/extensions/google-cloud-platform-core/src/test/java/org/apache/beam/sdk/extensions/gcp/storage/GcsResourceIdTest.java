@@ -168,7 +168,7 @@ public class GcsResourceIdTest {
 
   @Test
   public void testResourceIdTester() throws Exception {
-    FileSystems.setDefaultConfigInWorkers(TestPipeline.testingPipelineOptions());
+    FileSystems.setDefaultPipelineOptions(TestPipeline.testingPipelineOptions());
     ResourceIdTester.runResourceIdBattery(toResourceIdentifier("gs://bucket/foo/"));
   }
 

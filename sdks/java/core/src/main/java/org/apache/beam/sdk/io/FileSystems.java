@@ -51,6 +51,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -448,12 +449,21 @@ public class FileSystems {
 
   /********************************** METHODS FOR REGISTRATION **********************************/
 
+  /** @deprecated to be removed. */
+  @Deprecated // for DataflowRunner backwards compatibility.
+  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+    setDefaultPipelineOptions(options);
+  }
+
   /**
    * Sets the default configuration in workers.
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
+   *
+   * <p>This is expected only to be used by runners after {@code Pipeline.run}, or in tests.
    */
-  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+  @Internal
+  public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options");
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
