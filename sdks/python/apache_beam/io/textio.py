@@ -262,7 +262,7 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
-class _TextSink(fileio.FileSink):
+class _TextSink(fileio.FileBasedSink):
   """A sink to a GCS or local text file or files."""
 
   def __init__(self,

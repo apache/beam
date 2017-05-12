@@ -210,7 +210,7 @@ class ReadFromTFRecord(PTransform):
     return pvalue.pipeline | Read(self._source)
 
 
-class _TFRecordSink(fileio.FileSink):
+class _TFRecordSink(fileio.FileBasedSink):
   """Sink for writing TFRecords files.
 
   For detailed TFRecord format description see:

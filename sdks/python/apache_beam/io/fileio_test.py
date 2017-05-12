@@ -70,12 +70,12 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
     return file_name
 
 
-class MyFileSink(fileio.FileSink):
+class MyFileBasedSink(fileio.FileBasedSink):
 
   def open(self, temp_path):
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileSink, self).open(temp_path)
-    file_handle = fileio.FileSink.open(self, temp_path)
+    # file_handle = super(MyFileBasedSink, self).open(temp_path)
+    file_handle = fileio.FileBasedSink.open(self, temp_path)
     file_handle.write('[start]')
     return file_handle
 
@@ -87,15 +87,15 @@ class MyFileSink(fileio.FileSink):
   def close(self, file_handle):
     file_handle.write('[end]')
     # TODO: Fix main session pickling.
-    # file_handle = super(MyFileSink, self).close(file_handle)
-    file_handle = fileio.FileSink.close(self, file_handle)
+    # file_handle = super(MyFileBasedSink, self).close(file_handle)
+    file_handle = fileio.FileBasedSink.close(self, file_handle)
 
 
-class TestFileSink(_TestCaseWithTempDirCleanUp):
+class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
 
   def test_file_sink_writing(self):
-    temp_path = os.path.join(self._new_tempdir(), 'filesink')
-    sink = MyFileSink(
+    temp_path = os.path.join(self._new_tempdir(), 'FileBasedSink')
+    sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
@@ -128,7 +128,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_file_sink_display_data(self):
     temp_path = os.path.join(self._new_tempdir(), 'display')
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
     dd = DisplayData.create_from(sink)
     expected_items = [
@@ -143,7 +143,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder()
     )
     p = TestPipeline()
@@ -155,7 +155,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def test_static_value_provider_empty_write(self):
     temp_path = StaticValueProvider(value_type=str,
                                     value=tempfile.NamedTemporaryFile().name)
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path,
         file_name_suffix=StaticValueProvider(value_type=str, value='.output'),
         coder=coders.ToStringCoder()
@@ -168,7 +168,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_fixed_shard_write(self):
     temp_path = os.path.join(self._new_tempdir(), 'empty')
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path,
         file_name_suffix='.output',
         num_shards=3,
@@ -189,7 +189,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
   def run_temp_dir_check(self, no_dir_path, dir_path, no_dir_root_path,
                          dir_root_path, prefix, separator):
     def _get_temp_dir(file_path_prefix):
-      sink = MyFileSink(
+      sink = MyFileBasedSink(
           file_path_prefix, file_name_suffix='.output',
           coder=coders.ToStringCoder())
       return sink.initialize_write()
@@ -241,7 +241,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_file_sink_multi_shards(self):
     temp_path = os.path.join(self._new_tempdir(), 'multishard')
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.
@@ -276,7 +276,7 @@ class TestFileSink(_TestCaseWithTempDirCleanUp):
 
   def test_file_sink_io_error(self):
     temp_path = os.path.join(self._new_tempdir(), 'ioerror')
-    sink = MyFileSink(
+    sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder())
 
     # Manually invoke the generic Sink API.

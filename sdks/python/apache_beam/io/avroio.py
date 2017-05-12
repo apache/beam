@@ -335,7 +335,7 @@ class WriteToAvro(beam.transforms.PTransform):
     return {'sink_dd': self._sink}
 
 
-class _AvroSink(fileio.FileSink):
+class _AvroSink(fileio.FileBasedSink):
   """A sink to avro files."""
 
   def __init__(self,
