@@ -21,11 +21,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
-import javax.annotation.Nullable;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function2;
@@ -52,8 +50,6 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     final JavaRDD<SparkElement> input = (JavaRDD<SparkElement>) context.getSingleInput(operator);
     @SuppressWarnings("unchecked")
     final UnaryFunction<Iterable<Object>, Object> reducer = operator.getReducer();
-    @SuppressWarnings("unchecked")
-    final ExtractEventTime<?> eventTimeAssigner = operator.getEventTimeAssigner();
 
     final Partitioning partitioning = operator.getPartitioning();
     final Windowing windowing =
@@ -73,8 +69,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 
     // ~ extract key/value + timestamp from input elements and assign windows
     JavaPairRDD<KeyedWindow, TimestampedElement> tuples = input.flatMapToPair(
-            new CompositeKeyExtractor(
-                    keyExtractor, valueExtractor, windowing, eventTimeAssigner));
+            new CompositeKeyExtractor(keyExtractor, valueExtractor, windowing));
 
     JavaPairRDD<KeyedWindow, TimestampedElement> reduced;
     if (partitioning.hasDefaultPartitioner()) {
@@ -107,26 +102,18 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     private final UnaryFunction keyExtractor;
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
-    @Nullable
-    private final ExtractEventTime eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
-                                 Windowing windowing,
-                                 @Nullable ExtractEventTime eventTimeAssigner) {
+                                 Windowing windowing) {
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, TimestampedElement>> call(SparkElement wel) throws Exception {
-      if (eventTimeAssigner != null) {
-        wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
-      }
-
       Iterable<Window> windows = windowing.assignWindowsToElement(wel);
       List<Tuple2<KeyedWindow, TimestampedElement>> out = new ArrayList<>();
       for (Window wid : windows) {

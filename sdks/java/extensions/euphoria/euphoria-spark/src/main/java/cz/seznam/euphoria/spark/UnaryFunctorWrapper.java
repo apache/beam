@@ -37,7 +37,7 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
   @Override
   public Iterator<SparkElement<WID, OUT>> call(SparkElement<WID, IN> elem) {
     final WID window = elem.getWindow();
-    final long timestamp = elem.getTimestamp();
+    final long timestamp = getTimestamp(elem);
 
     // setup user context
     context.clear();
@@ -48,5 +48,9 @@ class UnaryFunctorWrapper<WID extends Window, IN, OUT>
     // wrap output in WindowedElement
     return Iterators.transform(context.getOutputIterator(),
             e -> new SparkElement<>(window, timestamp, e));
+  }
+
+  protected long getTimestamp(SparkElement<WID, IN> elem) {
+    return elem.getTimestamp();
   }
 }
