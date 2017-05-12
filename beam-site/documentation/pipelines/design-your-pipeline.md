@@ -103,13 +103,7 @@ final TupleTag<String> startsWithATag = new TupleTag<String>(){};
 final TupleTag<String> startsWithBTag = new TupleTag<String>(){};
 
 PCollectionTuple mixedCollection =
-    dbRowCollection.apply(
-        ParDo
-        // Specify main output. In this example, it is the output
-        // with tag startsWithATag.
-        .withOutputTags(startsWithATag,
-        // Specify the output with tag startsWithBTag, as a TupleTagList.
-                        TupleTagList.of(startsWithBTag))
+    dbRowCollection.apply(ParDo
         .of(new DoFn<String, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
@@ -121,8 +115,12 @@ PCollectionTuple mixedCollection =
               c.output(startsWithBTag, c.element());
             }
           }
-        }
-        ));
+        })
+        // Specify main output. In this example, it is the output
+        // with tag startsWithATag.
+        .withOutputTags(startsWithATag,
+        // Specify the output with tag startsWithBTag, as a TupleTagList.
+                        TupleTagList.of(startsWithBTag)));
 
 // Get subset of the output with tag startsWithATag.
 mixedCollection.get(startsWithATag).apply(...);
@@ -159,7 +157,7 @@ mergedCollectionWithFlatten.apply(...);
 
 ## Multiple sources
 
-Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a text file. The pipeline then uses `CoGroupByKey` to join this information, where the key is the name; the resulting `PCollection` contains all the combinations of names, addresses, and orders.
+Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses `CoGroupByKey` to join this information, where the key is the name; the resulting `PCollection` contains all the combinations of names, addresses, and orders.
 
 <figure id="fig5">
     <img src="{{ site.baseurl }}/images/design-your-pipeline-join.png"
@@ -169,7 +167,7 @@ Figure 5: A pipeline with multiple input sources. See the example code below:
 ```java
 PCollection<KV<String, String>> userAddress = pipeline.apply(JdbcIO.<KV<String, String>>read()...);
 
-PCollection<KV<String, String>> userOrder = pipeline.apply(TextIO.<KV<String, String>>read()...);
+PCollection<KV<String, String>> userOrder = pipeline.apply(KafkaIO.<String, String>read()...);
 
 final TupleTag<String> addressTag = new TupleTag<String>();
 final TupleTag<String> orderTag = new TupleTag<String>();

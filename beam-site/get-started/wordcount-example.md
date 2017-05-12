@@ -96,7 +96,7 @@ The Minimal WordCount pipeline contains five transforms:
 1.  A text file `Read` transform is applied to the Pipeline object itself, and produces a `PCollection` as output. Each element in the output PCollection represents one line of text from the input file. This example uses input data stored in a publicly accessible Google Cloud Storage bucket ("gs://").
 
     ```java
-    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
+    p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
     ```
 
     ```py
@@ -157,7 +157,7 @@ The Minimal WordCount pipeline contains five transforms:
 5.  A text file write transform. This transform takes the final `PCollection` of formatted Strings as input and writes each element to an output text file. Each element in the input `PCollection` represents one line of text in the resulting output file.
 
     ```java
-    .apply(TextIO.Write.to("wordcounts"));
+    .apply(TextIO.write().to("wordcounts"));
     ```
 
     ```py
@@ -398,7 +398,7 @@ public static void main(String[] args) throws IOException {
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> input = pipeline
-      .apply(TextIO.Read.from(options.getInputFile()))
+      .apply(TextIO.read().from(options.getInputFile()))
 
 ```
 

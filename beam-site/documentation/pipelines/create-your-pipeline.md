@@ -42,7 +42,7 @@ The following example code shows how to `apply` a `TextIO.Read` root transform t
 
 ```java
 PCollection<String> lines = p.apply(
-  "ReadLines", TextIO.Read.from("gs://some/inputData.txt"));
+  "ReadLines", TextIO.read().from("gs://some/inputData.txt"));
 ```
 
 ## Applying Transforms to Process Pipeline Data
@@ -68,7 +68,7 @@ The following example code shows how to `apply` a `TextIO.Write` transform to wr
 ```java
 PCollection<String> filteredWords = ...;
 
-filteredWords.apply("WriteMyFile", TextIO.Write.to("gs://some/outputData.txt"));
+filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt"));
 ```
 
 ## Running Your Pipeline

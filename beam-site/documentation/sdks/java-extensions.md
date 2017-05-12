@@ -55,5 +55,5 @@ PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
 // For every primary key, sort the iterable of <SecondaryKey, Value> pairs by secondary key.
 PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
     grouped.apply(
-        SortValues.<String, String, Integer>create(new BufferedExternalSorter.Options()));
+        SortValues.<String, String, Integer>create(BufferedExternalSorter.options()));
 ```
