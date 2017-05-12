@@ -67,7 +67,7 @@ public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
-      "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
+      "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):/.*");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
