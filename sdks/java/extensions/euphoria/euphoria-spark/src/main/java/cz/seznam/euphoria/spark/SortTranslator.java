@@ -54,14 +54,13 @@ class SortTranslator implements SparkOperatorTranslator<Sort> {
     
     final UnaryFunction<Object, Integer> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<Object, Comparable> sortByFn = operator.getSortByExtractor();
-    final ExtractEventTime eventTimeAssigner = operator.getEventTimeAssigner();
     final Windowing windowing = operator.getWindowing() == null
             ? AttachedWindowing.INSTANCE
             : operator.getWindowing();
 
     // ~ extract key/value + timestamp from input elements and assign windows
     JavaPairRDD<Tuple3<Integer, Window, Comparable>, TimestampedElement> tuples = input.flatMapToPair(
-            new CompositeKeyExtractor(keyExtractor, sortByFn, windowing, eventTimeAssigner));
+            new CompositeKeyExtractor(keyExtractor, sortByFn, windowing));
     
     Partitioner partitioner = new PartitioningWrapper(operator.getPartitioning().getNumPartitions());
     Comparator comparator = new TripleComparator();
@@ -93,27 +92,19 @@ class SortTranslator implements SparkOperatorTranslator<Sort> {
     private final UnaryFunction<Object, Integer> keyExtractor;
     private final UnaryFunction<Object, Comparable> sortByFn;
     private final Windowing windowing;
-    @Nullable
-    private final ExtractEventTime eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction<Object, Integer> keyExtractor,
                                  UnaryFunction<Object, Comparable> sortByFn,
-                                 Windowing windowing,
-                                 @Nullable ExtractEventTime eventTimeAssigner) {
+                                 Windowing windowing) {
       this.keyExtractor = keyExtractor;
       this.sortByFn = sortByFn;
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<Tuple3<Integer, Window, Comparable>, TimestampedElement>> call(SparkElement wel) 
         throws Exception {
-      if (eventTimeAssigner != null) {
-        wel.setTimestamp(eventTimeAssigner.extractTimestamp(wel.getElement()));
-      }
-
       Iterable<Window> windows = windowing.assignWindowsToElement(wel);
       List<Tuple2<Tuple3<Integer, Window, Comparable>, TimestampedElement>> out = new ArrayList<>();
       for (Window wid : windows) {
