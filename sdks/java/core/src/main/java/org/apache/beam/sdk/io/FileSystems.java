@@ -49,6 +49,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -63,6 +65,7 @@ import org.apache.beam.sdk.values.KV;
 /**
  * Clients facing {@link FileSystem} utility.
  */
+@Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
