@@ -368,7 +368,10 @@ class AfterWatermark(TriggerFn):
 
 
 class AfterCount(TriggerFn):
-  """Fire when there are at least count elements in this window pane."""
+  """Fire when there are at least count elements in this window pane.
+
+  AfterCount is experimental. No backwards compatibility guarantees.
+  """
 
   COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 
