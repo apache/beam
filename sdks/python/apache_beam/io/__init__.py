@@ -19,7 +19,7 @@
 
 # pylint: disable=wildcard-import
 from apache_beam.io.avroio import *
-from apache_beam.io.fileio import *
+from apache_beam.io.filebasedsink import *
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Sink
 from apache_beam.io.iobase import Write

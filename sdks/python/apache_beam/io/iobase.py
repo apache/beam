@@ -562,7 +562,9 @@ class RangeTracker(object):
 
 
 class Sink(HasDisplayData):
-  """A resource that can be written to using the ``beam.io.Write`` transform.
+  """This class is deprecated, no backwards-compatibility guarantees.
+
+  A resource that can be written to using the ``beam.io.Write`` transform.
 
   Here ``beam`` stands for Apache Beam Python code imported in following manner.
   ``import apache_beam as beam``.
@@ -594,8 +596,8 @@ class Sink(HasDisplayData):
   single record from the bundle and ``close()`` which is called once
   at the end of writing a bundle.
 
-  See also ``apache_beam.io.fileio.FileSink`` which provides a simpler API
-  for writing sinks that produce files.
+  See also ``apache_beam.io.filebasedsink.FileBasedSink`` which provides a
+  simpler API for writing sinks that produce files.
 
   **Execution of the Write transform**
 
@@ -759,7 +761,9 @@ class Sink(HasDisplayData):
 
 
 class Writer(object):
-  """Writes a bundle of elements from a ``PCollection`` to a sink.
+  """This class is deprecated, no backwards-compatibility guarantees.
+
+  Writes a bundle of elements from a ``PCollection`` to a sink.
 
   A Writer  ``iobase.Writer.write()`` writes and elements to the sink while
   ``iobase.Writer.close()`` is called after all elements in the bundle have been
