@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Utility functions used throughout the package."""
+"""Utility functions used throughout the package.
+
+For internal use only. No backwards compatibility guarantees.
+"""
 
 import logging
 from multiprocessing.pool import ThreadPool

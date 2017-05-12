@@ -17,6 +17,8 @@
 
 """Pickler for values, functions, and classes.
 
+For internal use only. No backwards compatibility guarantees.
+
 Pickles created by the pickling library contain non-ASCII characters, so
 we base64-encode the results so that we can put them in a JSON objects.
 The pickler is used to embed FlatMap callable objects into the workflow JSON
