@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.hdfs;
 
 import java.net.URI;
+import java.util.Collections;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.fs.ResourceIdTester;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
@@ -33,21 +35,25 @@ import org.junit.rules.TemporaryFolder;
  * Tests for {@link HadoopResourceId}.
  */
 public class HadoopResourceIdTest {
-  private Configuration configuration;
+
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
-  private HadoopFileSystem fileSystem;
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Before
   public void setUp() throws Exception {
-    configuration = new Configuration();
+    Configuration configuration = new Configuration();
     configuration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpFolder.getRoot().getAbsolutePath());
     MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(configuration);
     hdfsCluster = builder.build();
     hdfsClusterBaseUri = new URI(configuration.get("fs.defaultFS") + "/");
-    fileSystem = new HadoopFileSystem(configuration);
+
+    // Register HadoopFileSystem for this test.
+    HadoopFileSystemOptions options = PipelineOptionsFactory.as(HadoopFileSystemOptions.class);
+    options.setHdfsConfiguration(Collections.singletonList(configuration));
+    FileSystems.setDefaultConfigInWorkers(options);
   }
 
   @After
@@ -57,7 +63,9 @@ public class HadoopResourceIdTest {
 
   @Test
   public void testResourceIdTester() throws Exception {
-    FileSystems.setDefaultConfigInWorkers(TestPipeline.testingPipelineOptions());
-    ResourceIdTester.runResourceIdBattery(new HadoopResourceId(hdfsClusterBaseUri));
+    ResourceId baseDirectory =
+        FileSystems.matchNewResource(
+            "hdfs://" + hdfsClusterBaseUri.getPath(), true /* isDirectory */);
+    ResourceIdTester.runResourceIdBattery(baseDirectory);
   }
 }
