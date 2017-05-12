@@ -74,6 +74,16 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.coders.SerializableCoder"/>
+    <Field name="typeDescriptor"/>
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!--
+    the field is used only in getEncodedTypeDescriptor, where it is restored if it is not present due to
+    serialization
+    -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.io.jms.JmsRecord"/>
     <Field name="jmsDestination"/>
     <Bug pattern="SE_BAD_FIELD"/>
