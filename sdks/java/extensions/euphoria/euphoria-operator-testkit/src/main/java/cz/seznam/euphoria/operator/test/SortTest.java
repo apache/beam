@@ -88,16 +88,16 @@ public class SortTest extends AbstractOperatorTest {
         Assert.assertEquals(1, partitions.size());
         List<Item> items = partitions.get(0);
         assertEquals(9, items.size());
-        
+
         List<String> scores = items.stream()
             .map(Item::getKey)
             .collect(Collectors.toList());
-        
+
         assertEquals(Arrays.asList(
-            "1-three", 
-            "one-ZZZ-1", 
-            "one-ZZZ-2", 
-            "one-3", 
+            "1-three",
+            "one-ZZZ-1",
+            "one-ZZZ-2",
+            "one-3",
             "two",
             "2-three",
             "3-three",
@@ -128,7 +128,7 @@ public class SortTest extends AbstractOperatorTest {
       }
     });
   }
-  
+
   @Test
   public void testOnCustomPartitioner() {
     execute(new AbstractTestCase<Item, Item>() {
@@ -152,13 +152,13 @@ public class SortTest extends AbstractOperatorTest {
             .map(Item::getKey)
             .collect(Collectors.toList());
         assertEquals(Arrays.asList(
-            "1-three", 
-            "one-ZZZ-1", 
-            "one-ZZZ-2", 
-            "one-3", 
+            "1-three",
+            "one-ZZZ-1",
+            "one-ZZZ-2",
+            "one-3",
             "two",
             "2-three"), lowScores);
-        
+
         List<Item> highItems = partitions.get(1);
         assertEquals(3, highItems.size());
         List<String> highScores = highItems.stream()
@@ -193,7 +193,7 @@ public class SortTest extends AbstractOperatorTest {
       }
     });
   }
-  
+
   @Test
   public void testOnWindowingWithCustomPartitioner() {
     execute(new AbstractTestCase<Item, Item>() {
@@ -238,17 +238,17 @@ public class SortTest extends AbstractOperatorTest {
       protected Partitions<Item> getInput() {
         return Partitions
             .add(
-                new Item(4000, "one-ZZZ-1", 1),
-                new Item(3000, "one-ZZZ-2", 2),
-                new Item(2000, "one-3", 3),
+                new Item(0, "two", 8),
                 new Item(1000, "one-999", 999),
-                new Item(0000, "two", 8),
+                new Item(2000, "one-3", 3),
+                new Item(3000, "one-ZZZ-2", 2),
                 new Item(3000, "1-three", 0),
+                new Item(4000, "one-ZZZ-1", 1),
                 new Item(4000, "2-three", 9))
             .add(
                 new Item(1000, "one-XXX-100", 100),
-                new Item(5000, "3-three", 21),
-                new Item(3000, "4-four", 11))
+                new Item(3000, "4-four", 11),
+                new Item(5000, "3-three", 21))
             .build();
       }
 
