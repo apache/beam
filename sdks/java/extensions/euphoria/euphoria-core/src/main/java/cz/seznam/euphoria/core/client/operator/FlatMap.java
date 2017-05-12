@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -96,8 +97,40 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
      * @return the next builder to complete the setup
      *          of the {@link FlatMap} operator
      */
-    public <OUT> OutputBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
-      return new OutputBuilder<>(name, input, functor);
+    public <OUT> EventTimeBuilder<IN, OUT> using(UnaryFunctor<IN, OUT> functor) {
+      return new EventTimeBuilder<>(this, functor);
+    }
+  }
+
+  public static class EventTimeBuilder<IN, OUT> implements Builders.Output<OUT> {
+    private final UsingBuilder<IN> using;
+    private final UnaryFunctor<IN, OUT> functor;
+
+    EventTimeBuilder(UsingBuilder<IN> using, UnaryFunctor<IN, OUT> functor) {
+      this.using = Objects.requireNonNull(using);
+      this.functor = Objects.requireNonNull(functor);
+    }
+
+    /**
+     * Specifies a function to derive the input elements' event time. Processing
+     * of the input stream continues then to proceed with this event time.
+     *
+     * @param eventTimeFn the event time extraction function
+     *
+     * @return the next builder to complete the setup
+     *          of the {@link FlatMap} operator
+     */
+    public OutputBuilder<IN, OUT>
+    eventTimeBy(ExtractEventTime<IN> eventTimeFn) {
+      return new OutputBuilder<>(
+          this.using.name, this.using.input, this.functor,
+          Objects.requireNonNull(eventTimeFn));
+    }
+
+    @Override
+    public Dataset<OUT> output() {
+      return new OutputBuilder<>(
+          this.using.name, this.using.input, this.functor, null).output();
     }
   }
 
@@ -105,17 +138,23 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunctor<IN, OUT> functor;
+    @Nullable
+    private final ExtractEventTime<IN> evtTimeFn;
 
-    OutputBuilder(String name, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+    OutputBuilder(String name,
+                  Dataset<IN> input,
+                  UnaryFunctor<IN, OUT> functor,
+                  @Nullable ExtractEventTime<IN> evtTimeFn) {
       this.name = name;
       this.input = input;
       this.functor = functor;
+      this.evtTimeFn = evtTimeFn;
     }
 
     @Override
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
-      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor);
+      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn);
       flow.add(map);
       return map.output();
     }
@@ -150,10 +189,14 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   }
 
   private final UnaryFunctor<IN, OUT> functor;
+  private final ExtractEventTime<IN> eventTimeFn;
 
-  FlatMap(String name, Flow flow, Dataset<IN> input, UnaryFunctor<IN, OUT> functor) {
+  FlatMap(String name, Flow flow, Dataset<IN> input,
+          UnaryFunctor<IN, OUT> functor,
+          @Nullable ExtractEventTime<IN> evtTimeFn) {
     super(name, flow, input);
     this.functor = functor;
+    this.eventTimeFn = evtTimeFn;
   }
 
   /**
@@ -164,5 +207,16 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
    */
   public UnaryFunctor<IN, OUT> getFunctor() {
     return functor;
+  }
+
+  /**
+   * Retrieves the optional user defined event time assigner.
+   *
+   * @return the user defined event time assigner or
+   *          {@code null} if none is specified
+   */
+  @Nullable
+  public ExtractEventTime<IN> getEventTimeExtractor() {
+    return eventTimeFn;
   }
 }

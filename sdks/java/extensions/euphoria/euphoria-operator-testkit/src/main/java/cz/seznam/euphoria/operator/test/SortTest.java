@@ -18,6 +18,7 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.partitioning.RangePartitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Sort;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
@@ -200,9 +201,10 @@ public class SortTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Item>
       getOutput(Dataset<Item> input) {
+        input = AssignEventTime.of(input).using(Item::getTime).output();
         Dataset<Item> sorted = Sort.of(input)
             .by(Item::getScore)
-            .windowBy(Time.of(Duration.ofSeconds(2)), Item::getTime)
+            .windowBy(Time.of(Duration.ofSeconds(2)))
             .setPartitioning(new RangePartitioning<>(10, 20))
             .output();
         return sorted;

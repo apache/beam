@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -374,14 +375,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>>
       getOutput(Dataset<Pair<String, Integer>> input) {
+        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5)),
-                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
+                .windowBy(Time.of(Duration.ofSeconds(5)))
                 .setNumPartitions(1)
                 .output();
 
@@ -435,14 +436,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(Dataset<Pair<String, Integer>> input) {
+        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(e -> e.getFirst().substring(2))
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)),
-                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
+                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
                 .setNumPartitions(2)
                 .setPartitioner(element -> {
                   assert element == 1 || element == 2;
@@ -514,14 +515,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>>
       getOutput(Dataset<Pair<String, Integer>> input) {
+        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(Session.of(Duration.ofSeconds(5)),
-                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
+                .windowBy(Session.of(Duration.ofSeconds(5)))
                 .setNumPartitions(1)
                 .output();
 
@@ -617,13 +618,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
         // ~ this operator is supposed to emit elements internally with a timestamp
         // which equals the end of the time window
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         Dataset<Pair<String, Integer>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> "")
                 .valueBy(Pair::getFirst)
                 .stateFactory(ReduceByKeyTest.SumState::new)
                 .mergeStatesBy(ReduceByKeyTest.SumState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5)), Pair::getSecond)
+                .windowBy(Time.of(Duration.ofSeconds(5)))
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to
@@ -663,12 +665,13 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Pair<Word, Long>> getOutput(Dataset<Pair<Word, Long>> input) {
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return ReduceStateByKey.of(input)
                 .keyBy(Pair::getFirst)
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<Word, Long, CountState<Word>>) CountState::new)
                 .mergeStatesBy(CountState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(1)), (Pair<Word, Long> p) -> p.getSecond())
+                .windowBy(Time.of(Duration.ofSeconds(1)))
                 .output();
       }
 

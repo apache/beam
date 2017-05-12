@@ -105,18 +105,12 @@ public class Distinct<IN, ELEM, W extends Window>
     @Override
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
-    }
-    
-    @Override
-    public <W extends Window> OutputBuilder<IN, ELEM, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
-      return new OutputBuilder<>(name, input, mapper, this, windowing, eventTimeAssigner);
+      return new OutputBuilder<>(name, input, mapper, this, windowing);
     }
     
     @Override
     public Dataset<ELEM> output() {
-      return new OutputBuilder<>(name, input, mapper, this, null, null).output();
+      return new OutputBuilder<>(name, input, mapper, this, null).output();
     }
   }
 
@@ -130,35 +124,30 @@ public class Distinct<IN, ELEM, W extends Window>
     private final UnaryFunction<IN, ELEM> mapper;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   @Nullable UnaryFunction<IN, ELEM> mapper,
                   PartitioningBuilder<ELEM, ?> partitioning,
-                  @Nullable Windowing<IN, W> windowing,
-                  @Nullable ExtractEventTime<IN> eventTimeAssigner) {
+                  @Nullable Windowing<IN, W> windowing) {
 
       super(partitioning);
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.mapper = mapper;
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     public Dataset<ELEM> output() {
       Flow flow = input.getFlow();
       Distinct<IN, ELEM, W> distinct = new Distinct<>(
-          name, flow, input, mapper, getPartitioning(),
-              windowing, eventTimeAssigner);
+          name, flow, input, mapper, getPartitioning(), windowing);
       flow.add(distinct);
       return distinct.output();
     }
   }
-  
+
   /**
    * Starts building a nameless {@link Distinct} operator to process
    * the given input dataset.
@@ -192,10 +181,9 @@ public class Distinct<IN, ELEM, W extends Window>
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
            Partitioning<ELEM> partitioning,
-           @Nullable Windowing<IN, W> windowing,
-           @Nullable ExtractEventTime<IN> eventTimeAssigner) {
+           @Nullable Windowing<IN, W> windowing) {
 
-    super(name, flow, input, mapper, windowing, eventTimeAssigner, partitioning);
+    super(name, flow, input, mapper, windowing, partitioning);
   }
 
   @Override
@@ -205,7 +193,7 @@ public class Distinct<IN, ELEM, W extends Window>
     ReduceByKey<IN, ELEM, Void, Void, W> reduce =
         new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
-            windowing, eventTimeAssigner,
+            windowing,
             (CombinableReduceFunction<Void>) e -> null, partitioning);
 
     reduce.setPartitioning(getPartitioning());

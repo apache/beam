@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
@@ -275,12 +276,14 @@ public class JoinTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, String, String>>
       getOutput(Dataset<Pair<String, Long>> left, Dataset<Pair<String, Long>> right) {
+        left = AssignEventTime.of(left).using(Pair::getSecond).output();
+        right = AssignEventTime.of(right).using(Pair::getSecond).output();
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
             Join.of(left, right)
                 .by(p -> "", p -> "")
                 .using((Pair<String, Long> l, Pair<String, Long> r, Context<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
-                .windowBy(Session.of(Duration.ofMillis(10)), Pair::getSecond, Pair::getSecond)
+                .windowBy(Session.of(Duration.ofMillis(10)))
                 .setNumPartitions(1)
                 .output();
         return MapElements.of(joined).using(Pair::getSecond).output();

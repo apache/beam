@@ -17,6 +17,7 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.CountByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
@@ -41,11 +42,12 @@ public class CountByKeyTest extends AbstractOperatorTest {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
+        // ~ use stable event-time watermark
+        input = AssignEventTime.of(input).using(e -> 0).output();
         return CountByKey.of(input)
             .keyBy(e -> e)
             .setPartitioner(i -> i)
-            // ~ use stable event-time watermark
-            .windowBy(Time.of(Duration.ofSeconds(1)), e -> 0)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
@@ -93,9 +95,10 @@ public class CountByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(
           Dataset<Pair<Integer, Long>> input) {
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return CountByKey.of(input)
             .keyBy(Pair::getFirst)
-            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 

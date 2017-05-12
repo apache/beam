@@ -136,6 +136,6 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     return DAG.of(
         // do not use the client API here, because it modifies the Flow!
         new FlatMap<IN, OUT>(getName(), getFlow(), input,
-            (i, c) -> c.collect(mapper.apply(i))));
+            (i, c) -> c.collect(mapper.apply(i)), null));
   }
 }

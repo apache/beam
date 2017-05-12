@@ -54,7 +54,6 @@ public class TopPerKeyTest {
     assertNotNull(tpk.getScoreExtractor());
     assertEquals(result, tpk.output());
     assertSame(windowing, tpk.getWindowing());
-    assertNull(tpk.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(tpk.getPartitioning().hasDefaultPartitioner());
@@ -85,11 +84,10 @@ public class TopPerKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .scoreBy(s -> 1L)
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
-    assertNotNull(tpk.getEventTimeAssigner());
   }
 
   @Test

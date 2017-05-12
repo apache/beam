@@ -210,21 +210,14 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public <W extends Window>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
     windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
+      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
+          reducer, Objects.requireNonNull(windowing), this);
     }
     
     @Override
-    public  <W extends Window>
-    DatasetBuilder5<IN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
-      return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, Objects.requireNonNull(windowing), eventTimeAssigner, this);
-    }
-
-    @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, null, null, this)
+              reducer, null, this)
           .output();
     }
   }
@@ -239,8 +232,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final ReduceFunction<VALUE, OUT> reducer;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
@@ -248,7 +239,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
                     @Nullable Windowing<IN, W> windowing,
-                    @Nullable ExtractEventTime<IN> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning) {
 
       // initialize default partitioning according to input
@@ -260,7 +250,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -269,7 +258,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       ReduceByKey<IN, KEY, VALUE, OUT, W>
           reduce =
           new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, eventTimeAssigner, reducer, getPartitioning());
+              windowing, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
     }
@@ -312,10 +301,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               UnaryFunction<IN, KEY> keyExtractor,
               UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              @Nullable ExtractEventTime<IN> eventTimeAssigner,
               ReduceFunction<VALUE, OUT> reducer,
               Partitioning<KEY> partitioning) {
-    super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
+    super(name, flow, input, keyExtractor, windowing, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
   }
@@ -346,7 +334,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     Flow flow = getFlow();
     Operator reduceState = new ReduceStateByKey(getName(),
         flow, input, keyExtractor, valueExtractor,
-        windowing, eventTimeAssigner,
+        windowing,
         stateFactory, stateCombine,
         partitioning);
     return DAG.of(reduceState);

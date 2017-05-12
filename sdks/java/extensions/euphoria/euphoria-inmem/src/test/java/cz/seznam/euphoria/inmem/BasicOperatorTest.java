@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -47,7 +48,9 @@ import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test basic operator functionality and ability to compile.
@@ -204,14 +207,14 @@ public class BasicOperatorTest {
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
+    words = AssignEventTime.of(words).using(Triple::getThird).output();
     Dataset<Pair<String, Long>> streamOutput = ReduceByKey
         .of(words)
         .keyBy(Triple::getFirst)
         .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003)),
-            e -> (long) e.getThird())
+            .earlyTriggering(Duration.ofMillis(1_003)))
         .output();
 
 
@@ -269,14 +272,14 @@ public class BasicOperatorTest {
 
     // reduce it to counts, use windowing, so the output is batch or stream
     // depending on the type of input
+    words = AssignEventTime.of(words).using(Triple::getThird).output();
     Dataset<Pair<String, Long>> streamOutput = ReduceByKey
         .of(words)
         .keyBy(Triple::getFirst)
         .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Session.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003)),
-            e -> (long) e.getThird())
+            .earlyTriggering(Duration.ofMillis(1_003)))
         .output();
 
 
@@ -483,10 +486,12 @@ public class BasicOperatorTest {
         .output();
 
     // window it, use the first character as time
+    words = AssignEventTime.of(words)
+        .using(s -> (int) s.charAt(0) * 3_600_000L)
+        .output();
     ReduceWindow.of(words)
         .reduceBy(Sets::newHashSet)
-        .windowBy(Time.of(Duration.ofMinutes(1)),
-            s -> (int) s.charAt(0) * 3_600_000L)
+        .windowBy(Time.of(Duration.ofMinutes(1)))
         .setNumPartitions(4)
         .output()
         .persist(f);

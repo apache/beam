@@ -116,7 +116,6 @@ public class ReduceWindow<
     private final ReduceFunction<VALUE, OUT> reducer;
     private int numPartitions = -1;
     private Windowing<T, ?> windowing;
-    private ExtractEventTime<T> eventTimeAssigner;
 
     public OutputBuilder(
         String name,
@@ -133,7 +132,7 @@ public class ReduceWindow<
       Flow flow = input.getFlow();
       ReduceWindow<T, VALUE, OUT, ?> operator = new ReduceWindow<>(
           name, flow, input, valueExtractor,
-              (Windowing) windowing, eventTimeAssigner, reducer, numPartitions);
+              (Windowing) windowing, reducer, numPartitions);
       flow.add(operator);
       return operator.output();
     }
@@ -141,17 +140,10 @@ public class ReduceWindow<
     @Override
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
-      return windowBy(windowing, null);
-    }
-    
-    @Override
-    public <W extends Window> OutputBuilder<T, VALUE, OUT>
-    windowBy(Windowing<T, W> windowing, ExtractEventTime<T> eventTimeAssigner) {
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
       return this;
     }
-
+    
     public OutputBuilder<T, VALUE, OUT> setNumPartitions(int numPartitions) {
       this.numPartitions = numPartitions;
       return this;
@@ -197,11 +189,10 @@ public class ReduceWindow<
           Dataset<IN> input,
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
-          @Nullable ExtractEventTime<IN> eventTimeAssigner,
           ReduceFunction<VALUE, OUT> reducer,
           int numPartitions) {
     
-    super(name, flow, input, e -> B_ZERO, windowing, eventTimeAssigner,
+    super(name, flow, input, e -> B_ZERO, windowing,
         new Partitioning<Byte>() {
           @Override
           public Partitioner<Byte> getPartitioner() {
@@ -227,7 +218,7 @@ public class ReduceWindow<
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
-        windowing, eventTimeAssigner, reducer, partitioning);
+        windowing, reducer, partitioning);
     Dataset<Pair<Byte, OUT>> output = reduceByKey.output();
 
     MapElements<Pair<Byte, OUT>, OUT> format = new MapElements<>(

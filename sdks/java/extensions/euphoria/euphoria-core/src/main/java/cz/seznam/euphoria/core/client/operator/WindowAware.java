@@ -28,9 +28,4 @@ public interface WindowAware<IN, W extends Window> {
 
   Windowing<IN, W> getWindowing();
 
-  /**
-   * @return optional function to extract even time from a given element
-   */
-  ExtractEventTime<IN> getEventTimeAssigner();
-
 }

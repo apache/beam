@@ -41,11 +41,10 @@ public abstract class StateAwareWindowWiseOperator<
           String name,
           Flow flow,
           @Nullable Windowing<WIN, W> windowing,
-          @Nullable ExtractEventTime<WIN> eventTimeAssigner,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     
-    super(name, flow, windowing, eventTimeAssigner);
+    super(name, flow, windowing);
     this.keyExtractor = keyExtractor;
     this.partitioning = partitioning;
   }

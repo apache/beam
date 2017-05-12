@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -47,7 +48,9 @@ import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.inmem.Util.sorted;
 import static java.util.Arrays.asList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class WindowingTest {
 
@@ -100,6 +103,7 @@ public class WindowingTest {
 
     Flow flow = Flow.create("Test");
     Dataset<Item> lines = flow.createInput(input);
+    lines = AssignEventTime.of(lines).using(i -> i.evtTs).output();
 
     Dataset<Pair<Item, Long>> words = MapElements.of(lines)
         .using((UnaryFunction<Item, Pair<Item, Long>>) item -> Pair.of(item, 1L))
@@ -110,9 +114,7 @@ public class WindowingTest {
         .keyBy(e -> e.getFirst().word)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
-        // ~ windowing by one second using a user supplied event-time-fn
-        .windowBy(Time.of(Duration.ofSeconds(1))
-            ,((Pair<Item, Long> x) -> x.getFirst().evtTs))
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
     Dataset<String> mapped = MapElements.of(reduced)
@@ -243,13 +245,14 @@ public class WindowingTest {
             Pair.of("three", 2000000001003L),
             Pair.of("four", 2000000001004L)))
             .withReadDelay(Duration.ofMillis(100L)));
+    input = AssignEventTime.of(input).using(Pair::getSecond).output();
 
     Dataset<Pair<String, Void>> distinct =
         ReduceByKey.of(input)
             .keyBy(Pair::getFirst)
             .valueBy(e -> (Void) null)
             .combineBy(e -> null)
-            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
 
     Dataset<TimeInterval> windows = FlatMap.of(distinct)
