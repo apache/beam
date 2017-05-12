@@ -157,33 +157,14 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return windowBy(null, null, null).output();
+      return windowBy(null).output();
     }
 
     public <W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing)
-    {
-      return windowBy(windowing, null, null);
-    }
-
-    public <W extends Window>
-    OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing,
-             ExtractEventTime<LEFT> leftEventTimeFn,
-             ExtractEventTime<RIGHT> rightEventTimeFn) {
-
-      ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner = null;
-      if (leftEventTimeFn != null || rightEventTimeFn != null) {
-        Objects.requireNonNull(leftEventTimeFn);
-        Objects.requireNonNull(rightEventTimeFn);
-        eventTimeAssigner = either -> either.isLeft()
-                ? leftEventTimeFn.extractTimestamp(either.left())
-                : rightEventTimeFn.extractTimestamp(either.right());
-      }
-
+    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing) {
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
-              rightKeyExtractor, joinFunc, outer, this, windowing, eventTimeAssigner);
+              rightKeyExtractor, joinFunc, outer, this, windowing);
     }
   }
 
@@ -201,8 +182,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final boolean outer;
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
-    @Nullable
-    private final ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -212,8 +191,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
                   boolean outer,
                   PartitioningBuilder<KEY, ?> partitioning,
-                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-                  @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner) {
+                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing) {
 
       super(partitioning);
 
@@ -225,7 +203,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.joinFunc = Objects.requireNonNull(joinFunc);
       this.outer = outer;
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -233,7 +210,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       Flow flow = left.getFlow();
       Join<LEFT, RIGHT, KEY, OUT, W> join =
           new Join<>(name, flow, left, right,
-              windowing, eventTimeAssigner, getPartitioning(),
+              windowing, getPartitioning(),
               leftKeyExtractor, rightKeyExtractor, joinFunc, outer);
       flow.add(join);
 
@@ -263,14 +240,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        Flow flow,
        Dataset<LEFT> left, Dataset<RIGHT> right,
        @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-       @Nullable ExtractEventTime<Either<LEFT, RIGHT>> eventTimeAssigner,
        Partitioning<KEY> partitioning,
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
        BinaryFunctor<LEFT, RIGHT, OUT> functor,
        boolean outer) {
 
-    super(name, flow, windowing, eventTimeAssigner, (Either<LEFT, RIGHT> elem) -> {
+    super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
       }
@@ -524,7 +500,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         keyExtractor,
         e -> e,
         getWindowing(),
-        getEventTimeAssigner(),
         (StorageProvider storages, Context ctx) ->
             ctx == null
                 ? new StableJoinState(storages)

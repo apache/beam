@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -129,12 +130,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Pair<Integer, Long>> input) {
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return ReduceByKey.of(input)
             .keyBy(Pair::getFirst)
             .valueBy(e -> 1L)
             .combineBy(Sums.ofLongs())
             .setPartitioner(e -> e % 2)
-            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
+            .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
@@ -479,13 +481,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, HashSet<String>>> getOutput
           (Dataset<Pair<String, Integer>> input) {
+        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
         Dataset<Pair<Integer, HashSet<String>>> reduced =
             ReduceByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .reduceBy(Sets::newHashSet)
-                .windowBy(Session.of(Duration.ofSeconds(5)),
-                        e -> e.getSecond() * 1_000L)
+                .windowBy(Session.of(Duration.ofSeconds(5)))
                 .setNumPartitions(1)
                 .output();
 
@@ -611,12 +613,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
         // ~ this operator is supposed to emit elements internally with a timestamp
         // which equals the emission (== end in this case) of the time window
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         Dataset<Pair<String, Integer>> reduced =
             ReduceByKey.of(input)
                 .keyBy(e -> "")
                 .valueBy(Pair::getFirst)
                 .combineBy(Sums.ofInts())
-                .windowBy(Time.of(Duration.ofSeconds(5)), Pair::getSecond)
+                .windowBy(Time.of(Duration.ofSeconds(5)))
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to
@@ -653,11 +656,12 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Pair<Word, Long>> getOutput(Dataset<Pair<Word, Long>> input) {
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return ReduceByKey.of(input)
                 .keyBy(Pair::getFirst)
                 .valueBy(e -> 1L)
                 .combineBy(Sums.ofLongs())
-                .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
+                .windowBy(Time.of(Duration.ofSeconds(1)))
                 .output();
       }
 

@@ -125,6 +125,6 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
           if (predicate.apply(elem)) {
             collector.collect(elem);
           }
-        }));
+        }, null));
   }
 }

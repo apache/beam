@@ -50,7 +50,6 @@ public class CountByKeyTest {
     assertNotNull(count.keyExtractor);
     assertEquals(counted, count.output());
     assertSame(windowing, count.getWindowing());
-    assertNull(count.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(count.getPartitioning().hasDefaultPartitioner());
@@ -100,12 +99,11 @@ public class CountByKeyTest {
     CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertTrue(count.getWindowing() instanceof Time);
-    assertNotNull(count.getEventTimeAssigner());
   }
 
   @Test

@@ -55,7 +55,6 @@ public class SortTest {
     assertNotNull(tpk.getSortByExtractor());
     assertEquals(result, tpk.output());
     assertSame(windowing, tpk.getWindowing());
-    assertNull(tpk.getEventTimeAssigner());
 
     assertTrue(!tpk.getPartitioning().hasDefaultPartitioner());
     assertTrue(tpk.getPartitioning().getPartitioner() instanceof HashPartitioner);
@@ -82,11 +81,10 @@ public class SortTest {
 
     Dataset<String> result = Sort.of(dataset)
             .by(s -> 1L)
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Sort tpk = (Sort) Iterables.getOnlyElement(flow.operators());
-    assertNotNull(tpk.getEventTimeAssigner());
   }
 
   @Test

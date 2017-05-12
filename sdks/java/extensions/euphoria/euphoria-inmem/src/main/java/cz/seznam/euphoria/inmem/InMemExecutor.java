@@ -550,6 +550,7 @@ public class InMemExecutor implements Executor {
         flatMap.getSingleParentOrNull().get(), flatMap.get());
     InputProvider ret = new InputProvider();
     final UnaryFunctor mapper = flatMap.get().getFunctor();
+    final ExtractEventTime eventTimeFn = flatMap.get().getEventTimeExtractor();
     for (Supplier s : suppliers) {
       final BlockingQueue<Datum> out = new ArrayBlockingQueue(5000);
       ret.add(QueueSupplier.wrap(out));
@@ -559,12 +560,18 @@ public class InMemExecutor implements Executor {
           try {
             // read input
             Datum item = s.get();
+            if (eventTimeFn != null && item.isElement()) {
+              item.setTimestamp(eventTimeFn.extractTimestamp(item.getElement()));
+            }
             WindowedElementCollector outC = new WindowedElementCollector(
                 collector, item::getTimestamp);
             if (item.isElement()) {
               // transform
               outC.setWindow(item.getWindow());
               mapper.apply(item.getElement(), outC);
+            } else if (eventTimeFn != null && item.isWatermark()) {
+              // ~ do no forward old watermarks since we are redefining
+              // them as part of the time assignment function
             } else {
               out.put(item);
               if (item.isEndOfStream()) {
@@ -596,7 +603,7 @@ public class InMemExecutor implements Executor {
     }
 
     List<BlockingQueue<Datum>> outputQueues = repartitionSuppliers(
-        input, e -> e, partitioning, Optional.empty(), Optional.empty());
+        input, e -> e, partitioning, Optional.empty());
 
     InputProvider ret = new InputProvider();
     outputQueues.stream()
@@ -620,11 +627,9 @@ public class InMemExecutor implements Executor {
 
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
-    final ExtractEventTime eventTimeAssigner = reduceStateByKey.getEventTimeAssigner();
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
-        suppliers, keyExtractor, partitioning,
-        Optional.ofNullable(windowing), Optional.ofNullable(eventTimeAssigner));
+        suppliers, keyExtractor, partitioning, Optional.ofNullable(windowing));
 
     InputProvider outputSuppliers = new InputProvider();
     TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
@@ -660,14 +665,12 @@ public class InMemExecutor implements Executor {
       InputProvider suppliers,
       final UnaryFunction keyExtractor,
       final Partitioning partitioning,
-      final Optional<Windowing> windowing,
-      final Optional<ExtractEventTime> eventTimeAssigner) {
+      final Optional<Windowing> windowing) {
 
     int numInputPartitions = suppliers.size();
     final boolean isMergingWindowing = windowing.isPresent()
         && windowing.get() instanceof MergingWindowing;
-    final boolean hasTimeAssignment = eventTimeAssigner.isPresent();
-    
+
     final int outputPartitions = partitioning.getNumPartitions() > 0
         ? partitioning.getNumPartitions() : numInputPartitions;
     final List<BlockingQueue<Datum>> ret = new ArrayList<>(outputPartitions);
@@ -702,7 +705,7 @@ public class InMemExecutor implements Executor {
       Runnable emitWatermark = () -> {
         handleMetaData(
             Datum.watermark(maxElementTimestamp.get()),
-            ret, readerId, clocks, true);
+            ret, readerId, clocks);
       };
       emitStrategies[readerId].schedule(emitWatermark);
       executor.execute(() -> {
@@ -715,12 +718,7 @@ public class InMemExecutor implements Executor {
               break;
             }
 
-            if (hasTimeAssignment && datum.isElement()) {
-              ExtractEventTime assigner = eventTimeAssigner.get();
-              datum.setTimestamp(assigner.extractTimestamp(datum.getElement()));
-            }
-
-            if (!handleMetaData(datum, ret, readerId, clocks, !hasTimeAssignment)) {
+            if (!handleMetaData(datum, ret, readerId, clocks)) {
 
               // extract element's timestamp if available
               long elementStamp = datum.getTimestamp();
@@ -810,29 +808,25 @@ public class InMemExecutor implements Executor {
       Datum item,
       List<BlockingQueue<Datum>> downstream,
       int readerId,
-      List<VectorClock> clocks,
-      boolean allowWatermarks) {
+      List<VectorClock> clocks) {
 
-
-    if (allowWatermarks || !item.isWatermark()) {
-      // update vector clocks by the watermark
-      // if any update occurs, emit the updates time downstream
-      int i = 0;
-      long stamp = item.getTimestamp();
-      for (VectorClock clock : clocks) {
-        long current = clock.getCurrent();
-        clock.update(stamp, readerId);
-        long after = clock.getCurrent();
-        if (current != after) {
-          try {
-            // we have updated the stamp, emit the new watermark
-            downstream.get(i).put(Datum.watermark(after));
-          } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-          }
+    // update vector clocks by the watermark
+    // if any update occurs, emit the updates time downstream
+    int i = 0;
+    long stamp = item.getTimestamp();
+    for (VectorClock clock : clocks) {
+      long current = clock.getCurrent();
+      clock.update(stamp, readerId);
+      long after = clock.getCurrent();
+      if (current != after) {
+        try {
+          // we have updated the stamp, emit the new watermark
+          downstream.get(i).put(Datum.watermark(after));
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
         }
-        i++;
       }
+      i++;
     }
 
     // watermark already handled

@@ -61,8 +61,7 @@ public class Builders {
   interface WindowBy<IN> {
 
     /**
-     * Specifies the windowing strategy to be applied to the input dataset
-     * without specifying an {@link ExtractEventTime event time assigner.}
+     * Specifies the windowing strategy to be applied to the input dataset.
      * Unless the operator is already preceded by an event time assignment,
      * it will process the input elements in ingestion time.
      *
@@ -72,26 +71,8 @@ public class Builders {
      *
      * @return the next builder to complete the setup of the
      *          {@link ReduceByKey} operator
-     *
-     * @see #windowBy(Windowing, ExtractEventTime)
      */
     <W extends Window> Object windowBy(Windowing<IN, W> windowing);
-
-    /**
-     * Specifies the windowing strategy to be applied to the input dataset
-     * specifying an {@link ExtractEventTime event time assigner} to (re-)assign
-     * the element's logical timestamp.
-     *
-     * @param <W> the type of the windowing
-     *
-     * @param windowing the windowing strategy to apply to the input dataset
-     * 
-     * @param eventTimeAssigner function that (re)assigns event time to an element
-     *
-     * @return the next builder to complete the setup of the operator
-     */
-    <W extends Window> Object windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner);
-
   }
   
   public interface Output<T> {

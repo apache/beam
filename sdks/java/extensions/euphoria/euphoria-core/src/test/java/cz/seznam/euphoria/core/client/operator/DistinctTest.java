@@ -48,7 +48,6 @@ public class DistinctTest {
     assertEquals("Distinct1", distinct.getName());
     assertEquals(uniq, distinct.output());
     assertSame(windowing, distinct.getWindowing());
-    assertNull(distinct.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(distinct.getPartitioning().hasDefaultPartitioner());
@@ -72,12 +71,11 @@ public class DistinctTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     Dataset<String> uniq = Distinct.of(dataset)
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
     assertTrue(distinct.getWindowing() instanceof Time);
-    assertNotNull(distinct.getEventTimeAssigner());
   }
 
   @Test
