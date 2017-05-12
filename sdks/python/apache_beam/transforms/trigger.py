@@ -37,6 +37,7 @@ from apache_beam.runners.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
+# AfterCount is experimental. No backwards compatibility guarantees.
 
 __all__ = [
     'AccumulationMode',
