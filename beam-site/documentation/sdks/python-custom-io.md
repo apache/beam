@@ -228,7 +228,7 @@ The Beam SDK for Python contains some convenient abstract base classes to help y
 
 #### FileSink
 
-If your data source uses files, you can derive your `Sink` and `Writer` classes from the `FileSink` and `FileSinkWriter` classes, which can be found in the [fileio.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/fileio.py) module. These classes implement code common sinks that interact with files, including:
+If your data source uses files, you can derive your `Sink` and `Writer` classes from the `FileBasedSink` and `FileBasedSinkWriter` classes, which can be found in the [filebasedsink.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/filebasedsink.py) module. These classes implement code common sinks that interact with files, including:
 
 * Setting file headers and footers
 * Sequential record writing
