@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -28,6 +30,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 /**
  * Helper functions for producing a {@link ResourceId} that references a local file or directory.
  */
+@Experimental(Kind.FILESYSTEM)
 public final class LocalResources {
 
   public static ResourceId fromFile(File file, boolean isDirectory) {
