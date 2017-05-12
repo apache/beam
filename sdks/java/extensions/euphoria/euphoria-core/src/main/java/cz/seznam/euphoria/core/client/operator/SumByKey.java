@@ -105,23 +105,18 @@ public class SumByKey<IN, KEY, W extends Window>
     @Override
     public <W extends Window> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
+      return new OutputBuilder<>(name, input,
+          keyExtractor, valueExtractor, windowing, this);
     }
-    
-    @Override
-    public <W extends Window> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
-      return new OutputBuilder<>(name, input, keyExtractor, valueExtractor,
-              windowing, eventTimeAssigner, this);
-    }
-    
+
     @Override
     public Dataset<Pair<KEY, Long>> output() {
-      return new OutputBuilder<>(name, input,
-          keyExtractor, valueExtractor, null, null, this)
+      return new OutputBuilder<>(
+          name, input, keyExtractor, valueExtractor, null, this)
           .output();
     }
   }
+
   public static class OutputBuilder<IN, KEY, W extends Window>
       extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, W>>
       implements Builders.Output<Pair<KEY, Long>>
@@ -132,15 +127,12 @@ public class SumByKey<IN, KEY, W extends Window>
     private final UnaryFunction<IN, Long> valueExtractor;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable ExtractEventTime<IN> eventTimeAssigner,
                   PartitioningBuilder<KEY, ?> partitioning) {
       super(partitioning);
 
@@ -149,14 +141,13 @@ public class SumByKey<IN, KEY, W extends Window>
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
     @Override
     public Dataset<Pair<KEY, Long>> output() {
       Flow flow = input.getFlow();
       SumByKey<IN, KEY, W> sumByKey =
           new SumByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                  windowing, eventTimeAssigner, getPartitioning());
+                  windowing, getPartitioning());
       flow.add(sumByKey);
       return sumByKey.output();
     }
@@ -198,10 +189,9 @@ public class SumByKey<IN, KEY, W extends Window>
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
            @Nullable Windowing<IN, W> windowing,
-           @Nullable ExtractEventTime<IN> eventTimeAssigner,
            Partitioning<KEY> partitioning)
   {
-    super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
+    super(name, flow, input, keyExtractor, windowing, partitioning);
     this.valueExtractor = valueExtractor;
   }
 
@@ -209,7 +199,7 @@ public class SumByKey<IN, KEY, W extends Window>
   public DAG<Operator<?, ?>> getBasicOps() {
     ReduceByKey<IN, KEY, Long, Long, W> reduceByKey =
         new ReduceByKey<>(getName(), input.getFlow(), input,
-        keyExtractor, valueExtractor, windowing, eventTimeAssigner,
+        keyExtractor, valueExtractor, windowing,
                 Sums.ofLongs(), getPartitioning());
     return DAG.of(reduceByKey);
   }

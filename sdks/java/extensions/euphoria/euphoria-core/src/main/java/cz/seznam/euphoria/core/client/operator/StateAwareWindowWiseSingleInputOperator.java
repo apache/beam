@@ -42,10 +42,9 @@ public class StateAwareWindowWiseSingleInputOperator<
           Flow flow, Dataset<IN> input,
           UnaryFunction<KIN, KEY> extractor,
           @Nullable Windowing<WIN, W> windowing,
-          @Nullable ExtractEventTime<WIN> eventTimeAssigner,
           Partitioning<KEY> partitioning) {
     
-    super(name, flow, windowing, eventTimeAssigner, extractor, partitioning);
+    super(name, flow, windowing, extractor, partitioning);
     this.input = input;
     this.output = createOutput(input);
   }

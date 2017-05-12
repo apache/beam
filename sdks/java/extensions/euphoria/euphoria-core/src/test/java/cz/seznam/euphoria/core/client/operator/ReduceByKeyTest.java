@@ -55,7 +55,6 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.reducer);
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
-    assertNull(reduce.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
@@ -102,12 +101,11 @@ public class ReduceByKeyTest {
             .keyBy(s -> s)
             .valueBy(s -> 1L)
             .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
-    assertNotNull(reduce.getEventTimeAssigner());
   }
 
   @Test

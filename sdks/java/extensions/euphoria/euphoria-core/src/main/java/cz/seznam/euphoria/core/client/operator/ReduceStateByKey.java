@@ -257,24 +257,15 @@ public class ReduceStateByKey<
     @Override
     public <W extends Window>
     DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
-    windowBy(Windowing<IN, W> windowing)
-    {
-      return windowBy(windowing, null);
-    }
-
-    @Override
-    public <W extends Window>
-    DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
+    windowBy(Windowing<IN, W> windowing) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateMerger,
-              Objects.requireNonNull(windowing), eventTimeAssigner, this);
+          stateFactory, stateMerger, Objects.requireNonNull(windowing), this);
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateMerger, null, null, this)
+          stateFactory, stateMerger, null, this)
           .output();
     }
   }
@@ -294,8 +285,6 @@ public class ReduceStateByKey<
     private final StateMerger<VALUE, OUT, STATE> stateMerger;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -304,7 +293,6 @@ public class ReduceStateByKey<
                     StateFactory<VALUE, OUT, STATE> stateFactory,
                     StateMerger<VALUE, OUT, STATE> stateMerger,
                     @Nullable Windowing<IN, W> windowing,
-                    @Nullable ExtractEventTime<IN> eventTimeAssigner,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -317,7 +305,6 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateMerger = Objects.requireNonNull(stateMerger);
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -327,7 +314,7 @@ public class ReduceStateByKey<
       ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, eventTimeAssigner, stateFactory, stateMerger, getPartitioning());
+              windowing, stateFactory, stateMerger, getPartitioning());
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -372,12 +359,11 @@ public class ReduceStateByKey<
                    UnaryFunction<IN, KEY> keyExtractor,
                    UnaryFunction<IN, VALUE> valueExtractor,
                    @Nullable Windowing<IN, W> windowing,
-                   @Nullable ExtractEventTime<IN> eventTimeAssigner,
                    StateFactory<VALUE, OUT, STATE> stateFactory,
                    StateMerger<VALUE, OUT, STATE> stateMerger,
                    Partitioning<KEY> partitioning)
   {
-    super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
+    super(name, flow, input, keyExtractor, windowing, partitioning);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateMerger;

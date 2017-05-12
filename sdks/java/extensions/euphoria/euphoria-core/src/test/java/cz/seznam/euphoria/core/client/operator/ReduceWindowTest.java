@@ -59,7 +59,7 @@ public class ReduceWindowTest {
 
     Dataset<Long> output = ReduceWindow.of(dataset)
         .reduceBy(e -> 1L)
-        .windowBy(windowing, s -> 0L)
+        .windowBy(windowing)
         .applyIf(true, b -> b.setNumPartitions(1))
         .output();
 
@@ -69,7 +69,6 @@ public class ReduceWindowTest {
     assertEquals(1, producer.partitioning.getNumPartitions());
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
-    assertNotNull(producer.getEventTimeAssigner());
   }
 
 

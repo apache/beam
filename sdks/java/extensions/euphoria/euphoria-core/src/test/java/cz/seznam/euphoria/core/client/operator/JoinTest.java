@@ -53,7 +53,6 @@ public class JoinTest {
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
     assertNull(join.getWindowing());
-    assertNull(join.getEventTimeAssigner());
     assertFalse(join.outer);
 
     // default partitioning used
@@ -103,12 +102,11 @@ public class JoinTest {
             .of(left, right)
             .by(String::length, String::length)
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
-            .windowBy(Time.of(Duration.ofHours(1)), s -> 0L, s -> 0L)
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
     assertTrue(join.getWindowing() instanceof Time);
-    assertNotNull(join.getEventTimeAssigner());
   }
 
   @Test
@@ -130,7 +128,6 @@ public class JoinTest {
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, join.getPartitioning().getNumPartitions());
     assertTrue(join.getWindowing() instanceof Time);
-    assertNull(join.getEventTimeAssigner());
   }
 
   @Test
