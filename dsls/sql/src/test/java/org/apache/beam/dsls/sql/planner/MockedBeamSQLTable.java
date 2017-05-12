@@ -58,8 +58,7 @@ public class MockedBeamSQLTable extends BaseBeamTable {
   /**
    * Convenient way to build a mocked table with mock data:
    *
-   * <p>
-   * e.g.
+   * <p>e.g.
    *
    * <pre>{@code
    * MockedBeamSQLTable
@@ -79,8 +78,6 @@ public class MockedBeamSQLTable extends BaseBeamTable {
    *       8L, 999, 9.0, new Date(),
    *       10L, 100, 10.0, new Date())
    * }</pre>
-   *
-   * </p>
    */
   public static MockedBeamSQLTable of(final Object... args){
     final RelProtoDataType protoRowType = new RelProtoDataType() {

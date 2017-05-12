@@ -58,7 +58,6 @@ public class BeamSortRelTest {
   @Test
   public void testOrderBy_basic() throws Exception {
     prepare();
-
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
