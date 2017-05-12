@@ -189,36 +189,30 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     }
 
     private <T> void processMainInput(WindowedValue<T> elem) {
-        try {
-            runner.startBundle();
-            if (sideInputs.isEmpty()) {
-                runner.processElement((WindowedValue<InputT>) elem);
-            } else {
-                PushbackSideInputDoFnRunner pushbackRunner = (PushbackSideInputDoFnRunner) runner;
+       if (sideInputs.isEmpty()) {
+           runner.processElement((WindowedValue<InputT>) elem);
+       } else {
+           PushbackSideInputDoFnRunner pushbackRunner = (PushbackSideInputDoFnRunner) runner;
 
-                Iterable<WindowedValue<InputT>> justPushedBack = pushbackRunner.processElementInReadyWindows(elem);
-                BagState<WindowedValue<InputT>> pushedBack =
-                        pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
+           Iterable<WindowedValue<InputT>> justPushedBack = pushbackRunner.processElementInReadyWindows(elem);
+           BagState<WindowedValue<InputT>> pushedBack =
+                   pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
-                Instant min = BoundedWindow.TIMESTAMP_MAX_VALUE;
-                for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
-                    if (pushedBackValue.getTimestamp().isBefore(min)) {
-                        min = pushedBackValue.getTimestamp();
-                    }
-                    min = earlier(min, pushedBackValue.getTimestamp());
-                    pushedBack.add(pushedBackValue);
-                }
-                pushbackStateInternals.state(StateNamespaces.global(), watermarkHoldTag).add(min);
-            }
-        } finally {
-            runner.finishBundle();
-        }
+           Instant min = BoundedWindow.TIMESTAMP_MAX_VALUE;
+           for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
+               if (pushedBackValue.getTimestamp().isBefore(min)) {
+                   min = pushedBackValue.getTimestamp();
+               }
+               min = earlier(min, pushedBackValue.getTimestamp());
+               pushedBack.add(pushedBackValue);
+           }
+           pushbackStateInternals.state(StateNamespaces.global(), watermarkHoldTag).add(min);
+       }
     }
 
     private void processSideInput(TupleTag tag, WindowedValue elem) {
         LOG.debug(String.format("side inputs: %s, %s.", tag, elem));
         PushbackSideInputDoFnRunner pushbackRunner = (PushbackSideInputDoFnRunner) runner;
-        pushbackRunner.startBundle();
 
         PCollectionView<?> sideInputView = sideInputTagToView.get(tag);
         sideInputHandler.addSideInputValue(sideInputView, elem);
@@ -244,7 +238,6 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
             min = earlier(min, pushedBackValue.getTimestamp());
             pushedBack.add(pushedBackValue);
         }
-        pushbackRunner.finishBundle();
 
         WatermarkHoldState<GlobalWindow> watermarkHold =
                 pushbackStateInternals.state(StateNamespaces.global(), watermarkHoldTag);
@@ -262,7 +255,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     @Override
     public void cleanup() {
-
+        doFnInvoker.invokeTeardown();
     }
 
     @Override
@@ -272,5 +265,9 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     private Instant earlier(Instant left, Instant right) {
         return left.isBefore(right) ? left : right;
-}
+    }
+
+    public DoFnRunner<InputT, OutputT> getRunner() {
+        return runner;
+    }
 }

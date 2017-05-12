@@ -17,8 +17,8 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime;
 
-import backtype.storm.topology.IRichBolt;
+import backtype.storm.topology.IRichBatchBolt;
 
-public abstract class AdaptorBasicBolt extends AbstractComponent implements IRichBolt {
+public abstract class AdaptorBasicBolt extends AbstractComponent implements IRichBatchBolt {
     
 }
