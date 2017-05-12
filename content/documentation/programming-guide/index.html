@@ -1939,7 +1939,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
     <span class="n">unix_timestamp</span> <span class="o">=</span> <span class="n">extract_timestamp_from_log_entry</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
     <span class="c"># Wrap and emit the current entry and new timestamp in a</span>
     <span class="c"># TimestampedValue.</span>
-    <span class="k">yield</span> <span class="n">beam</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">unix_timestamp</span><span class="p">)</span>
+    <span class="k">yield</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">unix_timestamp</span><span class="p">)</span>
 
 <span class="n">timestamped_items</span> <span class="o">=</span> <span class="n">items</span> <span class="o">|</span> <span class="s">'timestamp'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AddTimestampDoFn</span><span class="p">())</span>
 

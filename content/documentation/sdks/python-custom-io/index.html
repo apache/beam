@@ -464,7 +464,7 @@ numbers = p | 'ProduceNumbers' &gt;&gt; beam.io.Read(CountingSource(count))
 
 <h4 id="filesink">FileSink</h4>
 
-<p>If your data source uses files, you can derive your <code class="highlighter-rouge">Sink</code> and <code class="highlighter-rouge">Writer</code> classes from the <code class="highlighter-rouge">FileSink</code> and <code class="highlighter-rouge">FileSinkWriter</code> classes, which can be found in the <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/fileio.py">fileio.py</a> module. These classes implement code common sinks that interact with files, including:</p>
+<p>If your data source uses files, you can derive your <code class="highlighter-rouge">Sink</code> and <code class="highlighter-rouge">Writer</code> classes from the <code class="highlighter-rouge">FileBasedSink</code> and <code class="highlighter-rouge">FileBasedSinkWriter</code> classes, which can be found in the <a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/filebasedsink.py">filebasedsink.py</a> module. These classes implement code common sinks that interact with files, including:</p>
 
 <ul>
   <li>Setting file headers and footers</li>
