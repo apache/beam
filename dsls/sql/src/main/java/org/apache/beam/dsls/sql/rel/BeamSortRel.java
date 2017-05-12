@@ -30,7 +30,9 @@ import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.schema.UnsupportedDataTypeException;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
@@ -49,14 +51,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * {@code BeamRelNode} to replace a {@code Sort} node.
  *
  * <p>
- * Since :
- *   <a href="https://lists.apache.org/thread.html/bc0e65a3bb653b8fd0db96bcd4c9da5af71a
- *   71af5a5639a472167808@1464278191@%3Cdev.beam.apache.org%3E">
- *   Beam does not fully supported global sort
- *   </a>
+ * Since Beam does not fully supported global sort we are using {@link Top} to implement
+ * the {@code Sort} algebra.
  *
- *   we are using {@link Top} to implement the {@code Sort} algebra. The following types of
- *   ORDER BY are supported:
+ * The following types of ORDER BY are supported:
  *
  *   <pre>{@code
  *     select * from t order by id desc limit 10;
@@ -68,11 +66,15 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *   <pre>{@code
  *     select * from t order by id desc
  *   }</pre>
+ *
+ * NOTE: Due to the constraints of {@link Top}, the result of a `ORDER BY LIMIT` must fit into
+ * the memory of a single machine.
  * </p>
  */
 public class BeamSortRel extends Sort implements BeamRelNode {
   private List<Integer> fieldIndices = new ArrayList<>();
   private List<Boolean> orientation = new ArrayList<>();
+  private List<Boolean> nullsFirst = new ArrayList<>();
 
   private int startIndex = 0;
   private int count;
@@ -94,6 +96,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       RexInputRef inputRef = (RexInputRef) fieldExp;
       fieldIndices.add(inputRef.getIndex());
       orientation.add(collations.get(i).getDirection() == RelFieldCollation.Direction.ASCENDING);
+
+      RelFieldCollation.NullDirection rawNullDirection = collations.get(i).nullDirection;
+      if (rawNullDirection == RelFieldCollation.NullDirection.UNSPECIFIED) {
+        rawNullDirection = collations.get(i).getDirection().defaultNullDirection();
+      }
+      nullsFirst.add(rawNullDirection == RelFieldCollation.NullDirection.FIRST);
     }
 
     if (fetch == null) {
@@ -113,30 +121,42 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     RelNode input = getInput();
     BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
 
-    String stageName = BeamSQLRelUtils.getStageName(this);
     PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
 
-    BeamSQLRowComparator comparator = new BeamSQLRowComparator(fieldIndices, orientation);
+    BeamSQLRowComparator comparator = new BeamSQLRowComparator(fieldIndices, orientation,
+        nullsFirst);
     // first find the top (offset + count)
-    PCollection<BeamSQLRow> orderedStream =
+    PCollection<List<BeamSQLRow>> rawStream =
         upstream.apply("extractTopOffset_plus_Fetch",
-            Top.of(startIndex + count, comparator))
-        .apply("extractTopOffset_plus_Fetch__Flatten", Flatten.<BeamSQLRow>iterables());
+            Top.of(startIndex + count, comparator).withoutDefaults());
 
+    // strip the `leading offset`
     if (startIndex > 0) {
-      // strip the leading `offset`
-      orderedStream = orderedStream.apply("stripLeadingOffset",
-          Top.of(count, new NegativeComparator(comparator)))
-          .apply("stripLeadingOffset__Flatten", Flatten.<BeamSQLRow>iterables());
-      // reverse it
-      orderedStream = orderedStream.apply("reverseTailFetch",
-          Top.of(count, comparator))
-          .apply("reverseTailFetch__Flatten", Flatten.<BeamSQLRow>iterables());
+      rawStream = rawStream.apply(ParDo.of(
+          new SubListFn<BeamSQLRow>(startIndex, startIndex + count)));
     }
+
+    PCollection<BeamSQLRow> orderedStream = rawStream.apply(
+        "extractTopOffset_plus_Fetch__Flatten", Flatten.<BeamSQLRow>iterables());
 
     planCreator.pushUpstream(orderedStream);
 
     return planCreator.getPipeline();
+  }
+
+  private static class SubListFn<T> extends DoFn<List<T>, List<T>> {
+    private int startIndex;
+    private int endIndex;
+
+    public SubListFn(int startIndex, int endIndex) {
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      ctx.output(ctx.element().subList(startIndex, endIndex));
+    }
   }
 
   @Override public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation,
@@ -144,23 +164,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class NegativeComparator implements Comparator<BeamSQLRow>, Serializable {
-    private BeamSQLRowComparator delegate;
-    public NegativeComparator(BeamSQLRowComparator delegate) {
-      this.delegate = delegate;
-    }
-
-    @Override public int compare(BeamSQLRow row1, BeamSQLRow row2) {
-      return delegate.compare(row2, row1);
-    }
-  }
-
   private static class BeamSQLRowComparator implements Comparator<BeamSQLRow>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
-    public BeamSQLRowComparator(List<Integer> fieldsIndices, List<Boolean> orientation) {
+    private List<Boolean> nullsFirst;
+
+    public BeamSQLRowComparator(List<Integer> fieldsIndices,
+        List<Boolean> orientation,
+        List<Boolean> nullsFirst) {
       this.fieldsIndices = fieldsIndices;
       this.orientation = orientation;
+      this.nullsFirst = nullsFirst;
     }
 
     @Override public int compare(BeamSQLRow row1, BeamSQLRow row2) {
@@ -168,12 +182,14 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
         SqlTypeName fieldType = row1.getDataType().getFieldsType().get(fieldIndex);
+        // whether NULL should be ordered first or last depends on
+        // what user specified in SQL(NULLS FIRST/NULLS LAST)
         if (row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {
           continue;
         } else if (row1.isNull(fieldIndex) && !row2.isNull(fieldIndex)) {
-          fieldRet = -1;
+          fieldRet = -1 * (nullsFirst.get(i) ? -1 : 1);
         } else if (!row1.isNull(fieldIndex) && row2.isNull(fieldIndex)) {
-          fieldRet = 1;
+          fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
         } else {
           switch (fieldType) {
             case TINYINT:
