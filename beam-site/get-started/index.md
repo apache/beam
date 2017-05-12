@@ -14,7 +14,7 @@ Learn to use Beam to create data processing pipelines that run on supported proc
 
 Learn about the Beam model, the currently available Beam SDKs and Runners, and Beam's native I/O connectors.
 
-#### [Quickstart]({{ site.baseurl }}/get-started/quickstart/)
+#### Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py)
 
 Learn how to set up a Beam project and run a simple example Beam pipeline on your local machine.
 
