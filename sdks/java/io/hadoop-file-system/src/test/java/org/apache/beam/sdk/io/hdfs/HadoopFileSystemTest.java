@@ -63,14 +63,13 @@ public class HadoopFileSystemTest {
   @Rule public TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private Configuration configuration;
   private MiniDFSCluster hdfsCluster;
   private URI hdfsClusterBaseUri;
   private HadoopFileSystem fileSystem;
 
   @Before
   public void setUp() throws Exception {
-    configuration = new Configuration();
+    Configuration configuration = new Configuration();
     configuration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpFolder.getRoot().getAbsolutePath());
     MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(configuration);
     hdfsCluster = builder.build();
@@ -220,7 +219,7 @@ public class HadoopFileSystemTest {
     HadoopFileSystemOptions options = TestPipeline.testingPipelineOptions()
         .as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(ImmutableList.of(fileSystem.fileSystem.getConf()));
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
     PCollection<String> pc = p.apply(
         TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");

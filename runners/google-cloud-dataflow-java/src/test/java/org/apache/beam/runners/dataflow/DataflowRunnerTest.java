@@ -177,7 +177,7 @@ public class DataflowRunnerTest {
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     return p;
   }
@@ -246,7 +246,7 @@ public class DataflowRunnerTest {
     options.setGcpCredential(new TestCredential());
 
     // Configure the FileSystem registrar to use these options.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     return options;
   }
@@ -771,7 +771,7 @@ public class DataflowRunnerTest {
   @Test
   public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 
