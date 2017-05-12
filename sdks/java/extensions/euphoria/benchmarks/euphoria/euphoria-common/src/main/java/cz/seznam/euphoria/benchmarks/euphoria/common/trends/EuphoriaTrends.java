@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.io.VoidSink;
@@ -112,23 +113,29 @@ public class EuphoriaTrends {
         params.getSourceUri(),
         flow);
 
+    Dataset<String> queries = FlatMap.of(input)
+        .using((UnaryFunctor<Pair<Long, String>, String>)
+            (elem, context) -> context.collect(elem.getSecond()))
+        .eventTimeBy(Pair::getFirst)
+        .output();
+
     Dataset<Pair<String, Integer>> longStats =
         ReduceByKey.named("REDUCE-LARGE")
-            .of(input)
-            .keyBy(Pair::getSecond)
+            .of(queries)
+            .keyBy(e -> e)
             .valueBy(e -> 1)
             .combineBy(Sums.ofInts())
-            .windowBy(TimeSliding.of(params.getLongStats(), params.getShortStats()), Pair::getFirst)
+            .windowBy(TimeSliding.of(params.getLongStats(), params.getShortStats()))
             .applyIf(params.getParallelism() > 0, o -> o.setNumPartitions(params.getParallelism()))
             .output();
 
     Dataset<Pair<String, Integer>> shortStats =
         ReduceByKey.named("REDUCE-SHORT")
-            .of(input)
-            .keyBy(Pair::getSecond)
+            .of(queries)
+            .keyBy(e -> e)
             .valueBy(e -> 1)
             .combineBy(Sums.ofInts())
-            .windowBy(Time.of(params.getShortStats()), Pair::getFirst)
+            .windowBy(Time.of(params.getShortStats()))
             .applyIf(params.getParallelism() > 0, o -> o.setNumPartitions(params.getParallelism()))
             .output();
 
