@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -574,10 +575,11 @@ public class InMemExecutorTest {
 
     ListDataSink<Long> outputs = ListDataSink.get(2);
 
+    input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
+        .windowBy(Time.of(Duration.ofSeconds(10)))
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -630,10 +632,11 @@ public class InMemExecutorTest {
 
     ListDataSink<Long> outputs = ListDataSink.get(2);
 
+    input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
+        .windowBy(Time.of(Duration.ofSeconds(10)))
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -687,10 +690,11 @@ public class InMemExecutorTest {
 
     ListDataSink<Long> outputs = ListDataSink.get(1);
 
-    ReduceWindow.of(input)
+    input = AssignEventTime.of(input).using(e -> e * 1000L).output();
+    ReduceWindow.named("foo").of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
+        .windowBy(Time.of(Duration.ofSeconds(10)))
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -698,7 +702,7 @@ public class InMemExecutorTest {
     // watermarking 100 ms
     executor.setTriggeringSchedulerSupplier(
         () -> new WatermarkTriggerScheduler(100));
-    
+
     executor.submit(flow).get();
 
     // the data in first unfinished partition
@@ -734,10 +738,11 @@ public class InMemExecutorTest {
 
     ListDataSink<Integer> outputs = ListDataSink.get(1);
 
+    input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> e)
         .combineBy(Sums.ofInts())
-        .windowBy(Time.of(Duration.ofSeconds(1)), e -> e * 1000L)
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .setNumPartitions(1)
         .output()
         .persist(outputs);

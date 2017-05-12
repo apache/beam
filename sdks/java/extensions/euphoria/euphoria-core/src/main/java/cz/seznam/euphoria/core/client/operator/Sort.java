@@ -192,21 +192,12 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     public <W extends Window>
     OutputBuilder<IN, S, W>
     windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
-    }
-
-    @Override
-    public <W extends Window>
-    OutputBuilder<IN, S, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
-      return new OutputBuilder<>(name, input,
-              sortByFn, this, requireNonNull(windowing), eventTimeAssigner);
+      return new OutputBuilder<>(name, input, sortByFn, this, requireNonNull(windowing));
     }
 
     @Override
     public Dataset<IN> output() {
-      return new OutputBuilder<>(
-          name, input, sortByFn, this, null, null).output();
+      return new OutputBuilder<>(name, input, sortByFn, this, null).output();
     }
   }
 
@@ -220,15 +211,12 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
     private final UnaryFunction<IN, S> sortByFn;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, S> sortByFn,
                   PartitioningBuilder<S, ?> partitioning,
-                  @Nullable Windowing<IN, W> windowing,
-                  @Nullable ExtractEventTime<IN> eventTimeAssigner) {
+                  @Nullable Windowing<IN, W> windowing) {
 
       super(partitioning);
 
@@ -236,7 +224,6 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
       this.input = requireNonNull(input);
       this.sortByFn = requireNonNull(sortByFn);
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -246,8 +233,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
           + "Set single partition or define custom partitioner, e.g. RangePartitioner.");
       Flow flow = input.getFlow();
       Sort<IN, S, W> top =
-          new Sort<>(flow, name, input,
-                  sortByFn, getPartitioning(), windowing, eventTimeAssigner);
+          new Sort<>(flow, name, input, sortByFn, getPartitioning(), windowing);
       flow.add(top);
       return top.output();
     }
@@ -294,8 +280,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
             Dataset<IN> input,
             UnaryFunction<IN, S> sortByFn,
             Partitioning<S> partitioning,
-            @Nullable Windowing<IN, W> windowing,
-            @Nullable ExtractEventTime<IN> eventTimeAssigner) {
+            @Nullable Windowing<IN, W> windowing) {
     super(name, flow, input, 
         // Key is actually the number of the final partition - it ensures that all records
         // in one partition (and same window) get into the same state in ReduceStateByKey 
@@ -303,7 +288,7 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
         // At the same time the key (partition number) is simply used inside partitioner
         // to ensure that partitioning and states work together.
         new PartitionKeyExtractor<>(sortByFn, partitioning), 
-        windowing, eventTimeAssigner, 
+        windowing,
         new HashPartitioning<>(partitioning.getNumPartitions()));
     
     this.sortByFn = sortByFn;
@@ -325,7 +310,6 @@ public class Sort<IN, S extends Comparable<? super S>, W extends Window>
                 keyExtractor,
                 e -> e,
                 windowing,
-                eventTimeAssigner,
                 (StateFactory<IN, IN, Sorted<IN>>)
                     (provider, ctx) -> new Sorted<>(provider, comparator),
                 stateCombiner,

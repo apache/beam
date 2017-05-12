@@ -86,19 +86,13 @@ public class CountByKey<IN, KEY, W extends Window>
 
     @Override
     public <W extends Window> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, W> windowing, ExtractEventTime<IN> eventTimeAssigner) {
-      return new OutputBuilder<>(name, input, keyExtractor, windowing, eventTimeAssigner, this);
-    }
-
-    @Override
-    public <W extends Window> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
+      return new OutputBuilder<>(name, input, keyExtractor, windowing, this);
     }
 
     @Override
     public Dataset<Pair<KEY, Long>> output() {
-      return windowBy(null, null).output();
+      return windowBy(null).output();
     }
   }
   
@@ -111,15 +105,11 @@ public class CountByKey<IN, KEY, W extends Window>
     private final UnaryFunction<IN, KEY> keyExtractor;
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final ExtractEventTime<IN> eventTimeAssigner;
-
 
     OutputBuilder(String name,
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   @Nullable Windowing<IN, W> windowing,
-                  @Nullable ExtractEventTime<IN> eventTimeAssigner,
                   PartitioningBuilder<KEY, ?> partitioning) {
 
       //initialize partitioning
@@ -129,15 +119,13 @@ public class CountByKey<IN, KEY, W extends Window>
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
       this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     public Dataset<Pair<KEY, Long>> output() {
       Flow flow = input.getFlow();
       CountByKey<IN, KEY, W> count = new CountByKey<>(
-              name, flow, input, keyExtractor,
-              windowing, eventTimeAssigner, getPartitioning());
+              name, flow, input, keyExtractor, windowing, getPartitioning());
       flow.add(count);
       return count.output();
     }
@@ -176,10 +164,9 @@ public class CountByKey<IN, KEY, W extends Window>
              Dataset<IN> input,
              UnaryFunction<IN, KEY> extractor,
              @Nullable Windowing<IN, W> windowing,
-             @Nullable ExtractEventTime<IN> eventTimeAssigner,
              Partitioning<KEY> partitioning) {
 
-    super(name, flow, input, extractor, windowing, eventTimeAssigner,  partitioning);
+    super(name, flow, input, extractor, windowing, partitioning);
   }
 
   @Override
@@ -191,7 +178,6 @@ public class CountByKey<IN, KEY, W extends Window>
             keyExtractor,
             e -> 1L,
             windowing,
-            eventTimeAssigner,
             partitioning);
     return DAG.of(sum);
   }

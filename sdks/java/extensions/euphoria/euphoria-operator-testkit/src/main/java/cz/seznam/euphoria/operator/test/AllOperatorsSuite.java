@@ -40,6 +40,7 @@ import org.junit.runners.Suite;
     SortTest.class,
     UnionTest.class,
     WindowingTest.class,
+    WatermarkTest.class,
 })
 public abstract class AllOperatorsSuite implements ExecutorProvider {
 

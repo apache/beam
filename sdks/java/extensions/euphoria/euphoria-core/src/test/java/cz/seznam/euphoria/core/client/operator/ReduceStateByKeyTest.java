@@ -61,7 +61,6 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
-    assertNull(reduce.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
@@ -94,12 +93,11 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .mergeStatesBy(WordCountState::combine)
-            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
-    assertNotNull(reduce.getEventTimeAssigner());
   }
 
   @Test

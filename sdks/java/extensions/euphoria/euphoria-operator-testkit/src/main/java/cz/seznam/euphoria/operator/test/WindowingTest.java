@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
@@ -69,10 +70,11 @@ public class WindowingTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Triple<Instant, Type, Long>> getOutput(Dataset<Triple<Instant, Type, String>> input) {
+        input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
         Dataset<ComparablePair<Type, String>> distinct =
                 Distinct.of(input)
                         .mapped(t -> new ComparablePair<>(t.getSecond(), t.getThird()))
-                        .windowBy(Time.of(Duration.ofHours(1)), t -> t.getFirst().toEpochMilli())
+                        .windowBy(Time.of(Duration.ofHours(1)))
                         .output();
 
         Dataset<Pair<Type, Long>> reduced = ReduceByKey.of(distinct)
@@ -141,13 +143,14 @@ public class WindowingTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<Instant, Type, Long>> getOutput(Dataset<Triple<Instant, Type, String>> input) {
         // distinct implemented using raw ReduceStateByKey
+        input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
         Dataset<Pair<ComparablePair<Type, String>, Object>> pairs =
                 ReduceStateByKey.of(input)
                                 .keyBy(t -> new  ComparablePair<>(t.getSecond(), t.getThird()))
                                 .valueBy(t -> null)
                                 .stateFactory(DistinctState::new)
                                 .mergeStatesBy((t, os) -> {})
-                                .windowBy(Time.of(Duration.ofHours(1)), (Triple<Instant, Type, String> t) -> t.getFirst().toEpochMilli())
+                                .windowBy(Time.of(Duration.ofHours(1)))
                                 .output();
 
         Dataset<ComparablePair<Type, String>> distinct = MapElements.of(pairs)
@@ -388,12 +391,13 @@ public class WindowingTest extends AbstractOperatorTest {
           }
         };
 
+        input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
         Dataset<Pair<String, Integer>> pairs =
                 ReduceByKey.of(input)
                 .keyBy(e -> "")
                 .valueBy(e -> 1)
                 .combineBy(Sums.ofInts())
-                .windowBy(windowing, t -> t.getFirst().toEpochMilli())
+                .windowBy(windowing)
                 .output();
 
         // extract window timestamp
