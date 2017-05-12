@@ -62,16 +62,9 @@ class SortTranslator implements BatchOperatorTranslator<Sort> {
     final UnaryFunction<Object, Integer> udfKey = origOperator.getKeyExtractor();
     final UnaryFunction<Object, Comparable> udfSort = origOperator.getSortByExtractor();
 
-    // ~ extract key/value + timestamp from input elements and assign windows
-    ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
-    
     DataSet<BatchElement> wAssigned =
         input.flatMap((i, c) -> {
           BatchElement wel = (BatchElement) i;
-          // assign timestamp if timeAssigner defined
-          if (timeAssigner != null) {
-            wel.setTimestamp(timeAssigner.extractTimestamp(wel.getElement()));
-          }
           Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
           for (Window wid : assigned) {
             Object el = wel.getElement();

@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -68,11 +69,11 @@ public class RBKAttachedWindowingTest {
 
     // ~ reduce using a specified windowing
     Dataset<Pair<String, Long>> uniq =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofMillis(10)), e -> (long) e.getSecond())
+        .windowBy(Time.of(Duration.ofMillis(10)))
         .setNumPartitions(2)
         .output();
 
@@ -138,11 +139,11 @@ public class RBKAttachedWindowingTest {
 
     // ~ reduce using a specified windowing
     Dataset<Pair<String, Long>> uniq =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(f.createInput(source, Pair::getSecond))
             .keyBy(Pair::getFirst)
             .valueBy(e -> 1L)
             .combineBy(Sums.ofLongs())
-            .windowBy(Time.of(Duration.ofMillis(10)), e -> (long) e.getSecond())
+            .windowBy(Time.of(Duration.ofMillis(10)))
             .setNumPartitions(2)
             .output();
 
@@ -298,10 +299,10 @@ public class RBKAttachedWindowingTest {
 
     // ~ distinct queries per user
     Dataset<Query> distinctByUser =
-        Distinct.of(f.createInput(source))
+        Distinct.of(f.createInput(source, e -> e.time))
             .mapped(e -> e)
             .setNumPartitions(1)
-            .windowBy(Time.of(Duration.ofMillis(5)), e -> e.time)
+            .windowBy(Time.of(Duration.ofMillis(5)))
             .output();
 
     // ~ count of query (effectively how many users used a given query)
