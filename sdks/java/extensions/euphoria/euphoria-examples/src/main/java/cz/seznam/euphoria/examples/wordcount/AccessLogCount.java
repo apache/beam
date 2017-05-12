@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -124,6 +125,17 @@ public class AccessLogCount {
             .using(LogParser::parseLine)
             .output();
 
+    // Since our log lines represent events which happened at a particular
+    // point in time, we want our system to treat them as such, no matter in
+    // which particular order the lines happen to be in the read input files.
+    //
+    // We do so by applying a so-called event-time-extractor function. As of
+    // this moment, euphoria will treat the element as if it happended in the
+    // corresponding time since it gets to know the timestamp the event occurred.
+    parsed = AssignEventTime.of(parsed)
+        .using(line -> line.getDate().getTime())
+        .output();
+
     // In the previous step we derived a data set specifying points in time
     // at which particular IPs accessed our web-server. Our goal is now to
     // count how often a particular IP accessed the web-server, per day. This
@@ -146,8 +158,9 @@ public class AccessLogCount {
     //
     // Here, we specify time based windowing using the `Time.of(..)` method
     // specifying the size of the windows, in particular "one day" in this
-    // example. Then, we also specify how to determine the time of the
-    // elements, such that these are placed into the right windows.
+    // example. The assignment of an element to a particular time window,
+    // will, by definition, utilize the processed elements assigned timestamp.
+    // This is what we did in the previous step.
     //
     // Note: There are a few different windowing strategies and you can
     // investigate each by looking for classes implementing {@link Windowing}.
@@ -169,7 +182,7 @@ public class AccessLogCount {
             .keyBy(LogLine::getIp)
             .valueBy(line -> 1L)
             .combineBy(Sums.ofLongs())
-            .windowBy(Time.of(Duration.ofDays(1)), line -> line.getDate().getTime())
+            .windowBy(Time.of(Duration.ofDays(1)))
             .output();
 
     // At the final stage of our flow, we nicely format the previously emitted
