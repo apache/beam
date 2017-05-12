@@ -53,7 +53,7 @@ public class HadoopResourceIdTest {
     // Register HadoopFileSystem for this test.
     HadoopFileSystemOptions options = PipelineOptionsFactory.as(HadoopFileSystemOptions.class);
     options.setHdfsConfiguration(Collections.singletonList(configuration));
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
   }
 
   @After

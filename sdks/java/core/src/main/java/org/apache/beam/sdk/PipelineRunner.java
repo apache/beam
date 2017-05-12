@@ -41,7 +41,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
     PipelineOptionsValidator.validate(PipelineOptions.class, options);
 
     // (Re-)register standard FileSystems. Clobbers any prior credentials.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =
