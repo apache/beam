@@ -53,11 +53,11 @@ import shutil
 import tempfile
 
 from apache_beam import pvalue
-from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.runners import create_runner
 from apache_beam.runners import PipelineRunner
 from apache_beam.transforms import ptransform
+from apache_beam.typehints import typehints
 from apache_beam.typehints import TypeCheckError
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -67,6 +67,9 @@ from apache_beam.options.pipeline_options_validator import PipelineOptionsValida
 from apache_beam.utils.annotations import deprecated
 
 
+__all__ = ['Pipeline']
+
+
 class Pipeline(object):
   """A pipeline object that manages a DAG of PValues and their PTransforms.
 
@@ -74,8 +77,8 @@ class Pipeline(object):
   the PValues are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
-  If same transform instance needs to be applied then a clone should be created
-  with a new label (e.g., transform.clone('new label')).
+  If same transform instance needs to be applied then the right shift operator
+  should be used to designate new names (e.g. `input | "label" >> my_tranform`).
   """
 
   def __init__(self, runner=None, options=None, argv=None):
@@ -181,6 +184,8 @@ class Pipeline(object):
 
   def visit(self, visitor):
     """Visits depth-first every node of a pipeline's DAG.
+
+    Runner-internal implementation detail; no backwards-compatibility guarantees
 
     Args:
       visitor: PipelineVisitor object whose callbacks will be called for each
@@ -333,6 +338,7 @@ class Pipeline(object):
     return Visitor.ok
 
   def to_runner_api(self):
+    """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.runners.api import beam_runner_api_pb2
     context = pipeline_context.PipelineContext()
@@ -346,6 +352,7 @@ class Pipeline(object):
 
   @staticmethod
   def from_runner_api(proto, runner, options):
+    """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(proto.components)

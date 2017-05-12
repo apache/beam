@@ -40,17 +40,37 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowFn
 from apache_beam.typehints import Any
-from apache_beam.typehints import get_type_hints
-from apache_beam.typehints import is_consistent_with
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import KV
 from apache_beam.typehints import trivial_inference
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
-from apache_beam.typehints import WithTypeHints
+from apache_beam.typehints.decorators import get_type_hints
+from apache_beam.typehints.decorators import TypeCheckError
+from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
+from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
 from apache_beam.options.pipeline_options import TypeOptions
+
+
+__all__ = [
+    'DoFn',
+    'CombineFn',
+    'PartitionFn',
+    'ParDo',
+    'FlatMap',
+    'Map',
+    'Filter',
+    'CombineGlobally',
+    'CombinePerKey',
+    'CombineValues',
+    'GroupByKey',
+    'Partition',
+    'Windowing',
+    'WindowInto',
+    'Flatten',
+    'Create',
+    ]
 
 
 # Type variables
@@ -195,7 +215,7 @@ class DoFn(WithTypeHints, HasDisplayData):
       return Any
     return type_hint
 
-  def process_argspec_fn(self):
+  def _process_argspec_fn(self):
     """Returns the Python callable that will eventually be invoked.
 
     This should ideally be the user-level function that is called with
@@ -287,7 +307,7 @@ class CallableWrapperDoFn(DoFn):
     return self._strip_output_annotations(
         trivial_inference.infer_return_type(self._fn, [input_type]))
 
-  def process_argspec_fn(self):
+  def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
 
@@ -621,8 +641,8 @@ class ParDo(PTransformWithSideInputs):
       return fn
     return CallableWrapperDoFn(fn)
 
-  def process_argspec_fn(self):
-    return self.fn.process_argspec_fn()
+  def _process_argspec_fn(self):
+    return self.fn._process_argspec_fn()
 
   def display_data(self):
     return {'fn': DisplayDataItem(self.fn.__class__,
@@ -850,19 +870,19 @@ class CombineGlobally(PTransform):
   def default_label(self):
     return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
 
-  def clone(self, **extra_attributes):
+  def _clone(self, **extra_attributes):
     clone = copy.copy(self)
     clone.__dict__.update(extra_attributes)
     return clone
 
   def with_defaults(self, has_defaults=True):
-    return self.clone(has_defaults=has_defaults)
+    return self._clone(has_defaults=has_defaults)
 
   def without_defaults(self):
     return self.with_defaults(False)
 
   def as_singleton_view(self):
-    return self.clone(as_view=True)
+    return self._clone(as_view=True)
 
   def expand(self, pcoll):
     def add_input_types(transform):
@@ -944,7 +964,7 @@ class CombinePerKey(PTransformWithSideInputs):
   def default_label(self):
     return '%s(%s)' % (self.__class__.__name__, self._fn_label)
 
-  def process_argspec_fn(self):
+  def _process_argspec_fn(self):
     return self.fn._fn  # pylint: disable=protected-access
 
   def expand(self, pcoll):
@@ -1113,7 +1133,7 @@ class GroupByKey(PTransform):
       return (pcoll
               | 'ReifyWindows' >> (ParDo(self.ReifyWindows())
                  .with_output_types(reify_output_type))
-              | 'GroupByKey' >> (GroupByKeyOnly()
+              | 'GroupByKey' >> (_GroupByKeyOnly()
                  .with_input_types(reify_output_type)
                  .with_output_types(gbk_input_type))
               | ('GroupByWindow' >> ParDo(
@@ -1124,14 +1144,14 @@ class GroupByKey(PTransform):
       # The input_type is None, run the default
       return (pcoll
               | 'ReifyWindows' >> ParDo(self.ReifyWindows())
-              | 'GroupByKey' >> GroupByKeyOnly()
+              | 'GroupByKey' >> _GroupByKeyOnly()
               | 'GroupByWindow' >> ParDo(
                     self.GroupAlsoByWindow(pcoll.windowing)))
 
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, typehints.Iterable[V]])
-class GroupByKeyOnly(PTransform):
+class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
     key_type, value_type = trivial_inference.key_value_types(input_type)

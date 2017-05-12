@@ -52,6 +52,14 @@ import weakref
 from multiprocessing.pool import ThreadPool
 from apache_beam.io import iobase
 
+__all__ = ['read_from_source', 'assert_sources_equal_reference_source',
+           'assert_reentrant_reads_succeed',
+           'assert_split_at_fraction_behavior',
+           'assert_split_at_fraction_binary',
+           'assert_split_at_fraction_exhaustive',
+           'assert_split_at_fraction_fails',
+           'assert_split_at_fraction_succeeds_and_consistent']
+
 
 class ExpectedSplitOutcome(object):
   MUST_SUCCEED_AND_BE_CONSISTENT = 1

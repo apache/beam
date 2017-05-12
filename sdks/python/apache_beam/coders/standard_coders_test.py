@@ -26,7 +26,7 @@ import unittest
 
 import yaml
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.coders import coder_impl
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp

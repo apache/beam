@@ -15,13 +15,17 @@
 # limitations under the License.
 #
 
-"""Utility methods for testing"""
+"""Utility methods for testing
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import hashlib
 import imp
 from mock import Mock, patch
 
 from apache_beam.utils import retry
+
 
 DEFAULT_HASHING_ALG = 'sha1'
 

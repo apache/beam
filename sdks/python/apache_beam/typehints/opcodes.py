@@ -23,6 +23,8 @@ FrameState object, the second the integer opcode argument.
 
 Bytecodes with more complicated behavior (e.g. modifying the program counter)
 are handled inline rather than here.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 import types
 

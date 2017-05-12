@@ -15,3 +15,4 @@
 # limitations under the License.
 #
 from apache_beam.metrics.metric import Metrics
+from apache_beam.metrics.metric import MetricsFilter

@@ -29,6 +29,8 @@ import threading
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 
+__all__ = ['DistributionResult']
+
 
 class CellCommitState(object):
   """For internal use only; no backwards-compatibility guarantees.

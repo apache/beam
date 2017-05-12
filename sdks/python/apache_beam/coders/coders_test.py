@@ -20,8 +20,9 @@ import base64
 import logging
 import unittest
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders.typecoders import registry as coders_registry
 
 
 class PickleCoderTest(unittest.TestCase):
@@ -46,13 +47,13 @@ class PickleCoderTest(unittest.TestCase):
 class CodersTest(unittest.TestCase):
 
   def test_str_utf8_coder(self):
-    real_coder = coders.registry.get_coder(str)
+    real_coder = coders_registry.get_coder(str)
     expected_coder = coders.BytesCoder()
     self.assertEqual(
         real_coder.encode('abc'), expected_coder.encode('abc'))
     self.assertEqual('abc', real_coder.decode(real_coder.encode('abc')))
 
-    real_coder = coders.registry.get_coder(bytes)
+    real_coder = coders_registry.get_coder(bytes)
     expected_coder = coders.BytesCoder()
     self.assertEqual(
         real_coder.encode('abc'), expected_coder.encode('abc'))
@@ -82,7 +83,7 @@ class ProtoCoderTest(unittest.TestCase):
     mb.field1 = True
     ma.field1 = u'hello world'
     expected_coder = coders.ProtoCoder(ma.__class__)
-    real_coder = coders.registry.get_coder(ma.__class__)
+    real_coder = coders_registry.get_coder(ma.__class__)
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
     self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
@@ -104,7 +105,7 @@ class FallbackCoderTest(unittest.TestCase):
   def test_default_fallback_path(self):
     """Test fallback path picks a matching coder if no coder is registered."""
 
-    coder = coders.registry.get_coder(DummyClass)
+    coder = coders_registry.get_coder(DummyClass)
     # No matching coder, so picks the last fallback coder which is a
     # FastPrimitivesCoder.
     self.assertEqual(coder, coders.FastPrimitivesCoder())

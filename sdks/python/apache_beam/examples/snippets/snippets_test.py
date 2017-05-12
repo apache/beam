@@ -29,10 +29,11 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import equal_to
+from apache_beam.coders.coders import ToStringCoder
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.utils.windowed_value import WindowedValue
 
 # pylint: disable=expression-not-assigned
@@ -157,11 +158,11 @@ class ParDoTest(unittest.TestCase):
                                                     avg_word_len))
     # [END model_pardo_side_input]
 
-    beam.assert_that(small_words, beam.equal_to(['a', 'bb', 'ccc']))
-    beam.assert_that(larger_than_average, beam.equal_to(['ccc', 'dddd']),
-                     label='larger_than_average')
-    beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
-                     label='small_but_not_trivial')
+    assert_that(small_words, equal_to(['a', 'bb', 'ccc']))
+    assert_that(larger_than_average, equal_to(['ccc', 'dddd']),
+                label='larger_than_average')
+    assert_that(small_but_nontrivial, equal_to(['bb']),
+                label='small_but_not_trivial')
     p.run()
 
   def test_pardo_side_input_dofn(self):
@@ -422,7 +423,7 @@ class SnippetsTest(unittest.TestCase):
       def __init__(self, file_to_write):
         self.file_to_write = file_to_write
         self.file_obj = None
-        self.coder = coders.ToStringCoder()
+        self.coder = ToStringCoder()
 
       def start_bundle(self):
         assert self.file_to_write
@@ -815,7 +816,7 @@ class CombineTest(unittest.TestCase):
               | 'group' >> beam.GroupByKey()
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([110, 215, 120]))
+    assert_that(unkeyed, equal_to([110, 215, 120]))
     p.run()
 
   def test_setting_sliding_windows(self):
@@ -833,8 +834,8 @@ class CombineTest(unittest.TestCase):
               | 'group' >> beam.GroupByKey()
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed,
-                     beam.equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
+    assert_that(unkeyed,
+                equal_to([2, 2, 2, 18, 23, 39, 39, 39, 41, 41]))
     p.run()
 
   def test_setting_session_windows(self):
@@ -852,8 +853,8 @@ class CombineTest(unittest.TestCase):
               | 'group' >> beam.GroupByKey()
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed,
-                     beam.equal_to([29, 27]))
+    assert_that(unkeyed,
+                equal_to([29, 27]))
     p.run()
 
   def test_setting_global_window(self):
@@ -871,7 +872,7 @@ class CombineTest(unittest.TestCase):
               | 'group' >> beam.GroupByKey()
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([56]))
+    assert_that(unkeyed, equal_to([56]))
     p.run()
 
   def test_setting_timestamp(self):
@@ -891,7 +892,7 @@ class CombineTest(unittest.TestCase):
         unix_timestamp = extract_timestamp_from_log_entry(element)
         # Wrap and emit the current entry and new timestamp in a
         # TimestampedValue.
-        yield beam.TimestampedValue(element, unix_timestamp)
+        yield beam.window.TimestampedValue(element, unix_timestamp)
 
     timestamped_items = items | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
     # [END setting_timestamp]
@@ -902,7 +903,7 @@ class CombineTest(unittest.TestCase):
               | 'group' >> beam.GroupByKey()
               | 'combine' >> beam.CombineValues(sum))
     unkeyed = summed | 'unkey' >> beam.Map(lambda x: x[1])
-    beam.assert_that(unkeyed, beam.equal_to([42, 187]))
+    assert_that(unkeyed, equal_to([42, 187]))
     p.run()
 
 
@@ -920,7 +921,7 @@ class PTransformTest(unittest.TestCase):
 
     p = TestPipeline()
     lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
-    beam.assert_that(lengths, beam.equal_to([1, 2, 3]))
+    assert_that(lengths, equal_to([1, 2, 3]))
     p.run()
 
 
