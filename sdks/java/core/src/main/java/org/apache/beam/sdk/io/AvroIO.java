@@ -30,6 +30,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -313,6 +315,7 @@ public class AvroIO {
      * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
      * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
       return toResource(StaticValueProvider.of(outputPrefix));
     }
@@ -333,6 +336,7 @@ public class AvroIO {
     /**
      * Like {@link #to(ResourceId)}.
      */
+    @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
       return toBuilder().setFilenamePrefix(outputPrefix).build();
     }

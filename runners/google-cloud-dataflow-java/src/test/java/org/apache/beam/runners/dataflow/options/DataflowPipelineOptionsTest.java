@@ -137,7 +137,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location/");
     assertEquals("gs://temp_location/", options.getGcpTempLocation());
@@ -147,7 +147,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location/");
     options.setGcpTempLocation("gs://gcp_temp_location/");

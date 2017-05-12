@@ -25,6 +25,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,6 +36,7 @@ import org.apache.hadoop.conf.Configuration;
  * {@link AutoService} registrar for the {@link HadoopFileSystem}.
  */
 @AutoService(FileSystemRegistrar.class)
+@Experimental(Kind.FILESYSTEM)
 public class HadoopFileSystemRegistrar implements FileSystemRegistrar {
 
   @Override
