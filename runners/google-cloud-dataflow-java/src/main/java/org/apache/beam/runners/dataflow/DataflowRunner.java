@@ -1446,7 +1446,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PTransformReplacement<PCollection<T>, PDone> getReplacementTransform(
         AppliedPTransform<PCollection<T>, PDone, WriteFiles<T>> transform) {
-        return PTransformReplacement.of(
+      // By default, if numShards is not set WriteFiles will produce one file per bundle. In
+      // streaming, there are large numbers of small bundles, resulting in many tiny files.
+      // Instead we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
+      // (current_num_workers * 2 might be a better choice, but that value is not easily available
+      // today).
+      return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
             transform.getTransform().withNumShards(options.getMaxNumWorkers() * 2));
     }

@@ -66,6 +66,7 @@ import java.util.regex.Pattern;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -1139,17 +1140,22 @@ public class DataflowRunnerTest {
 
   @Test
   public void testStreamingWriteWithNoShardingReturnsNewTransform() {
-    TestPipeline p = TestPipeline.create();
-    StreamingShardedWriteFactory<Object> factory = new StreamingShardedWriteFactory(p.getOptions());
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
+    TestPipeline p = TestPipeline.fromOptions(options);
+
+    StreamingShardedWriteFactory<Object> factory =
+        new StreamingShardedWriteFactory<>(p.getOptions());
     WriteFiles<Object> original = WriteFiles.to(new TestSink(tmpFolder.toString()));
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, PDone, WriteFiles<Object>> originalApplication =
         AppliedPTransform.of(
             "writefiles", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
 
-    assertThat(
-        factory.getReplacementTransform(originalApplication).getTransform(),
-        not(equalTo((Object) original)));
+    WriteFiles<Object> replacement = (WriteFiles<Object>)
+        factory.getReplacementTransform(originalApplication).getTransform();
+    assertThat(replacement, not(equalTo((Object) original)));
+    assertThat(replacement.getNumShards().get(), equalTo(20));
   }
 
   private static class TestSink extends FileBasedSink<Object> {
