@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""File-based sources and sinks."""
+"""File-based sink."""
 
 from __future__ import absolute_import
 

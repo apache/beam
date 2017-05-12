@@ -30,7 +30,7 @@ import mock
 
 import apache_beam as beam
 from apache_beam.coders import coders
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
@@ -70,12 +70,12 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
     return file_name
 
 
-class MyFileBasedSink(fileio.FileBasedSink):
+class MyFileBasedSink(filebasedsink.FileBasedSink):
 
   def open(self, temp_path):
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).open(temp_path)
-    file_handle = fileio.FileBasedSink.open(self, temp_path)
+    file_handle = filebasedsink.FileBasedSink.open(self, temp_path)
     file_handle.write('[start]')
     return file_handle
 
@@ -88,7 +88,7 @@ class MyFileBasedSink(fileio.FileBasedSink):
     file_handle.write('[end]')
     # TODO: Fix main session pickling.
     # file_handle = super(MyFileBasedSink, self).close(file_handle)
-    file_handle = fileio.FileBasedSink.close(self, file_handle)
+    file_handle = filebasedsink.FileBasedSink.close(self, file_handle)
 
 
 class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
