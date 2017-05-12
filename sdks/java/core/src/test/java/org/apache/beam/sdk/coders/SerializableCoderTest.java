@@ -125,9 +125,15 @@ public class SerializableCoderTest implements Serializable {
     assertEquals(coder.getRecordType(), MyRecord.class);
     CoderProperties.coderSerializable(coder);
 
-
     SerializableCoder<?> decoded = SerializableUtils.clone(coder);
     assertThat(decoded.getRecordType(), Matchers.<Object>equalTo(MyRecord.class));
+  }
+
+  @Test
+  public <T extends Serializable> void testSerializableCoderIsSerializableWithGenericTypeToken()
+  throws Exception {
+    SerializableCoder<T> coder = SerializableCoder.of(new TypeDescriptor<T>() {});
+    CoderProperties.coderSerializable(coder);
   }
 
   @Test
