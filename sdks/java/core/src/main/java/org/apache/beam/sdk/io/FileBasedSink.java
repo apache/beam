@@ -47,6 +47,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -115,6 +117,7 @@ import org.slf4j.LoggerFactory;
  *
  * @param <T> the type of values written to the sink.
  */
+@Experimental(Kind.FILESYSTEM)
 public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
@@ -193,6 +196,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * {@code /}, {@code gs://my-bucket}, or {@code c://}. In that case, interpreting the string as a
    * file will fail and this function will return a directory {@link ResourceId} instead.
    */
+  @Experimental(Kind.FILESYSTEM)
   public static ResourceId convertToFileResourceIfPossible(String outputPrefix) {
     try {
       return FileSystems.matchNewResource(outputPrefix, false /* isDirectory */);
@@ -290,6 +294,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * as well as sharding information. The policy must return unique and consistent filenames
      * for different windows and panes.
      */
+    @Experimental(Kind.FILESYSTEM)
     public abstract ResourceId windowedFilename(
         ResourceId outputDirectory, WindowedContext c, String extension);
 
@@ -302,6 +307,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * <p>The {@link Context} object only provides sharding information, which is used by the policy
      * to generate unique and consistent filenames.
      */
+    @Experimental(Kind.FILESYSTEM)
     @Nullable public abstract ResourceId unwindowedFilename(
         ResourceId outputDirectory, Context c, String extension);
 
@@ -320,6 +326,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * Construct a {@link FileBasedSink} with the given filename policy, producing uncompressed files.
    */
+  @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> baseOutputDirectoryProvider, FilenamePolicy filenamePolicy) {
     this(baseOutputDirectoryProvider, filenamePolicy, CompressionType.UNCOMPRESSED);
@@ -335,6 +342,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
   /**
    * Construct a {@link FileBasedSink} with the given filename policy and output channel type.
    */
+  @Experimental(Kind.FILESYSTEM)
   public FileBasedSink(
       ValueProvider<ResourceId> baseOutputDirectoryProvider,
       FilenamePolicy filenamePolicy,
@@ -349,6 +357,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * Returns the base directory inside which files will be written according to the configured
    * {@link FilenamePolicy}.
    */
+  @Experimental(Kind.FILESYSTEM)
   public ValueProvider<ResourceId> getBaseOutputDirectoryProvider() {
     return baseOutputDirectoryProvider;
   }
@@ -358,6 +367,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
    * the {@link FilenamePolicy} may itself specify one or more inner directories before each output
    * file, say when writing windowed outputs in a {@code output/YYYY/MM/DD/file.txt} format.
    */
+  @Experimental(Kind.FILESYSTEM)
   public final FilenamePolicy getFilenamePolicy() {
     return filenamePolicy;
   }
@@ -424,9 +434,11 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     protected final ValueProvider<ResourceId> tempDirectory;
 
     /** Whether windowed writes are being used. */
-    protected  boolean windowedWrites;
+    @Experimental(Kind.FILESYSTEM)
+    protected boolean windowedWrites;
 
     /** Constructs a temporary file resource given the temporary directory and a filename. */
+    @Experimental(Kind.FILESYSTEM)
     protected static ResourceId buildTemporaryFilename(ResourceId tempDirectory, String filename)
         throws IOException {
       return tempDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
@@ -472,6 +484,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * @param sink the FileBasedSink that will be used to configure this write operation.
      * @param tempDirectory the base directory to be used for temporary output files.
      */
+    @Experimental(Kind.FILESYSTEM)
     public WriteOperation(FileBasedSink<T> sink, ResourceId tempDirectory) {
       this(sink, StaticValueProvider.of(tempDirectory));
     }
@@ -527,6 +540,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       removeTemporaryFiles(outputFilenames.keySet(), !windowedWrites);
     }
 
+    @Experimental(Kind.FILESYSTEM)
     protected final Map<ResourceId, ResourceId> buildOutputFilenames(
         Iterable<FileResult> writerResults) {
       int numShards = Iterables.size(writerResults);
@@ -610,6 +624,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * @param filenames the filenames of temporary files.
      */
     @VisibleForTesting
+    @Experimental(Kind.FILESYSTEM)
     final void copyToOutputFiles(Map<ResourceId, ResourceId> filenames)
         throws IOException {
       int numFiles = filenames.size();
@@ -637,6 +652,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
      * temporary files, this method will remove them.
      */
     @VisibleForTesting
+    @Experimental(Kind.FILESYSTEM)
     final void removeTemporaryFiles(
         Set<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory) throws IOException {
       ResourceId tempDir = tempDirectory.get();
@@ -945,6 +961,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
     private final BoundedWindow window;
     private final PaneInfo paneInfo;
 
+    @Experimental(Kind.FILESYSTEM)
     public FileResult(ResourceId tempFilename, int shard, BoundedWindow window, PaneInfo paneInfo) {
       this.tempFilename = tempFilename;
       this.shard = shard;
@@ -952,6 +969,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       this.paneInfo = paneInfo;
     }
 
+    @Experimental(Kind.FILESYSTEM)
     public ResourceId getTempFilename() {
       return tempFilename;
     }
@@ -972,6 +990,7 @@ public abstract class FileBasedSink<T> implements Serializable, HasDisplayData {
       return paneInfo;
     }
 
+    @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(FilenamePolicy policy, ResourceId outputDirectory,
                                          int numShards, String extension) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);

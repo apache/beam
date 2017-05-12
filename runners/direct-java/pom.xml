@@ -131,6 +131,10 @@
                 </relocation>
                 <relocation>
                   <pattern>com.google.common</pattern>
+                  <excludes>
+                    <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                    <exclude>com.google.common.**.testing.*</exclude>
+                  </excludes>
                   <shadedPattern>
                     org.apache.beam.runners.direct.repackaged.com.google.common
                   </shadedPattern>

@@ -120,7 +120,7 @@ public class PackageUtilTest {
 
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     pipelineOptions.setGcsUtil(mockGcsUtil);
-    FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+    FileSystems.setDefaultPipelineOptions(pipelineOptions);
     createOptions = StandardCreateOptions.builder().setMimeType(MimeTypes.BINARY).build();
   }
 

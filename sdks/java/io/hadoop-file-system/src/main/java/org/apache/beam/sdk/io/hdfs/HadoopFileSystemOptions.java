@@ -25,6 +25,8 @@ import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -38,6 +40,7 @@ import org.slf4j.LoggerFactory;
  * {@link PipelineOptions} which encapsulate {@link Configuration Hadoop Configuration}
  * for the {@link HadoopFileSystem}.
  */
+@Experimental(Kind.FILESYSTEM)
 public interface HadoopFileSystemOptions extends PipelineOptions {
   @Description("A list of Hadoop configurations used to configure zero or more Hadoop filesystems. "
       + "By default, Hadoop configuration is loaded from 'core-site.xml' and 'hdfs-site.xml' "
