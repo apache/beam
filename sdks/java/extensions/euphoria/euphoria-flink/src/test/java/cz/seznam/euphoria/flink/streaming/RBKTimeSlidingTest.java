@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
@@ -70,14 +71,18 @@ public class RBKTimeSlidingTest {
             .withFinalDelay(Duration.ofMillis(1000));
 
     Flow f = Flow.create("test-windowing", s);
+
+    Dataset<Pair<String, Integer>> input =
+        AssignEventTime.of(f.createInput(source))
+            .using(Pair::getSecond)
+            .output();
+
     Dataset<Pair<String, Long>> reduced =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(input)
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)),
-            // ~ event time
-            e -> (long) e.getSecond())
+        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
@@ -122,7 +127,7 @@ public class RBKTimeSlidingTest {
 
     Flow f = Flow.create("test-attached-windowing");
     Dataset<Pair<String, Long>> reduced =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .reduceBy(xs -> {
@@ -132,9 +137,7 @@ public class RBKTimeSlidingTest {
           }
           return sum;
         })
-        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)),
-            // ~ event time
-            e -> (long) e.getSecond())
+        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();

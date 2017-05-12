@@ -19,10 +19,12 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
+import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -101,14 +103,12 @@ public class RSBKWindowingTest {
 
     Flow f = Flow.create("test-windowing");
     Dataset<Pair<String, Pair<String, Integer>>> reduced =
-        ReduceStateByKey.of(f.createInput(source))
+        ReduceStateByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
         .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
-        .windowBy(Time.of(Duration.ofMillis(5)),
-            // ~ event time
-            (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
+        .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(1)
         .output();
 
@@ -152,19 +152,21 @@ public class RSBKWindowingTest {
     Flow f = Flow.create("test-attached-windowing");
 
     Dataset<Pair<String, Pair<String, Integer>>> firstStep =
-        ReduceStateByKey.of(f.createInput(source))
+        ReduceStateByKey.of(f.createInput(source, Pair::getSecond))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
             .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
             .mergeStatesBy(AccState::combine)
-            .windowBy(Time.of(Duration.ofMillis(5)),
-                // ~ event time
-                (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
+            .windowBy(Time.of(Duration.ofMillis(5)))
             .setNumPartitions(1)
             .output();
 
     Dataset<Pair<String, Integer>> secondStep =
-        MapElements.of(firstStep).using(Pair::getSecond).output();
+        FlatMap.of(firstStep)
+        .using((UnaryFunctor<Pair<String, Pair<String, Integer>>, Pair<String, Integer>>)
+            (elem, context) -> context.collect(elem.getSecond()))
+        .eventTimeBy(e -> e.getSecond().getSecond())
+        .output();
 
     Dataset<Pair<String, Pair<String, Integer>>> reduced =
         ReduceStateByKey.of(secondStep)
@@ -172,9 +174,7 @@ public class RSBKWindowingTest {
         .valueBy(e -> e)
         .stateFactory((StorageProvider storages, Context<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
-        .windowBy(Time.of(Duration.ofMillis(5)),
-            // ~ event time
-            (ExtractEventTime<Pair<String, Integer>>) what -> (long) what.getSecond())
+        .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(1)
         .output();
 

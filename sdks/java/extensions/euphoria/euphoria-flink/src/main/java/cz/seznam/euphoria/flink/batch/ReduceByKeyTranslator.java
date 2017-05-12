@@ -86,14 +86,9 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // ~ extract key/value from input elements and assign windows
     DataSet<BatchElement<Window, Pair>> tuples;
     {
-      ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
       FlatMapOperator<Object, BatchElement<Window, Pair>> wAssigned =
           input.flatMap((i, c) -> {
             BatchElement wel = (BatchElement) i;
-            if (timeAssigner != null) {
-              long stamp = timeAssigner.extractTimestamp(wel.getElement());
-              wel.setTimestamp(stamp);
-            }
             Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
               Object el = wel.getElement();

@@ -44,9 +44,11 @@ public class TestDistinctBasic {
             Arrays.asList(
                 Pair.of("foo", "bar"),
                 Pair.of("quux", "ibis"),
-                Pair.of("foo", "bar"))));
+                Pair.of("foo", "bar"))),
+            // ~ force event time
+            e -> 1L);
     Distinct.of(input)
-        .windowBy(Time.of(Duration.ofSeconds(1)), e -> 1L) // ~ force event time
+        .windowBy(Time.of(Duration.ofSeconds(1)))
         .output()
         .persist(output);
 

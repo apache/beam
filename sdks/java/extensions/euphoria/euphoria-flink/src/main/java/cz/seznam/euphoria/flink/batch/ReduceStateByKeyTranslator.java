@@ -70,17 +70,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     final UnaryFunction udfKey = origOperator.getKeyExtractor();
     final UnaryFunction udfValue = origOperator.getValueExtractor();
 
-    // ~ extract key/value + timestamp from input elements and assign windows
-    ExtractEventTime timeAssigner = origOperator.getEventTimeAssigner();
-
     DataSet<BatchElement> wAssigned =
             input.flatMap((i, c) -> {
               BatchElement wel = (BatchElement) i;
-
-              // assign timestamp if timeAssigner defined
-              if (timeAssigner != null) {
-                wel.setTimestamp(timeAssigner.extractTimestamp(wel.getElement()));
-              }
               Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
               for (Window wid : assigned) {
                 Object el = wel.getElement();

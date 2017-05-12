@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
@@ -62,14 +63,16 @@ public class RBKTimeWindowTest {
             .withReadDelay(Duration.ofMillis(200));
 
     Flow f = Flow.create("test-attached-windowing");
+    Dataset<Pair<String, Integer>> input =
+        AssignEventTime.of(f.createInput(source))
+            .using(Pair::getSecond)
+            .output();
     Dataset<Pair<String, Long>> reduced =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(input)
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofMillis(5)),
-            // ~ event time
-            e -> (long) e.getSecond())
+        .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(1)
         .output();
 
@@ -112,7 +115,7 @@ public class RBKTimeWindowTest {
 
     Flow f = Flow.create("test-attached-windowing");
     Dataset<Pair<String, HashSet<String>>> reduced =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(e -> "")
         .valueBy((UnaryFunction<Pair<String, Integer>, HashSet<String>>) what ->
             Sets.newHashSet(what.getFirst()))
@@ -125,9 +128,7 @@ public class RBKTimeWindowTest {
           return s;
         })
         .windowBy(Time.of(Duration.ofMillis(6))
-            .earlyTriggering(Duration.ofMillis(2)),
-            // ~ event time
-            e -> (long) e.getSecond())
+            .earlyTriggering(Duration.ofMillis(2)))
         .setNumPartitions(1)
         .output();
 
@@ -188,7 +189,7 @@ public class RBKTimeWindowTest {
 
     Flow f = Flow.create("test-attached-windowing");
     Dataset<Pair<String, String>> reduced =
-        ReduceByKey.of(f.createInput(source))
+        ReduceByKey.of(f.createInput(source, Triple::getThird))
         .keyBy(Triple::getFirst)
         .valueBy(Triple::getSecond)
         .combineBy(xs -> {
@@ -196,9 +197,7 @@ public class RBKTimeWindowTest {
           xs.forEach(buf::append);
           return buf.toString();
         })
-        .windowBy(Time.of(Duration.ofMillis(5)),
-            // ~ event time
-            e -> (long) e.getThird())
+        .windowBy(Time.of(Duration.ofMillis(5)))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
@@ -244,13 +243,11 @@ public class RBKTimeWindowTest {
 
     Flow f = Flow.create("test-attached-windowing");
     Dataset<Pair<String, Long>> reduced =
-            ReduceByKey.of(f.createInput(source))
+            ReduceByKey.of(f.createInput(source, Pair::getSecond))
                     .keyBy(Pair::getFirst)
                     .valueBy(e -> 1L)
                     .combineBy(Sums.ofLongs())
-                    .windowBy(Time.of(Duration.ofMillis(5)),
-                            // ~ event time
-                            e -> (long) e.getSecond())
+                    .windowBy(Time.of(Duration.ofMillis(5)))
                     .setNumPartitions(1)
                     .output();
 
