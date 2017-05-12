@@ -23,6 +23,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+
 /**
  * Signifies that a public API (public class, method or field) is subject to incompatible changes,
  * or even removal, in a future release.
@@ -78,6 +79,12 @@ public @interface Experimental {
 
     /** Metrics-related experimental APIs. */
     METRICS,
+
+    /**
+     * {@link org.apache.beam.sdk.io.FileSystem} and {@link org.apache.beam.sdk.io.fs.ResourceId}
+     * related APIs.
+     */
+    FILESYSTEM,
 
     /** Experimental feature related to alternative, unnested encodings for coders. */
     CODER_CONTEXT,
