@@ -21,9 +21,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY;
 import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.testing.EqualsTester;
@@ -66,16 +65,16 @@ public final class ResourceIdTester {
     ResourceId file2a = baseDirectory.resolve("child2", RESOLVE_FILE);
     allResourceIds.add(file1);
     allResourceIds.add(file2);
-    assertFalse("Resolved file isDirectory()", file1.isDirectory());
-    assertFalse("Resolved file isDirectory()", file2.isDirectory());
-    assertFalse("Resolved file isDirectory()", file2a.isDirectory());
+    assertThat("Resolved file isDirectory()", file1.isDirectory(), is(false));
+    assertThat("Resolved file isDirectory()", file2.isDirectory(), is(false));
+    assertThat("Resolved file isDirectory()", file2a.isDirectory(), is(false));
 
     ResourceId dir1 = baseDirectory.resolve("child1", RESOLVE_DIRECTORY);
     ResourceId dir2 = baseDirectory.resolve("child2", RESOLVE_DIRECTORY);
     ResourceId dir2a = baseDirectory.resolve("child2", RESOLVE_DIRECTORY);
-    assertTrue("Resolved directory isDirectory()", dir1.isDirectory());
-    assertTrue("Resolved directory isDirectory()", dir2.isDirectory());
-    assertTrue("Resolved directory isDirectory()", dir2a.isDirectory());
+    assertThat("Resolved directory isDirectory()", dir1.isDirectory(), is(true));
+    assertThat("Resolved directory isDirectory()", dir2.isDirectory(), is(true));
+    assertThat("Resolved directory isDirectory()", dir2a.isDirectory(), is(true));
     allResourceIds.add(dir1);
     allResourceIds.add(dir2);
 
