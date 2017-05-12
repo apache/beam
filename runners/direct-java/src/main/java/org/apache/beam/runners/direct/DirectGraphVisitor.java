@@ -30,6 +30,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -78,6 +79,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
+    SerializableUtils.clone(node.getTransform());
     stepNames.put(appliedTransform, genStepName());
     if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
