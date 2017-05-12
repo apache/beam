@@ -40,12 +40,12 @@ public class CountByKeyTest extends AbstractOperatorTest {
   public void testCount() {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
-      protected Dataset<Pair<Integer, Long>> getOutput(
-          Dataset<Integer> input) {
+      protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
         return CountByKey.of(input)
             .keyBy(e -> e)
             .setPartitioner(i -> i)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            // ~ use stable event-time watermark
+            .windowBy(Time.of(Duration.ofSeconds(1)), e -> 0)
             .output();
       }
 
