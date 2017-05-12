@@ -215,7 +215,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private DoFnStartBundleContext<InputT, OutputT> createStartBundleContext(
       DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
-    return new DoFnStartBundleContext<>(this.fn, this.context);
+    return new DoFnStartBundleContext<>(fn, context);
   }
 
   private DoFnFinishBundleContext<InputT, OutputT> createFinishBundleContext(
