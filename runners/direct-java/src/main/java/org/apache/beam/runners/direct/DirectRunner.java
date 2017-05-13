@@ -43,6 +43,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -221,15 +222,18 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @SuppressWarnings("rawtypes")
   @VisibleForTesting
   List<PTransformOverride> defaultTransformOverrides() {
-    return ImmutableList.<PTransformOverride>builder()
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.writeWithRunnerDeterminedSharding(),
-                new WriteWithShardingFactory())) /* Uses a view internally. */
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                new ViewOverrideFactory())) /* Uses pardos and GBKs */
+    TestPipelineOptions testOptions = options.as(TestPipelineOptions.class);
+    ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
+    if (!testOptions.isUnitTest()) {
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
+              new WriteWithShardingFactory())); /* Uses a view internally. */
+    }
+    builder = builder.add(
+        PTransformOverride.of(
+            PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+            new ViewOverrideFactory())) /* Uses pardos and GBKs */
         .add(
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
@@ -254,9 +258,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
                 new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
         .add(
             PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
-                new DirectGroupByKeyOverrideFactory())) /* returns two chained primitives. */
-        .build();
+    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
+                new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
+    return builder.build();
   }
 
   /**
