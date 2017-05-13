@@ -144,6 +144,10 @@ public class BeamSQLRow implements Serializable {
     dataValues.set(index, fieldValue);
   }
 
+  public byte getByte(int idx) {
+    return (Byte) getFieldValue(idx);
+  }
+
   public short getShort(int idx) {
     return (Short) getFieldValue(idx);
   }
