@@ -112,7 +112,9 @@ public class BeamQueryPlanner {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables);
-    return relNode.buildBeamPipeline(planCreator);
+    relNode.buildBeamPipeline(planCreator);
+
+    return planCreator.getPipeline();
   }
 
   /**
