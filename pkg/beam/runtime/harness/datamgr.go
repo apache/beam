@@ -3,13 +3,14 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
-	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
-	"google.golang.org/grpc"
 	"io"
 	"log"
 	"sync"
+
+	pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/exec"
+	"google.golang.org/grpc"
 )
 
 // DataManager manages data channels to the FnHarness. A fixed number of channels

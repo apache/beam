@@ -3,13 +3,14 @@ package harness
 import (
 	"encoding/json"
 	"fmt"
+
 	protobuf "github.com/golang/protobuf/ptypes/any"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
-	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
 )
 
 const (

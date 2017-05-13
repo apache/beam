@@ -37,8 +37,8 @@ package org.apache.beam.fn.v1;
 option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
-import "google/protobuf/any.proto";
-import "google/protobuf/timestamp.proto";
+import "github.com/golang/protobuf/ptypes/any/any.proto";
+import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto";
 
 /*
  * Constructs that define the pipeline shape.
