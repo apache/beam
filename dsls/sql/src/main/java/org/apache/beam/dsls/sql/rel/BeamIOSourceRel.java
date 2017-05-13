@@ -23,7 +23,6 @@ import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -41,7 +40,8 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
   }
 
   @Override
-  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+      throws Exception {
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName()).replace(".(STREAM)", "");
 
@@ -52,9 +52,7 @@ public class BeamIOSourceRel extends TableScan implements BeamRelNode {
     PCollection<BeamSQLRow> sourceStream = planCreator.getPipeline().apply(stageName,
         sourceTable.buildIOReader());
 
-    planCreator.pushUpstream(sourceStream);
-
-    return planCreator.getPipeline();
+    return sourceStream;
   }
 
 }

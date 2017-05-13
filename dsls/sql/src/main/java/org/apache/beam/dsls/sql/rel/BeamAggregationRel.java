@@ -23,7 +23,6 @@ import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.transform.BeamAggregationTransforms;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -68,13 +67,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+      throws Exception {
     RelNode input = getInput();
-    BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
-
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
+    PCollection<BeamSQLRow> upstream =
+        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
     if (windowFieldIdx != -1) {
       upstream = upstream.apply("assignEventTimestamp", WithTimestamps
           .<BeamSQLRow>of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)));
@@ -105,9 +104,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     PCollection<BeamSQLRow> mergedStream = aggregatedStream.apply("mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
             BeamSQLRecordType.from(getRowType()), getAggCallList())));
-    planCreator.pushUpstream(mergedStream);
 
-    return planCreator.getPipeline();
+    return mergedStream;
   }
 
   @Override
