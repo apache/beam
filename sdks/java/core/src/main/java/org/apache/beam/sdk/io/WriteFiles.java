@@ -32,6 +32,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -56,8 +58,12 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +92,18 @@ import org.slf4j.LoggerFactory;
 public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
+  // The maximum number of file writers to keep open in a single bundle at a time, since file
+  // writers default to 64mb buffers. This comes into play when writing per-window files.
+  // The first 20 files from a single WriteFiles transform will write files inline in the
+  // transform. Anything beyond that might be shuffled.
+  // Keep in mind that specific runners may decide to run multiple bundles in parallel, based on
+  // their own policy.
+  private static final int DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE = 20;
+
+  // When we spill records, shard the output keys to prevent hotspots.
+  // We could consider making this a parameter.
+  private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
+
   static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<T> sink;
   private WriteOperation<T> writeOperation;
@@ -98,6 +116,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   @Nullable
   private final ValueProvider<Integer> numShardsProvider;
   private final boolean windowedWrites;
+  private int maxNumWritersPerBundle;
 
   /**
    * Creates a {@link WriteFiles} transform that writes to the given {@link FileBasedSink}, letting
@@ -105,18 +124,21 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    */
   public static <T> WriteFiles<T> to(FileBasedSink<T> sink) {
     checkNotNull(sink, "sink");
-    return new WriteFiles<>(sink, null /* runner-determined sharding */, null, false);
+    return new WriteFiles<>(sink, null /* runner-determined sharding */, null,
+        false, DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
   }
 
   private WriteFiles(
       FileBasedSink<T> sink,
       @Nullable PTransform<PCollection<T>, PCollectionView<Integer>> computeNumShards,
       @Nullable ValueProvider<Integer> numShardsProvider,
-      boolean windowedWrites) {
+      boolean windowedWrites,
+      int maxNumWritersPerBundle) {
     this.sink = sink;
     this.computeNumShards = computeNumShards;
     this.numShardsProvider = numShardsProvider;
     this.windowedWrites = windowedWrites;
+    this.maxNumWritersPerBundle = maxNumWritersPerBundle;
   }
 
   @Override
@@ -213,7 +235,16 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * more information.
    */
   public WriteFiles<T> withNumShards(ValueProvider<Integer> numShardsProvider) {
-    return new WriteFiles<>(sink, null, numShardsProvider, windowedWrites);
+    return new WriteFiles<>(sink, null, numShardsProvider, windowedWrites,
+        maxNumWritersPerBundle);
+  }
+
+  /**
+   * Set the maximum number of writers created in a bundle before spilling to shuffle.
+   */
+  public WriteFiles<T> withMaxNumWritersPerBundle(int maxNumWritersPerBundle) {
+    return new WriteFiles<>(sink, null, numShardsProvider, windowedWrites,
+        maxNumWritersPerBundle);
   }
 
   /**
@@ -226,7 +257,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   public WriteFiles<T> withSharding(PTransform<PCollection<T>, PCollectionView<Integer>> sharding) {
     checkNotNull(
         sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
-    return new WriteFiles<>(sink, sharding, null, windowedWrites);
+    return new WriteFiles<>(sink, sharding, null, windowedWrites, maxNumWritersPerBundle);
   }
 
   /**
@@ -234,7 +265,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * runner-determined sharding.
    */
   public WriteFiles<T> withRunnerDeterminedSharding() {
-    return new WriteFiles<>(sink, null, null, windowedWrites);
+    return new WriteFiles<>(sink, null, null, windowedWrites, maxNumWritersPerBundle);
   }
 
   /**
@@ -252,7 +283,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * positive value.
    */
   public WriteFiles<T> withWindowedWrites() {
-    return new WriteFiles<>(sink, computeNumShards, numShardsProvider, true);
+    return new WriteFiles<>(sink, computeNumShards, numShardsProvider, true,
+        maxNumWritersPerBundle);
   }
 
   /**
@@ -260,7 +292,13 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
    * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes enabled.
    */
   private class WriteWindowedBundles extends DoFn<T, FileResult> {
+    private final TupleTag<KV<Integer, T>> unwrittedRecordsTag;
     private Map<KV<BoundedWindow, PaneInfo>, Writer<T>> windowedWriters;
+    int spilledShardNum = UNKNOWN_SHARDNUM;
+
+    WriteWindowedBundles(TupleTag<KV<Integer, T>> unwrittedRecordsTag) {
+      this.unwrittedRecordsTag = unwrittedRecordsTag;
+    }
 
     @StartBundle
     public void startBundle(StartBundleContext c) {
@@ -277,19 +315,28 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       KV<BoundedWindow, PaneInfo> key = KV.of(window, paneInfo);
       writer = windowedWriters.get(key);
       if (writer == null) {
-        String uuid = UUID.randomUUID().toString();
-        LOG.info(
-            "Opening writer {} for write operation {}, window {} pane {}",
-            uuid,
-            writeOperation,
-            window,
-            paneInfo);
-        writer = writeOperation.createWriter();
-        writer.openWindowed(uuid, window, paneInfo, UNKNOWN_SHARDNUM);
-        windowedWriters.put(key, writer);
-        LOG.debug("Done opening writer");
+        if (windowedWriters.size() <= maxNumWritersPerBundle) {
+          String uuid = UUID.randomUUID().toString();
+          LOG.info(
+              "Opening writer {} for write operation {}, window {} pane {}",
+              uuid,
+              writeOperation,
+              window,
+              paneInfo);
+          writer = writeOperation.createWriter();
+          writer.openWindowed(uuid, window, paneInfo, UNKNOWN_SHARDNUM);
+          windowedWriters.put(key, writer);
+          LOG.debug("Done opening writer");
+        } else {
+          if (spilledShardNum == UNKNOWN_SHARDNUM) {
+            spilledShardNum = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
+          } else {
+            spilledShardNum = (spilledShardNum + 1) % SPILLED_RECORD_SHARDING_FACTOR;
+          }
+          c.output(unwrittedRecordsTag, KV.of(spilledShardNum, c.element()));
+          return;
+        }
       }
-
       writeOrClose(writer, c.element());
     }
 
@@ -352,11 +399,17 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
+  enum ShardAssignment { ASSIGN_IN_FINALIZE, ASSIGN_WHEN_WRITING };
+
   /**
    * Like {@link WriteWindowedBundles} and {@link WriteUnwindowedBundles}, but where the elements
    * for each shard have been collected into a single iterable.
    */
   private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
+    ShardAssignment shardNumberAssignment;
+    WriteShardedBundles(ShardAssignment shardNumberAssignment) {
+      this.shardNumberAssignment = shardNumberAssignment;
+    }
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       // In a sharded write, single input element represents one shard. We can open and close
@@ -364,7 +417,9 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey());
+        int shardNumber = shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
+            ? c.element().getKey() : UNKNOWN_SHARDNUM;
+        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), shardNumber);
       } else {
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
       }
@@ -493,14 +548,35 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     // initial ParDo.
     PCollection<FileResult> results;
     final PCollectionView<Integer> numShardsView;
+    @SuppressWarnings("unchecked")
     Coder<BoundedWindow> shardedWindowCoder =
         (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
-      results =
-          input.apply(
-              "WriteBundles",
-              ParDo.of(windowedWrites ? new WriteWindowedBundles() : new WriteUnwindowedBundles()));
+      if (windowedWrites) {
+        TupleTag<FileResult> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
+        TupleTag<KV<Integer, T>> unwrittedRecordsTag = new TupleTag<>("unwrittenRecordsTag");
+        PCollectionTuple writeTuple = input.apply("WriteWindowedBundles", ParDo.of(
+            new WriteWindowedBundles(unwrittedRecordsTag))
+            .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
+        PCollection<FileResult> writtenBundleFiles = writeTuple.get(writtenRecordsTag)
+            .setCoder(FileResultCoder.of(shardedWindowCoder));
+        // Any "spilled" elements are written using WriteShardedBundles. Assign shard numbers in
+        // finalize to stay consistent with what WriteWindowedBundles does.
+        PCollection<FileResult> writtenGroupedFiles =
+            writeTuple
+                .get(unwrittedRecordsTag)
+                .setCoder(KvCoder.of(VarIntCoder.of(), input.getCoder()))
+                .apply("GroupUnwritten", GroupByKey.<Integer, T>create())
+                .apply("WriteUnwritten", ParDo.of(
+                    new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE)))
+                .setCoder(FileResultCoder.of(shardedWindowCoder));
+        results = PCollectionList.of(writtenBundleFiles).and(writtenGroupedFiles)
+            .apply(Flatten.<FileResult>pCollections());
+      } else {
+        results =
+            input.apply("WriteUnwindowedBundles", ParDo.of(new WriteUnwindowedBundles()));
+      }
     } else {
       List<PCollectionView<?>> sideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
@@ -517,10 +593,13 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                       (numShardsView != null) ? null : numShardsProvider))
                   .withSideInputs(sideInputs))
               .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
-      shardedWindowCoder =
-          (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
-
-      results = sharded.apply("WriteShardedBundles", ParDo.of(new WriteShardedBundles()));
+      // Since this path might be used by streaming runners processing triggers, it's important
+      // to assign shard numbers here so that they are deterministic. The ASSIGN_IN_FINALIZE
+      // strategy works by sorting all FileResult objects and assigning them numbers, which is not
+      // guaranteed to work well when processing triggers - if the finalize step retries it might
+      // see a different Iterable of FileResult objects, and it will assign different shard numbers.
+      results = sharded.apply("WriteShardedBundles",
+          ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_WHEN_WRITING)));
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder));
 
