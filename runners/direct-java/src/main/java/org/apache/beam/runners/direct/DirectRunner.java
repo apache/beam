@@ -219,17 +219,19 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
    * iteration order based on the order at which elements are added to it.
    */
   @SuppressWarnings("rawtypes")
-  @VisibleForTesting
-  List<PTransformOverride> defaultTransformOverrides() {
-    return ImmutableList.<PTransformOverride>builder()
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.writeWithRunnerDeterminedSharding(),
-                new WriteWithShardingFactory())) /* Uses a view internally. */
-        .add(
-            PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-                new ViewOverrideFactory())) /* Uses pardos and GBKs */
+  private List<PTransformOverride> defaultTransformOverrides() {
+    ImmutableList.Builder<PTransformOverride> builder =
+     ImmutableList.<PTransformOverride>builder();
+    if (!options.isUnitTest()) {
+      builder.add(
+          PTransformOverride.of(
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
+              new WriteWithShardingFactory())); /* Uses a view internally. */
+    }
+    builder = builder.add(
+        PTransformOverride.of(
+            PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+            new ViewOverrideFactory())) /* Uses pardos and GBKs */
         .add(
             PTransformOverride.of(
                 PTransformMatchers.urnEqualTo(PTransformTranslation.TEST_STREAM_TRANSFORM_URN),
@@ -254,9 +256,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
                 new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
         .add(
             PTransformOverride.of(
-                PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
-                new DirectGroupByKeyOverrideFactory())) /* returns two chained primitives. */
-        .build();
+    PTransformMatchers.urnEqualTo(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN),
+                new DirectGroupByKeyOverrideFactory())); /* returns two chained primitives. */
+    return builder.build();
   }
 
   /**
