@@ -3,15 +3,16 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/proto"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
-	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
-	"google.golang.org/grpc"
 	"io"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"google.golang.org/grpc"
 )
 
 // TODO(herohde) 2/8/2017: for now, assume we stage a full binary (not a plugin).

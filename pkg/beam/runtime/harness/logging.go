@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
-	pb "github.com/apache/beam/sdks/go/third_party/beam/org_apache_beam_fn_v1"
-	"google.golang.org/grpc"
 	"log"
 	"os"
 	"regexp"
 	"time"
+
+	"github.com/golang/protobuf/ptypes"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/fnapi/org_apache_beam_fn_v1"
+	"google.golang.org/grpc"
 )
 
 // setupRemoteLogging redirects local log messages to FnHarness. It will
