@@ -23,7 +23,6 @@ import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.transform.BeamSQLFilterFn;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
@@ -49,23 +48,22 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
 
   @Override
-  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
+  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+      throws Exception {
 
     RelNode input = getInput();
-    BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
 
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
+    PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
+        .buildBeamPipeline(planCreator);
 
     BeamSQLExpressionExecutor executor = new BeamSQLFnExecutor(this);
 
-    PCollection<BeamSQLRow> projectStream = upstream.apply(stageName,
+    PCollection<BeamSQLRow> filterStream = upstream.apply(stageName,
         ParDo.of(new BeamSQLFilterFn(getRelTypeName(), executor)));
 
-    planCreator.pushUpstream(projectStream);
-
-    return planCreator.getPipeline();
+    return filterStream;
   }
 
 }
