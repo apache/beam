@@ -24,7 +24,7 @@ import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * revoke a UDF function.
+ * invoke a UDF function.
  */
 public class BeamSqlUdfExpression extends BeamSqlExpression {
   //as Method is not Serializable, need to keep class/method information, and rebuild it.
