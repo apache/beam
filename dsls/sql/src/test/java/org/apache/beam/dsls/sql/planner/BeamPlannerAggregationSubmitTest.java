@@ -21,16 +21,18 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -39,12 +41,15 @@ import org.junit.Test;
  */
 public class BeamPlannerAggregationSubmitTest {
   public static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-  public static BeamSqlRunner runner = new BeamSqlRunner();
+  public static BeamSQLEnvironment runner = BeamSQLEnvironment.create();
+
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void prepare() throws ParseException {
-    runner.addTable("ORDER_DETAILS", getOrderTable());
-    runner.addTable("ORDER_SUMMARY", getSummaryTable());
+    runner.addTableMetadata("ORDER_DETAILS", getOrderTable());
+    runner.addTableMetadata("ORDER_SUMMARY", getSummaryTable());
   }
 
   private static BaseBeamTable getOrderTable() throws ParseException {
@@ -108,7 +113,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "WHERE SITE_ID = 1 " + "GROUP BY site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
 
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    runner.compileBeamPipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 
@@ -125,7 +130,7 @@ public class BeamPlannerAggregationSubmitTest {
         + "SELECT site_id, COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
 
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    runner.compileBeamPipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 
