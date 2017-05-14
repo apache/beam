@@ -19,6 +19,8 @@
 package org.apache.beam.dsls.sql.schema.text;
 
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,8 +57,10 @@ public class BeamTextCSVTable extends BeamTextTable {
   }
 
   @Override
-  public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
-    return new BeamTextCSVTableIOReader(beamSqlRecordType, filePattern, csvFormat);
+  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+    return PBegin.in(pipeline).apply("decodeRecord", TextIO.Read.from(filePattern))
+        .apply("parseCSVLine",
+            new BeamTextCSVTableIOReader(beamSqlRecordType, filePattern, csvFormat));
   }
 
   @Override
