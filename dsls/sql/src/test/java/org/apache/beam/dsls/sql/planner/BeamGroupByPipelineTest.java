@@ -18,7 +18,9 @@
 package org.apache.beam.dsls.sql.planner;
 
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpressionTest;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 
 /**
@@ -26,6 +28,7 @@ import org.junit.Test;
  *
  */
 public class BeamGroupByPipelineTest extends BasePlanner {
+  public final TestPipeline pipeline = TestPipeline.create();
 
   /**
    * GROUP-BY without window operation, and grouped fields.
@@ -34,7 +37,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
   public void testSimpleGroupExplain() throws Exception {
     String sql = "SELECT COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 ";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -44,7 +47,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
   public void testSimpleGroup2Explain() throws Exception {
     String sql = "SELECT site_id" + ", COUNT(*) " + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY site_id";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -55,7 +58,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", TUMBLE(order_time, INTERVAL '1' HOUR)";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -67,7 +70,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
         + "TUMBLE_START(order_time, INTERVAL '1' HOUR, TIME '00:00:01')"
         + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 "
         + "GROUP BY order_id, site_id" + ", TUMBLE(order_time, INTERVAL '1' HOUR, TIME '00:00:01')";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -78,7 +81,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", HOP(order_time, INTERVAL '5' MINUTE, INTERVAL '1' HOUR)";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -89,7 +92,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", SESSION(order_time, INTERVAL '5' MINUTE)";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
   /**
@@ -100,7 +103,7 @@ public class BeamGroupByPipelineTest extends BasePlanner {
     runner.addUDFFunction("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
     String sql = "select site_id, negative(site_id) as nsite_id from ORDER_DETAILS";
 
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
   }
 
 }
