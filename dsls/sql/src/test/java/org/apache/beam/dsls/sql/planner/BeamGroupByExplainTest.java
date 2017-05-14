@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpressionTest;
 import org.junit.Test;
 
 /**
@@ -90,4 +91,14 @@ public class BeamGroupByExplainTest extends BasePlanner {
     String plan = runner.explainQuery(sql);
   }
 
+  /**
+   * Query with UDF.
+   */
+  @Test
+  public void testUdf() throws Exception {
+    runner.addUDFFunction("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
+    String sql = "select site_id, negative(site_id) as nsite_id from ORDER_DETAILS";
+
+    String plan = runner.explainQuery(sql);
+  }
 }
