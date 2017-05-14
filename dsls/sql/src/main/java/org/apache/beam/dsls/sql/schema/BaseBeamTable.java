@@ -19,8 +19,8 @@ package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
 import org.apache.beam.dsls.sql.planner.BeamQueryPlanner;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.calcite.DataContext;
@@ -53,10 +53,10 @@ public abstract class BaseBeamTable implements ScannableTable, Serializable {
   public abstract BeamIOType getSourceType();
 
   /**
-   * create a {@code IO.read()} instance to read from source.
+   * create a {@code PCollection<BeamSQLRow>} from source.
    *
    */
-  public abstract PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader();
+  public abstract PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline);
 
   /**
    * create a {@code IO.write()} instance to write to target.
