@@ -35,6 +35,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowStartExpression;
@@ -60,7 +61,9 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
@@ -181,7 +184,15 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
       case "SESSION_END":
         return new BeamSqlWindowEndExpression();
       default:
-        throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
+        //handle UDF
+        if (((RexCall) rexNode).getOperator() instanceof SqlUserDefinedFunction) {
+          SqlUserDefinedFunction udf = (SqlUserDefinedFunction) ((RexCall) rexNode).getOperator();
+          ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
+          return new BeamSqlUdfExpression(fn.method, subExps,
+              ((RexCall) rexNode).type.getSqlTypeName());
+        } else {
+          throw new BeamSqlUnsupportedException("Operator: " + opName + " not supported yet!");
+        }
       }
     } else {
       throw new BeamSqlUnsupportedException(
