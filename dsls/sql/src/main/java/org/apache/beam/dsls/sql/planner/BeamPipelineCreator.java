@@ -28,7 +28,6 @@ import org.apache.beam.dsls.sql.schema.BeamSqlRowCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
 /**
  * {@link BeamPipelineCreator} converts a {@link BeamRelNode} tree, into a Beam
@@ -44,14 +43,10 @@ public class BeamPipelineCreator {
 
   private boolean hasPersistent = false;
 
-  public BeamPipelineCreator(Map<String, BaseBeamTable> sourceTables) {
+  public BeamPipelineCreator(Map<String, BaseBeamTable> sourceTables, Pipeline pipeline) {
     this.sourceTables = sourceTables;
+    this.pipeline = pipeline;
 
-    options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
-        .as(PipelineOptions.class); // FlinkPipelineOptions.class
-    options.setJobName("BeamPlanCreator");
-
-    pipeline = Pipeline.create(options);
     CoderRegistry cr = pipeline.getCoderRegistry();
     cr.registerCoder(BeamSQLRow.class, BeamSqlRowCoder.of());
     cr.registerCoder(BeamSQLRecordType.class, BeamSQLRecordTypeCoder.of());
