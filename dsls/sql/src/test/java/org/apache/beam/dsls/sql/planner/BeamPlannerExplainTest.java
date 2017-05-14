@@ -25,11 +25,10 @@ import org.junit.Test;
  *
  */
 public class BeamPlannerExplainTest extends BasePlanner {
-
   @Test
   public void selectAll() throws Exception {
     String sql = "SELECT * FROM ORDER_DETAILS";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
 
     String expectedPlan =
         "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2], order_time=[$3])\n"
@@ -41,7 +40,7 @@ public class BeamPlannerExplainTest extends BasePlanner {
   public void selectWithFilter() throws Exception {
     String sql = "SELECT " + " order_id, site_id, price " + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 and price > 20";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
 
     String expectedPlan = "BeamProjectRel(order_id=[$0], site_id=[$1], price=[$2])\n"
         + "  BeamFilterRel(condition=[AND(=($1, 0), >($2, 20))])\n"
@@ -54,7 +53,7 @@ public class BeamPlannerExplainTest extends BasePlanner {
     String sql = "INSERT INTO SUB_ORDER(order_id, site_id, price) " + "SELECT "
         + " order_id, site_id, price " + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 and price > 20";
-    String plan = runner.explainQuery(sql);
+    String plan = runner.executionPlan(sql);
 
     String expectedPlan =
         "BeamIOSinkRel(table=[[SUB_ORDER]], operation=[INSERT], flattened=[true])\n"

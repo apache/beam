@@ -21,9 +21,14 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.dsls.sql.planner.BeamSqlRunner;
+import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.dsls.sql.schema.kafka.BeamKafkaCSVTable;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -67,17 +72,23 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 public class BeamSqlExample implements Serializable {
 
   public static void main(String[] args) throws Exception {
-    BeamSqlRunner runner = new BeamSqlRunner();
-    runner.addTable("ORDER_DETAILS", getTable("127.0.0.1:9092", "orders"));
-    runner.addTable("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
+    PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
+        .as(PipelineOptions.class); // FlinkPipelineOptions.class
+    options.setJobName("BeamSqlExample");
+    Pipeline pipeline = Pipeline.create(options);
+
+    BeamSQLEnvironment runner = BeamSQLEnvironment.create();
+    runner.addTableMetadata("ORDER_DETAILS", getTable("127.0.0.1:9092", "orders"));
+    runner.addTableMetadata("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
 
     // case 2: insert into <table>(<fields>) select STREAM <fields> from
     // <table> from <clause>
     String sql = "INSERT INTO SUB_ORDER(order_id, site_id, price) " + "SELECT "
         + " order_id, site_id, price " + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
 
-    runner.explainQuery(sql);
-    runner.submitQuery(sql);
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
+
+    pipeline.run().waitUntilFinish();
   }
 
   public static BaseBeamTable getTable(String bootstrapServer, String topic) {

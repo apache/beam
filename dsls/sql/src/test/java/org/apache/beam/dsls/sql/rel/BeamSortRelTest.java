@@ -20,20 +20,24 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.util.Date;
 import java.util.List;
-
+import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
-import org.apache.beam.dsls.sql.planner.BeamSqlRunner;
 import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * Test for {@code BeamSortRel}.
  */
 public class BeamSortRelTest {
-  public static BeamSqlRunner runner = new BeamSqlRunner();
+  public static BeamSQLEnvironment runner = BeamSQLEnvironment.create();
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
+
   private static MockedBeamSQLTable subOrderRamTable = MockedBeamSQLTable.of(
       SqlTypeName.BIGINT, "order_id",
       SqlTypeName.INTEGER, "site_id",
@@ -65,7 +69,8 @@ public class BeamSortRelTest {
         + "ORDER BY order_id asc, site_id desc limit 4";
 
     System.out.println(sql);
-    runner.submitQuery(sql);
+    runner.compileBeamPipeline(sql, pipeline);
+    pipeline.run().waitUntilFinish();
 
     assertEquals(
         MockedBeamSQLTable.of(
@@ -81,7 +86,7 @@ public class BeamSortRelTest {
 
   @Test
   public void testOrderBy_nullsFirst() throws Exception {
-    runner.addTable("ORDER_DETAILS", MockedBeamSQLTable
+    runner.addTableMetadata("ORDER_DETAILS", MockedBeamSQLTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -91,7 +96,7 @@ public class BeamSortRelTest {
             2L, 1, 3.0,
             2L, null, 4.0,
             5L, 5, 5.0));
-    runner.addTable("SUB_ORDER_RAM", MockedBeamSQLTable
+    runner.addTableMetadata("SUB_ORDER_RAM", MockedBeamSQLTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price"));
@@ -101,7 +106,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS FIRST limit 4";
 
-    runner.submitQuery(sql);
+    runner.compileBeamPipeline(sql, pipeline);
+    pipeline.run().waitUntilFinish();
 
     assertEquals(
         MockedBeamSQLTable.of(
@@ -118,7 +124,7 @@ public class BeamSortRelTest {
 
   @Test
   public void testOrderBy_nullsLast() throws Exception {
-    runner.addTable("ORDER_DETAILS", MockedBeamSQLTable
+    runner.addTableMetadata("ORDER_DETAILS", MockedBeamSQLTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price",
@@ -128,7 +134,7 @@ public class BeamSortRelTest {
             2L, 1, 3.0,
             2L, null, 4.0,
             5L, 5, 5.0));
-    runner.addTable("SUB_ORDER_RAM", MockedBeamSQLTable
+    runner.addTableMetadata("SUB_ORDER_RAM", MockedBeamSQLTable
         .of(SqlTypeName.BIGINT, "order_id",
             SqlTypeName.INTEGER, "site_id",
             SqlTypeName.DOUBLE, "price"));
@@ -138,7 +144,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS LAST limit 4";
 
-    runner.submitQuery(sql);
+    runner.compileBeamPipeline(sql, pipeline);
+    pipeline.run().waitUntilFinish();
 
     assertEquals(
         MockedBeamSQLTable.of(
@@ -161,7 +168,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4 offset 4";
 
-    runner.submitQuery(sql);
+    runner.compileBeamPipeline(sql, pipeline);
+    pipeline.run().waitUntilFinish();
 
     assertEquals(
         MockedBeamSQLTable.of(
@@ -184,7 +192,8 @@ public class BeamSortRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 11";
 
-    runner.submitQuery(sql);
+    runner.compileBeamPipeline(sql, pipeline);
+    pipeline.run().waitUntilFinish();
 
     assertEquals(
         MockedBeamSQLTable.of(
@@ -214,12 +223,13 @@ public class BeamSortRelTest {
         + "GROUP BY order_id, TUMBLE(order_time, INTERVAL '1' HOUR)"
         + "ORDER BY order_id asc limit 11";
 
-    runner.submitQuery(sql);
+    TestPipeline pipeline = TestPipeline.create();
+    runner.compileBeamPipeline(sql, pipeline);
   }
 
   public static void prepare() {
-    runner.addTable("ORDER_DETAILS", orderDetailTable);
-    runner.addTable("SUB_ORDER_RAM", subOrderRamTable);
+    runner.addTableMetadata("ORDER_DETAILS", orderDetailTable);
+    runner.addTableMetadata("SUB_ORDER_RAM", subOrderRamTable);
   }
 
   private void assertEquals(List<BeamSQLRow> rows1, List<BeamSQLRow> rows2) {

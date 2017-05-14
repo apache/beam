@@ -26,9 +26,9 @@ import java.util.Map;
 import org.apache.beam.dsls.sql.rel.BeamLogicalConvention;
 import org.apache.beam.dsls.sql.rel.BeamRelNode;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
-
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -58,8 +58,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The core component to handle through a SQL statement, to submit a Beam
- * pipeline.
+ * The core component to handle through a SQL statement, from explain execution plan,
+ * to generate a Beam pipeline.
  *
  */
 public class BeamQueryPlanner {
@@ -95,29 +95,17 @@ public class BeamQueryPlanner {
   }
 
   /**
-   * With a Beam pipeline generated in {@link #compileBeamPipeline(String)},
-   * submit it to run and wait until finish.
-   *
+   * {@code compileBeamPipeline} translate a SQL statement to executed as Beam data flow,
+   * which is linked with the given {@code pipeline}. The final output stream is returned as
+   * {@code PCollection} so more operations can be applied.
    */
-  public void submitToRun(String sqlStatement) throws Exception {
-    Pipeline pipeline = compileBeamPipeline(sqlStatement);
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
-  }
-
-  /**
-   * With the @{@link BeamRelNode} tree generated in
-   * {@link #convertToBeamRel(String)}, a Beam pipeline is generated.
-   *
-   */
-  public Pipeline compileBeamPipeline(String sqlStatement) throws Exception {
+  public PCollection<BeamSQLRow> compileBeamPipeline(String sqlStatement, Pipeline pipeline)
+      throws Exception {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
-    BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables);
-    relNode.buildBeamPipeline(planCreator);
+    BeamPipelineCreator planCreator = new BeamPipelineCreator(sourceTables, pipeline);
 
-    return planCreator.getPipeline();
+    return relNode.buildBeamPipeline(planCreator);
   }
 
   /**
