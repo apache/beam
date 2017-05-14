@@ -24,6 +24,7 @@ import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.RelConversionException;
@@ -62,6 +63,17 @@ public class BeamSqlRunner implements Serializable {
   public void addTable(String tableName, BaseBeamTable table) {
     schema.add(tableName, table);
     planner.getSourceTables().put(tableName, table);
+  }
+
+  /**
+   * Add a UDF function.
+   *
+   * <p>There're two requirements for function {@code methodName}:<br>
+   * 1. It must be a STATIC method;<br>
+   * 2. For a primitive parameter, use its wrapper class and handle NULL properly;
+   */
+  public void addUDFFunction(String functionName, Class<?> className, String methodName){
+    schema.add(functionName, ScalarFunctionImpl.create(className, methodName));
   }
 
   /**
