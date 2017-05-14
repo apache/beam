@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -72,19 +73,12 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
       getPTransformForOutput();
 
   @Override
-  public PTransform<? super PBegin, PCollection<BeamSQLRow>> buildIOReader() {
-    return new PTransform<PBegin, PCollection<BeamSQLRow>>() {
-
-      @Override
-      public PCollection<BeamSQLRow> expand(PBegin input) {
-        return input.apply("read",
+  public PCollection<BeamSQLRow> buildIOReader(Pipeline pipeline) {
+    return PBegin.in(pipeline).apply("read",
             KafkaIO.<byte[], byte[]>read().withBootstrapServers(bootstrapServers).withTopics(topics)
                 .updateConsumerProperties(configUpdates).withKeyCoder(ByteArrayCoder.of())
                 .withValueCoder(ByteArrayCoder.of()).withoutMetadata())
             .apply("in_format", getPTransformForInput());
-
-      }
-    };
   }
 
   @Override
