@@ -17,8 +17,11 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -26,12 +29,16 @@ import org.junit.Test;
  *
  */
 public class BeamPlannerSubmitTest extends BasePlanner {
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
+
   @Test
   public void insertSelectFilter() throws Exception {
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS " + "WHERE SITE_ID = 0 and price > 20";
-    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+
+    PCollection<BeamSQLRow> outputStream = runner.compileBeamPipeline(sql, pipeline);
 
     pipeline.run().waitUntilFinish();
 
