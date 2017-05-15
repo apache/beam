@@ -457,6 +457,7 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    @Nullable
     abstract String getLocalhost();
 
     abstract Builder toBuilder();
