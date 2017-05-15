@@ -458,8 +458,8 @@ class WorkerOptions(PipelineOptions):
         '--subnetwork',
         default=None,
         help=(
-            'GCE subnetwork for launching workers. Default is up to the Dataflow '
-            'service.'))
+            'GCE subnetwork for launching workers. Default is up to the '
+            'Dataflow service.'))
     parser.add_argument(
         '--worker_harness_container_image',
         default=None,

@@ -47,7 +47,7 @@ class UtilTest(unittest.TestCase):
 
   def test_set_network(self):
     pipeline_options = PipelineOptions(
-        ['--network','anetworkname',
+        ['--network', 'anetworkname',
          '--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment([], #packages
                                 pipeline_options,
