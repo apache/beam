@@ -25,6 +25,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -163,7 +164,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           ResultTypeQueryable<BatchElement<Window, Pair>> {
 
     final UnaryFunctor<Iterable, Object> reducer;
-    transient ReduceByKey.SingleValueContext<Object> singleValueContext;
+    transient SingleValueContext<Object> singleValueContext;
 
     RBKReducer(UnaryFunctor<Iterable, Object> reducer) {
       this.reducer = reducer;
@@ -187,7 +188,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       Map<Tuple2, TimestampedElement> reducedValues = new HashMap<>();
 
       if (singleValueContext == null) {
-        singleValueContext = new ReduceByKey.SingleValueContext<>();
+        singleValueContext = new SingleValueContext<>();
       }
 
       for (BatchElement<Window, Pair> batchElement : values) {
@@ -217,7 +218,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           reducer.apply(Arrays.asList(
               val.getElement(), batchElement.getElement().getSecond()),
               singleValueContext);
-          Object reduced = singleValueContext.getValue();
+          Object reduced = singleValueContext.getAndResetValue();
 
           val.setElement(reduced);
           val.setTimestamp(Math.max(val.getTimestamp(), batchElement.getTimestamp()));
