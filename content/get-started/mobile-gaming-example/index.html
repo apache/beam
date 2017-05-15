@@ -290,9 +290,9 @@
 
     <span class="k">return</span> <span class="n">gameInfo</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">MapElements</span>
-          <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">gInfo</span><span class="o">.</span><span class="na">getKey</span><span class="o">(</span><span class="n">field</span><span class="o">),</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getScore</span><span class="o">()))</span>
-          <span class="o">.</span><span class="na">withOutputType</span><span class="o">(</span>
-              <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">kvs</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">(),</span> <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">())))</span>
+          <span class="o">.</span><span class="na">into</span><span class="o">(</span>
+              <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">kvs</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">(),</span> <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">()))</span>
+          <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">GameActionInfo</span> <span class="n">gInfo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">gInfo</span><span class="o">.</span><span class="na">getKey</span><span class="o">(</span><span class="n">field</span><span class="o">),</span> <span class="n">gInfo</span><span class="o">.</span><span class="na">getScore</span><span class="o">())))</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">integersPerKey</span><span class="o">());</span>
   <span class="o">}</span>
 <span class="o">}</span>
@@ -331,7 +331,7 @@
   <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
   <span class="c1">// Read events from a text file and parse them.</span>
-  <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
+  <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ParseGameEvent"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ParseEventFn</span><span class="o">()))</span>
     <span class="c1">// Extract and sum username/score pairs from the event data.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractUserScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"user"</span><span class="o">))</span>
@@ -509,7 +509,7 @@
   <span class="kd">final</span> <span class="n">Instant</span> <span class="n">startMinTimestamp</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">minFmt</span><span class="o">.</span><span class="na">parseMillis</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getStartMin</span><span class="o">()));</span>
 
   <span class="c1">// Read 'gaming' events from a text file.</span>
-  <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
+  <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInput</span><span class="o">()))</span>
     <span class="c1">// Parse the incoming data.</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ParseGameEvent"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">ParseEventFn</span><span class="o">()))</span>
 
@@ -808,8 +808,6 @@
     <span class="c1">// Filter the user sums using the global mean.</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">filtered</span> <span class="o">=</span> <span class="n">sumScores</span>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ProcessAndFilter"</span><span class="o">,</span> <span class="n">ParDo</span>
-            <span class="c1">// use the derived mean total score as a side input</span>
-            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">globalMeanScore</span><span class="o">)</span>
             <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
               <span class="kd">private</span> <span class="kd">final</span> <span class="n">Aggregator</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;</span> <span class="n">numSpammerUsers</span> <span class="o">=</span>
                 <span class="n">createAggregator</span><span class="o">(</span><span class="s">"SpammerUsers"</span><span class="o">,</span> <span class="k">new</span> <span class="n">Sum</span><span class="o">.</span><span class="na">SumLongFn</span><span class="o">());</span>
@@ -824,7 +822,9 @@
                   <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
                 <span class="o">}</span>
               <span class="o">}</span>
-            <span class="o">}));</span>
+            <span class="o">})</span>
+            <span class="c1">// use the derived mean total score as a side input</span>
+            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">globalMeanScore</span><span class="o">));</span>
     <span class="k">return</span> <span class="n">filtered</span><span class="o">;</span>
   <span class="o">}</span>
 <span class="o">}</span>
@@ -842,7 +842,6 @@
       <span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getFixedWindowDuration</span><span class="o">()))))</span>
   <span class="c1">// Filter out the detected spammer users, using the side input derived above.</span>
   <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"FilterOutSpammers"</span><span class="o">,</span> <span class="n">ParDo</span>
-          <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">spammersView</span><span class="o">)</span>
           <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">,</span> <span class="n">GameActionInfo</span><span class="o">&gt;()</span> <span class="o">{</span>
             <span class="nd">@ProcessElement</span>
             <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
@@ -851,7 +850,8 @@
                 <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
               <span class="o">}</span>
             <span class="o">}</span>
-          <span class="o">}))</span>
+          <span class="o">})</span>
+          <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">spammersView</span><span class="o">))</span>
   <span class="c1">// Extract and sum teamname/score pairs from the event data.</span>
   <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractTeamScore"</span><span class="o">,</span> <span class="k">new</span> <span class="n">ExtractAndSumScore</span><span class="o">(</span><span class="s">"team"</span><span class="o">))</span>
 </code></pre>

@@ -376,7 +376,7 @@
 
     <span class="c1">// Create the PCollection 'lines' by applying a 'Read' transform.</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-      <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
+      <span class="s">"ReadMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
 </code></pre>
 </div>
@@ -681,8 +681,8 @@
 <span class="c1">// Apply a MapElements with an anonymous lambda function to the PCollection words.</span>
 <span class="c1">// Save the result as the PCollection wordLengths.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">wordLengths</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-  <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">())</span>
-      <span class="o">.</span><span class="na">withOutputType</span><span class="o">(</span><span class="k">new</span> <span class="n">TypeDescriptor</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{});</span>
+  <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">integers</span><span class="o">())</span>
+             <span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">()));</span>
 </code></pre>
 </div>
 
@@ -1104,16 +1104,18 @@ guest, [[], [order4]]
 
   <span class="c1">// Apply a ParDo that takes maxWordLengthCutOffView as a side input.</span>
   <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">wordsBelowCutOff</span> <span class="o">=</span>
-  <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">)</span>
-                    <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
-      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-        <span class="n">String</span> <span class="n">word</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
-        <span class="c1">// In our DoFn, access the side input.</span>
-        <span class="kt">int</span> <span class="n">lengthCutOff</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">);</span>
-        <span class="k">if</span> <span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">()</span> <span class="o">&lt;=</span> <span class="n">lengthCutOff</span><span class="o">)</span> <span class="o">{</span>
-          <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
-        <span class="o">}</span>
-  <span class="o">}}));</span>
+  <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span>
+      <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+          <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+            <span class="n">String</span> <span class="n">word</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
+            <span class="c1">// In our DoFn, access the side input.</span>
+            <span class="kt">int</span> <span class="n">lengthCutOff</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">);</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">()</span> <span class="o">&lt;=</span> <span class="n">lengthCutOff</span><span class="o">)</span> <span class="o">{</span>
+              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
+            <span class="o">}</span>
+          <span class="o">}</span>
+      <span class="o">}).</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">maxWordLengthCutOffView</span><span class="o">)</span>
+  <span class="o">);</span>
 </code></pre>
 </div>
 
@@ -1212,17 +1214,16 @@ guest, [[], [order4]]
 <span class="c1">// to our ParDo. Note that all of the outputs (including the main output PCollection) are bundled into the returned PCollectionTuple.</span>
 
   <span class="n">PCollectionTuple</span> <span class="n">results</span> <span class="o">=</span>
-      <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-          <span class="n">ParDo</span>
+      <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span>
+          <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+            <span class="c1">// DoFn continues here.</span>
+            <span class="o">...</span>
+          <span class="o">})</span>
           <span class="c1">// Specify the tag for the main output.</span>
           <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">wordsBelowCutOffTag</span><span class="o">,</span>
           <span class="c1">// Specify the tags for the two additional outputs as a TupleTagList.</span>
                           <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">wordLengthsAboveCutOffTag</span><span class="o">)</span>
-                                      <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">))</span>
-          <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
-            <span class="c1">// DoFn continues here.</span>
-            <span class="o">...</span>
-          <span class="o">}</span>
+                                      <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">markedWordsTag</span><span class="o">)));</span>
 </code></pre>
 </div>
 
@@ -1432,7 +1433,7 @@ guest, [[], [order4]]
 
 <h4 id="using-a-read-transform">Using a read transform:</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
 </code></pre>
 </div>
 
@@ -1446,7 +1447,7 @@ guest, [[], [order4]]
 
 <h4 id="using-a-write-transform">Using a Write transform:</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">output</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData"</span><span class="o">));</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">output</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData"</span><span class="o">));</span>
 </code></pre>
 </div>
 
@@ -1461,7 +1462,7 @@ guest, [[], [order4]]
 <p>Many read transforms support reading from multiple input files matching a glob operator you provide. Note that glob operators are filesystem-specific and obey filesystem-specific consistency models. The following TextIO example uses a glob operator (*) to read all matching input files that have prefix “input-“ and the suffix “.csv” in the given location:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="err">“</span><span class="n">ReadFromText</span><span class="err">”</span><span class="o">,</span>
-    <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">);</span>
+    <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/input-*.csv"</span><span class="o">);</span>
 </code></pre>
 </div>
 
@@ -1479,7 +1480,7 @@ guest, [[], [order4]]
 <p>The following write transform example writes multiple output files to a location. Each file has the prefix “numbers”, a numeric tag, and the suffix “.csv”.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">records</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteToText"</span><span class="o">,</span>
-    <span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/numbers"</span><span class="o">)</span>
+    <span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"protocol://my_bucket/path/to/numbers"</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">withSuffix</span><span class="o">(</span><span class="s">".csv"</span><span class="o">));</span>
 </code></pre>
 </div>
@@ -1495,54 +1496,34 @@ guest, [[], [order4]]
 
 <h2 id="a-namecodersadata-encoding-and-type-safety"><a name="coders"></a>Data encoding and type safety</h2>
 
-<p>When you create or output pipeline data, you’ll need to specify how the elements in your <code class="highlighter-rouge">PCollection</code>s are encoded and decoded to and from byte strings. Byte strings are used for intermediate storage as well reading from sources and writing to sinks. The Beam SDKs use objects called coders to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> should be encoded and decoded.</p>
+<p>When Beam runners execute your pipeline, they often need to materialize the intermediate data in your <code class="highlighter-rouge">PCollection</code>s, which requires converting elements to and from byte strings. The Beam SDKs use objects called <code class="highlighter-rouge">Coder</code>s to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> may be encoded and decoded.</p>
 
-<h3 id="using-coders">Using coders</h3>
-
-<p>You typically need to specify a coder when reading data into your pipeline from an external source (or creating pipeline data from local data), and also when you output pipeline data to an external sink.</p>
+<blockquote>
+  <p>Note that coders are unrelated to parsing or formatting data when interacting with external data sources or sinks. Such parsing or formatting should typically be done explicitly, using transforms such as <code class="highlighter-rouge">ParDo</code> or <code class="highlighter-rouge">MapElements</code>.</p>
+</blockquote>
 
 <p class="language-java">In the Beam SDK for Java, the type <code class="highlighter-rouge">Coder</code> provides the methods required for encoding and decoding data. The SDK for Java provides a number of Coder subclasses that work with a variety of standard Java types, such as Integer, Long, Double, StringUtf8 and more. You can find all of the available Coder subclasses in the <a href="https://github.com/apache/beam/tree/master/sdks/java/core/src/main/java/org/apache/beam/sdk/coders">Coder package</a>.</p>
 
 <p class="language-py">In the Beam SDK for Python, the type <code class="highlighter-rouge">Coder</code> provides the methods required for encoding and decoding data. The SDK for Python provides a number of Coder subclasses that work with a variety of standard Python types, such as primitive types, Tuple, Iterable, StringUtf8 and more. You can find all of the available Coder subclasses in the <a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/coders">apache_beam.coders</a> package.</p>
 
-<p>When you read data into a pipeline, the coder indicates how to interpret the input data into a language-specific type, such as integer or string. Likewise, the coder indicates how the language-specific types in your pipeline should be written into byte strings for an output data sink, or to materialize intermediate data in your pipeline.</p>
-
-<p>The Beam SDKs set a coder for every <code class="highlighter-rouge">PCollection</code> in a pipeline, including those generated as output from a transform. Most of the time, the Beam SDKs can automatically infer the correct coder for an output <code class="highlighter-rouge">PCollection</code>.</p>
-
 <blockquote>
   <p>Note that coders do not necessarily have a 1:1 relationship with types. For example, the Integer type can have multiple valid coders, and input and output data can use different Integer coders. A transform might have Integer-typed input data that uses BigEndianIntegerCoder, and Integer-typed output data that uses VarIntCoder.</p>
 </blockquote>
 
-<p>You can explicitly set a <code class="highlighter-rouge">Coder</code> when inputting or outputting a <code class="highlighter-rouge">PCollection</code>. You set the <code class="highlighter-rouge">Coder</code> by <span class="language-java">calling the method <code class="highlighter-rouge">.withCoder</code></span> <span class="language-py">setting the <code class="highlighter-rouge">coder</code> argument</span> when you apply your pipeline’s read or write transform.</p>
+<h3 id="specifying-coders">Specifying coders</h3>
+<p>The Beam SDKs require a coder for every <code class="highlighter-rouge">PCollection</code> in your pipeline. In most cases, the Beam SDK is able to automatically infer a <code class="highlighter-rouge">Coder</code> for a <code class="highlighter-rouge">PCollection</code> based on its element type or the transform that produces it, however, in some cases the pipeline author will need to specify a <code class="highlighter-rouge">Coder</code> explicitly, or develop a <code class="highlighter-rouge">Coder</code> for their custom type.</p>
 
-<p>Typically, you set the <code class="highlighter-rouge">Coder</code> when the coder for a <code class="highlighter-rouge">PCollection</code> cannot be automatically inferred, or when you want to use a different coder than your pipeline’s default. The following example code reads a set of numbers from a text file, and sets a <code class="highlighter-rouge">Coder</code> of type <span class="language-java"><code class="highlighter-rouge">TextualIntegerCoder</code></span> <span class="language-py"><code class="highlighter-rouge">VarIntCoder</code></span> for the resulting <code class="highlighter-rouge">PCollection</code>:</p>
+<p class="language-java">You can explicitly set the coder for an existing <code class="highlighter-rouge">PCollection</code> by using the method <code class="highlighter-rouge">PCollection.setCoder</code>. Note that you cannot call <code class="highlighter-rouge">setCoder</code> on a <code class="highlighter-rouge">PCollection</code> that has been finalized (e.g. by calling <code class="highlighter-rouge">.apply</code> on it).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">numbers</span> <span class="o">=</span>
-  <span class="n">p</span><span class="o">.</span><span class="na">begin</span><span class="o">()</span>
-  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ReadNumbers"</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://my_bucket/path/to/numbers-*.txt"</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">withCoder</span><span class="o">(</span><span class="n">TextualIntegerCoder</span><span class="o">.</span><span class="na">of</span><span class="o">()));</span>
-</code></pre>
-</div>
+<p class="language-java">You can get the coder for an existing <code class="highlighter-rouge">PCollection</code> by using the method <code class="highlighter-rouge">getCoder</code>. This method will fail with an <code class="highlighter-rouge">IllegalStateException</code> if a coder has not been set and cannot be inferred for the given <code class="highlighter-rouge">PCollection</code>.</p>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span>
-<span class="n">numbers</span> <span class="o">=</span> <span class="n">ReadFromText</span><span class="p">(</span><span class="s">"gs://my_bucket/path/to/numbers-*.txt"</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">VarIntCoder</span><span class="p">())</span>
-</code></pre>
-</div>
-
-<p class="language-java">You can set the coder for an existing <code class="highlighter-rouge">PCollection</code> by using the method <code class="highlighter-rouge">PCollection.setCoder</code>. Note that you cannot call <code class="highlighter-rouge">setCoder</code> on a <code class="highlighter-rouge">PCollection</code> that has been finalized (e.g. by calling <code class="highlighter-rouge">.apply</code> on it).</p>
-
-<p class="language-java">You can get the coder for an existing <code class="highlighter-rouge">PCollection</code> by using the method <code class="highlighter-rouge">getCoder</code>. This method will fail with <code class="highlighter-rouge">anIllegalStateException</code> if a coder has not been set and cannot be inferred for the given <code class="highlighter-rouge">PCollection</code>.</p>
-
-<h3 id="coder-inference-and-default-coders">Coder inference and default coders</h3>
-
-<p>The Beam SDKs require a coder for every <code class="highlighter-rouge">PCollection</code> in your pipeline. Most of the time, however, you do not need to explicitly specify a coder, such as for an intermediate <code class="highlighter-rouge">PCollection</code> produced by a transform in the middle of your pipeline. In such cases, the Beam SDKs can infer an appropriate coder from the inputs and outputs of the transform used to produce the PCollection.</p>
+<p>Beam SDKs use a variety of mechanisms when attempting to automatically infer the <code class="highlighter-rouge">Coder</code> for a <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p class="language-java">Each pipeline object has a <code class="highlighter-rouge">CoderRegistry</code>. The <code class="highlighter-rouge">CoderRegistry</code> represents a mapping of Java types to the default coders that the pipeline should use for <code class="highlighter-rouge">PCollection</code>s of each type.</p>
 
 <p class="language-py">The Beam SDK for Python has a <code class="highlighter-rouge">CoderRegistry</code> that represents a mapping of Python types to the default coder that should be used for <code class="highlighter-rouge">PCollection</code>s of each type.</p>
 
-<p class="language-java">By default, the Beam SDK for Java automatically infers the <code class="highlighter-rouge">Coder</code> for the elements of an output <code class="highlighter-rouge">PCollection</code> using the type parameter from the transform’s function object, such as <code class="highlighter-rouge">DoFn</code>. In the case of <code class="highlighter-rouge">ParDo</code>, for example, a <code class="highlighter-rouge">DoFn&lt;Integer, String&gt;function</code> object accepts an input element of type <code class="highlighter-rouge">Integer</code> and produces an output element of type <code class="highlighter-rouge">String</code>. In such a case, the SDK for Java will automatically infer the default <code class="highlighter-rouge">Coder</code> for the output <code class="highlighter-rouge">PCollection&lt;String&gt;</code> (in the default pipeline <code class="highlighter-rouge">CoderRegistry</code>, this is <code class="highlighter-rouge">StringUtf8Coder</code>).</p>
+<p class="language-java">By default, the Beam SDK for Java automatically infers the <code class="highlighter-rouge">Coder</code> for the elements of a <code class="highlighter-rouge">PCollection</code> produced by a <code class="highlighter-rouge">PTransform</code> using the type parameter from the transform’s function object, such as <code class="highlighter-rouge">DoFn</code>. In the case of <code class="highlighter-rouge">ParDo</code>, for example, a <code class="highlighter-rouge">DoFn&lt;Integer, String&gt;</code> function object accepts an input element of type <code class="highlighter-rouge">Integer</code> and produces an output element of type <code class="highlighter-rouge">String</code>. In such a case, the SDK for Java will automatically infer the default <code class="highlighter-rouge">Coder</code> for the output <code class="highlighter-rouge">PCollection&lt;String&gt;</code> (in the default pipeline <code class="highlighter-rouge">CoderRegistry</code>, this is <code class="highlighter-rouge">StringUtf8Coder</code>).</p>
 
 <p class="language-py">By default, the Beam SDK for Python automatically infers the <code class="highlighter-rouge">Coder</code> for the elements of an output <code class="highlighter-rouge">PCollection</code> using the typehints from the transform’s function object, such as <code class="highlighter-rouge">DoFn</code>. In the case of <code class="highlighter-rouge">ParDo</code>, for example a <code class="highlighter-rouge">DoFn</code> with the typehints <code class="highlighter-rouge">@beam.typehints.with_input_types(int)</code> and <code class="highlighter-rouge">@beam.typehints.with_output_types(str)</code> accepts an input element of type int and produces an output element of type str. In such a case, the Beam SDK for Python will automatically infer the default <code class="highlighter-rouge">Coder</code> for the output <code class="highlighter-rouge">PCollection</code> (in the default pipeline <code class="highlighter-rouge">CoderRegistry</code>, this is <code class="highlighter-rouge">BytesCoder</code>).</p>
 
@@ -1906,7 +1887,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </code></pre>
 </div>
 
-<p>When you set <code class="highlighter-rouge">.withAllowedLateness</code> on a <code class="highlighter-rouge">PCollection</code>, that allowed lateness propagates forward to any subsequent <code class="highlighter-rouge">PCollection</code> derived from the first <code class="highlighter-rouge">PCollection</code> you applied allowed lateness to. If you want to change the allowed lateness later in your pipeline, you must do so explictly by applying <code class="highlighter-rouge">Window.withAllowedLateness()</code> again.</p>
+<p>When you set <code class="highlighter-rouge">.withAllowedLateness</code> on a <code class="highlighter-rouge">PCollection</code>, that allowed lateness propagates forward to any subsequent <code class="highlighter-rouge">PCollection</code> derived from the first <code class="highlighter-rouge">PCollection</code> you applied allowed lateness to. If you want to change the allowed lateness later in your pipeline, you must do so explictly by applying <code class="highlighter-rouge">Window.configure().withAllowedLateness()</code>.</p>
 
 <h3 id="adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</h3>
 
@@ -2098,7 +2079,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </code></pre>
 </div>
 
-<p>This allowed lateness propagates to all <code class="highlighter-rouge">PCollection</code>s derived as a result of applying transforms to the original <code class="highlighter-rouge">PCollection</code>. If you want to change the allowed lateness later in your pipeline, you can apply <code class="highlighter-rouge">Window.withAllowedLateness()</code> again, explicitly.</p>
+<p>This allowed lateness propagates to all <code class="highlighter-rouge">PCollection</code>s derived as a result of applying transforms to the original <code class="highlighter-rouge">PCollection</code>. If you want to change the allowed lateness later in your pipeline, you can apply <code class="highlighter-rouge">Window.configure().withAllowedLateness()</code> again, explicitly.</p>
 
 <h3 id="a-namecomposite-triggersacomposite-triggers"><a name="composite-triggers"></a>Composite Triggers</h3>
 
@@ -2135,6 +2116,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 </ul>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span>
+      <span class="o">.</span><span class="na">configure</span><span class="o">()</span>
       <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">AfterWatermark</span>
            <span class="o">.</span><span class="na">pastEndOfWindow</span><span class="o">()</span>
            <span class="o">.</span><span class="na">withLateFirings</span><span class="o">(</span><span class="n">AfterProcessingTime</span>

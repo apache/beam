@@ -259,13 +259,7 @@
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithBTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
 
 <span class="n">PCollectionTuple</span> <span class="n">mixedCollection</span> <span class="o">=</span>
-    <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-        <span class="n">ParDo</span>
-        <span class="c1">// Specify main output. In this example, it is the output</span>
-        <span class="c1">// with tag startsWithATag.</span>
-        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">,</span>
-        <span class="c1">// Specify the output with tag startsWithBTag, as a TupleTagList.</span>
-                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">))</span>
+    <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
           <span class="nd">@ProcessElement</span>
           <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
@@ -277,8 +271,12 @@
               <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
             <span class="o">}</span>
           <span class="o">}</span>
-        <span class="o">}</span>
-        <span class="o">));</span>
+        <span class="o">})</span>
+        <span class="c1">// Specify main output. In this example, it is the output</span>
+        <span class="c1">// with tag startsWithATag.</span>
+        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">,</span>
+        <span class="c1">// Specify the output with tag startsWithBTag, as a TupleTagList.</span>
+                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">)));</span>
 
 <span class="c1">// Get subset of the output with tag startsWithATag.</span>
 <span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
@@ -317,7 +315,7 @@
 
 <h2 id="multiple-sources">Multiple sources</h2>
 
-<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a text file. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
+<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
 
 <figure id="fig5">
     <img src="/images/design-your-pipeline-join.png" alt="A pipeline with multiple input sources." />
@@ -325,7 +323,7 @@
 <p>Figure 5: A pipeline with multiple input sources. See the example code below:</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userAddress</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">JdbcIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
 
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userOrder</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userOrder</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">KafkaIO</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()...);</span>
 
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">addressTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">orderTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
