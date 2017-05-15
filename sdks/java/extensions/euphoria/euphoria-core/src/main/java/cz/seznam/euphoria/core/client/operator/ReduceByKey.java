@@ -123,13 +123,14 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
 
     /**
-     * Define a function that reduces all values related to one key into one result object.
+     * Define a function that reduces all values related to one key into one or more
+     * result objects.
      * The function is not combinable - i.e. partial results cannot be made up before shuffle.
      * To get better performance use {@link #combineBy} method.
      *
      * @param <OUT> type of output element
      *
-     * @param reducer function that reduces all values into one output object
+     * @param reducer function that reduces all values into output values
      *
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
