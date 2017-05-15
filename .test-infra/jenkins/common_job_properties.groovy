@@ -36,12 +36,12 @@ class common_job_properties {
   static void setTopLevelMainJobProperties(context,
                                            String branch = 'master',
                                            int timeout = 100,
-                                           String label = 'beam') {
+                                           String jenkinsExecutorLabel = 'beam') {
     setTopLevelJobProperties(
             context,
             'beam',
             branch,
-            label,
+            jenkinsExecutorLabel,
             timeout)
   }
 
@@ -50,7 +50,7 @@ class common_job_properties {
   private static void setTopLevelJobProperties(context,
                                                String repositoryName,
                                                String defaultBranch,
-                                               String defaultLabel,
+                                               String jenkinsExecutorLabel,
                                                int defaultTimeout) {
 
     // GitHub project.
@@ -62,7 +62,7 @@ class common_job_properties {
     context.jdk('JDK 1.8 (latest)')
 
     // Restrict this project to run only on Jenkins executors as specified
-    context.label(defaultLabel)
+    context.label(jenkinsExecutorLabel)
 
     // Discard old builds. Build records are only kept up to this number of days.
     context.logRotator {
