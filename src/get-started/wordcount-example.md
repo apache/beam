@@ -31,7 +31,7 @@ Each WordCount example introduces different concepts in the Beam programming mod
 
 Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn't perform any error checking; it is intended to only show you the "bare bones" of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline's input and output sources and show other best practices.
 
-To run this example, follow the instructions in the Quickstart [java]({{ site.baseurl }}/get-started/quickstart-java) or [python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
+To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
 
 **Key Concepts:**
 
@@ -186,7 +186,7 @@ This WordCount example introduces a few recommended programming practices that c
 
 This section assumes that you have a good understanding of the basic concepts in building a pipeline. If you feel that you aren't at that point yet, read the above section, [Minimal WordCount](#minimalwordcount).
 
-To run this example, follow the instructions in the Quickstart [java]({{ site.baseurl }}/get-started/quickstart-java) or [python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
+To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
 **New Concepts:**
 
@@ -289,7 +289,7 @@ public static void main(String[] args) {
 
 The Debugging WordCount example demonstrates some best practices for instrumenting your pipeline code.
 
-To run this example, follow the instructions in the Quickstart [java]({{ site.baseurl }}/get-started/quickstart-java) or [python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).**
+To run this example, follow the instructions in the Quickstart for [Java]({{ site.baseurl }}/get-started/quickstart-java) or [Python]({{ site.baseurl }}/get-started/quickstart-py). To view the full code, see **[DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).**
 
 **New Concepts:**
 
