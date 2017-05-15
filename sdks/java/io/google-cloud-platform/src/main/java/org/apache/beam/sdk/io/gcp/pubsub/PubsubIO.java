@@ -487,7 +487,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the
    * given type from a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Read<T> readAvros(Class<T> clazz) {
+  public static <T> Read<T> readAvros(Class<T> clazz) {
     // TODO: Stop using AvroCoder and instead parse the payload directly.
     // We should not be relying on the fact that AvroCoder's wire format is identical to
     // the Avro wire format, as the wire format is not part of a coder's API.
