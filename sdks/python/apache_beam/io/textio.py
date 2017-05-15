@@ -21,9 +21,9 @@
 from __future__ import absolute_import
 import logging
 
-from apache_beam import coders
+from apache_beam.coders import coders
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
@@ -262,7 +262,7 @@ class _TextSource(filebasedsource.FileBasedSource):
               sep_bounds[1] - record_start_position_in_buffer)
 
 
-class _TextSink(fileio.FileSink):
+class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
 
   def __init__(self,

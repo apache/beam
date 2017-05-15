@@ -44,6 +44,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDo
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.BoundedSourceWrapper;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -66,19 +68,22 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.Reshuffle;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -148,20 +153,37 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
+      DataStream<WindowedValue<T>> source;
+      DataStream<WindowedValue<ValueWithRecordId<T>>> nonDedupSource;
       TypeInformation<WindowedValue<T>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
-      DataStream<WindowedValue<T>> source;
+      Coder<T> coder = context.getOutput(transform).getCoder();
+
+      TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
+          new CoderTypeInformation<>(WindowedValue.getFullCoder(
+              ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
+              output.getWindowingStrategy().getWindowFn().windowCoder()));
+
       try {
+
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
                 context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
                 transform.getSource(),
                 context.getExecutionEnvironment().getParallelism());
-        source = context
+        nonDedupSource = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
+            .addSource(sourceWrapper).name(transform.getName()).returns(withIdTypeInfo);
+
+        if (transform.getSource().requiresDeduping()) {
+          source = nonDedupSource.keyBy(
+              new ValueWithRecordIdKeySelector<T>())
+              .transform("debuping", outputTypeInfo, new DedupingOperator<T>());
+        } else {
+          source = nonDedupSource.flatMap(new StripIdsMap<T>());
+        }
       } catch (Exception e) {
         throw new RuntimeException(
             "Error while translating UnboundedSource: " + transform.getSource(), e);
@@ -169,6 +191,32 @@ class FlinkStreamingTransformTranslators {
 
       context.setOutputDataStream(output, source);
     }
+  }
+
+  private static class ValueWithRecordIdKeySelector<T>
+      implements KeySelector<WindowedValue<ValueWithRecordId<T>>, ByteBuffer>,
+      ResultTypeQueryable<ByteBuffer> {
+
+    @Override
+    public ByteBuffer getKey(WindowedValue<ValueWithRecordId<T>> value) throws Exception {
+      return ByteBuffer.wrap(value.getValue().getId());
+    }
+
+    @Override
+    public TypeInformation<ByteBuffer> getProducedType() {
+      return new GenericTypeInfo<>(ByteBuffer.class);
+    }
+  }
+
+  public static class StripIdsMap<T> implements
+      FlatMapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>> {
+
+    @Override
+    public void flatMap(WindowedValue<ValueWithRecordId<T>> value,
+                        Collector<WindowedValue<T>> collector) throws Exception {
+      collector.collect(value.withValue(value.getValue().getValue()));
+    }
+
   }
 
   private static class BoundedReadSourceTranslator<T>

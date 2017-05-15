@@ -31,21 +31,21 @@ import org.joda.time.Instant;
  * The argument to the {@link Window} transform used to assign elements into
  * windows and to determine how windows are merged.  See {@link Window} for more
  * information on how {@code WindowFn}s are used and for a library of
- * predefined {@code WindowFn}s.
+ * predefined {@link WindowFn WindowFns}.
  *
  * <p>Users will generally want to use the predefined
- * {@code WindowFn}s, but it is also possible to create new
+ * {@link WindowFn WindowFns}, but it is also possible to create new
  * subclasses.
  *
- * <p>To create a custom {@code WindowFn}, inherit from this class and override all required
+ * <p>To create a custom {@link WindowFn}, inherit from this class and override all required
  * methods.  If no merging is required, inherit from {@link NonMergingWindowFn}
  * instead.  If no merging is required and each element is assigned to a single window, inherit from
- * {@code PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
+ * {@link PartitioningWindowFn}.  Inheriting from the most specific subclass will enable more
  * optimizations in the runner.
  *
  * @param <T> type of elements being windowed
  * @param <W> {@link BoundedWindow} subclass used to represent the
- *            windows used by this {@code WindowFn}
+ *            windows used by this {@link WindowFn}
  */
 public abstract class WindowFn<T, W extends BoundedWindow>
     implements Serializable, HasDisplayData {

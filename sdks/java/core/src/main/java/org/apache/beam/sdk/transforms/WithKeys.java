@@ -124,9 +124,9 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
       Coder<K> keyCoder;
       CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
       if (keyClass == null) {
-        keyCoder = coderRegistry.getDefaultOutputCoder(fn, in.getCoder());
+        keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
       } else {
-        keyCoder = coderRegistry.getDefaultCoder(TypeDescriptor.of(keyClass));
+        keyCoder = coderRegistry.getCoder(TypeDescriptor.of(keyClass));
       }
       // TODO: Remove when we can set the coder inference context.
       result.setCoder(KvCoder.of(keyCoder, in.getCoder()));

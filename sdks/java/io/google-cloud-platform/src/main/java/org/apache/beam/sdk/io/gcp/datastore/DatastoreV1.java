@@ -32,9 +32,6 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
-import com.google.api.client.util.Sleeper;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
@@ -69,6 +66,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -88,8 +86,11 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -192,7 +193,7 @@ import org.slf4j.LoggerFactory;
  * by providing the host port information through {@code withLocalhost("host:port"} for all the
  * above transforms. In such a case, all the Cloud Datastore API calls are directed to the Emulator.
  *
- * @see org.apache.beam.sdk.runners.PipelineRunner
+ * @see PipelineRunner
  */
 public class DatastoreV1 {
 
@@ -704,7 +705,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), v1Options.getProjectId());
       }
 
@@ -748,7 +749,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
         querySplitter = datastoreFactory.getQuerySplitter();
@@ -821,7 +822,7 @@ public class DatastoreV1 {
       }
 
       @StartBundle
-      public void startBundle(Context c) throws Exception {
+      public void startBundle(StartBundleContext c) throws Exception {
         datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), options.getProjectId(),
             options.getLocalhost());
       }
@@ -1145,7 +1146,7 @@ public class DatastoreV1 {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle(StartBundleContext c) {
       datastore = datastoreFactory.getDatastore(c.getPipelineOptions(), projectId.get(), localhost);
     }
 
@@ -1158,7 +1159,7 @@ public class DatastoreV1 {
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       if (!mutations.isEmpty()) {
         flushBatch();
       }

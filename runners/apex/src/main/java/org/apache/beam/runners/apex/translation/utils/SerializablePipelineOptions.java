@@ -62,7 +62,7 @@ public class SerializablePipelineOptions implements Externalizable {
         .as(ApexPipelineOptions.class);
 
     if (FILE_SYSTEMS_INTIIALIZED.compareAndSet(false, true)) {
-      FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+      FileSystems.setDefaultPipelineOptions(pipelineOptions);
     }
   }
 

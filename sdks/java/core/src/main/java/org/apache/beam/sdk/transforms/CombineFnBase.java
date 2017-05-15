@@ -125,14 +125,14 @@ public class CombineFnBase {
     @Override
     public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
-      return registry.getDefaultCoder(getClass(), AbstractGlobalCombineFn.class,
+      return registry.getCoder(getClass(), AbstractGlobalCombineFn.class,
           ImmutableMap.<Type, Coder<?>>of(getInputTVariable(), inputCoder), getAccumTVariable());
     }
 
     @Override
     public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException {
-      return registry.getDefaultCoder(getClass(), AbstractGlobalCombineFn.class,
+      return registry.getCoder(getClass(), AbstractGlobalCombineFn.class,
           ImmutableMap.<Type, Coder<?>>of(getInputTVariable(), inputCoder, getAccumTVariable(),
               this.getAccumulatorCoder(registry, inputCoder)),
           getOutputTVariable());

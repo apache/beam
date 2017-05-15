@@ -22,10 +22,10 @@ import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CombineContextFactory;
-import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Static utility methods that provide {@link GlobalCombineFnRunner} implementations for different
@@ -44,6 +44,33 @@ public class GlobalCombineFnRunners {
       throw new IllegalStateException(
           String.format("Unknown type of CombineFn: %s", globalCombineFn.getClass()));
     }
+  }
+
+  /**
+   * Returns a {@code Combine.Context} from {@code PipelineOptions}, {@code SideInputReader}, and
+   * the main input window.
+   */
+  private static CombineWithContext.Context createFromComponents(
+      final PipelineOptions options,
+      final SideInputReader sideInputReader,
+      final BoundedWindow mainInputWindow) {
+    return new CombineWithContext.Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return options;
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        if (!sideInputReader.contains(view)) {
+          throw new IllegalArgumentException("calling sideInput() with unknown view");
+        }
+
+        BoundedWindow sideInputWindow =
+            view.getWindowMappingFn().getSideInputWindow(mainInputWindow);
+        return sideInputReader.get(view, sideInputWindow);
+      }
+    };
   }
 
   /**
@@ -136,7 +163,7 @@ public class GlobalCombineFnRunners {
         SideInputReader sideInputReader,
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.createAccumulator(
-          CombineContextFactory.createFromComponents(
+          createFromComponents(
               options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
@@ -150,7 +177,7 @@ public class GlobalCombineFnRunners {
       return combineFnWithContext.addInput(
           accumulator,
           input,
-          CombineContextFactory.createFromComponents(
+          createFromComponents(
               options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
@@ -162,7 +189,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.mergeAccumulators(
           accumulators,
-          CombineContextFactory.createFromComponents(
+          createFromComponents(
               options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
@@ -174,7 +201,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.extractOutput(
           accumulator,
-          CombineContextFactory.createFromComponents(
+          createFromComponents(
               options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
 
@@ -186,7 +213,7 @@ public class GlobalCombineFnRunners {
         Collection<? extends BoundedWindow> windows) {
       return combineFnWithContext.compact(
           accumulator,
-          CombineContextFactory.createFromComponents(
+          createFromComponents(
               options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
   }

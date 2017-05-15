@@ -23,7 +23,7 @@ from mock import MagicMock
 
 from apache_beam.io.gcp.datastore.v1 import fake_datastore
 from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.tests.test_utils import patch_retry
+from apache_beam.testing.test_utils import patch_retry
 
 
 # Protect against environments where apitools library is not available.

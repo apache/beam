@@ -25,7 +25,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 
 # Protect against environments where apitools library is not available.

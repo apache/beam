@@ -168,7 +168,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
           Type parameter = parameterized.getActualTypeArguments()[1];
           @SuppressWarnings("unchecked")
           Class<DestinationT> parameterClass = (Class<DestinationT>) parameter;
-          return registry.getDefaultCoder(parameterClass);
+          return registry.getCoder(parameterClass);
         }
       }
     }

@@ -29,6 +29,9 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -44,17 +47,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
@@ -274,7 +274,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             input,
         PCollection<T> output)
         throws CannotProvideCoderException {
-      // Similar logic to ParDo.MultiOutput.getDefaultOutputCoder.
+      // Similar logic to ParDo.MultiOutput.getOutputCoder.
       @SuppressWarnings("unchecked")
       KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
           (KeyedWorkItemCoder) input.getCoder();
@@ -284,7 +284,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return input
           .getPipeline()
           .getCoderRegistry()
-          .getDefaultCoder(output.getTypeDescriptor(), fn.getInputTypeDescriptor(), inputCoder);
+          .getCoder(output.getTypeDescriptor(), fn.getInputTypeDescriptor(), inputCoder);
     }
   }
 
@@ -440,13 +440,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
-      invoker.invokeStartBundle(wrapContext(c));
+    public void startBundle(StartBundleContext c) throws Exception {
+      invoker.invokeStartBundle(wrapContextAsStartBundle(c));
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
-      invoker.invokeFinishBundle(wrapContext(c));
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      invoker.invokeFinishBundle(wrapContextAsFinishBundle(c));
     }
 
     @ProcessElement
@@ -522,31 +522,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               stateNamespace, timerInternals.currentProcessingTime(), TimeDomain.PROCESSING_TIME));
     }
 
-    private DoFn<InputT, OutputT>.Context wrapContext(final Context baseContext) {
-      return fn.new Context() {
+    private DoFn<InputT, OutputT>.StartBundleContext wrapContextAsStartBundle(
+        final StartBundleContext baseContext) {
+      return fn.new StartBundleContext() {
         @Override
         public PipelineOptions getPipelineOptions() {
           return baseContext.getPipelineOptions();
-        }
-
-        @Override
-        public void output(OutputT output) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public void outputWithTimestamp(OutputT output, Instant timestamp) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public <T> void output(TupleTag<T> tag, T output) {
-          throwUnsupportedOutput();
-        }
-
-        @Override
-        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-          throwUnsupportedOutput();
         }
 
         private void throwUnsupportedOutput() {
@@ -557,6 +538,34 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
       };
     }
+
+    private DoFn<InputT, OutputT>.FinishBundleContext wrapContextAsFinishBundle(
+        final FinishBundleContext baseContext) {
+      return fn.new FinishBundleContext() {
+        @Override
+        public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return baseContext.getPipelineOptions();
+        }
+
+        private void throwUnsupportedOutput() {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Splittable DoFn can only output from @%s",
+                  ProcessElement.class.getSimpleName()));
+        }
+      };
+    }
+
   }
 
   /** Splits the restriction using the given {@link DoFn.SplitRestriction} method. */

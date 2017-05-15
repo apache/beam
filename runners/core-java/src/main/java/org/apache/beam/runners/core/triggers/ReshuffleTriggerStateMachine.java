@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.transforms.Reshuffle;
 
 /**
  * The trigger used with {@link Reshuffle} which triggers on every element

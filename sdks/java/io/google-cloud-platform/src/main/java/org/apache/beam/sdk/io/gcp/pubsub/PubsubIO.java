@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -44,7 +45,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -64,6 +64,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
+ *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Pubsub you should use
+ * {@code PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your
+ * local emulator.
  *
  * <h3>Permissions</h3>
  *
@@ -435,7 +441,7 @@ public class PubsubIO {
    * messages will only contain a {@link PubsubMessage#getPayload() payload}, but no {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+  public static Read<PubsubMessage> readMessages() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -448,7 +454,7 @@ public class PubsubIO {
    * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+  public static Read<PubsubMessage> readMessagesWithAttributes() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -495,7 +501,7 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static Write<PubsubMessage> writePubsubMessages() {
+  public static Write<PubsubMessage> writeMessages() {
     return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
@@ -721,14 +727,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input
-          .getPipeline()
-          .apply(source)
-          .setCoder(
-              getNeedsAttributes()
-                  ? PubsubMessageWithAttributesCoder.of()
-                  : PubsubMessagePayloadOnlyCoder.of())
-          .apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn()));
     }
 
     @Override
@@ -888,7 +887,7 @@ public class PubsubIO {
       private transient PubsubClient pubsubClient;
 
       @StartBundle
-      public void startBundle(Context c) throws IOException {
+      public void startBundle(StartBundleContext c) throws IOException {
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
@@ -911,7 +910,7 @@ public class PubsubIO {
       }
 
       @FinishBundle
-      public void finishBundle(Context c) throws IOException {
+      public void finishBundle() throws IOException {
         if (!output.isEmpty()) {
           publish();
         }

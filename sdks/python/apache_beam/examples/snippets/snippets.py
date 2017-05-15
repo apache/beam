@@ -31,8 +31,10 @@ string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
-from apache_beam.test_pipeline import TestPipeline
 from apache_beam.metrics import Metrics
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -91,7 +93,7 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_creating]
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
@@ -126,7 +128,7 @@ def model_pipelines(argv):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -161,7 +163,7 @@ def model_pipelines(argv):
 
 def model_pcollection(argv):
   """Creating a PCollection from data in local memory."""
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -197,7 +199,7 @@ def pipeline_options_remote(argv):
   """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   from apache_beam import Pipeline
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
@@ -212,8 +214,8 @@ def pipeline_options_remote(argv):
       parser.add_argument('--output')
   # [END pipeline_options_define_custom]
 
-  from apache_beam.utils.pipeline_options import GoogleCloudOptions
-  from apache_beam.utils.pipeline_options import StandardOptions
+  from apache_beam.options.pipeline_options import GoogleCloudOptions
+  from apache_beam.options.pipeline_options import StandardOptions
 
   # [START pipeline_options_dataflow_service]
   # Create and set your PipelineOptions.
@@ -248,7 +250,7 @@ def pipeline_options_local(argv):
   """Creating a Pipeline using a PipelineOptions object for local execution."""
 
   from apache_beam import Pipeline
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   options = PipelineOptions(flags=argv)
 
@@ -341,7 +343,7 @@ def pipeline_monitoring(renames):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   class WordCountOptions(PipelineOptions):
 
@@ -405,9 +407,9 @@ def examples_wordcount_minimal(renames):
 
   import apache_beam as beam
 
-  from apache_beam.utils.pipeline_options import GoogleCloudOptions
-  from apache_beam.utils.pipeline_options import StandardOptions
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import GoogleCloudOptions
+  from apache_beam.options.pipeline_options import StandardOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START examples_wordcount_minimal_options]
   options = PipelineOptions()
@@ -462,7 +464,7 @@ def examples_wordcount_wordcount(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   argv = []
 
@@ -566,8 +568,9 @@ def examples_wordcount_debugging(renames):
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
   # [START example_wordcount_debugging_assert]
-  beam.assert_that(
-      filtered_words, beam.equal_to([('Flourish', 3), ('stomach', 1)]))
+  beam.testing.util.assert_that(
+      filtered_words, beam.testing.util.equal_to(
+          [('Flourish', 3), ('stomach', 1)]))
   # [END example_wordcount_debugging_assert]
 
   output = (filtered_words
@@ -582,7 +585,7 @@ import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.transforms.core import PTransform
-from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 # Defining a new source.
@@ -661,8 +664,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_new_source]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   p.run().wait_until_finish()
@@ -691,8 +694,8 @@ def model_custom_source(count):
   # [END model_custom_source_use_ptransform]
 
   lines = numbers | beam.core.Map(lambda number: 'line %d' % number)
-  beam.assert_that(
-      lines, beam.equal_to(
+  assert_that(
+      lines, equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
   # Don't test runner api due to pickling errors.
@@ -747,7 +750,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # Defining the new sink.
   # [START model_custom_sink_new_sink]
@@ -841,7 +844,7 @@ def model_textio(renames):
     return re.findall(r'[A-Za-z\']+', x)
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
@@ -872,7 +875,7 @@ def model_textio_compressed(renames, expected):
       compression_type=beam.io.filesystem.CompressionTypes.GZIP)
   # [END model_textio_write_compressed]
 
-  beam.assert_that(lines, beam.equal_to(expected))
+  assert_that(lines, equal_to(expected))
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run().wait_until_finish()
 
@@ -885,7 +888,7 @@ def model_datastoreio():
   from google.cloud.proto.datastore.v1 import query_pb2
   import googledatastore
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
   from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 
@@ -918,7 +921,7 @@ def model_datastoreio():
 def model_bigqueryio():
   """Using a Read and Write transform to read/write to BigQuery."""
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
+  from apache_beam.options.pipeline_options import PipelineOptions
 
   # [START model_bigqueryio_read]
   p = beam.Pipeline(options=PipelineOptions())

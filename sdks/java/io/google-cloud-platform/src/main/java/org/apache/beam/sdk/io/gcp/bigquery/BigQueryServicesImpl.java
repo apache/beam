@@ -65,6 +65,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
@@ -93,6 +94,9 @@ class BigQueryServicesImpl implements BigQueryServices {
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
 
+  private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT.withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF);
+
   @Override
   public JobService getJobService(BigQueryOptions options) {
     return new JobServiceImpl(options);
@@ -112,6 +116,10 @@ class BigQueryServicesImpl implements BigQueryServices {
   public BigQueryJsonReader getReaderFromQuery(
       BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
     return BigQueryJsonReaderImpl.fromQuery(bqOptions, projectId, queryConfig);
+  }
+
+  private static BackOff createDefaultBackoff() {
+    return BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
   }
 
   @VisibleForTesting
@@ -205,10 +213,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     private static void startJob(Job job,
       ApiErrorExtractor errorExtractor,
       Bigquery client) throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      startJob(job, errorExtractor, client, Sleeper.DEFAULT, backoff);
+      startJob(job, errorExtractor, client, Sleeper.DEFAULT, createDefaultBackoff());
     }
 
     @VisibleForTesting
@@ -249,11 +254,12 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public Job pollJob(JobReference jobRef, int maxAttempts) throws InterruptedException {
       BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(maxAttempts)
-              .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
-              .withMaxBackoff(Duration.standardMinutes(1))
-              .backoff();
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(maxAttempts)
+                  .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff());
       return pollJob(jobRef, Sleeper.DEFAULT, backoff);
     }
 
@@ -299,16 +305,13 @@ class BigQueryServicesImpl implements BigQueryServices {
           .setConfiguration(new JobConfiguration()
               .setQuery(queryConfig)
               .setDryRun(true));
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.jobs().insert(projectId, job),
           String.format(
               "Unable to dry run query: %s, aborting after %d retries.",
               queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff,
+          createDefaultBackoff(),
           ALWAYS_RETRY).getStatistics();
     }
 
@@ -321,10 +324,7 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public Job getJob(JobReference jobRef) throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-     return getJob(jobRef, Sleeper.DEFAULT, backoff);
+     return getJob(jobRef, Sleeper.DEFAULT, createDefaultBackoff());
     }
 
     @VisibleForTesting
@@ -371,7 +371,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         FluentBackoff.DEFAULT.withInitialBackoff(Duration.millis(200)).withMaxRetries(5);
 
     // A backoff for rate limit exceeded errors. Retries forever.
-    private static final FluentBackoff DEFAULT_BACKOFF_FACTORY =
+    private static final FluentBackoff RATE_LIMIT_BACKOFF_FACTORY =
         FluentBackoff.DEFAULT
             .withInitialBackoff(Duration.standardSeconds(1))
             .withMaxBackoff(Duration.standardMinutes(2));
@@ -420,10 +420,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Nullable
     public Table getTable(TableReference tableRef)
         throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return getTable(tableRef, backoff, Sleeper.DEFAULT);
+      return getTable(tableRef, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -528,9 +525,6 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
           client.tables().delete(
               tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
@@ -538,16 +532,13 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to delete table: %s, aborting after %d retries.",
               tableRef.getTableId(), MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff,
+          createDefaultBackoff(),
           ALWAYS_RETRY);
     }
 
     @Override
     public boolean isTableEmpty(TableReference tableRef) throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return isTableEmpty(tableRef, backoff, Sleeper.DEFAULT);
+      return isTableEmpty(tableRef, createDefaultBackoff(), Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -575,16 +566,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public Dataset getDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.datasets().get(projectId, datasetId),
           String.format(
               "Unable to get dataset: %s, aborting after %d retries.",
               datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff,
+          createDefaultBackoff(),
           DONT_RETRY_NOT_FOUND);
     }
 
@@ -599,10 +587,8 @@ class BigQueryServicesImpl implements BigQueryServices {
     public void createDataset(
         String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      createDataset(projectId, datasetId, location, description, Sleeper.DEFAULT, backoff);
+      createDataset(
+          projectId, datasetId, location, description, Sleeper.DEFAULT, createDefaultBackoff());
     }
 
     private void createDataset(
@@ -659,16 +645,13 @@ class BigQueryServicesImpl implements BigQueryServices {
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       executeWithRetries(
           client.datasets().delete(projectId, datasetId),
           String.format(
               "Unable to delete table: %s, aborting after %d retries.",
               datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff,
+          createDefaultBackoff(),
           ALWAYS_RETRY);
     }
 
@@ -725,7 +708,9 @@ class BigQueryServicesImpl implements BigQueryServices {
                 executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
                   @Override
                   public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    BackOff backoff = DEFAULT_BACKOFF_FACTORY.backoff();
+                    // A backoff for rate limit exceeded errors. Retries forever.
+                    BackOff backoff = BackOffAdapter.toGcpBackOff(
+                        RATE_LIMIT_BACKOFF_FACTORY.backoff());
                     while (true) {
                       try {
                         return insert.execute().getInsertErrors();
@@ -811,7 +796,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException {
       return insertAll(
-          ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+          ref, rowList, insertIdList,
+          BackOffAdapter.toGcpBackOff(
+              INSERT_BACKOFF_FACTORY.backoff()),
+          Sleeper.DEFAULT);
     }
 
 
@@ -822,9 +810,6 @@ class BigQueryServicesImpl implements BigQueryServices {
       Table table = new Table();
       table.setDescription(tableDescription);
 
-      BackOff backoff =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return executeWithRetries(
           client.tables().patch(
               tableReference.getProjectId(),
@@ -835,7 +820,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to patch table description: %s, aborting after %d retries.",
               tableReference, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff,
+          createDefaultBackoff(),
           ALWAYS_RETRY);
     }
   }

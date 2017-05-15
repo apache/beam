@@ -19,7 +19,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
-import org.apache.beam.sdk.PipelineResult.State;
 import org.joda.time.Duration;
 
 /**

@@ -15,7 +15,11 @@
 # limitations under the License.
 #
 
-"""Fake datastore used for unit testing."""
+"""Fake datastore used for unit testing.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 import uuid
 
 # Protect against environments where datastore library is not available.

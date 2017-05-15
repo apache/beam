@@ -34,8 +34,10 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
@@ -57,19 +59,17 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkS
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.KeyGroupCheckpointedOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.NullSideInputReader;
-import org.apache.beam.sdk.util.SideInputReader;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -198,8 +198,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   public void open() throws Exception {
     super.open();
 
-    currentInputWatermark = Long.MIN_VALUE;
-    currentOutputWatermark = Long.MIN_VALUE;
+    setCurrentInputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    setCurrentOutputWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
 
     sideInputReader = NullSideInputReader.of(sideInputs);
 
@@ -429,18 +429,18 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   @Override
   public void processWatermark1(Watermark mark) throws Exception {
     if (keyCoder == null) {
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
       long potentialOutputWatermark =
           Math.min(getPushbackWatermarkHold(), currentInputWatermark);
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
     } else {
       // fireTimers, so we need startBundle.
       pushbackDoFnRunner.startBundle();
 
-      this.currentInputWatermark = mark.getTimestamp();
+      setCurrentInputWatermark(mark.getTimestamp());
 
       // hold back by the pushed back values waiting for side inputs
       long actualInputWatermark = Math.min(getPushbackWatermarkHold(), mark.getTimestamp());
@@ -454,7 +454,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       long potentialOutputWatermark = Math.min(currentInputWatermark, combinedWatermarkHold);
 
       if (potentialOutputWatermark > currentOutputWatermark) {
-        currentOutputWatermark = potentialOutputWatermark;
+        setCurrentOutputWatermark(potentialOutputWatermark);
         output.emitWatermark(new Watermark(currentOutputWatermark));
       }
       pushbackDoFnRunner.finishBundle();
@@ -606,6 +606,14 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
     pushbackDoFnRunner.onTimer(timerData.getTimerId(), window,
         timerData.getTimestamp(), timerData.getDomain());
+  }
+
+  private void setCurrentInputWatermark(long currentInputWatermark) {
+    this.currentInputWatermark = currentInputWatermark;
+  }
+
+  private void setCurrentOutputWatermark(long currentOutputWatermark) {
+    this.currentOutputWatermark = currentOutputWatermark;
   }
 
   /**

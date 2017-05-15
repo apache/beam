@@ -29,10 +29,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import javax.annotation.Nullable;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -139,18 +141,39 @@ public class AvroCoder<T> extends CustomCoder<T> {
     return new AvroCoder<>(type, schema);
   }
 
-  public static final CoderProvider PROVIDER = new CoderProvider() {
+  /**
+   * Returns a {@link CoderProvider} which uses the {@link AvroCoder} if possible for
+   * all types.
+   *
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
+   * accept dangerous types such as {@link Object}.
+   *
+   * <p>This method is invoked reflectively from {@link DefaultCoder}.
+   */
+  @SuppressWarnings("unused")
+  public static CoderProvider getCoderProvider() {
+    return new AvroCoderProvider();
+  }
+
+  /**
+   * A {@link CoderProvider} that constructs an {@link AvroCoder} for Avro compatible classes.
+   *
+   * <p>It is unsafe to register this as a {@link CoderProvider} because Avro will reflectively
+   * accept dangerous types such as {@link Object}.
+   */
+  static class AvroCoderProvider extends CoderProvider {
     @Override
-    public <T> Coder<T> getCoder(TypeDescriptor<T> typeDescriptor) {
-      // This is a downcast from `? super T` to T. However, because
-      // it comes from a TypeDescriptor<T>, the class object itself
-      // is the same so the supertype in question shares the same
-      // generated AvroCoder schema.
-      @SuppressWarnings("unchecked")
-      Class<T> rawType = (Class<T>) typeDescriptor.getRawType();
-      return AvroCoder.of(rawType);
+    public <T> Coder<T> coderFor(TypeDescriptor<T> typeDescriptor,
+        List<? extends Coder<?>> componentCoders) throws CannotProvideCoderException {
+      try {
+        return AvroCoder.of(typeDescriptor);
+      } catch (AvroRuntimeException e) {
+        throw new CannotProvideCoderException(
+            String.format("%s is not compatible with Avro", typeDescriptor),
+            e);
+      }
     }
-  };
+  }
 
   private final Class<T> type;
   private final SerializableSchemaSupplier schemaSupplier;
@@ -277,7 +300,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context) throws IOException {
+  public void encode(T value, OutputStream outStream) throws IOException {
     // Get a BinaryEncoder instance from the ThreadLocal cache and attempt to reuse it.
     BinaryEncoder encoderInstance = ENCODER_FACTORY.directBinaryEncoder(outStream, encoder.get());
     // Save the potentially-new instance for reuse later.
@@ -287,17 +310,12 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws IOException {
+  public T decode(InputStream inStream) throws IOException {
     // Get a BinaryDecoder instance from the ThreadLocal cache and attempt to reuse it.
     BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
     // Save the potentially-new instance for later.
     decoder.set(decoderInstance);
     return reader.get().read(null, decoderInstance);
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
   }
 
   /**
@@ -680,5 +698,23 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
       throw new IllegalArgumentException("Unable to get field " + name + " from " + originalClazz);
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (other == this) {
+      return true;
+    }
+    if (!(other instanceof AvroCoder)) {
+      return false;
+    }
+    AvroCoder<?> that = (AvroCoder<?>) other;
+    return Objects.equals(this.schemaSupplier.get(), that.schemaSupplier.get())
+        && Objects.equals(this.typeDescriptor, that.typeDescriptor);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(schemaSupplier.get(), typeDescriptor);
   }
 }

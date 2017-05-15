@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.Serializable;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * The SparkRuntimeContext allows us to define useful features on the client side before our
@@ -35,13 +37,23 @@ public class SparkRuntimeContext implements Serializable {
   private final String serializedPipelineOptions;
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(Pipeline pipeline) {
-    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+  SparkRuntimeContext(Pipeline pipeline, PipelineOptions options) {
+    this.serializedPipelineOptions = serializePipelineOptions(options);
+  }
+
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static ObjectMapper createMapper() {
+    return new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
   }
 
   private String serializePipelineOptions(PipelineOptions pipelineOptions) {
     try {
-      return new ObjectMapper().writeValueAsString(pipelineOptions);
+      return createMapper().writeValueAsString(pipelineOptions);
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Failed to serialize the pipeline options.", e);
     }
@@ -49,7 +61,7 @@ public class SparkRuntimeContext implements Serializable {
 
   private static PipelineOptions deserializePipelineOptions(String serializedPipelineOptions) {
     try {
-      return new ObjectMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
+      return createMapper().readValue(serializedPipelineOptions, PipelineOptions.class);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
@@ -78,7 +90,7 @@ public class SparkRuntimeContext implements Serializable {
           }
         }
         // Register standard FileSystems.
-        FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+        FileSystems.setDefaultPipelineOptions(pipelineOptions);
       }
       return pipelineOptions;
     }

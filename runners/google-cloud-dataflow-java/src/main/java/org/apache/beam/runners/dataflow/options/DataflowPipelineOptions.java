@@ -33,6 +33,8 @@ import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.Validation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Options that can be used to configure the {@link DataflowRunner}.
@@ -117,10 +119,12 @@ public interface DataflowPipelineOptions
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
   class StagingLocationFactory implements DefaultValueFactory<String> {
+    private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);
 
     @Override
     public String create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);
+      LOG.info("No stagingLocation provided, falling back to gcpTempLocation");
       String gcpTempLocation;
       try {
         gcpTempLocation = gcsOptions.getGcpTempLocation();

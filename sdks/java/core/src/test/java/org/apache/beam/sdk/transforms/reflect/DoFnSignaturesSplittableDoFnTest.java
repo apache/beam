@@ -25,8 +25,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import java.util.List;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -57,7 +57,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   private abstract static class SomeRestrictionTracker
       implements RestrictionTracker<SomeRestriction> {}
 
-  private abstract static class SomeRestrictionCoder implements Coder<SomeRestriction> {}
+  private abstract static class SomeRestrictionCoder extends StructuredCoder<SomeRestriction> {}
 
   @Test
   public void testHasRestrictionTracker() throws Exception {

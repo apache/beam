@@ -18,6 +18,7 @@
 
 package org.apache.beam.fn.harness.control;
 
+import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
@@ -71,12 +72,13 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -304,20 +306,21 @@ public class ProcessBundleHandlerTest {
     private static final TupleTag<String> mainOutput = new TupleTag<>("mainOutput");
     private static final TupleTag<String> additionalOutput = new TupleTag<>("output");
 
-    @StartBundle
-    public void startBundle(Context context) {
-      context.output("StartBundle");
-    }
+    private BoundedWindow window;
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(ProcessContext context, BoundedWindow window) {
       context.output("MainOutput" + context.element());
       context.output(additionalOutput, "AdditionalOutput" + context.element());
+      this.window = window;
     }
 
     @FinishBundle
-    public void finishBundle(Context context) {
-      context.output("FinishBundle");
+    public void finishBundle(FinishBundleContext context) {
+      if (window != null) {
+        context.output("FinishBundle", window.maxTimestamp(), window);
+        window = null;
+      }
     }
   }
 
@@ -411,7 +414,6 @@ public class ProcessBundleHandlerTest {
         finishFunctions::add);
 
     Iterables.getOnlyElement(startFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("StartBundle")));
     mainOutputValues.clear();
 
     assertEquals(newConsumers.keySet(),
@@ -432,7 +434,10 @@ public class ProcessBundleHandlerTest {
     additionalOutputValues.clear();
 
     Iterables.getOnlyElement(finishFunctions).run();
-    assertThat(mainOutputValues, contains(valueInGlobalWindow("FinishBundle")));
+    assertThat(
+        mainOutputValues,
+        contains(
+            timestampedValueInGlobalWindow("FinishBundle", GlobalWindow.INSTANCE.maxTimestamp())));
     mainOutputValues.clear();
   }
 

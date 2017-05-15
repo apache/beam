@@ -26,7 +26,8 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.trigger import AccumulationMode
@@ -40,11 +41,10 @@ from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
-from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import MIN_TIMESTAMP
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
@@ -402,22 +402,22 @@ class RunnerApiTest(unittest.TestCase):
 class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
-    p = TestPipeline()
-    result = (p
-              | beam.Create([1, 2, 3, 4, 5, 10, 11])
-              | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-              | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
-              | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
-                                accumulation_mode=AccumulationMode.DISCARDING)
-              | beam.GroupByKey()
-              | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
-    assert_that(result, equal_to(
-        {
-            'A-5': {1, 2, 3, 4, 5},
-            # A-10, A-11 never emitted due to AfterCount(3) never firing.
-            'B-4': {6, 7, 8, 9},
-            'B-3': {10, 15, 16},
-        }.iteritems()))
+    with TestPipeline() as p:
+      result = (p
+                | beam.Create([1, 2, 3, 4, 5, 10, 11])
+                | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+                | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+                | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
+                                  accumulation_mode=AccumulationMode.DISCARDING)
+                | beam.GroupByKey()
+                | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+      assert_that(result, equal_to(
+          {
+              'A-5': {1, 2, 3, 4, 5},
+              # A-10, A-11 never emitted due to AfterCount(3) never firing.
+              'B-4': {6, 7, 8, 9},
+              'B-3': {10, 15, 16},
+          }.iteritems()))
 
 
 class TranscriptTest(unittest.TestCase):
@@ -522,11 +522,12 @@ class TranscriptTest(unittest.TestCase):
     trigger_fn = parse_fn(spec.get('trigger_fn', 'Default'), trigger_names)
     accumulation_mode = getattr(
         AccumulationMode, spec.get('accumulation_mode', 'ACCUMULATING').upper())
-    output_time_fn = getattr(
-        OutputTimeFn, spec.get('output_time_fn', 'OUTPUT_AT_EOW').upper())
+    timestamp_combiner = getattr(
+        TimestampCombiner,
+        spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, output_time_fn))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP

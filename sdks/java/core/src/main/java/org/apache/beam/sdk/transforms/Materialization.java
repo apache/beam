@@ -18,8 +18,8 @@
 
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.runners.PipelineRunner;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>

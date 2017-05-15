@@ -39,6 +39,8 @@ from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 def streaming_rpc_handler(cls, method_name):
   """Un-inverts the flow of control between the runner and the sdk harness."""

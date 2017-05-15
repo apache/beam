@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.TypeParameter;
  * @param <K> the type of the keys of the KVs being transcoded
  * @param <V> the type of the values of the KVs being transcoded
  */
-public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
+public class MapCoder<K, V> extends StructuredCoder<Map<K, V>> {
   /**
    * Produces a MapCoder with the given keyCoder and valueCoder.
    */
@@ -49,18 +49,6 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
       Coder<V> valueCoder) {
     return new MapCoder<>(keyCoder, valueCoder);
   }
-
-  /**
-   * Returns the key and value for an arbitrary element of this map,
-   * if it is non-empty, otherwise returns {@code null}.
-   */
-   public static <K, V> List<Object> getInstanceComponents(
-       Map<K, V> exampleValue) {
-     for (Map.Entry<K, V> entry : exampleValue.entrySet()) {
-       return Arrays.asList(entry.getKey(), entry.getValue());
-     }
-     return null;
-   }
 
   public Coder<K> getKeyCoder() {
     return keyCoder;
@@ -78,6 +66,12 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
   private MapCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
+  }
+
+  @Override
+  public void encode(Map<K, V> map, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(map, outStream, Context.NESTED);
   }
 
   @Override
@@ -101,14 +95,19 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
     Entry<K, V> entry = iterator.next();
     while (iterator.hasNext()) {
-      keyCoder.encode(entry.getKey(), outStream, context.nested());
-      valueCoder.encode(entry.getValue(), outStream, context.nested());
+      keyCoder.encode(entry.getKey(), outStream);
+      valueCoder.encode(entry.getValue(), outStream);
       entry = iterator.next();
     }
 
-    keyCoder.encode(entry.getKey(), outStream, context.nested());
+    keyCoder.encode(entry.getKey(), outStream);
     valueCoder.encode(entry.getValue(), outStream, context);
     // no flush needed as DataOutputStream does not buffer
+  }
+
+  @Override
+  public Map<K, V> decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
   }
 
   @Override
@@ -122,12 +121,12 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
     for (int i = 0; i < size - 1; ++i) {
-      K key = keyCoder.decode(inStream, context.nested());
-      V value = valueCoder.decode(inStream, context.nested());
+      K key = keyCoder.decode(inStream);
+      V value = valueCoder.decode(inStream);
       retval.put(key, value);
     }
 
-    K key = keyCoder.decode(inStream, context.nested());
+    K key = keyCoder.decode(inStream);
     V value = valueCoder.decode(inStream, context);
     retval.put(key, value);
     return retval;
@@ -158,7 +157,7 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
 
   @Override
   public void registerByteSizeObserver(
-      Map<K, V> map, ElementByteSizeObserver observer, Context context)
+      Map<K, V> map, ElementByteSizeObserver observer)
       throws Exception {
     observer.update(4L);
     if (map.isEmpty()) {
@@ -167,12 +166,12 @@ public class MapCoder<K, V> extends CustomCoder<Map<K, V>> {
     Iterator<Entry<K, V>> entries = map.entrySet().iterator();
     Entry<K, V> entry = entries.next();
     while (entries.hasNext()) {
-      keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(entry.getValue(), observer, context.nested());
+      keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+      valueCoder.registerByteSizeObserver(entry.getValue(), observer);
       entry = entries.next();
     }
-    keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
+    keyCoder.registerByteSizeObserver(entry.getKey(), observer);
+    valueCoder.registerByteSizeObserver(entry.getValue(), observer);
   }
 
   @Override

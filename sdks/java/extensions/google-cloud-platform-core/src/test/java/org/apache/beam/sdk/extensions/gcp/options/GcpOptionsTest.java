@@ -41,11 +41,11 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.DefaultProjectFactory;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions.GcpTempLocationFactory;
+import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Before;
 import org.junit.Rule;
@@ -220,7 +220,7 @@ public class GcpOptionsTest {
       when(mockGcsUtil.bucketOwner(any(GcsPath.class))).thenReturn(1L);
 
       String bucket = GcpTempLocationFactory.tryCreateDefaultBucket(options, mockCrmClient);
-      assertEquals("gs://dataflow-staging-us-north1-1", bucket);
+      assertEquals("gs://dataflow-staging-us-north1-1/temp/", bucket);
     }
 
     @Test

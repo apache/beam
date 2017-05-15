@@ -22,7 +22,9 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import bigquery_tornadoes
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 
 class BigQueryTornadoesTest(unittest.TestCase):
@@ -35,8 +37,8 @@ class BigQueryTornadoesTest(unittest.TestCase):
         {'month': 1, 'day': 3, 'tornado': True},
         {'month': 2, 'day': 1, 'tornado': True}]))
     results = bigquery_tornadoes.count_tornadoes(rows)
-    beam.assert_that(results, beam.equal_to([{'month': 1, 'tornado_count': 2},
-                                             {'month': 2, 'tornado_count': 1}]))
+    assert_that(results, equal_to([{'month': 1, 'tornado_count': 2},
+                                   {'month': 2, 'tornado_count': 1}]))
     p.run().wait_until_finish()
 
 

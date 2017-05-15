@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Checked in to avoid protoc dependency for Python development.
+"""For internal use only; no backwards-compatibility guarantees.
+
+Checked in to avoid protoc dependency for Python development.
 
 Regenerate files with::
 

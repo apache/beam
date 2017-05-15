@@ -30,7 +30,6 @@ import com.mongodb.gridfs.GridFS;
 import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
 import com.mongodb.util.JSON;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -40,9 +39,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -641,7 +638,7 @@ public class MongoDbGridFSIO {
     }
 
     @StartBundle
-    public void startBundle(Context context) {
+    public void startBundle() {
       gridFsFile = gridfs.createFile(spec.filename());
       if (spec.chunkSize() != null) {
         gridFsFile.setChunkSize(spec.chunkSize());
@@ -656,7 +653,7 @@ public class MongoDbGridFSIO {
     }
 
     @FinishBundle
-    public void finishBundle(Context context) throws Exception {
+    public void finishBundle() throws Exception {
       if (gridFsFile != null) {
         outputStream.flush();
         outputStream.close();

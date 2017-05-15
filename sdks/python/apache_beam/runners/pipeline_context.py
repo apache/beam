@@ -15,6 +15,12 @@
 # limitations under the License.
 #
 
+"""Utility class for serializing pipelines via the runner API.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
+
 from apache_beam import pipeline
 from apache_beam import pvalue
 from apache_beam import coders
@@ -60,7 +66,9 @@ class _PipelineContextMap(object):
 
 
 class PipelineContext(object):
-  """Used for accessing and constructing the referenced objects of a Pipeline.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Used for accessing and constructing the referenced objects of a Pipeline.
   """
 
   _COMPONENT_TYPES = {

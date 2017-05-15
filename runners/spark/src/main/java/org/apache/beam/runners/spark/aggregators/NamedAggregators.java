@@ -22,14 +22,12 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
-
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -209,7 +207,7 @@ public class NamedAggregators implements Serializable {
       oos.writeObject(inCoder);
       try {
         combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .encode(state, oos, Coder.Context.NESTED);
+            .encode(state, oos);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }
@@ -222,7 +220,7 @@ public class NamedAggregators implements Serializable {
       inCoder = (Coder<InputT>) ois.readObject();
       try {
         state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .decode(ois, Coder.Context.NESTED);
+            .decode(ois);
       } catch (CannotProvideCoderException e) {
         throw new IllegalStateException("Could not determine coder for accumulator", e);
       }

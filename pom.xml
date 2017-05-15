@@ -34,7 +34,7 @@
   <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.7.0-SNAPSHOT</version>
+  <version>2.1.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -106,7 +106,7 @@
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <bigtable.version>0.9.6</bigtable.version>
+    <bigtable.version>0.9.6.2</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -556,6 +556,12 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-all</artifactId>
         <version>${grpc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-lite</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -913,6 +919,12 @@
         <groupId>com.google.api.grpc</groupId>
         <artifactId>grpc-google-common-protos</artifactId>
         <version>${grpc-google-common-protos.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-lite</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -1182,6 +1194,12 @@
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>2.8.2</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.0.2</version>
           <executions>
@@ -1198,6 +1216,9 @@
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <skipIfEmpty>true</skipIfEmpty>
+          </configuration>
         </plugin>
 
         <plugin>
@@ -1421,6 +1442,7 @@
                 <goal>shade</goal>
               </goals>
               <configuration>
+                <shadeTestJar>true</shadeTestJar>
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
@@ -1439,6 +1461,10 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
+                    <excludes>
+                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                      <exclude>com.google.common.**.testing.*</exclude>
+                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.common
@@ -1453,7 +1479,7 @@
                   </relocation>
                 </relocations>
                 <transformers>
-                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                 </transformers>
               </configuration>
             </execution>
@@ -1546,6 +1572,7 @@
                   <include>**/*.egg-info/</include>
                   <include>**/sdks/python/LICENSE</include>
                   <include>**/sdks/python/NOTICE</include>
+                  <include>**/sdks/python/README.md</include>
                 </includes>
                 <followSymlinks>false</followSymlinks>
               </fileset>
@@ -1626,12 +1653,24 @@
                   <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+          <execution>
+            <id>enforce-banned-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
                 <bannedDependencies>
                   <excludes>
+                    <exclude>com.google.guava:guava-jdk5</exclude>
                     <exclude>com.google.protobuf:protobuf-lite</exclude>
                   </excludes>
                 </bannedDependencies>
               </rules>
+              <fail>true</fail>
             </configuration>
           </execution>
         </executions>
@@ -1646,6 +1685,12 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+      <!-- Ensure that the Maven jar plugin runs before the Maven
+        shade plugin by listing the plugin higher within the file. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -1671,6 +1716,7 @@
                   <includes>
                     <include>LICENSE</include>
                     <include>NOTICE</include>
+                    <include>README.md</include>
                   </includes>
                 </resource>
               </resources>              

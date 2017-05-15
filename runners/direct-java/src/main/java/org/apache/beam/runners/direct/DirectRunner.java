@@ -34,12 +34,12 @@ import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStrea
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -51,8 +51,14 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
- * {@link PCollection PCollections}.
+ * A {@link PipelineRunner} that executes a {@link Pipeline} within the process that constructed the
+ * {@link Pipeline}.
+ *
+ * <p>The {@link DirectRunner} is suitable for running a {@link Pipeline} on small scale, example,
+ * and test data, and should be used for ensuring that processing logic is correct. It also
+ * is appropriate for executing unit tests and performs additional work to ensure that behavior
+ * contained within a {@link Pipeline} does not break assumptions within the Beam model, to improve
+ * the ability to execute a {@link Pipeline} at scale on a distributed backend.
  */
 public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
@@ -127,6 +133,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   private final Set<Enforcement> enabledEnforcements;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
+  /**
+   * Construct a {@link DirectRunner} from the provided options.
+   */
   public static DirectRunner fromOptions(PipelineOptions options) {
     return new DirectRunner(options.as(DirectOptions.class));
   }
@@ -163,6 +172,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);
+    DisplayDataValidator.validateOptions(getPipelineOptions());
 
     DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =
@@ -245,8 +255,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
   /**
    * The result of running a {@link Pipeline} with the {@link DirectRunner}.
-   *
-   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
@@ -273,14 +281,11 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     }
 
     /**
-     * Blocks until the {@link Pipeline} execution represented by this
-     * {@link DirectPipelineResult} is complete, returning the terminal state.
+     * {@inheritDoc}.
      *
-     * <p>If the pipeline terminates abnormally by throwing an exception, this will rethrow the
-     * exception. Future calls to {@link #getState()} will return
-     * {@link org.apache.beam.sdk.PipelineResult.State#FAILED}.
-     *
-     * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
+     * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
+     * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
+     * org.apache.beam.sdk.PipelineResult.State#FAILED}.
      */
     @Override
     public State waitUntilFinish() {
@@ -297,6 +302,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return executor.getPipelineState();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>If the pipeline terminates abnormally by throwing an {@link Exception}, this will rethrow
+     * the original {@link Exception}. Future calls to {@link #getState()} will return {@link
+     * org.apache.beam.sdk.PipelineResult.State#FAILED}.
+     */
     @Override
     public State waitUntilFinish(Duration duration) {
       State startState = this.state;

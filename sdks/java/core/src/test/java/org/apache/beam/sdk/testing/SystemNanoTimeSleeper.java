@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.testing;
 
-import com.google.api.client.util.Sleeper;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
+import org.apache.beam.sdk.util.Sleeper;
 
 /**
  * This class provides an expensive sleeper to deal with issues around Java's
