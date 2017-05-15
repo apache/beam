@@ -19,6 +19,7 @@
 package org.apache.beam.dsls.sql.rel;
 
 import java.io.Serializable;
+import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -123,6 +125,12 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     RelNode input = getInput();
     PCollection<BeamSQLRow> upstream = BeamSQLRelUtils.getBeamRelInput(input)
         .buildBeamPipeline(planCreator);
+    Type windowType = upstream.getWindowingStrategy().getWindowFn()
+        .getWindowTypeDescriptor().getType();
+    if (!windowType.equals(GlobalWindow.class)) {
+      throw new BeamSqlUnsupportedException(
+          "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+    }
 
     BeamSQLRowComparator comparator = new BeamSQLRowComparator(fieldIndices, orientation,
         nullsFirst);
