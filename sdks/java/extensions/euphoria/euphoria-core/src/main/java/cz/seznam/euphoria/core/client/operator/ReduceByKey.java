@@ -36,6 +36,7 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -394,28 +395,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
 
-  public static class SingleValueContext<T> implements Context<T> {
-
-    T value;
-
-    @Override
-    public void collect(T elem) {
-      value = elem;
-    }
-
-    @Override
-    public Object getWindow() {
-      throw new UnsupportedOperationException(
-          "The window is unknown when applying combinable function");
-    }
-
-    public T getValue() {
-      return value;
-    }
-
-  };
-
-
   static class CombiningReduceState<E>
           implements State<E, E>, StateSupport.MergeFrom<CombiningReduceState<E>> {
 
@@ -457,7 +436,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
         this.storage.set(element);
       } else {
         this.reducer.apply(Arrays.asList(v, element), context);
-        this.storage.set(context.getValue());
+        this.storage.set(context.getAndResetValue());
       }
     }
 

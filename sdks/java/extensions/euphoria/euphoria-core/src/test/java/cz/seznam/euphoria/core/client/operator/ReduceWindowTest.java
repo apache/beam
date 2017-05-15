@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -20,6 +21,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
+import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import java.time.Duration;
 import java.util.Arrays;
 
@@ -77,10 +79,10 @@ public class ReduceWindowTest {
   private <IN, OUT> OUT collectSingle(
       ReduceFunctor<IN, OUT> fn, Iterable<IN> values) {
 
-    ReduceByKey.SingleValueContext<OUT> context;
-    context = new ReduceByKey.SingleValueContext<>();
+    SingleValueContext<OUT> context;
+    context = new SingleValueContext<>();
     fn.apply(values, context);
-    return context.getValue();
+    return context.getAndResetValue();
   }
 
 
