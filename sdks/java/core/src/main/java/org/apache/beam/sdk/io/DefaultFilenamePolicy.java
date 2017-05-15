@@ -32,13 +32,16 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 
 /**
- * A default {@link FilenamePolicy} for unwindowed files. This policy is constructed using three
- * parameters that together define the output name of a sharded file, in conjunction with the number
- * of shards and index of the particular file, using {@link #constructName}.
+ * A default {@link FilenamePolicy} for windowed and unwindowed files. This policy is constructed
+ * using three parameters that together define the output name of a sharded file, in conjunction
+ * with the number of shards and index of the particular file, using {@link #constructName}.
  *
- * <p>Most users of unwindowed files will use this {@link DefaultFilenamePolicy}. For more advanced
+ * <p>Most users will use this {@link DefaultFilenamePolicy}. For more advanced
  * uses in generating different files for each window and other sharding controls, see the
  * {@code WriteOneFilePerWindow} example pipeline.
  */
@@ -46,8 +49,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template used in {@link #constructUsingStandardParameters}. */
   public static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
+  private static final String DEFAULT_WINDOWED_SHARED_TEMPLATE_SUFFIX = "-PPP-W";
+
   // Pattern that matches shard placeholders within a shard template.
-  private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
+  private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+|P+|W)");
 
   /**
    * Constructs a new {@link DefaultFilenamePolicy}.
@@ -95,34 +100,55 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * strings.
    *
    * <p>Within a shard template, repeating sequences of the letters "S" or "N"
-   * are replaced with the shard number, or number of shards respectively.  The
-   * numbers are formatted with leading zeros to match the length of the
+   * are replaced with the shard number, or number of shards respectively.
+   * Repeating sequence of "P" is replaced with the window
+   * The numbers are formatted with leading zeros to match the length of the
    * repeated sequence of letters.
+   * "W" is replaced by stringification of current window.
    *
    * <p>For example, if prefix = "output", shardTemplate = "-SSS-of-NNN", and
    * suffix = ".txt", with shardNum = 1 and numShards = 100, the following is
    * produced:  "output-001-of-100.txt".
    */
-  public static String constructName(
-      String prefix, String shardTemplate, String suffix, int shardNum, int numShards) {
+  static String constructName(
+      String prefix, String shardTemplate, String suffix, int shardNum, int numShards,
+      long currentPaneIndex, String windowStr) {
     // Matcher API works with StringBuffer, rather than StringBuilder.
     StringBuffer sb = new StringBuffer();
     sb.append(prefix);
 
     Matcher m = SHARD_FORMAT_RE.matcher(shardTemplate);
     while (m.find()) {
-      boolean isShardNum = (m.group(1).charAt(0) == 'S');
+      boolean isCurrentShardNum = (m.group(1).charAt(0) == 'S');
+      boolean isNumberOfShards = (m.group(1).charAt(0) == 'N');
+      boolean isCurrentPaneIndex = (m.group(1).charAt(0) == 'P') && currentPaneIndex > -1;
+      boolean isWindow = (m.group(1).charAt(0) == 'W') && windowStr != null;
 
       char[] zeros = new char[m.end() - m.start()];
       Arrays.fill(zeros, '0');
       DecimalFormat df = new DecimalFormat(String.valueOf(zeros));
-      String formatted = df.format(isShardNum ? shardNum : numShards);
-      m.appendReplacement(sb, formatted);
+      if (isCurrentShardNum) {
+        String formatted = df.format(shardNum);
+        m.appendReplacement(sb, formatted);
+      } else if (isNumberOfShards) {
+        String formatted = df.format(numShards);
+        m.appendReplacement(sb, formatted);
+      } else if (isCurrentPaneIndex) {
+        String formatted = df.format(currentPaneIndex);
+        m.appendReplacement(sb, formatted);
+      } else if (isWindow) {
+        m.appendReplacement(sb, windowStr);
+      }
     }
     m.appendTail(sb);
 
     sb.append(suffix);
     return sb.toString();
+  }
+
+  static String constructName(String prefix, String shardTemplate, String suffix, int shardNum,
+      int numShards) {
+    return constructName(prefix, shardTemplate, suffix, shardNum, numShards, -1L, null);
   }
 
   @Override
@@ -138,9 +164,31 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   public ResourceId windowedFilename(ResourceId outputDirectory,
-      WindowedContext c, String extension) {
-    throw new UnsupportedOperationException("There is no default policy for windowed file"
-        + " output. Please provide an explicit FilenamePolicy to generate filenames.");
+      WindowedContext context, String extension) {
+    long currentPaneIndex = (context.getPaneInfo() == null ? -1L
+        : context.getPaneInfo().getIndex());
+    String windowStr = windowToString(context.getWindow());
+    String windowShardTemplate = shardTemplate + DEFAULT_WINDOWED_SHARED_TEMPLATE_SUFFIX;
+    String filename = constructName(prefix.get(), windowShardTemplate, suffix,
+        context.getShardNumber(),
+        context.getNumShards(), currentPaneIndex, windowStr)
+        + extension;
+    return outputDirectory.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+  }
+
+  /*
+   * Since not all windows have toString() that is nice or is compatible to be part of file name.
+   */
+  private String windowToString(BoundedWindow window) {
+    if (window instanceof GlobalWindow) {
+      return "GlobalWindow";
+    }
+    if (window instanceof IntervalWindow) {
+      IntervalWindow iw = (IntervalWindow) window;
+      return String.format("IntervalWindow-from-%s-to-%s", iw.start().toString(),
+          iw.end().toString());
+    }
+    return window.toString();
   }
 
   @Override

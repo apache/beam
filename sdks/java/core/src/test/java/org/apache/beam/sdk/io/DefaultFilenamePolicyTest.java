@@ -52,4 +52,26 @@ public class DefaultFilenamePolicyTest {
     assertEquals("out-100-of-5000.txt",
         constructName("out", "-SS-of-NN", ".txt", 100, 5000));
   }
+
+  @Test
+  public void testConstructWindowedName() {
+    assertEquals("output-001-of-123.txt",
+        constructName("output", "-SSS-of-NNN", ".txt", 1, 123, -1, null));
+
+    assertEquals("output-001-of-123-PPP-W.txt",
+        constructName("output", "-SSS-of-NNN-PPP-W", ".txt", 1, 123, -1, null));
+
+    assertEquals("out.txt/part-00042-003-myWindowStr",
+        constructName("out.txt", "/part-SSSSS-PPP-W", "", 42, 100, 3, "myWindowStr"));
+
+    assertEquals("out.txt", constructName("ou", "t.t", "xt", 1, 1, 2, "anotherWindowStr"));
+
+    assertEquals("out0102shard-oneMoreWindowStr-0013.txt",
+        constructName("out", "SSNNshard-W-PPPP", ".txt", 1, 2, 13, "oneMoreWindowStr"));
+
+    assertEquals("out-2/1.part-1-of-2-slidingWindow1-33-windowslidingWindow1-pane033.txt",
+        constructName("out",
+        "-N/S.part-S-of-N-W-PP-windowW-panePPP", ".txt", 1, 2, 33, "slidingWindow1"));
+  }
+
 }
