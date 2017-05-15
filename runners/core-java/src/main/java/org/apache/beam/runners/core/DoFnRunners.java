@@ -20,7 +20,7 @@ package org.apache.beam.runners.core;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.runners.core.ExecutionContext.StepContext;
-import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StatefulDoFnRunner.CleanupTimer;
 import org.apache.beam.runners.core.StatefulDoFnRunner.StateCleaner;
 import org.apache.beam.sdk.options.PipelineOptions;

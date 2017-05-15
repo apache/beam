@@ -55,7 +55,7 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
@@ -160,7 +160,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
 
-    if (doFn instanceof SplittableParDo.ProcessFn) {
+    if (doFn instanceof ProcessFn) {
       // we know that it is keyed on String
       Coder<?> keyCoder = StringUtf8Coder.of();
       this.currentKeyStateInternals = new StateInternalsProxy<>(
@@ -445,15 +445,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
-    if (doFn instanceof SplittableParDo.ProcessFn) {
+    if (doFn instanceof ProcessFn) {
 
       @SuppressWarnings("unchecked")
       StateInternalsFactory<String> stateInternalsFactory =
           (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
-      SplittableParDo.ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
-        splittableDoFn = (SplittableParDo.ProcessFn) doFn;
+      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
+        splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
       TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
          @Override

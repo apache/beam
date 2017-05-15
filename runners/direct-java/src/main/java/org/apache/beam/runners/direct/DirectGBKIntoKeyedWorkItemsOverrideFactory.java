@@ -18,17 +18,14 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-/**
- * Provides an implementation of {@link SplittableParDo.GBKIntoKeyedWorkItems} for the Direct
- * Runner.
- */
+/** Provides an implementation of {@link GBKIntoKeyedWorkItems} for the Direct Runner. */
 class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
@@ -39,7 +36,7 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
       getReplacementTransform(
           AppliedPTransform<
                   PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
-                  GBKIntoKeyedWorkItems<KeyT, InputT>>
+              GBKIntoKeyedWorkItems<KeyT, InputT>>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
