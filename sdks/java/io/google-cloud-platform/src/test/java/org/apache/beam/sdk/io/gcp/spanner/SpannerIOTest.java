@@ -101,7 +101,7 @@ public class SpannerIOTest implements Serializable {
                 .withDatabaseId("test-database")
                 .withBatchSize(1000000000)
                 .withServiceFactory(serviceFactory);
-        SpannerIO.SpannerWriterFn writerFn = new SpannerIO.SpannerWriterFn(write);
+        SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
         DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
         fnTester.processBundle(Arrays.asList(one, two));
 
@@ -122,7 +122,7 @@ public class SpannerIOTest implements Serializable {
                 .withDatabaseId("test-database")
                 .withBatchSize(0)  // turn off batching.
                 .withServiceFactory(serviceFactory);
-        SpannerIO.SpannerWriterFn writerFn = new SpannerIO.SpannerWriterFn(write);
+        SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
         DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
         fnTester.processBundle(Arrays.asList(one, two));
 

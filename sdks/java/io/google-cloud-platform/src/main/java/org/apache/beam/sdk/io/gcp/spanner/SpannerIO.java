@@ -73,6 +73,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * mutations.apply(
  *     "Write", SpannerIO.write().withInstanceId("instance").withDatabaseId("database"));
  * }</pre>
+ *
+ * The default size of the batch is set to 1MB, to override this use
+ * {@link Write#withBatchSize(long)}. Setting batch size to a small value or zero
+ * practically disables batching.
+ *
+ * The transform does not provide same transactional guarantees as Cloud Spanner. In particular,
+ * <li>Mutations are not submitted atomically;
+ * <li>A mutation is applied at least once;
+ * <li>If the pipeline was unexpectedly stopped, mutations that were already applied will not get
+ * rolled back.
+ *
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SpannerIO {
@@ -131,7 +142,7 @@ public class SpannerIO {
       abstract Write build();
     }
 
-    public SpannerOptions getSpannerOptions() {
+    SpannerOptions getSpannerOptions() {
       SpannerOptions.Builder builder = SpannerOptions.newBuilder();
       if (getServiceFactory() != null) {
         builder.setServiceFactory(getServiceFactory());
@@ -191,11 +202,10 @@ public class SpannerIO {
           + "withDatabaseId method");
     }
 
-
     @Override
     public PDone expand(PCollection<Mutation> input) {
       input.apply("Write mutations to Cloud Spanner", ParDo.of(
-           new SpannerWriterFn(this)));
+           new SpannerWriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -211,18 +221,11 @@ public class SpannerIO {
   }
 
   /**
-   * {@link DoFn} that writes {@link Mutation}s to Google Cloud Spanner. Mutations are written in
-   * batches, where the maximum batch size is {@link SpannerIO#DEFAULT_BATCH_SIZE}.
-   *
-   * <p>Commits are non-transactional.  If a commit fails, it will be retried (up to
-   * {@link SpannerWriterFn#MAX_RETRIES} times). This means that the mutation operation should be
-   * idempotent.
-   *
-   * <p>See <a href="https://cloud.google.com/spanner">Google Cloud Spanner documentation</a>.
+   * Batches together and writes mutations to Google Cloud Spanner.
    */
   @VisibleForTesting
-  static class SpannerWriterFn extends DoFn<Mutation, Void> {
-    private static final Logger LOG = LoggerFactory.getLogger(SpannerWriterFn.class);
+  static class SpannerWriteFn extends DoFn<Mutation, Void> {
+    private static final Logger LOG = LoggerFactory.getLogger(SpannerWriteFn.class);
     private final Write spec;
     private transient Spanner spanner;
     private transient DatabaseClient dbClient;
@@ -236,7 +239,7 @@ public class SpannerIO {
             .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
 
     @VisibleForTesting
-    SpannerWriterFn(Write spec) {
+    SpannerWriteFn(Write spec) {
         this.spec = spec;
     }
 
