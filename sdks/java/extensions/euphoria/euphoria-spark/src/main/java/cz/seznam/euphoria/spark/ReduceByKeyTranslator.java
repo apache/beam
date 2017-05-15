@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -137,7 +138,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 
     // cached array to avoid repeated allocation
     private Object[] iterable;
-    private ReduceByKey.SingleValueContext<Object> context;
+    private SingleValueContext<Object> context;
 
     private Reducer(ReduceFunctor<Iterable<Object>, Object> reducer) {
       this.reducer = reducer;
@@ -148,14 +149,15 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @Override
     public TimestampedElement call(TimestampedElement o1, TimestampedElement o2) {
       if (context == null) {
-        context = new ReduceByKey.SingleValueContext<>();
+        context = new SingleValueContext<>();
       }
       iterable[0] = o1.getElement();
       iterable[1] = o2.getElement();
       reducer.apply((Iterable) Arrays.asList(iterable), context);
 
       return new TimestampedElement(
-              Math.max(o1.getTimestamp(), o2.getTimestamp()), context.getValue());
+          Math.max(o1.getTimestamp(), o2.getTimestamp()),
+          context.getAndResetValue());
     }
   }
 }
