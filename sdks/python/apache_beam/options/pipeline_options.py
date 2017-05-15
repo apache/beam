@@ -169,7 +169,7 @@ class PipelineOptions(HasDisplayData):
     """Returns a PipelineOptions from a dictionary of arguments.
 
     Args:
-      options: Dictinary of argument value pairs.
+      options: Dictionary of argument value pairs.
 
     Returns:
       A PipelineOptions object representing the given arguments.
@@ -454,6 +454,15 @@ class WorkerOptions(PipelineOptions):
         help=(
             'GCE network for launching workers. Default is up to the Dataflow '
             'service.'))
+    parser.add_argument(
+        '--subnetwork',
+        default=None,
+        help=(
+            'GCE subnetwork for launching workers. Default is up to the '
+            'Dataflow service. Expected format is '
+            'regions/REGION/subnetworks/SUBNETWORK or the fully qualified '
+            'subnetwork name. For more information, see '
+            'https://cloud.google.com/compute/docs/vpc/'))
     parser.add_argument(
         '--worker_harness_container_image',
         default=None,
