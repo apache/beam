@@ -1103,15 +1103,5 @@ public class TextIOTest {
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splits, options);
   }
 
-  @Test
-  public void testWindowedWriteRequiresFilenamePolicy() {
-    PCollection<String> emptyInput = p.apply(Create.empty(StringUtf8Coder.of()));
-    TextIO.Write write = TextIO.write().to("/tmp/some/file").withWindowedWrites();
-
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage(
-        "When using windowed writes, a filename policy must be set via withFilenamePolicy()");
-    emptyInput.apply(write);
-  }
 }
 

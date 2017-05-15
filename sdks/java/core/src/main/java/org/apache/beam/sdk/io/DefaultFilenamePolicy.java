@@ -49,6 +49,10 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   /** The default sharding name template used in {@link #constructUsingStandardParameters}. */
   public static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
+  /** The default windowed sharding name template used when writing windowed files.
+   *  Currently this is automatically appended to provided sharding name template
+   *  when there is a need to write windowed files.
+   */
   private static final String DEFAULT_WINDOWED_SHARED_TEMPLATE_SUFFIX = "-PPP-W";
 
   // Pattern that matches shard placeholders within a shard template.
@@ -74,7 +78,9 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * <p>Any filename component of the provided resource will be used as the filename prefix.
    *
    * <p>If provided, the shard name template will be used; otherwise {@link #DEFAULT_SHARD_TEMPLATE}
-   * will be used.
+   * will be used. Shard name template will automatically be expanded in case when there is
+   * need to write windowed files. There is no need to specify any template for how windowed
+   * file names will be constructed.
    *
    * <p>If provided, the suffix will be used; otherwise the files will have an empty suffix.
    */
@@ -101,7 +107,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    *
    * <p>Within a shard template, repeating sequences of the letters "S" or "N"
    * are replaced with the shard number, or number of shards respectively.
-   * Repeating sequence of "P" is replaced with the window
+   * Repeating sequence of "P" is replaced with the index of the window pane.
    * The numbers are formatted with leading zeros to match the length of the
    * repeated sequence of letters.
    * "W" is replaced by stringification of current window.
