@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
 
@@ -34,7 +35,7 @@ import org.apache.beam.sdk.state.StateContext;
 @DefaultSerializer(JavaSerializer.class)
 public class StateInternalsProxy<K> implements StateInternals, Serializable {
 
-  private final StateInternalsFactory<K> factory;
+  private final ApexStateInternals.ApexStateInternalsFactory<K> factory;
   private transient K currentKey;
 
   public StateInternalsProxy(ApexStateInternals.ApexStateInternalsFactory<K> factory) {
@@ -43,6 +44,10 @@ public class StateInternalsProxy<K> implements StateInternals, Serializable {
 
   public StateInternalsFactory<K> getFactory() {
     return this.factory;
+  }
+
+  public Coder<K> getKeyCoder() {
+    return factory.getKeyCoder();
   }
 
   public void setKey(K key) {
