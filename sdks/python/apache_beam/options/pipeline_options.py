@@ -455,6 +455,12 @@ class WorkerOptions(PipelineOptions):
             'GCE network for launching workers. Default is up to the Dataflow '
             'service.'))
     parser.add_argument(
+        '--subnetwork',
+        default=None,
+        help=(
+            'GCE subnetwork for launching workers. Default is up to the Dataflow '
+            'service.'))
+    parser.add_argument(
         '--worker_harness_container_image',
         default=None,
         help=('Docker registry location of container image to use for the '
