@@ -51,17 +51,17 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  * <p>Since Beam does not fully supported global sort we are using {@link Top} to implement
  * the {@code Sort} algebra. The following types of ORDER BY are supported:
- *
- *   <pre>{@code
+
+ * <pre>{@code
  *     select * from t order by id desc limit 10;
  *     select * from t order by id desc limit 10, 5;
- *   }</pre>
+ * }</pre>
  *
  * <p>but Order BY without a limit is NOT supported:
  *
- *   <pre>{@code
- *     select * from t order by id desc
- *   }</pre>
+ * <pre>{@code
+ *   select * from t order by id desc
+ * }</pre>
  *
  * <h3>Constraints</h3>
  * <ul>
