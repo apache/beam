@@ -18,10 +18,12 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -30,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -44,6 +47,8 @@ import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Experimental {@link PTransform Transforms} for reading from and writing to
@@ -94,17 +99,25 @@ public class SpannerIO {
   public abstract static class Write extends PTransform<PCollection<Mutation>, PDone> {
 
     @Nullable
+    abstract String getProjectId();
+
+    @Nullable
     abstract String getInstanceId();
 
     @Nullable
     abstract String getDatabaseId();
 
-    abstract Builder toBuilder();
+    abstract long getBatchSize();
 
-    public abstract long batchSize();
+    @Nullable @VisibleForTesting
+    abstract ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
+
+    abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
+
+      abstract Builder setProjectId(String projectId);
 
       abstract Builder setInstanceId(String instanceId);
 
@@ -112,13 +125,28 @@ public class SpannerIO {
 
       abstract Builder setBatchSize(long batchSize);
 
+      @VisibleForTesting
+      abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
+
       abstract Write build();
     }
 
-    // TODO(mairbek): Once SpannerOptions is serializable, make it Write parameter.
-    public SpannerOptions spannerOptions() {
+    public SpannerOptions getSpannerOptions() {
       SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+      if (getServiceFactory() != null) {
+        builder.setServiceFactory(getServiceFactory());
+      }
       return builder.build();
+    }
+
+    /**
+     * Returns a new {@link SpannerIO.Write} that will write to the specified Cloud Spanner
+     * project.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withProjectId(String projectId) {
+      return toBuilder().setProjectId(projectId).build();
     }
 
     /**
@@ -149,6 +177,20 @@ public class SpannerIO {
     public Write withDatabaseId(String databaseId) {
       return toBuilder().setDatabaseId(databaseId).build();
     }
+
+    @VisibleForTesting
+    Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
+      return toBuilder().setServiceFactory(serviceFactory).build();
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      checkNotNull(getInstanceId(), "SpannerIO.write() requires instance id to be set with "
+          + "withInstanceId method");
+      checkNotNull(getDatabaseId(), "SpannerIO.write() requires database id to be set with "
+          + "withDatabaseId method");
+    }
+
 
     @Override
     public PDone expand(PCollection<Mutation> input) {
@@ -185,7 +227,7 @@ public class SpannerIO {
     private transient Spanner spanner;
     private transient DatabaseClient dbClient;
     // Current batch of mutations to be written.
-    private final List<Mutation> mutations = new ArrayList<>();
+    private List<Mutation> mutations;
     private long batchSize = 0;
 
     private static final int MAX_RETRIES = 5;
@@ -200,11 +242,10 @@ public class SpannerIO {
 
     @Setup
     public void setup() throws Exception {
-      spanner = spec.spannerOptions().getService();
-      String projectId = spec.spannerOptions().getProjectId();
+      spanner = spec.getSpannerOptions().getService();
       dbClient = spanner.getDatabaseClient(
-          DatabaseId.of(projectId, spec.getInstanceId(), spec.getDatabaseId()));
-      mutations.clear();
+          DatabaseId.of(projectId(), spec.getInstanceId(), spec.getDatabaseId()));
+      mutations = new ArrayList<>();
       batchSize = 0;
     }
 
@@ -212,9 +253,15 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       Mutation m = c.element();
       mutations.add(m);
-      if (batchSize >= spec.batchSize()) {
+      batchSize += MutationSizeEstimator.sizeOf(m);
+      if (batchSize >= spec.getBatchSize()) {
         flushBatch();
       }
+    }
+
+    private String projectId() {
+      return spec.getProjectId() == null ?
+        ServiceOptions.getDefaultProjectId() : spec.getProjectId();
     }
 
     @FinishBundle
@@ -266,7 +313,8 @@ public class SpannerIO {
         }
       }
       LOG.debug("Successfully wrote {} mutations", mutations.size());
-      mutations.clear();
+      mutations = new ArrayList<>();
+      batchSize = 0;
     }
 
     @Override
