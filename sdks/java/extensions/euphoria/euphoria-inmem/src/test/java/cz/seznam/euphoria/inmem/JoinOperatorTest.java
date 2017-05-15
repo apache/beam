@@ -20,7 +20,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
@@ -45,29 +47,50 @@ public class JoinOperatorTest {
 
   @Before
   public void setUp() {
-    executor = new InMemExecutor();
+    InMemExecutor exec = new InMemExecutor();
+    // ~ see https://github.com/seznam/euphoria/issues/129
+    exec.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler<>(1));
+    executor = exec;
+  }
+
+  static final class I<E> {
+    E _e;
+    long _time;
+
+    static <E> I<E>of(E e) {
+      return of(e, 0L);
+    }
+
+    static <E> I<E>of(E e, long time) {
+      I<E> i = new I<>();
+      i._e = e;
+      i._time = time;
+      return i;
+    }
   }
 
   @SuppressWarnings("unchecked")
   private void testJoin(boolean outer,
                         Windowing windowing,
-                        Duration readDelay,
-                        List<String> leftInput,
-                        List<String> rightInput,
+                        boolean bounded,
+                        List<I<String>> leftInput,
+                        List<I<String>> rightInput,
                         List<String> expectedOutput,
                         boolean makeOneArmLonger)
       throws Exception
   {
     Flow flow = Flow.create("Test");
 
-    Dataset<String> first = flow.createInput(
-        readDelay == null
-            ? ListDataSource.bounded(leftInput)
-            : ListDataSource.unbounded(leftInput).withReadDelay(readDelay));
-    Dataset<String> second = flow.createInput(
-        readDelay == null
-            ? ListDataSource.bounded(rightInput)
-            : ListDataSource.unbounded(rightInput).withReadDelay(readDelay));
+    Dataset<String> first =
+        MapElements.of(
+            flow.createInput(ListDataSource.of(bounded, leftInput), i -> i._time))
+            .using(i -> i._e)
+            .output();
+    Dataset<String> second =
+        MapElements.of(
+            flow.createInput(ListDataSource.of(bounded, rightInput), i -> i._time))
+            .using(i -> i._e)
+            .output();
 
     UnaryFunctor<String, Pair<String, Integer>> tokv = (s, c) -> {
       String[] parts = s.split("[\t ]+", 2);
@@ -108,9 +131,9 @@ public class JoinOperatorTest {
   public void testInnerJoinOnBatch() throws Exception {
     testJoin(false,
         GlobalWindowing.get(),
-        null,
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
+        true,
+        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
         asList("one, 11",  "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
             "one, 77", "one, 110", "two, 21"),
@@ -121,10 +144,10 @@ public class JoinOperatorTest {
   public void testInnerJoinOnStreams() throws Exception {
     testJoin(false,
         Time.of(Duration.ofSeconds(1)),
-        Duration.ofSeconds(2),
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
-        asList("one, 11",  "two, 21", "one, 55"),
+        false,
+        asList(I.of("one 1",  1), I.of("two 1",  600),  I.of("one 22", 1001), I.of("one 44",   2000)),
+        asList(I.of("one 10", 1), I.of("two 20", 501), I.of("one 33",  1999), I.of("three 55", 2001), I.of("one 66", 3000)),
+        asList("one, 11" ,  "two, 21", "one, 55"),
         false);
   }
 
@@ -132,9 +155,9 @@ public class JoinOperatorTest {
   public void testOuterJoinOnBatch() throws Exception {
     testJoin(true,
         GlobalWindowing.get(),
-        null,
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
+        true,
+        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
         asList(
             "one, 11",  "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
@@ -145,10 +168,10 @@ public class JoinOperatorTest {
   @Test
   public void testOuterJoinOnStream() throws Exception {
     testJoin(true,
-        Time.of(Duration.ofSeconds(1)),
-        Duration.ofSeconds(2),
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
+        Time.of(Duration.ofMillis(1)),
+        false,
+        asList(I.of("one 1", 0),  I.of("two 1", 1),  I.of("one 22", 3),  I.of("one 44", 4)),
+        asList(I.of("one 10", 0), I.of("two 20", 1), I.of("one 33", 3), I.of("three 55", 4), I.of("one 66", 5)),
         asList("one, 11",  "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"),
         false);
   }
@@ -157,9 +180,9 @@ public class JoinOperatorTest {
   public void testOneArmLongerJoin() throws Exception {
     testJoin(false,
         GlobalWindowing.get(),
-        null,
-        asList("one 1",  "two 1", "one 22",  "one 44"),
-        asList("one 10", "two 20", "one 33", "three 55", "one 66"),
+        true,
+        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
         asList("one, 11",  "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
             "one, 77", "one, 110", "two, 21"),
