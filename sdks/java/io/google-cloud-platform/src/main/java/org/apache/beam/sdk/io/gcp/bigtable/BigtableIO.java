@@ -139,6 +139,26 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Bigtable you should use:
+ *
+ * <pre>{@code
+ * BigtableOptions.Builder optionsBuilder =
+ *     new BigtableOptions.Builder()
+ *         .setProjectId("project")
+ *         .setInstanceId("instance");
+ *
+ * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
+ *
+ * data.apply("write",
+ *     BigtableIO.write()
+ *         .withBigtableOptions(optionsBuilder)
+ *         .withTableId("table")
+ *         .withLocalhost("127.0.0.1") // network interface where Bigtable emulator is bound
+ *         .setPort(LOCAL_EMULATOR_PORT));
+ * }</pre>
+ *
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
@@ -205,10 +225,12 @@ public class BigtableIO {
     @Nullable
     abstract BigtableService getBigtableService();
 
-
     /** Returns the Google Cloud Bigtable instance being read from, and other parameters. */
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
+
+    @Nullable
+    abstract String getLocalhost();
 
     abstract Builder toBuilder();
 
@@ -220,6 +242,8 @@ public class BigtableIO {
       abstract Builder setKeyRange(ByteKeyRange keyRange);
 
       abstract Builder setTableId(String tableId);
+
+      abstract Builder setLocalhost(String host);
 
       abstract Builder setBigtableOptions(BigtableOptions options);
 
@@ -290,6 +314,31 @@ public class BigtableIO {
     public Read withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
       return toBuilder().setTableId(tableId).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} that will use provided host as data host,
+     * instance admin and table admin host. It will also turn on plaintext negotiation.
+     * Useful when using local emulator for BigTable.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withLocalhost(String host) {
+      checkNotNull(host, "host");
+      BigtableOptions existingOptions = getBigtableOptions();
+      if (existingOptions == null) {
+        BigtableOptions.Builder optionsBuilder = new BigtableOptions.Builder();
+        existingOptions = optionsBuilder.build();
+      }
+      BigtableOptions modifiedOptions = existingOptions.toBuilder().setUsePlaintextNegotiation(true)
+          .setCredentialOptions(CredentialOptions.nullCredential())
+          .setDataHost(host).setInstanceAdminHost(host).setTableAdminHost(host)
+          .build();
+      LOG.debug(
+          "Using host {} as data-host, table admin host, instance admin host and turning on "
+              + "plaintext negotiation",
+          host);
+      return toBuilder().setBigtableOptions(modifiedOptions).build();
     }
 
     @Override
@@ -408,12 +457,16 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    abstract String getLocalhost();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
 
       abstract Builder setTableId(String tableId);
+
+      abstract Builder setLocalhost(String host);
 
       abstract Builder setBigtableOptions(BigtableOptions options);
 
@@ -429,8 +482,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withBigtableOptions(BigtableOptions options) {
-      checkNotNull(options, "options");
-      return withBigtableOptions(options.toBuilder());
+      return toBuilder().setBigtableOptions(options).build();
     }
 
     /**
@@ -467,6 +519,28 @@ public class BigtableIO {
     public Write withTableId(String tableId) {
       checkNotNull(tableId, "tableId");
       return toBuilder().setTableId(tableId).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} that will use provided host as data host,
+     * instance admin and table admin host. It will also turn on plaintext negotiation.
+     * Useful when using local emulator for BigTable.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withLocalhost(String host) {
+      checkNotNull(host, "host");
+      BigtableOptions existingOptions = getBigtableOptions();
+      if (existingOptions == null) {
+        BigtableOptions.Builder optionsBuilder = new BigtableOptions.Builder();
+        existingOptions = optionsBuilder.build();
+      }
+      BigtableOptions modifiedOptions = existingOptions.toBuilder().setUsePlaintextNegotiation(true)
+          .setCredentialOptions(CredentialOptions.nullCredential())
+          .setDataHost(host).setInstanceAdminHost(host).setTableAdminHost(host).build();
+      LOG.debug("Using host {} as data-host, table admin host, instance admin host and turning on "
+          + "plaintext negotiation", host);
+      return toBuilder().setBigtableOptions(modifiedOptions).build();
     }
 
     @Override
