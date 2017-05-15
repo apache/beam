@@ -26,6 +26,10 @@
 
   <properties>
     <beam.version>@project.version@</beam.version>
+
+    <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
+    <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
+    <slf4j.version>@slf4j.version@</slf4j.version>
   </properties>
 
   <repositories>
@@ -47,7 +51,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.5.1</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>${targetPlatform}</source>
           <target>${targetPlatform}</target>
@@ -60,7 +64,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.4.0</version>
+          <version>${maven-exec-plugin.version}</version>
           <configuration>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
           </configuration>
@@ -94,12 +98,12 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>1.7.14</version>
+      <version>${slf4j.version}</version>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>1.7.14</version>
+      <version>${slf4j.version}</version>
     </dependency>
   </dependencies>
 </project>
