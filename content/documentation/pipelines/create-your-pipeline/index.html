@@ -197,7 +197,7 @@
 <p>The following example code shows how to <code class="highlighter-rouge">apply</code> a <code class="highlighter-rouge">TextIO.Read</code> root transform to read data from a text file. The transform is applied to a <code class="highlighter-rouge">Pipeline</code> object <code class="highlighter-rouge">p</code>, and returns a pipeline data set in the form of a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-  <span class="s">"ReadLines"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
+  <span class="s">"ReadLines"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
 </code></pre>
 </div>
 
@@ -223,7 +223,7 @@
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">filteredWords</span> <span class="o">=</span> <span class="o">...;</span>
 
-<span class="n">filteredWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData.txt"</span><span class="o">));</span>
+<span class="n">filteredWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData.txt"</span><span class="o">));</span>
 </code></pre>
 </div>
 

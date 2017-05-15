@@ -205,7 +205,7 @@ PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; g
 // For every primary key, sort the iterable of &lt;SecondaryKey, Value&gt; pairs by secondary key.
 PCollection&lt;KV&lt;String, Iterable&lt;KV&lt;String, Integer&gt;&gt;&gt;&gt; groupedAndSorted =
     grouped.apply(
-        SortValues.&lt;String, String, Integer&gt;create(new BufferedExternalSorter.Options()));
+        SortValues.&lt;String, String, Integer&gt;create(BufferedExternalSorter.options()));
 </code></pre>
 </div>
 

@@ -285,7 +285,7 @@ Figure 1: The pipeline data flow.</p>
   <li>
     <p>A text file <code class="highlighter-rouge">Read</code> transform is applied to the Pipeline object itself, and produces a <code class="highlighter-rouge">PCollection</code> as output. Each element in the output PCollection represents one line of text from the input file. This example uses input data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
 </code></pre>
     </div>
 
@@ -351,7 +351,7 @@ Figure 1: The pipeline data flow.</p>
   <li>
     <p>A text file write transform. This transform takes the final <code class="highlighter-rouge">PCollection</code> of formatted Strings as input and writes each element to an output text file. Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the resulting output file.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
 </code></pre>
     </div>
 
@@ -664,7 +664,7 @@ Figure 1: The pipeline data flow.</p>
     <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="n">pipeline</span>
-      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInputFile</span><span class="o">()))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInputFile</span><span class="o">()))</span>
 
 </code></pre>
 </div>
