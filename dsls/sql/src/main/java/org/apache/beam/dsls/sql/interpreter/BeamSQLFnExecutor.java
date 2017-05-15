@@ -105,7 +105,7 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
       RexCall node = (RexCall) rexNode;
       String opName = node.op.getName();
       List<BeamSqlExpression> subExps = new ArrayList<>();
-      for (RexNode subNode : node.operands) {
+      for (RexNode subNode : node.getOperands()) {
         subExps.add(buildExpression(subNode));
       }
       switch (opName) {
