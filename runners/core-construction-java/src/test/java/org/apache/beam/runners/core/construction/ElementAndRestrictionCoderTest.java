@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.construction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,8 +39,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 
 /**
- * Tests for {@link ElementAndRestrictionCoder}. Parroted from {@link
- * org.apache.beam.sdk.coders.KvCoderTest}.
+ * Tests for {@link ElementAndRestrictionCoder}.
  */
 @RunWith(Parameterized.class)
 public class ElementAndRestrictionCoderTest<K, V> {

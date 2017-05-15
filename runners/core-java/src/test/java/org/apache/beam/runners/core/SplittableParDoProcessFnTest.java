@@ -34,19 +34,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.Executors;
-import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
@@ -57,11 +53,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -71,9 +65,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link SplittableParDo}. */
+/** Tests for {@link SplittableParDoViaKeyedWorkItems.ProcessFn}. */
 @RunWith(JUnit4.class)
-public class SplittableParDoTest {
+public class SplittableParDoProcessFnTest {
   private static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
   private static final Duration MAX_BUNDLE_DURATION = Duration.standardSeconds(5);
 
@@ -107,96 +101,12 @@ public class SplittableParDoTest {
     public void checkDone() {}
   }
 
-  @BoundedPerElement
-  private static class BoundedFakeFn extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
-
-    @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
-      return null;
-    }
-  }
-
-  @UnboundedPerElement
-  private static class UnboundedFakeFn extends DoFn<Integer, String> {
-    @ProcessElement
-    public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
-
-    @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(Integer element) {
-      return null;
-    }
-  }
-
-  private static PCollection<Integer> makeUnboundedCollection(Pipeline pipeline) {
-    return pipeline
-        .apply("unbounded", Create.of(1, 2, 3))
-        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
-  }
-
-  private static PCollection<Integer> makeBoundedCollection(Pipeline pipeline) {
-    return pipeline
-        .apply("bounded", Create.of(1, 2, 3))
-        .setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
-  }
-
-  private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<String>() {};
-
-  private ParDo.MultiOutput<Integer, String> makeParDo(DoFn<Integer, String> fn) {
-    return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
-  }
-
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
-  @Test
-  public void testBoundednessForBoundedFn() {
-    pipeline.enableAbandonedNodeEnforcement(false);
-
-    DoFn<Integer, String> boundedFn = new BoundedFakeFn();
-    assertEquals(
-        "Applying a bounded SDF to a bounded collection produces a bounded collection",
-        PCollection.IsBounded.BOUNDED,
-        makeBoundedCollection(pipeline)
-            .apply("bounded to bounded", new SplittableParDo<>(makeParDo(boundedFn)))
-            .get(MAIN_OUTPUT_TAG)
-            .isBounded());
-    assertEquals(
-        "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
-        PCollection.IsBounded.UNBOUNDED,
-        makeUnboundedCollection(pipeline)
-            .apply("bounded to unbounded", new SplittableParDo<>(makeParDo(boundedFn)))
-            .get(MAIN_OUTPUT_TAG)
-            .isBounded());
-  }
-
-  @Test
-  public void testBoundednessForUnboundedFn() {
-    pipeline.enableAbandonedNodeEnforcement(false);
-
-    DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
-    assertEquals(
-        "Applying an unbounded SDF to a bounded collection produces a bounded collection",
-        PCollection.IsBounded.UNBOUNDED,
-        makeBoundedCollection(pipeline)
-            .apply("unbounded to bounded", new SplittableParDo<>(makeParDo(unboundedFn)))
-            .get(MAIN_OUTPUT_TAG)
-            .isBounded());
-    assertEquals(
-        "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
-        PCollection.IsBounded.UNBOUNDED,
-        makeUnboundedCollection(pipeline)
-            .apply("unbounded to unbounded", new SplittableParDo<>(makeParDo(unboundedFn)))
-            .get(MAIN_OUTPUT_TAG)
-            .isBounded());
-  }
-
-  // ------------------------------- Tests for ProcessFn ---------------------------------
-
   /**
-   * A helper for testing {@link SplittableParDo.ProcessFn} on 1 element (but possibly over multiple
-   * {@link DoFn.ProcessElement} calls).
+   * A helper for testing {@link ProcessFn} on 1 element (but
+   * possibly over multiple {@link DoFn.ProcessElement} calls).
    */
   private static class ProcessFnTester<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
@@ -221,8 +131,8 @@ public class SplittableParDoTest {
       // encode IntervalWindow's because that's what all tests here use.
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
-      final SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-          new SplittableParDo.ProcessFn<>(
+      final ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
+          new ProcessFn<>(
               fn, inputCoder, restrictionCoder, windowingStrategy);
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
@@ -248,7 +158,6 @@ public class SplittableParDoTest {
               tester.getPipelineOptions(),
               new OutputWindowedValueToDoFnTester<>(tester),
               new SideInputReader() {
-                @Nullable
                 @Override
                 public <T> T get(PCollectionView<T> view, BoundedWindow window) {
                   throw new NoSuchElementException();
