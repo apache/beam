@@ -590,8 +590,9 @@ class TranscriptTest(unittest.TestCase):
     self.assertEquals([], output, msg='Unexpected output: %s' % output)
 
 
-TRANSCRIPT_TEST_FILE = os.path.join(os.path.dirname(__file__),
-                                    'trigger_transcripts.yaml')
+TRANSCRIPT_TEST_FILE = os.path.join(
+    os.path.dirname(__file__), '..', 'testing', 'data',
+    'trigger_transcripts.yaml')
 if os.path.exists(TRANSCRIPT_TEST_FILE):
   TranscriptTest._create_tests(TRANSCRIPT_TEST_FILE)
 
