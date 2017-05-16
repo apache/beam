@@ -144,8 +144,8 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.NeedsRunner</groups>
-	      <!-- 100MB keys work on the direct runner, but make the test too slow. --> 
-	      <excludedGroups>org.apache.beam.sdk.testing.LargeKeys.Above100MB</excludedGroups>
+              <!-- 100MB keys work on the direct runner, but make the test too slow. --> 
+              <excludedGroups>org.apache.beam.sdk.testing.LargeKeys.Above100MB</excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
