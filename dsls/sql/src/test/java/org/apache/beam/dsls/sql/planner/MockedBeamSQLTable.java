@@ -41,7 +41,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
-
   public static final List<BeamSQLRow> CONTENT = new ArrayList<>();
 
   private List<BeamSQLRow> inputRecords;
@@ -142,11 +141,6 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     public PDone expand(PCollection<BeamSQLRow> input) {
       input.apply(ParDo.of(new DoFn<BeamSQLRow, Void>() {
 
-        @Setup
-        public void setup() {
-          CONTENT.clear();
-        }
-
         @ProcessElement
         public void processElement(ProcessContext c) {
           CONTENT.add(c.element());
@@ -162,4 +156,16 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     }
   }
 
+  /**
+   * dump the content of MockedBeamSQLTable(for test).
+   */
+  public static void dump() {
+    System.out.println();
+    System.out.println("====== MockedBeamSQLTable Content =====");
+    for (BeamSQLRow row : CONTENT) {
+      System.out.println(row.valueInString());
+    }
+    System.out.println("====== MockedBeamSQLTable Content =====");
+    System.out.println();
+  }
 }
