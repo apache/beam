@@ -10,6 +10,7 @@ import (
 // Opcode represents a primitive Fn API instruction kind.
 type Opcode string
 
+// Valid opcodes.
 const (
 	ParDo      Opcode = "ParDo"
 	GBK        Opcode = "GBK"
@@ -23,6 +24,7 @@ const (
 // InputKind represents the role of the input and its shape.
 type InputKind string
 
+// Valid input kinds.
 const (
 	Main      InputKind = "Main"
 	Singleton InputKind = "Singleton"
@@ -33,26 +35,76 @@ const (
 	ReIter    InputKind = "ReIter"
 )
 
-// Inbound represents an inbound data connection from a Node. It also stores
-// the _representation_ type (as opposed to the _underlying_ type) and
-// the shape of the representation, if side input. For example, a node with
-// underlying type W<KV<int,string>> can be bound to a DoFn with representation
-// type W<KV<int, T>> or W<KV<X,Y>>.
+// Inbound represents an inbound data link from a Node.
 type Inbound struct {
+	// Kind presents the form of the data that the edge expects. Main input
+	// must be processed element-wise, but side input may take several
+	// convenient forms. For example, a DoFn that processes ints may choose
+	// among the following parameter types:
+	//
+	//   * Main:      int
+	//   * Singleton: int
+	//   * Slice:     []int
+	//   * Iter:      func(*int) bool
+	//   * ReIter:    func() func(*int) bool
+	//
+	// If the DoFn is generic then int may be replaced by any of the type
+	// variables. For example,
+	//
+	//   * Slice:     []typex.T
+	//   * Iter:      func(*typex.X) bool
+	//
+	// If the input type is W<KV<int,string>>, say, then the options are:
+	//
+	//   * Main:      int, string  (as two separate parameters)
+	//   * Map:       map[int]string
+	//   * MultiMap:  map[int][]string
+	//   * Iter:      func(*int, *string) bool
+	//   * ReIter:    func() func(*int, *string) bool
+	//
+	// As above, either int, string, or both can be replaced with type
+	// variables. For example,
+	//
+	//   * Map:       map[typex.X]typex.Y
+	//   * MultiMap:  map[typex.T][]string
+	//   * Iter:      func(*typex.Z, *typex.Z) bool
+	//
+	// Note that in the last case the parameter type requires that both
+	// the key and value types are identical. Bind enforces such constraints.
 	Kind InputKind
+
+	// From is the incoming node in the graph.
 	From *Node
-	Type typex.FullType // actual, accepted type by DoFn
+
+	// Type is the fulltype matching the actual type used by the transform.
+	// Due to the loose signatures of DoFns, we can only determine the
+	// inbound structure when the fulltypes of the incoming links are present.
+	// For example,
+	//
+	//     func (ctx context.Context, key int, value typex.X) error
+	//
+	// is a generic DoFn that if bound to W<KV<int,string>> would have one
+	// Inbound link with type W<KV<int, X>>.
+	Type typex.FullType
 }
 
 func (i *Inbound) String() string {
 	return fmt.Sprintf("In(%v): %v <- %v", i.Kind, i.Type, i.From)
 }
 
-// Outbound represents an outbound data connection to a Node. Like Inbound,
-// it stores the _representation_ type of the output as well.
+// Outbound represents an outbound data link to a Node.
 type Outbound struct {
-	To   *Node
-	Type typex.FullType // actual, produced type by DoFn
+	// To is the outgoing node in the graph.
+	To *Node
+
+	// Type is the fulltype matching the actual type used by the transform.
+	// For DoFns, unlike inbound, the outbound types closely mimic the type
+	// signature. For example,
+	//
+	//     func (ctx context.Context, emit func (key int, value typex.X)) error
+	//
+	// is a generic DoFn that produces one Outbound link of type W<KV<int,X>>.
+	Type typex.FullType // representation type of data
 }
 
 func (o *Outbound) String() string {

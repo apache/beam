@@ -13,7 +13,8 @@ import (
 type Node struct {
 	id int
 	// t is the type of underlying data and cannot change. It must be equal to
-	// the coder type. A node type root would always be a WindowedValue.
+	// the coder type. A node type root would always be a WindowedValue. The
+	// type must be bound, i.e., it cannot contain any type variables.
 	t typex.FullType
 
 	// Coder defines the data encoding. It can be changed, but must be of

@@ -25,6 +25,13 @@ type CustomCoder struct {
 	Dec *userfn.UserFn
 }
 
+// TODO(herohde) 5/16/2017: do we want/need to allow user coders that follow the
+// internal signature, which takes io.Reader/io.Writer? Do we need size estimation?
+// Maybe we can get away with just handling protos as an internal coder.
+
+// TODO(herohde) 5/16/2017: we're ignoring the inner/outer context concept
+// present in java/python. Not clear whether we actually need it.
+
 func (c *CustomCoder) String() string {
 	return fmt.Sprintf("%s<%v>", c.Name, c.Type)
 }
@@ -39,7 +46,9 @@ func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*Cus
 		return nil, fmt.Errorf("Bad decode: %v", err)
 	}
 
-	// TODO(herohde): validate coder signature.
+	// TODO(herohde) 5/16/2017: validate coder signature. Perhaps we want
+	// to allow custom Options or other context? However, would a coder
+	// ever need context.Context, for example?
 
 	c := &CustomCoder{
 		Name: id,

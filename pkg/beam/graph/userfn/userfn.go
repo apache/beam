@@ -242,6 +242,8 @@ func New(dofn interface{}) (*UserFn, error) {
 	return u, nil
 }
 
+// SubParams returns the subsequence of the given params with the given
+// indices.
 func SubParams(list []FnParam, indices ...int) []FnParam {
 	var ret []FnParam
 	for _, index := range indices {
@@ -250,6 +252,8 @@ func SubParams(list []FnParam, indices ...int) []FnParam {
 	return ret
 }
 
+// SubReturns returns the subsequence of the given return params with
+// the given indices.
 func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 	var ret []ReturnParam
 	for _, index := range indices {

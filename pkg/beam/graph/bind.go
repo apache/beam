@@ -11,7 +11,40 @@ import (
 // up. We should verify that common mistakes yield reasonable errors.
 
 // Bind returns the inbound, outbound and underlying output types for a UserFn,
-// when bound to the underlying input types. All top-level types are Windowed.
+// when bound to the underlying input types. All top-level fulltype must be
+// Windowed Values, because transforms always work on windowed values for the
+// main input and all outputs -- even if the transform chooses to ignore it.
+// The complication of bind is primarily that UserFns have loose signatures
+// and bind must produce valid type information for the execution plan.
+//
+// For example,
+//
+//     func (t EventTime, k typex.X, v int, emit func(string, typex.X))
+// or
+//     func (context.Context, k typex.X, v int) (string, typex.X, error)
+//
+// are UserFns that may take one or two incoming fulltypes: either W<KV<X,int>>
+// or W<X> with a singleton side input of type W<int>. For the purpose of the
+// shape of data processing, the two forms are equivalent. The non-data types,
+// context.Context and error, are not part of the data signature, but in play
+// only at runtime. EventTime in the first case exposes Window information.
+//
+// If either was bound to the input type [W<KV<string,int>>], bind would return:
+//
+//     inbound:  [Main: W<KV<X,int>>]
+//     outbound: [W<KV<string,X>>]
+//     output:   [W<KV<string,string>>]
+//
+// Note that it propagates the assignment of X to string in the output type.
+//
+// If either was instead bound to the input fulltypes [W<float>, W<int>], the
+// result would be:
+//
+//     inbound:  [Main: W<X>, Singleton: W<int>]
+//     outbound: [W<KV<string,X>>]
+//     output:   [W<KV<string, float>>]
+//
+// Here, the inbound shape and output types are different from before.
 func Bind(fn *userfn.UserFn, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
 	inbound, kinds, err := findInbound(fn, in...)
 	if err != nil {

@@ -7,7 +7,8 @@ import (
 )
 
 // Graph represents an in-progress deferred execution graph and is easily
-// translatable to the model graph.
+// translatable to the model graph. The internal graph allows precise
+// control over scope and connectivity.
 type Graph struct {
 	scopes []*Scope
 	edges  []*MultiEdge

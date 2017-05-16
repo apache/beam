@@ -33,6 +33,10 @@ func EncodeVarUint64(value uint64, w io.Writer) error {
 	}
 }
 
+// TODO(herohde) 5/16/2017: figure out whether it's too slow to read one byte
+// at a time here. If not, we may need a more sophisticated reader than
+// io.Reader with lookahead, say.
+
 // DecodeVarUint64 decodes an uint64.
 func DecodeVarUint64(r io.Reader) (uint64, error) {
 	var ret uint64

@@ -6,17 +6,22 @@ import (
 	"strings"
 )
 
-// FullType represents the tree structure of an underlying data type. It allows
-// representation of generic composite types, such as KV<int, string> or
-// GBK<string, X>.
+// FullType represents the tree structure of data types processed by the graph.
+// It allows representation of composite types, such as KV<int, string> or
+// W<GBK<int, int>>, as well as "generic" such types, KV<int,T> or GBK<X,Y>,
+// where the free "type variables" are the fixed universal types: T, X, etc.
 type FullType interface {
 	// Class returns the class of the FullType. It is never Illegal.
 	Class() Class
-	// FullType returns the Go type at the root of the tree, such as KV or int.
+	// Type returns the Go type at the root of the tree, such as KV, X
+	// or int.
 	Type() reflect.Type
 	// Components returns the real components of the root type, if Composite.
 	Components() []FullType
 }
+
+// TODO(herohde) 5/16/2017: maybe rename FullType to DataType to match
+// DataClass, if we go that way?
 
 type tree struct {
 	class      Class
@@ -133,8 +138,10 @@ func SkipW(t FullType) FullType {
 	return t
 }
 
-// TODO(herohde) 4/20/2017: Disallow bad universal substitution. KV<T, U> -> KV<T, T>.
-// However, KV<X,Y> -> KV<Y,X> or KV<T,T> -> KV<T,U> is ok.
+// TODO(herohde) 4/20/2017: Disallow bad universal substitutions that produce
+// inconsistent bindings: KV<T', U'> bind to KV<T, T>, where the substitution
+// would be an invalid mapping {T -> T', T -> U'}. However, KV<X',Y'> -> KV<Y,X>
+// or KV<T',T'> -> KV<T,U> are ok.
 
 // IsAssignable returns true iff a from value can be assigned to the to value of
 // the given Types.
@@ -182,22 +189,24 @@ func IsEqual(from, to FullType) bool {
 	return true
 }
 
-// IsComplete returns true iff the type has no universal type components.
-// Coders need complete types.
-func IsComplete(t FullType) bool {
+// IsBound returns true iff the type has no universal type components.
+// Nodes and coders need bound types.
+func IsBound(t FullType) bool {
 	if t.Class() == Universal {
 		return false
 	}
 	for _, elm := range t.Components() {
-		if !IsComplete(elm) {
+		if !IsBound(elm) {
 			return false
 		}
 	}
 	return true
 }
 
-// Bind returns a substitution from universals to types in the given model,
-// such as {"T" -> X, "X" -> int}. The model must be assignable to t.
+// Bind returns a substitution from universals to types in the given models,
+// such as {"T" -> X, "X" -> int}. Each model must be assignable to the
+// corresponding type. For example, Bind(KV<T,int>, KV<string, int>) would
+// produce {"T" -> string}.
 func Bind(types, models []FullType) (map[string]reflect.Type, error) {
 	if len(types) != len(models) {
 		return nil, fmt.Errorf("invalid number of modes: %v, want %v", len(models), len(types))
@@ -240,7 +249,8 @@ func walk(t, model FullType, m map[string]reflect.Type) error {
 }
 
 // Substitute returns types identical to the given types, but with all
-// universals substituted.
+// universals substituted. All free type variables must be present in the
+// substitution.
 func Substitute(list []FullType, m map[string]reflect.Type) ([]FullType, error) {
 	var ret []FullType
 	for _, t := range list {
