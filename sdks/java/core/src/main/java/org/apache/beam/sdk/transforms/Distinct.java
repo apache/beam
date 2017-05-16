@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -59,6 +62,12 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class Distinct<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
+  private boolean acrossPanes;
+
+  private Distinct(boolean acrossPanes) {
+    this.acrossPanes = acrossPanes;
+  }
+
   /**
    * Returns a {@code Distinct<T>} {@code PTransform}.
    *
@@ -66,7 +75,14 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    * {@code PCollection}s
    */
   public static <T> Distinct<T> create() {
-    return new Distinct<T>();
+    return new Distinct<T>(false);
+  }
+
+  /**
+   * Ensures that elements in different panes are deduped.
+   */
+  public Distinct<T> acrossPanes() {
+    return  new Distinct<>(true);
   }
 
   /**
@@ -78,12 +94,17 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    */
   public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
       SerializableFunction<T, IdT> fn) {
-    return new WithRepresentativeValues<T, IdT>(fn, null);
+    return new WithRepresentativeValues<T, IdT>(fn, null, false);
   }
 
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    return in
+    // TODO: Possibly we should fail or warn if accumulationmode == ACCUMULATING_FIRED_PANES
+    // && acrossPanes == false, as it's unlikely to produce results that the user really cares
+    // about.
+    // Maybe get rid of acrossPanes(), and just enable the new behavior if the accumulationmode
+    // is set?
+    PCollection<KV<T, Void>> combined = in
         .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
           @Override
           public KV<T, Void> apply(T element) {
@@ -96,8 +117,28 @@ public class Distinct<T> extends PTransform<PCollection<T>,
               public Void apply(Iterable<Void> iter) {
                 return null; // ignore input
                 }
-            }))
-        .apply(Keys.<T>create());
+            }));
+    if (!acrossPanes) {
+      return combined.apply(Keys.<T>create());
+    } else {
+      return combined.apply(ParDo.of(new DoFn<KV<T, Void>, T>() {
+        // Keep track of whether we've seen a given key yet.
+        @StateId("exists")
+        private final StateSpec<CombiningState<Integer, int[], Integer>> stateSpec =
+            StateSpecs.combining(Sum.ofIntegers());
+
+        @ProcessElement
+        public void processElement(
+            ProcessContext c,
+            @StateId("exists") CombiningState<Integer, int[], Integer> state) {
+          if (state.read() == null || state.read() == 0) {
+            // Only output the key if it's the first time it's been seen.
+            c.output(c.element().getKey());
+            state.add(1);
+          }
+        }
+      }));
+    }
   }
 
   /**
@@ -113,11 +154,21 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       extends PTransform<PCollection<T>, PCollection<T>> {
     private final SerializableFunction<T, IdT> fn;
     private final TypeDescriptor<IdT> representativeType;
+    boolean acrossPanes;
 
     private WithRepresentativeValues(
-        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType) {
+        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType,
+        boolean acrossPanes) {
       this.fn = fn;
       this.representativeType = representativeType;
+      this.acrossPanes = acrossPanes;
+    }
+
+    /**
+     * Ensures that elements in different panes are deduped.
+     */
+    public WithRepresentativeValues<T, IdT> acrossPanes() {
+      return  new WithRepresentativeValues<>(fn, representativeType, true);
     }
 
     @Override
@@ -126,7 +177,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
       }
-      return in
+      PCollection<KV<IdT, T>> combined = in
           .apply(withKeys)
           .apply(Combine.<IdT, T, T>perKey(
               new Combine.BinaryCombineFn<T>() {
@@ -134,8 +185,28 @@ public class Distinct<T> extends PTransform<PCollection<T>,
                 public T apply(T left, T right) {
                   return left;
                 }
-              }))
-          .apply(Values.<T>create());
+              }));
+      if (!acrossPanes) {
+        return combined.apply(Values.<T>create());
+      } else {
+        return combined.apply(ParDo.of(new DoFn<KV<IdT, T>, T>() {
+          // Keep track of whether we've seen a given key yet.
+          @StateId("exists")
+          private final StateSpec<CombiningState<Integer, int[], Integer>> stateSpec =
+              StateSpecs.combining(Sum.ofIntegers());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c,
+              @StateId("exists") CombiningState<Integer, int[], Integer> state) {
+            // Only output the value if it's the first time it's been seen.
+            if (state.read() == null || state.read() == 0) {
+              c.output(c.element().getValue());
+              state.add(1);
+            }
+          }
+        }));
+      }
     }
 
     /**
@@ -152,7 +223,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
      *         the specified output type descriptor.
      */
     public WithRepresentativeValues<T, IdT> withRepresentativeType(TypeDescriptor<IdT> type) {
-      return new WithRepresentativeValues<>(fn, type);
+      return new WithRepresentativeValues<>(fn, type, acrossPanes);
     }
   }
 }
