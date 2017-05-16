@@ -17,6 +17,7 @@
  */
 package org.apache.beam.dsls.sql.planner;
 
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpressionTest;
 import org.apache.beam.sdk.Pipeline;
 import org.junit.Test;
 
@@ -88,6 +89,17 @@ public class BeamGroupByPipelineTest extends BasePlanner {
     String sql = "SELECT order_id, site_id" + ", COUNT(*) AS `SIZE`" + "FROM ORDER_DETAILS "
         + "WHERE SITE_ID = 0 " + "GROUP BY order_id, site_id"
         + ", SESSION(order_time, INTERVAL '5' MINUTE)";
+    Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
+  }
+
+  /**
+   * Query with UDF.
+   */
+  @Test
+  public void testUdf() throws Exception {
+    runner.addUDFFunction("negative", BeamSqlUdfExpressionTest.UdfFn.class, "negative");
+    String sql = "select site_id, negative(site_id) as nsite_id from ORDER_DETAILS";
+
     Pipeline pipeline = runner.getPlanner().compileBeamPipeline(sql);
   }
 
