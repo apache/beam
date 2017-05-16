@@ -67,13 +67,11 @@ public class SpannerIOTest implements Serializable {
     Mutation mutation = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2).build();
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
 
-    SpannerIO.Write write =
-        SpannerIO.write()
-            .withProjectId("test-project")
-            .withInstanceId("test-instance")
-            .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory);
-    mutations.apply(write);
+    mutations.apply(SpannerIO.write()
+        .withProjectId("test-project")
+        .withInstanceId("test-instance")
+        .withDatabaseId("test-database")
+        .withServiceFactory(serviceFactory));
     pipeline.run();
     verify(serviceFactory.mockSpanner())
         .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
@@ -100,6 +98,34 @@ public class SpannerIOTest implements Serializable {
         .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
     verify(serviceFactory.mockDatabaseClient(), times(1))
         .writeAtLeastOnce(argThat(new IterableOfSize(2)));
+  }
+
+  @Test
+  public void batchingGroups() throws Exception {
+    Mutation one = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation two = Mutation.newInsertOrUpdateBuilder("test").set("two").to(2).build();
+    Mutation three = Mutation.newInsertOrUpdateBuilder("test").set("three").to(3).build();
+
+    // Have a room to accumulate one more item.
+    long batchSize = MutationSizeEstimator.sizeOf(one) + 1;
+
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSize(batchSize)
+            .withServiceFactory(serviceFactory);
+    SpannerIO.SpannerWriteFn writerFn = new SpannerIO.SpannerWriteFn(write);
+    DoFnTester<Mutation, Void> fnTester = DoFnTester.of(writerFn);
+    fnTester.processBundle(Arrays.asList(one, two, three));
+
+    verify(serviceFactory.mockSpanner())
+        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(argThat(new IterableOfSize(2)));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(argThat(new IterableOfSize(1)));
   }
 
   @Test
@@ -165,9 +191,7 @@ public class SpannerIOTest implements Serializable {
 
     @Override
     public Spanner create(SpannerOptions serviceOptions) {
-      synchronized (lock) {
-        return mockSpanner();
-      }
+      return mockSpanner();
     }
   }
 

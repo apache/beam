@@ -199,10 +199,10 @@ public class SpannerIO {
     public void validate(PipelineOptions options) {
       checkNotNull(
           getInstanceId(),
-          "SpannerIO.write() requires instance id to be set with " + "withInstanceId method");
+          "SpannerIO.write() requires instance id to be set with withInstanceId method");
       checkNotNull(
           getDatabaseId(),
-          "SpannerIO.write() requires database id to be set with " + "withDatabaseId method");
+          "SpannerIO.write() requires database id to be set with withDatabaseId method");
     }
 
     @Override
