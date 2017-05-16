@@ -2,8 +2,9 @@ package graphx
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 var types = make(map[string]reflect.Type)
@@ -16,7 +17,11 @@ func Register(t reflect.Type) {
 
 	key, ok := Key(t)
 	if !ok {
-		panic(fmt.Errorf("invalid registration type: %v", t))
+		panic(fmt.Sprintf("invalid registration type: %v", t))
+	}
+
+	if _, exists := types[key]; exists {
+		panic(fmt.Sprintf("type already registered for %v", key))
 	}
 	types[key] = t
 }

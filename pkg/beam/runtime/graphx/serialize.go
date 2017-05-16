@@ -4,6 +4,10 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"runtime"
+	"unsafe"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
@@ -11,80 +15,79 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
-	"reflect"
-	"runtime"
-	"unsafe"
 )
 
+// EncodeMultiEdge converts the preprocessed representation into the wire
+// representation of the multiedge, capturing input and ouput type information.
 func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	ret := &v1.MultiEdge{}
 
 	if edge.DoFn != nil {
-		ref, err := EncodeFn((*graph.Fn)(edge.DoFn))
+		ref, err := encodeFn((*graph.Fn)(edge.DoFn))
 		if err != nil {
-			return nil, fmt.Errorf("bad userfn: %v", err)
+			return nil, fmt.Errorf("encode: bad userfn: %v", err)
 		}
 		ret.Dofn = ref
 	}
 	for _, in := range edge.Input {
 		kind := encodeInputKind(in.Kind)
-		t, err := EncodeFullType(in.Type)
+		t, err := encodeFullType(in.Type)
 		if err != nil {
-			return nil, fmt.Errorf("bad input type: %v", err)
+			return nil, fmt.Errorf("encode: bad input type: %v", err)
 		}
 		ret.Inbound = append(ret.Inbound, &v1.MultiEdge_Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Output {
-		t, err := EncodeFullType(out.Type)
+		t, err := encodeFullType(out.Type)
 		if err != nil {
-			return nil, fmt.Errorf("bad output type: %v", err)
+			return nil, fmt.Errorf("encode: bad output type: %v", err)
 		}
 		ret.Outbound = append(ret.Outbound, &v1.MultiEdge_Outbound{Type: t})
 	}
 	return ret, nil
 }
 
-// NOTE: we deserialize to components to avoid inserting the edge into
-// a graph or creating a detached edge.
-
+// DecodeMultiEdge converts the wire representation into the preprocessed
+// components representing that edge. We deserialize to components to avoid
+// inserting the edge into a graph or creating a detached edge.
 func DecodeMultiEdge(edge *v1.MultiEdge) (*graph.DoFn, []*graph.Inbound, []*graph.Outbound, error) {
 	var u *graph.DoFn
 	var inbound []*graph.Inbound
 	var outbound []*graph.Outbound
 
 	if edge.Dofn != nil {
-		ref, err := DecodeFn(edge.Dofn)
+		ref, err := decodeFn(edge.Dofn)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("bad userfn: %v", err)
+			return nil, nil, nil, fmt.Errorf("decode: bad userfn: %v", err)
 		}
 		u, err = graph.AsDoFn(ref)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("bad dofn: %v", err)
+			return nil, nil, nil, fmt.Errorf("decode: bad dofn: %v", err)
 		}
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("bad input kind: %v", err)
+			return nil, nil, nil, fmt.Errorf("decode: bad input kind: %v", err)
 		}
-		t, err := DecodeFullType(in.Type)
+		t, err := decodeFullType(in.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("bad input type: %v", err)
+			return nil, nil, nil, fmt.Errorf("decode: bad input type: %v", err)
 		}
 		inbound = append(inbound, &graph.Inbound{Kind: kind, Type: t})
 	}
 	for _, out := range edge.Outbound {
-		t, err := DecodeFullType(out.Type)
+		t, err := decodeFullType(out.Type)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("bad output type: %v", err)
+			return nil, nil, nil, fmt.Errorf("decode: bad output type: %v", err)
 		}
 		outbound = append(outbound, &graph.Outbound{Type: t})
 	}
 	return u, inbound, outbound, nil
 }
 
-func EncodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
-	t, err := EncodeType(c.Type)
+func encodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
+	t, err := encodeType(c.Type)
 	if err != nil {
 		return nil, fmt.Errorf("bad underlying type: %v", err)
 	}
@@ -106,8 +109,8 @@ func EncodeCustomCoder(c *coder.CustomCoder) (*v1.CustomCoder, error) {
 	return ret, nil
 }
 
-func DecodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
-	t, err := DecodeType(c.Type)
+func decodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
+	t, err := decodeType(c.Type)
 	if err != nil {
 		return nil, fmt.Errorf("bad type: %v", err)
 	}
@@ -129,8 +132,7 @@ func DecodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 	return ret, nil
 }
 
-// DecodeFn converts a graph.Fn to its serialized representation.
-func EncodeFn(u *graph.Fn) (*v1.Fn, error) {
+func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 	switch {
 	case u.Fn != nil:
 		fn, err := EncodeUserFn(u.Fn)
@@ -148,7 +150,7 @@ func EncodeFn(u *graph.Fn) (*v1.Fn, error) {
 		if _, ok := Lookup(key); !ok {
 			return nil, fmt.Errorf("recv type must be registered: %v", t)
 		}
-		typ, err := EncodeType(t)
+		typ, err := encodeType(t)
 		if err != nil {
 			panic(fmt.Sprintf("bad recv type: %v", u.Recv))
 		}
@@ -160,12 +162,11 @@ func EncodeFn(u *graph.Fn) (*v1.Fn, error) {
 		return &v1.Fn{Type: typ, Opt: string(data)}, nil
 
 	default:
-		panic("Empty Fn")
+		panic("empty Fn")
 	}
 }
 
-// DecodeFn creates a graph.Fn from its serialized representation.
-func DecodeFn(u *v1.Fn) (*graph.Fn, error) {
+func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 	if u.Fn != nil {
 		fn, err := DecodeUserFn(u.Fn)
 		if err != nil {
@@ -174,7 +175,7 @@ func DecodeFn(u *v1.Fn) (*graph.Fn, error) {
 		return &graph.Fn{Fn: fn}, nil
 	}
 
-	t, err := DecodeType(u.Type)
+	t, err := decodeType(u.Type)
 	if err != nil {
 		return nil, fmt.Errorf("bad type: %v", err)
 	}
@@ -185,35 +186,38 @@ func DecodeFn(u *v1.Fn) (*graph.Fn, error) {
 	return graph.NewFn(fn)
 }
 
+// EncodeUserFn translates the preprocessed representation of a Beam user function
+// into the wire representation, capturing all the inputs and outputs needed.
 func EncodeUserFn(u *userfn.UserFn) (*v1.UserFn, error) {
 	symbol := runtime.FuncForPC(uintptr(u.Fn.Pointer())).Name()
-	t, err := EncodeType(u.Fn.Type())
+	t, err := encodeType(u.Fn.Type())
 	if err != nil {
-		return nil, fmt.Errorf("bad function type: %v", err)
+		return nil, fmt.Errorf("encode: bad function type: %v", err)
 	}
 
 	var opts []string
 	for _, opt := range u.Opt {
 		data, err := json.Marshal(opt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal data %v: %v", opt, err)
+			return nil, fmt.Errorf("encode: failed to marshal data %v: %v", opt, err)
 		}
 		opts = append(opts, string(data))
 	}
 	return &v1.UserFn{Name: symbol, Type: t, Opt: opts}, nil
 }
 
+// DecodeUserFn receives the wire representation of a Beam user function,
+// extracting the preprocessed representation, expanding all inputs and outputs
+// of the function.
 func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
-	t, err := DecodeType(ref.GetType())
+	t, err := decodeType(ref.GetType())
 	if err != nil {
 		return nil, err
 	}
 
-	// NOTE: we assume decoding on Linux, for now.
-
 	ptr, err := sym2addr(ref.Name)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to find symbol %v: %v", ref.Name, err)
+		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
 	v := reflect.New(t).Elem()
 	*(*uintptr)(unsafe.Pointer(v.Addr().Pointer())) = (uintptr)(unsafe.Pointer(&ptr))
@@ -226,11 +230,10 @@ func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
 	for _, opt := range ref.Opt {
 		if index, ok := ret.Options(); ok {
 			f, _ := reflectx.FindTaggedField(ret.Param[index].T, typex.OptTag)
-			// log.Printf("Data: %v of %v", me.Data, f.FullType)
 
 			val, err := reflectx.UnmarshalJSON(f.Type, opt)
 			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal %v as %v: %v", opt, f.Type, err)
+				return nil, fmt.Errorf("decode: failed to unmarshal %v as %v: %v", opt, f.Type, err)
 			}
 			ret.Opt = append(ret.Opt, val)
 		}
@@ -238,6 +241,9 @@ func DecodeUserFn(ref *v1.UserFn) (*userfn.UserFn, error) {
 	return ret, nil
 }
 
+// TODO(wcn): should move this to its own file that is conditionally compiled.
+// We can then write the OSX version, for example. This function is the abstraction
+// for getting addresses from names, which depends on the OS.
 func sym2addr(name string) (uintptr, error) {
 	f, err := elf.Open("/proc/self/exe")
 	if err != nil {
@@ -258,45 +264,46 @@ func sym2addr(name string) (uintptr, error) {
 	return 0, fmt.Errorf("no symbol %q", name)
 }
 
-func EncodeFullType(t typex.FullType) (*v1.FullType, error) {
+func encodeFullType(t typex.FullType) (*v1.FullType, error) {
 	var components []*v1.FullType
 	for _, comp := range t.Components() {
-		c, err := EncodeFullType(comp)
+		c, err := encodeFullType(comp)
 		if err != nil {
 			return nil, err
 		}
 		components = append(components, c)
 	}
 
-	prim, err := EncodeType(t.Type())
+	prim, err := encodeType(t.Type())
 	if err != nil {
 		return nil, fmt.Errorf("bad type: %v", err)
 	}
 	return &v1.FullType{Type: prim, Components: components}, nil
 }
 
-func DecodeFullType(t *v1.FullType) (typex.FullType, error) {
+func decodeFullType(t *v1.FullType) (typex.FullType, error) {
 	var components []typex.FullType
 	for _, comp := range t.Components {
-		c, err := DecodeFullType(comp)
+		c, err := decodeFullType(comp)
 		if err != nil {
 			return nil, err
 		}
 		components = append(components, c)
 	}
 
-	prim, err := DecodeType(t.Type)
+	prim, err := decodeType(t.Type)
 	if err != nil {
 		return nil, fmt.Errorf("bad type: %v", err)
 	}
 	return typex.New(prim, components...), nil
 }
 
-func EncodeType(t reflect.Type) (*v1.Type, error) {
+func encodeType(t reflect.Type) (*v1.Type, error) {
 	if s, ok := tryEncodeSpecial(t); ok {
 		return &v1.Type{Kind: v1.Type_SPECIAL, Special: s}, nil
 	}
 
+	// The supplied type isn't special, so apply the standard encodings.
 	switch t.Kind() {
 	case reflect.Bool:
 		return &v1.Type{Kind: v1.Type_BOOL}, nil
@@ -324,7 +331,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_STRING}, nil
 
 	case reflect.Slice:
-		elm, err := EncodeType(t.Elem())
+		elm, err := encodeType(t.Elem())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
@@ -344,7 +351,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
 
-			fType, err := EncodeType(f.Type)
+			fType, err := encodeType(f.Type)
 			if err != nil {
 				return nil, fmt.Errorf("bad field type: %v", err)
 			}
@@ -365,7 +372,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 	case reflect.Func:
 		var in []*v1.Type
 		for i := 0; i < t.NumIn(); i++ {
-			param, err := EncodeType(t.In(i))
+			param, err := encodeType(t.In(i))
 			if err != nil {
 				return nil, fmt.Errorf("bad parameter type: %v", err)
 			}
@@ -373,7 +380,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		}
 		var out []*v1.Type
 		for i := 0; i < t.NumOut(); i++ {
-			ret, err := EncodeType(t.Out(i))
+			ret, err := encodeType(t.Out(i))
 			if err != nil {
 				return nil, fmt.Errorf("bad return type: %v", err)
 			}
@@ -382,7 +389,7 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_FUNC, ParameterTypes: in, ReturnTypes: out, IsVariadic: t.IsVariadic()}, nil
 
 	case reflect.Chan:
-		elm, err := EncodeType(t.Elem())
+		elm, err := encodeType(t.Elem())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
@@ -390,14 +397,14 @@ func EncodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_CHAN, Element: elm, ChanDir: dir}, nil
 
 	case reflect.Ptr:
-		elm, err := EncodeType(t.Elem())
+		elm, err := encodeType(t.Elem())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return &v1.Type{Kind: v1.Type_PTR, Element: elm}, nil
 
 	default:
-		return nil, fmt.Errorf("Unencodable type: %v", t)
+		return nil, fmt.Errorf("unencodable type: %v", t)
 	}
 }
 
@@ -441,9 +448,9 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 	}
 }
 
-func DecodeType(t *v1.Type) (reflect.Type, error) {
+func decodeType(t *v1.Type) (reflect.Type, error) {
 	if t == nil {
-		return nil, fmt.Errorf("Empty type")
+		return nil, fmt.Errorf("empty type")
 	}
 
 	switch t.Kind {
@@ -473,7 +480,7 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 		return reflectx.String, nil
 
 	case v1.Type_SLICE:
-		elm, err := DecodeType(t.GetElement())
+		elm, err := decodeType(t.GetElement())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
@@ -482,7 +489,7 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 	case v1.Type_STRUCT:
 		var fields []reflect.StructField
 		for _, f := range t.Fields {
-			fType, err := DecodeType(f.Type)
+			fType, err := decodeType(f.Type)
 			if err != nil {
 				return nil, fmt.Errorf("bad field type: %v", err)
 			}
@@ -501,18 +508,18 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 		return reflect.StructOf(fields), nil
 
 	case v1.Type_FUNC:
-		in, err := DecodeTypes(t.GetParameterTypes())
+		in, err := decodeTypes(t.GetParameterTypes())
 		if err != nil {
 			return nil, fmt.Errorf("bad parameter type: %v", err)
 		}
-		out, err := DecodeTypes(t.GetReturnTypes())
+		out, err := decodeTypes(t.GetReturnTypes())
 		if err != nil {
 			return nil, fmt.Errorf("bad return type: %v", err)
 		}
 		return reflect.FuncOf(in, out, t.GetIsVariadic()), nil
 
 	case v1.Type_CHAN:
-		elm, err := DecodeType(t.GetElement())
+		elm, err := decodeType(t.GetElement())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
@@ -523,14 +530,18 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 		return reflect.ChanOf(dir, elm), nil
 
 	case v1.Type_PTR:
-		elm, err := DecodeType(t.GetElement())
+		elm, err := decodeType(t.GetElement())
 		if err != nil {
 			return nil, fmt.Errorf("bad element: %v", err)
 		}
 		return reflect.PtrTo(elm), nil
 
 	case v1.Type_SPECIAL:
-		return decodeSpecial(t.Special), nil
+		ret, err := decodeSpecial(t.Special)
+		if err != nil {
+			return nil, fmt.Errorf("bad element: %v", err)
+		}
+		return ret, nil
 
 	case v1.Type_EXTERNAL:
 		ret, ok := Lookup(t.ExternalKey)
@@ -544,50 +555,50 @@ func DecodeType(t *v1.Type) (reflect.Type, error) {
 	}
 }
 
-func decodeSpecial(s v1.Type_Special) reflect.Type {
+func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 	switch s {
 	case v1.Type_ERROR:
-		return reflectx.Error
+		return reflectx.Error, nil
 	case v1.Type_CONTEXT:
-		return reflectx.Context
+		return reflectx.Context, nil
 	case v1.Type_TYPE:
-		return reflectx.Type
+		return reflectx.Type, nil
 
 	case v1.Type_EVENTTIME:
-		return typex.EventTimeType
+		return typex.EventTimeType, nil
 	case v1.Type_KV:
-		return typex.KVType
+		return typex.KVType, nil
 	case v1.Type_GBK:
-		return typex.GBKType
+		return typex.GBKType, nil
 	case v1.Type_COGBK:
-		return typex.CoGBKType
+		return typex.CoGBKType, nil
 	case v1.Type_WINDOWEDVALUE:
-		return typex.WindowedValueType
+		return typex.WindowedValueType, nil
 
 	case v1.Type_T:
-		return typex.TType
+		return typex.TType, nil
 	case v1.Type_U:
-		return typex.UType
+		return typex.UType, nil
 	case v1.Type_V:
-		return typex.VType
+		return typex.VType, nil
 	case v1.Type_W:
-		return typex.WType
+		return typex.WType, nil
 	case v1.Type_X:
-		return typex.XType
+		return typex.XType, nil
 	case v1.Type_Y:
-		return typex.YType
+		return typex.YType, nil
 	case v1.Type_Z:
-		return typex.ZType
+		return typex.ZType, nil
 
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown special type: %v", s)
 	}
 }
 
-func DecodeTypes(list []*v1.Type) ([]reflect.Type, error) {
+func decodeTypes(list []*v1.Type) ([]reflect.Type, error) {
 	var ret []reflect.Type
 	for _, elm := range list {
-		t, err := DecodeType(elm)
+		t, err := decodeType(elm)
 		if err != nil {
 			return nil, err
 		}
@@ -621,7 +632,7 @@ func encodeChanDir(dir reflect.ChanDir) v1.Type_ChanDir {
 	case reflect.BothDir:
 		return v1.Type_BOTH
 	default:
-		panic(fmt.Sprintf("Unexpected ChanDir: %v", dir))
+		panic(fmt.Sprintf("unexpected reflect.ChanDir: %v", dir))
 	}
 }
 
@@ -634,7 +645,7 @@ func decodeChanDir(dir v1.Type_ChanDir) (reflect.ChanDir, error) {
 	case v1.Type_BOTH:
 		return reflect.BothDir, nil
 	default:
-		return reflect.BothDir, fmt.Errorf("Invalid chan dir: %v", dir)
+		return reflect.BothDir, fmt.Errorf("invalid chan dir: %v", dir)
 	}
 }
 
@@ -655,7 +666,7 @@ func encodeInputKind(k graph.InputKind) v1.MultiEdge_Inbound_InputKind {
 	case graph.ReIter:
 		return v1.MultiEdge_Inbound_REITER
 	default:
-		panic(fmt.Sprintf("Unexpected Input: %v", k))
+		panic(fmt.Sprintf("unexpected input: %v", k))
 	}
 }
 
@@ -676,50 +687,9 @@ func decodeInputKind(k v1.MultiEdge_Inbound_InputKind) (graph.InputKind, error) 
 	case v1.MultiEdge_Inbound_REITER:
 		return graph.ReIter, nil
 	default:
-		return graph.Main, fmt.Errorf("Invalid input kind: %v", k)
+		return graph.Main, fmt.Errorf("invalid input kind: %v", k)
 	}
 }
-
-/*
-    "@type": "kind:windowed_value",
-    "component_encodings": [
-      {
-         "@type": "StrUtf8Coder$eNprYEpOLEhMzkiNT0pNzNVLzk9JLSqGUlzBJUWhJWkWziAeVyGDZmMhY20hU5IeAAajEkY=",
-         "component_encodings": []
-      },
-      {
-         "@type": "kind:global_window"
-      }
-   ],
-   "is_wrapper": true
-
-
-    "@type": "kind:windowed_value",
-    "component_encodings":[
-      {"@type":"json"},
-      {"@type":"kind:global_window"}
-    ]
-*/
-
-// NOTE: the service may insert length-prefixed wrappers when it needs to know,
-// such as inside KVs before GBK. It won't remove encoding layers.
-//
-//    "@type":"kind:windowed_value"
-//    "component_encodings": [
-//       { "@type":"kind:pair"
-//         "component_encodings":[
-//             {"@type":"kind:length_prefix",
-//              "component_encodings":[
-//                  {"@type":"json"}
-//             ]},
-//             {"@type":"kind:length_prefix",
-//              "component_encodings":[
-//                  {"@type":"json"}
-//             ]}
-//         ]
-//       },
-//       {"@type":"kind:global_window"}
-//    ]
 
 // CoderRef defines the (structured) Coder in serializable form. It is
 // an artifact of the CloudObject encoding.
@@ -750,7 +720,7 @@ func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
 func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 	switch c.Kind {
 	case coder.Custom:
-		ref, err := EncodeCustomCoder(c.Custom)
+		ref, err := encodeCustomCoder(c.Custom)
 		if err != nil {
 			return nil, err
 		}
@@ -811,6 +781,7 @@ func EncodeCoder(c *coder.Coder) (*CoderRef, error) {
 	}
 }
 
+// DecodeCoder extracts a usable coder from the encoded runner form.
 func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
 	case pairType:
@@ -850,7 +821,7 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
 			return nil, err
 		}
-		custom, err := DecodeCustomCoder(&ref)
+		custom, err := decodeCustomCoder(&ref)
 		if err != nil {
 			return nil, err
 		}
@@ -882,6 +853,13 @@ func DecodeCoder(c *CoderRef) (*coder.Coder, error) {
 	}
 }
 
+// TODO(wcn): Windowing information isn't currently propagated through
+// our code. These methods will be used by other packages, so exporting
+// them now.
+
+// EncodeWindow translates the preprocessed representation of a Beam coder
+// into the wire representation, capturing the underlying types used by
+// the coder.
 func EncodeWindow(w *coder.Window) (*CoderRef, error) {
 	switch w.Kind {
 	case coder.GlobalWindow:
@@ -891,6 +869,8 @@ func EncodeWindow(w *coder.Window) (*CoderRef, error) {
 	}
 }
 
+// DecodeWindow receives the wire representation of a Beam coder, extracting
+// the preprocessed representation, expanding all types used by the coder.
 func DecodeWindow(w *CoderRef) (*coder.Window, error) {
 	switch w.Type {
 	case globalWindowType:
