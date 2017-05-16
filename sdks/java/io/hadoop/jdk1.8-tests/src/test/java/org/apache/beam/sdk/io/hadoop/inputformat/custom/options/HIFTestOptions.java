@@ -61,4 +61,10 @@ public interface HIFTestOptions extends TestPipelineOptions {
   @Default.String("elasticPassword")
   String getElasticPassword();
   void setElasticPassword(String elasticPassword);
+
+  //Hive test options
+  @Description("Hive Metastore URI")
+  @Default.String("thrift://localhost:9083")
+  String getHiveMetastoreUri();
+  void setHiveMetastoreUri(String hiveMetastoreUri);
 }

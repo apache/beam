@@ -140,6 +140,7 @@
     <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
     <cassandra.all.verison>3.9</cassandra.all.verison>
     <cassandra.driver.core.version>3.1.1</cassandra.driver.core.version>
+    <hive.version>2.1.1</hive.version>
     <commons.io.version>2.4</commons.io.version>
   </properties>
 
@@ -212,6 +213,12 @@
       <groupId>org.elasticsearch</groupId>
       <artifactId>elasticsearch-hadoop</artifactId>
       <version>${elasticsearch.version}</version>
+      <exclusions>
+      	<exclusion>
+      		<groupId>org.apache.hive</groupId>
+      		<artifactId>hive-exec</artifactId>
+      	</exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
@@ -236,7 +243,34 @@
       <version>${cassandra.driver.core.version}</version>
       <scope>test</scope>
     </dependency>
-
+	<dependency>
+		<groupId>org.apache.hive</groupId>
+		<artifactId>hive-exec</artifactId>
+		<version>${hive.version}</version>
+		<classifier>core</classifier>
+		<exclusions>
+			<exclusion>
+				<groupId>org.apache.calcite</groupId>
+				<artifactId>calcite-avatica</artifactId>
+			</exclusion>
+		</exclusions>
+	</dependency>    
+	<dependency>
+		<groupId>org.apache.hive.hcatalog</groupId>
+		<artifactId>hive-hcatalog-core</artifactId>
+		<version>${hive.version}</version>
+		<scope>test</scope>
+		<exclusions>
+			<exclusion>
+				<groupId>org.apache.hive</groupId>
+				<artifactId>hive-exec</artifactId>
+			</exclusion>
+			<exclusion>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+			</exclusion>
+		</exclusions>
+	</dependency>
     <!-- runtime dependencies -->
     <dependency>
       <groupId>commons-io</groupId>
