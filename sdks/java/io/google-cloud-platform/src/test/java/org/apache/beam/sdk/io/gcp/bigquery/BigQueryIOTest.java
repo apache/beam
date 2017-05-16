@@ -702,7 +702,11 @@ public class BigQueryIOTest implements Serializable {
     public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
       if (!this.isCompatible(other)) {
         throw new IncompatibleWindowException(
-            other, "PartitionedGlobalWindows is only compatible with PartitionedGlobalWindows.");
+            other,
+            String.format(
+                "%s is only compatible with %s.",
+                PartitionedGlobalWindows.class.getSimpleName(),
+                PartitionedGlobalWindows.class.getSimpleName()));
       }
     }
 

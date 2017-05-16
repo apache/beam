@@ -134,7 +134,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
           String.format(
               "%s is not compatible with %s",
               this.getClass().getSimpleName(),
-              other == null ? "null" : other.getClass().getSimpleName()));
+              other.getClass().getSimpleName()));
     }
   }
 
