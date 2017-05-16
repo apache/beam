@@ -55,7 +55,7 @@ When executing your pipeline from the command-line, set `runner` to `direct` or 
 
 See the reference documentation for the
 <span class="language-java">[`DirectOptions`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/direct/DirectOptions.html)</span>
-<span class="language-py">[`DirectOptions`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.utils.html#apache_beam.utils.pipeline_options.DirectOptions)</span>
+<span class="language-py">[`DirectOptions`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.options.html#apache_beam.options.pipeline_options.DirectOptions)</span>
 interface for defaults and additional pipeline configuration options.
 
 ## Additional information and caveats
