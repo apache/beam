@@ -10,6 +10,7 @@ import com.google.cloud.spanner.Mutation;
 import java.util.Arrays;
 import org.junit.Test;
 
+/** A set of unit tests for {@link MutationSizeEstimator}. */
 public class MutationSizeEstimatorTest {
 
   @Test

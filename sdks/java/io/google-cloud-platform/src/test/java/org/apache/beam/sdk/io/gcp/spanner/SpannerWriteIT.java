@@ -4,7 +4,16 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.Database;
+import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Operation;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.Statement;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.Collections;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -28,6 +37,7 @@ import org.junit.runners.JUnit4;
 public class SpannerWriteIT {
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
+  /** Pipeline options for this test. */
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
     @Description("Project ID for Spanner")
     @Default.String("apache-beam-testing")

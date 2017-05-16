@@ -1,14 +1,26 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
-import avro.shaded.com.google.common.collect.Iterables;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.ServiceFactory;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import javax.annotation.concurrent.GuardedBy;
+
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -24,6 +36,10 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 
+
+/**
+ * Unit tests for {@link SpannerIO}.
+ */
 @RunWith(JUnit4.class)
 public class SpannerIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -67,11 +83,12 @@ public class SpannerIOTest implements Serializable {
     Mutation mutation = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2).build();
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
 
-    mutations.apply(SpannerIO.write()
-        .withProjectId("test-project")
-        .withInstanceId("test-instance")
-        .withDatabaseId("test-database")
-        .withServiceFactory(serviceFactory));
+    mutations.apply(
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withServiceFactory(serviceFactory));
     pipeline.run();
     verify(serviceFactory.mockSpanner())
         .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));

@@ -151,6 +151,7 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <spanner.version>0.16.0-beta</spanner.version>
+    <google-cloud-core.version>1.0.0-rc3</google-cloud-core.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -815,6 +816,12 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-core</artifactId>
+        <version>${google-cloud-core.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
         <version>${bigtable.version}</version>
@@ -913,6 +920,18 @@
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
         <version>${protobuf.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-common-protos</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-spanner-admin-database-v1</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
       </dependency>
 
       <dependency>

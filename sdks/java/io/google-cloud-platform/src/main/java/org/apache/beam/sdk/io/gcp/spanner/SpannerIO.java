@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
  *     "Write", SpannerIO.write().withInstanceId("instance").withDatabaseId("database"));
  * }</pre>
  *
- * The default size of the batch is set to 1MB, to override this use {@link
+ * <p>The default size of the batch is set to 1MB, to override this use {@link
  * Write#withBatchSize(long)}. Setting batch size to a small value or zero practically disables
  * batching.
  *
