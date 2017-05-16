@@ -739,6 +739,30 @@ public class BigtableIOTest {
         Matchers.equalTo(retryOptionsBuilder.build()));
   }
 
+  @Test
+  public void testWriteLocalhostOptions() {
+    BigtableIO.Write write = BigtableIO.write().withLocalhost("127.0.0.1");
+
+    BigtableOptions options = write.getBigtableOptions();
+    assertEquals("127.0.0.1", options.getDataHost());
+    assertEquals("127.0.0.1", options.getInstanceAdminHost());
+    assertEquals("127.0.0.1", options.getTableAdminHost());
+    assertEquals(true, options.usePlaintextNegotiation());
+    assertEquals(CredentialOptions.nullCredential(), options.getCredentialOptions());
+  }
+
+  @Test
+  public void testReadLocalhostOptions() {
+    BigtableIO.Read read = BigtableIO.read().withLocalhost("127.0.0.1");
+
+    BigtableOptions options = read.getBigtableOptions();
+    assertEquals("127.0.0.1", options.getDataHost());
+    assertEquals("127.0.0.1", options.getInstanceAdminHost());
+    assertEquals("127.0.0.1", options.getTableAdminHost());
+    assertEquals(true, options.usePlaintextNegotiation());
+    assertEquals(CredentialOptions.nullCredential(), options.getCredentialOptions());
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////
   private static final String COLUMN_FAMILY_NAME = "family";
   private static final ByteString COLUMN_NAME = ByteString.copyFromUtf8("column");
