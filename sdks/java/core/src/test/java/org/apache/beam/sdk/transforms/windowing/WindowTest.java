@@ -301,6 +301,14 @@ public class WindowTest implements Serializable {
     }
 
     @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other, "WindowOddEvenBuckets is only compatible with WindowOddEvenBuckets.");
+      }
+    }
+
+    @Override
     public Coder<IntervalWindow> windowCoder() {
       return new IntervalWindow.IntervalWindowCoder();
     }

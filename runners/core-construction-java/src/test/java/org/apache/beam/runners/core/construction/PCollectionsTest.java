@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -154,7 +155,15 @@ public class PCollectionsTest {
 
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
-      return other != null && this.getClass().equals(other.getClass());
+      return other instanceof CustomWindows;
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+      if (!this.isCompatible(other)) {
+        throw new IncompatibleWindowException(
+            other, "CustomWindows is only compatible with CustomWindows.");
+      }
     }
 
     @Override
