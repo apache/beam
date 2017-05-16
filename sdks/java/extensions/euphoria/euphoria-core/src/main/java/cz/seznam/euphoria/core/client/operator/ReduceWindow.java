@@ -25,8 +25,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
+import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
@@ -99,11 +101,19 @@ public class ReduceWindow<
     }
     public <OUT> OutputBuilder<T, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
+      return reduceBy((Iterable<VALUE> in, Context<OUT> ctx) -> {
+        ctx.collect(reducer.apply(in));
+      });
+    }
+    public <OUT> OutputBuilder<T, VALUE, OUT> reduceBy(
+        ReduceFunctor<VALUE, OUT> reducer) {
       return new OutputBuilder<>(name, input, valueExtractor, reducer);
     }
     public OutputBuilder<T, VALUE, VALUE> combineBy(
         CombinableReduceFunction<VALUE> reducer) {
-      return new OutputBuilder<>(name, input, valueExtractor, reducer);
+      return new OutputBuilder<>(
+          name, input, valueExtractor,
+          ReduceByKey.toReduceFunctor(reducer));
     }
   }
 
@@ -113,15 +123,29 @@ public class ReduceWindow<
     private final String name;
     private final Dataset<T> input;
     private final UnaryFunction<T, VALUE> valueExtractor;
-    private final ReduceFunction<VALUE, OUT> reducer;
+    private final ReduceFunctor<VALUE, OUT> reducer;
     private int numPartitions = -1;
     private Windowing<T, ?> windowing;
+
 
     public OutputBuilder(
         String name,
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor,
         ReduceFunction<VALUE, OUT> reducer) {
+      this(
+          name, input, valueExtractor,
+          (Iterable<VALUE> in, Context<OUT> ctx) -> {
+            ctx.collect(reducer.apply(in));
+          });
+    }
+
+    public OutputBuilder(
+        String name,
+        Dataset<T> input,
+        UnaryFunction<T, VALUE> valueExtractor,
+        ReduceFunctor<VALUE, OUT> reducer) {
+      
       this.name = name;
       this.input = input;
       this.valueExtractor = valueExtractor;
@@ -178,7 +202,7 @@ public class ReduceWindow<
     return new OfBuilder(name);
   }
 
-  final ReduceFunction<VALUE, OUT> reducer;
+  final ReduceFunctor<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
 
   static final Byte B_ZERO = (byte) 0;
@@ -189,7 +213,7 @@ public class ReduceWindow<
           Dataset<IN> input,
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
-          ReduceFunction<VALUE, OUT> reducer,
+          ReduceFunctor<VALUE, OUT> reducer,
           int numPartitions) {
     
     super(name, flow, input, e -> B_ZERO, windowing,
@@ -207,7 +231,7 @@ public class ReduceWindow<
     this.valueExtractor = valueExtractor;
   }
 
-  public ReduceFunction<VALUE, OUT> getReducer() {
+  public ReduceFunctor<VALUE, OUT> getReducer() {
     return reducer;
   }
 
