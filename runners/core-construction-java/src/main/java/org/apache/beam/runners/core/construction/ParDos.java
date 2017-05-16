@@ -45,6 +45,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.StateSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.TimerSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -77,7 +78,7 @@ public class ParDos {
   /**
    * The URN for a {@link ParDoPayload}.
    */
-  public static final String PAR_DO_PAYLOAD_URN = "urn:beam:runnerapi:pardo:v1";
+  public static final String PAR_DO_PAYLOAD_URN = "urn:beam:pardo:v1";
   /**
    * The URN for an unknown Java {@link DoFn}.
    */
@@ -91,7 +92,6 @@ public class ParDos {
    */
   public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN =
       "urn:beam:windowmappingfn:javasdk:0.1";
-
 
   /**
    * A {@link TransformPayloadTranslator} for {@link ParDo}.
@@ -154,12 +154,12 @@ public class ParDos {
 
   // TODO: Implement
   private static StateSpec toProto(StateDeclaration state) {
-    return StateSpec.newBuilder().build();
+    throw new UnsupportedOperationException("Not yet supported");
   }
 
   // TODO: Implement
   private static TimerSpec toProto(TimerDeclaration timer) {
-    return TimerSpec.newBuilder().build();
+    throw new UnsupportedOperationException("Not yet supported");
   }
 
   @AutoValue
@@ -199,53 +199,49 @@ public class ParDos {
   }
 
   private static Optional<RunnerApi.Parameter> toProto(Parameter parameter) {
-    Cases<Type> runnerApiCases =
-        new Cases<Type>() {
+    return parameter.match(
+        new Cases<Optional<RunnerApi.Parameter>>() {
           @Override
-          public Type dispatch(StartBundleContextParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(StartBundleContextParameter p) {
+            return Optional.absent();
           }
 
           @Override
-          public Type dispatch(FinishBundleContextParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(FinishBundleContextParameter p) {
+            return Optional.absent();
           }
 
           @Override
-          public Type dispatch(ProcessContextParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(ProcessContextParameter p) {
+            return Optional.absent();
           }
 
           @Override
-          public Type dispatch(OnTimerContextParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(OnTimerContextParameter p) {
+            return Optional.absent();
           }
 
           @Override
-          public Type dispatch(WindowParameter p) {
-            return Type.WINDOW;
+          public Optional<RunnerApi.Parameter> dispatch(WindowParameter p) {
+            return Optional.of(RunnerApi.Parameter.newBuilder().setType(Type.WINDOW).build());
           }
 
           @Override
-          public Type dispatch(RestrictionTrackerParameter p) {
-            return Type.RESTRICTION_TRACKER;
+          public Optional<RunnerApi.Parameter> dispatch(RestrictionTrackerParameter p) {
+            return Optional.of(
+                RunnerApi.Parameter.newBuilder().setType(Type.RESTRICTION_TRACKER).build());
           }
 
           @Override
-          public Type dispatch(StateParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(StateParameter p) {
+            return Optional.absent();
           }
 
           @Override
-          public Type dispatch(TimerParameter p) {
-            return null;
+          public Optional<RunnerApi.Parameter> dispatch(TimerParameter p) {
+            return Optional.absent();
           }
-        };
-    Type parameterType = parameter.match(runnerApiCases);
-    if (parameterType == null) {
-      return Optional.absent();
-    }
-    return Optional.of(RunnerApi.Parameter.newBuilder().setType(parameterType).build());
+        });
   }
 
   private static SideInput toProto(PCollectionView<?> view) {
@@ -260,7 +256,7 @@ public class ParDos {
   }
 
   public static PCollectionView<?> fromProto(
-      String id, SideInput sideInput, RunnerApi.PTransform parDoTransform, Components components)
+      SideInput sideInput, String id, RunnerApi.PTransform parDoTransform, Components components)
       throws IOException {
     TupleTag<?> tag = new TupleTag<>(id);
     WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
@@ -279,6 +275,10 @@ public class ParDos {
             IterableCoder.of(
                 FullWindowedValueCoder.of(
                     elemCoder, windowingStrategy.getWindowFn().windowCoder()));
+    checkArgument(
+        sideInput.getAccessPattern().getUrn().equals(Materializations.ITERABLE_MATERIALIZATION_URN),
+        "Unknown View Materialization URN %s",
+        sideInput.getAccessPattern().getUrn());
 
     PCollectionView<?> view =
         new RunnerPCollectionView<>(

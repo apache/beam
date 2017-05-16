@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -29,9 +30,8 @@ import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-/** Created by tgroh on 5/15/17. */
-class RunnerPCollectionView<T> extends PValueBase
-    implements PCollectionView<T> {
+/** A {@link PCollectionView} created from the components of a {@link SideInput}. */
+class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;

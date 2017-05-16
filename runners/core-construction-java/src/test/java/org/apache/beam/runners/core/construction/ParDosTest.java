@@ -138,7 +138,7 @@ public class ParDosTest {
       SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
       PCollectionView<?> restoredView =
           ParDos.fromProto(
-              view.getTagInternal().getId(), sideInput, protoTransform, protoComponents);
+              sideInput, view.getTagInternal().getId(), protoTransform, protoComponents);
       assertThat(restoredView.getTagInternal(), equalTo(view.getTagInternal()));
       assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
       assertThat(
@@ -152,6 +152,24 @@ public class ParDosTest {
   }
 
   private static class DropElementsFn extends DoFn<KV<Long, String>, Void> {
+    @ProcessElement
+    public void proc(ProcessContext context, BoundedWindow window) {
+      context.output(null);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof DropElementsFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return DropElementsFn.class.hashCode();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  private static class StateTimerDropElementsFn extends DoFn<KV<Long, String>, Void> {
     private static final String BAG_STATE_ID = "bagState";
     private static final String COMBINING_STATE_ID = "combiningState";
     private static final String EVENT_TIMER_ID = "eventTimer";
@@ -200,12 +218,12 @@ public class ParDosTest {
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof DropElementsFn;
+      return other instanceof StateTimerDropElementsFn;
     }
 
     @Override
     public int hashCode() {
-      return DropElementsFn.class.hashCode();
+      return StateTimerDropElementsFn.class.hashCode();
     }
   }
 }

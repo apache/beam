@@ -44,8 +44,6 @@ public class PTransforms {
           ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
               .put(ParDo.MultiOutput.class, ParDoPayloadTranslator.create())
               .build();
-  // TODO: ParDoPayload, WindowIntoPayload, ReadPayload, CombinePayload
-  // TODO: "Flatten Payload", etc?
   // TODO: Load via service loader.
   private PTransforms() {}
 
