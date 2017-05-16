@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,6 +36,8 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link Window} logically divides up or groups the elements of a
@@ -141,6 +144,9 @@ import org.joda.time.Duration;
  */
 @AutoValue
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>>  {
+
+  private static final Logger LOG = LoggerFactory.getLogger(Window.class);
+
   /**
    * Specifies the conditions under which a final pane will be created when a window is permanently
    * closed.
@@ -346,6 +352,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
               + " specify an allowed lateness greater than zero requires that the accumulation"
               + " mode be specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
               + " See Javadoc for more details.");
+    }
+    if (getAllowedLateness() != null
+        && getAllowedLateness().isShorterThan(input.getWindowingStrategy().getAllowedLateness())) {
+      LOG.warn(
+          "allowedLateness of {} set on {} is shorter than allowedLateness of {} set "
+              + "upstream on {}. This might cause data loss.",
+          getAllowedLateness(), getName(), input.getWindowingStrategy().getAllowedLateness(),
+          input.getName());
     }
   }
 
