@@ -21,6 +21,12 @@ const (
 	Composite
 )
 
+// TODO(herohde) 5/16/2017: maybe we should add more classes, so that every
+// reasonable type (such as error) is not Invalid, even though it it not
+// valid in FullType. "Special", say? Right now, a valid DoFn signature may
+// have "Invalid" parameter types, which might be confusing. Or maybe rename
+// as DataClass to make the narrower scope clearer?
+
 // ClassOf returns the class of a given type. The class is Invalid, if the
 // type is not suitable as data.
 func ClassOf(t reflect.Type) Class {
