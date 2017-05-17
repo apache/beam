@@ -23,9 +23,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.Reshuffle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

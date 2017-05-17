@@ -18,13 +18,10 @@
 package com.alibaba.jstorm.beam.translation.translator;
 
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.alibaba.jstorm.beam.StormPipelineOptions;
 import com.alibaba.jstorm.beam.translation.TranslationContext;
 import com.alibaba.jstorm.beam.translation.runtime.UnboundedSourceSpout;
 

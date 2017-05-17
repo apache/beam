@@ -20,7 +20,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   
@@ -32,6 +32,7 @@
 
   <properties>
     <jstorm.core.version>2.4.0-SNAPSHOT</jstorm.core.version>
+    <beam.version>2.0.0</beam.version>
   </properties>
 
   <profiles>
@@ -90,6 +91,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+      <version>${beam.version}</version>
       <exclusions>
         <!-- jstorm uses logback binding -->
         <exclusion>
@@ -102,6 +104,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
+      <version>${beam.version}</version>
       <exclusions>
         <!-- jstorm uses logback binding -->
         <exclusion>
@@ -114,6 +117,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-construction-java</artifactId>
+      <version>${beam.version}</version>
       <exclusions>
         <!-- jstorm uses logback binding -->
         <exclusion>
@@ -138,6 +142,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+      <version>${beam.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
       <exclusions>

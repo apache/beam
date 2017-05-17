@@ -22,7 +22,6 @@ import com.alibaba.jstorm.beam.translation.runtime.UnboundedSourceSpout;
 
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;

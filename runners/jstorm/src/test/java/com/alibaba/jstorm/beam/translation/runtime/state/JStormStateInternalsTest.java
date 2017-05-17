@@ -20,7 +20,6 @@ package com.alibaba.jstorm.beam.translation.runtime.state;
 import avro.shaded.com.google.common.collect.Maps;
 import com.alibaba.jstorm.beam.translation.runtime.TimerServiceImpl;
 import com.alibaba.jstorm.cache.IKvStoreManager;
-import com.alibaba.jstorm.cache.rocksdb.RocksDbFactory;
 import com.alibaba.jstorm.cache.rocksdb.RocksDbKvStoreManagerFactory;
 import com.alibaba.jstorm.utils.KryoSerializer;
 
@@ -31,12 +30,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.ValueState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,7 +42,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.rocksdb.ColumnFamilyOptions;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -123,7 +120,8 @@ public class JStormStateInternalsTest {
     @Test
     public void testCombiningState() throws Exception {
         Combine.CombineFn<Integer, int[], Integer> combineFn = Max.ofIntegers();
-        Coder<int[]> accumCoder = combineFn.getAccumulatorCoder(new CoderRegistry(), BigEndianIntegerCoder.of());
+        Coder<int[]> accumCoder = combineFn.getAccumulatorCoder(
+            CoderRegistry.createDefault(), BigEndianIntegerCoder.of());
 
         CombiningState<Integer, int[], Integer> combiningState = jstormStateInternals.state(
                 StateNamespaces.global(),
@@ -142,11 +140,11 @@ public class JStormStateInternalsTest {
 
     @Test
     public void testWatermarkHoldState() throws Exception {
-        WatermarkHoldState<BoundedWindow> watermarkHoldState = jstormStateInternals.state(
+        WatermarkHoldState watermarkHoldState = jstormStateInternals.state(
                 StateNamespaces.global(),
                 StateTags.watermarkStateInternal(
                         "state-id-a",
-                        OutputTimeFns.outputAtLatestInputTimestamp()));
+                        TimestampCombiner.EARLIEST));
         watermarkHoldState.add(new Instant(1));
         assertEquals(1, watermarkHoldState.read().getMillis());
         watermarkHoldState.add(new Instant(Integer.MIN_VALUE));

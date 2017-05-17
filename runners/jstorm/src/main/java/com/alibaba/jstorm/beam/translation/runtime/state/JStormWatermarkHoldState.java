@@ -17,41 +17,40 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.alibaba.jstorm.beam.translation.runtime.TimerService;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.GroupingState;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * JStorm implementation of {@link WatermarkHoldState}.
  */
-public class JStormWatermarkHoldState<W extends BoundedWindow> implements WatermarkHoldState<W> {
+public class JStormWatermarkHoldState implements WatermarkHoldState {
 
     private final StateNamespace namespace;
     private final GroupingState<Instant, Instant> watermarkHoldsState;
-    private final OutputTimeFn<? super W> outputTimeFn;
+    private final TimestampCombiner timestampCombiner;
     private final TimerService timerService;
 
     JStormWatermarkHoldState(
             StateNamespace namespace,
             GroupingState<Instant, Instant> watermarkHoldsState,
-            OutputTimeFn<? super W> outputTimeFn,
+            TimestampCombiner timestampCombiner,
             TimerService timerService) {
         this.namespace = checkNotNull(namespace, "namespace");
         this.watermarkHoldsState = checkNotNull(watermarkHoldsState, "watermarkHoldsState");
-        this.outputTimeFn = checkNotNull(outputTimeFn, "outputTimeFn");
+        this.timestampCombiner = checkNotNull(timestampCombiner, "timestampCombiner");
         this.timerService = checkNotNull(timerService, "timerService");
     }
 
     @Override
-    public OutputTimeFn<? super W> getOutputTimeFn() {
-        return outputTimeFn;
+    public TimestampCombiner getTimestampCombiner() {
+        return timestampCombiner;
     }
 
     @Override
@@ -71,7 +70,7 @@ public class JStormWatermarkHoldState<W extends BoundedWindow> implements Waterm
     }
 
     @Override
-    public WatermarkHoldState<W> readLater() {
+    public WatermarkHoldState readLater() {
         // TODO: support prefetch.
         return this;
     }

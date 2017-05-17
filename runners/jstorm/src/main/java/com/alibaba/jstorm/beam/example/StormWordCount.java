@@ -1,3 +1,5 @@
+
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -22,6 +24,8 @@ import com.alibaba.jstorm.beam.StormRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -44,14 +48,14 @@ public class StormWordCount {
 
     static class ExtractWordsFn extends DoFn<String, String> {
         private static final long serialVersionUID = -664504699658016696L;
-        private final Aggregator<Long, Long> emptyLines = createAggregator("emptyLines", Sum.ofLongs());
+        private final Counter emptyLines = Metrics.counter("global", "emptyLines");
 
         @ProcessElement
         public void processElement(ProcessContext c, BoundedWindow window) {
             LOG.info("Receive Element={}, timeStamp={}, assignWindows={}",
                     c.element(), c.timestamp().toDateTime(), window);
             if (c.element().trim().isEmpty()) {
-                emptyLines.addValue(1L);
+                emptyLines.inc();
             }
 
             // Split the line into words.

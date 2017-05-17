@@ -17,7 +17,7 @@
  */
 package com.alibaba.jstorm.beam.translation.translator;
 
-import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.transforms.Reshuffle;
 
 public class ReshuffleTranslator<K, V> extends TransformTranslator.Default<Reshuffle<K,V>> {
     

@@ -25,12 +25,20 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateBinder;
+import org.apache.beam.sdk.state.StateContext;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.*;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.joda.time.Instant;
 
 import javax.annotation.Nullable;
@@ -42,7 +50,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * JStorm implementation of {@link StateInternals}.
  */
-public class JStormStateInternals<K> implements StateInternals<K> {
+public class JStormStateInternals<K> implements StateInternals {
 
     @Nullable
     private final K key;
@@ -62,7 +70,8 @@ public class JStormStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <T extends State> T state(StateNamespace namespace, StateTag<? super K, T> address, StateContext<?> c) {
+    public <T extends State> T state(
+        StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
         // throw new UnsupportedOperationException("StateContext is not supported.");
         /**
          * TODO Same implementation as state() which is without StateContext. This might be updated after
@@ -72,10 +81,10 @@ public class JStormStateInternals<K> implements StateInternals<K> {
     }
 
     @Override
-    public <T extends State> T state(final StateNamespace namespace, StateTag<? super K, T> address) {
-        return address.getSpec().bind(address.getId(), new StateBinder<K>() {
+    public <T extends State> T state(final StateNamespace namespace, StateTag<T> address) {
+        return address.getSpec().bind(address.getId(), new StateBinder() {
             @Override
-            public <T> ValueState<T> bindValue(String id, StateSpec<? super K, ValueState<T>> spec, Coder<T> coder) {
+            public <T> ValueState<T> bindValue(String id, StateSpec<ValueState<T>> spec, Coder<T> coder) {
                 try {
                     return new JStormValueState<>(
                             getKey(), namespace, kvStoreManager.<ComposedKey, T>getOrCreate(id));
@@ -85,7 +94,7 @@ public class JStormStateInternals<K> implements StateInternals<K> {
             }
 
             @Override
-            public <T> BagState<T> bindBag(String id, StateSpec<? super K, BagState<T>> spec, Coder<T> elemCoder) {
+            public <T> BagState<T> bindBag(String id, StateSpec<BagState<T>> spec, Coder<T> elemCoder) {
                 try {
                     return new JStormBagState<>(
                             getKey(), namespace, kvStoreManager.<ComposedKey, List<T>>getOrCreate(id));
@@ -95,13 +104,16 @@ public class JStormStateInternals<K> implements StateInternals<K> {
             }
 
             @Override
-            public <T> SetState<T> bindSet(String id, StateSpec<? super K, SetState<T>> spec, Coder<T> elemCoder) {
+            public <T> SetState<T> bindSet(String id, StateSpec<SetState<T>> spec, Coder<T> elemCoder) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec, Coder<KeyT> mapKeyCoder,
-                    Coder<ValueT> mapValueCoder) {
+            public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(
+                String id,
+                StateSpec<MapState<KeyT, ValueT>> spec,
+                Coder<KeyT> mapKeyCoder,
+                Coder<ValueT> mapValueCoder) {
                 try {
                     return new JStormMapState<>(kvStoreManager.<KeyT, ValueT>getOrCreate(id));
                 } catch (IOException e) {
@@ -112,60 +124,51 @@ public class JStormStateInternals<K> implements StateInternals<K> {
             @Override
             public <InputT, AccumT, OutputT> CombiningState bindCombining(
                     String id,
-                    StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
+                    StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
                     Coder<AccumT> accumCoder,
                     Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
-                return bindKeyedCombining(id, spec, accumCoder, combineFn.<K>asKeyedFn());
-            }
-
-            @Override
-            public <InputT, AccumT, OutputT> CombiningState bindKeyedCombining(
-                    String id,
-                    StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-                    Coder<AccumT> accumCoder,
-                    Combine.KeyedCombineFn<? super K, InputT, AccumT, OutputT> keyedCombineFn) {
                 try {
                     BagState<AccumT> accumBagState = new JStormBagState<>(
-                            getKey(), namespace, kvStoreManager.<ComposedKey, List<AccumT>>getOrCreate(id));
-                    return new JStormKeyedCombiningState<>(key, accumBagState, keyedCombineFn);
+                        getKey(), namespace, kvStoreManager.<ComposedKey, List<AccumT>>getOrCreate(id));
+                    return new JStormCombiningState<>(accumBagState, combineFn);
                 } catch (IOException e) {
                     throw new RuntimeException();
                 }
             }
 
+
             @Override
-            public <InputT, AccumT, OutputT> CombiningState bindKeyedCombiningWithContext(
-                    String id,
-                    StateSpec<? super K, CombiningState<InputT, AccumT, OutputT>> spec,
-                    Coder<AccumT> accumCoder,
-                    CombineWithContext.KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn) {
+            public <InputT, AccumT, OutputT> CombiningState<InputT, AccumT, OutputT>
+            bindCombiningWithContext(
+                String id,
+                StateSpec<CombiningState<InputT, AccumT, OutputT>> stateSpec, Coder<AccumT> coder,
+                CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFnWithContext) {
                 throw new UnsupportedOperationException();
             }
 
             @Override
-            public <W extends BoundedWindow> WatermarkHoldState bindWatermark(
-                    String id,
-                    StateSpec<? super K, WatermarkHoldState<W>> spec,
-                    final OutputTimeFn<? super W> outputTimeFn) {
+            public WatermarkHoldState bindWatermark(
+                String id,
+                StateSpec<WatermarkHoldState> spec,
+                final TimestampCombiner timestampCombiner) {
                 try {
                     BagState<Combine.Holder<Instant>> accumBagState = new JStormBagState<>(
                             getKey(),
                             namespace,
-                            kvStoreManager.<ComposedKey,List<Combine.Holder<Instant>>>getOrCreate(id));
+                            kvStoreManager.<ComposedKey, List<Combine.Holder<Instant>>>getOrCreate(id));
 
                     Combine.CombineFn<Instant, Combine.Holder<Instant>, Instant> outputTimeCombineFn =
                             new BinaryCombineFn<Instant>() {
                                 @Override
                                 public Instant apply(Instant left, Instant right) {
-                                    return outputTimeFn.combine(left, right);
+                                  return timestampCombiner.combine(left, right);
                                 }};
-                    return new JStormWatermarkHoldState<>(
+                    return new JStormWatermarkHoldState(
                             namespace,
-                            new JStormKeyedCombiningState<>(
-                                    key,
+                            new JStormCombiningState<>(
                                     accumBagState,
-                                    outputTimeCombineFn.asKeyedFn()),
-                            outputTimeFn,
+                                    outputTimeCombineFn),
+                            timestampCombiner,
                             timerService);
                 } catch (IOException e) {
                     throw new RuntimeException();

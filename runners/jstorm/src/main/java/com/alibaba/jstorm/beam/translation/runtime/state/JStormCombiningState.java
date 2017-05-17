@@ -17,40 +17,35 @@
  */
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.ReadableState;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import javax.annotation.Nullable;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * JStorm implementation of {@link CombiningState}.
  */
-public class JStormKeyedCombiningState<K, InputT, AccumT, OutputT>
+public class JStormCombiningState<InputT, AccumT, OutputT>
         implements CombiningState<InputT, AccumT, OutputT> {
 
     @Nullable
-    private final K key;
     private final BagState<AccumT> accumBagState;
-    private final Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
-
-    JStormKeyedCombiningState(
-            @Nullable K key,
+    private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
+    JStormCombiningState(
             BagState<AccumT> accumBagState,
-            Combine.KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn) {
-        this.key = key;
+            Combine.CombineFn<InputT, AccumT, OutputT> combineFn) {
         this.accumBagState = checkNotNull(accumBagState, "accumBagState");
-        this.keyedCombineFn = checkNotNull(keyedCombineFn, "keyedCombineFn");
+        this.combineFn = checkNotNull(combineFn, "combineFn");
     }
 
     @Override
     public AccumT getAccum() {
         // TODO: replacing the accumBagState with the merged accum.
-        return keyedCombineFn.mergeAccumulators(key, accumBagState.read());
+        return combineFn.mergeAccumulators(accumBagState.read());
     }
 
     @Override
@@ -60,13 +55,13 @@ public class JStormKeyedCombiningState<K, InputT, AccumT, OutputT>
 
     @Override
     public AccumT mergeAccumulators(Iterable<AccumT> iterable) {
-        return keyedCombineFn.mergeAccumulators(key, iterable);
+        return combineFn.mergeAccumulators(iterable);
     }
 
     @Override
     public void add(InputT input) {
         accumBagState.add(
-                keyedCombineFn.addInput(key, keyedCombineFn.createAccumulator(key), input));
+                combineFn.addInput(combineFn.createAccumulator(), input));
     }
 
     @Override
@@ -76,9 +71,8 @@ public class JStormKeyedCombiningState<K, InputT, AccumT, OutputT>
 
     @Override
     public OutputT read() {
-        return keyedCombineFn.extractOutput(
-                key,
-                keyedCombineFn.mergeAccumulators(key, accumBagState.read()));
+        return combineFn.extractOutput(
+            combineFn.mergeAccumulators(accumBagState.read()));
     }
 
     @Override

@@ -22,7 +22,7 @@ import com.google.common.collect.Lists;
 import org.apache.beam.sdk.transforms.GroupByKey;
 
 import com.alibaba.jstorm.beam.translation.TranslationContext;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;

@@ -38,9 +38,9 @@ import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.NullSideInputReader;
+import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
@@ -76,8 +76,8 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
     private DoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getGroupByWindowDoFn() {
         final StateInternalsFactory<K> stateFactory = new StateInternalsFactory<K>() {
             @Override
-            public StateInternals<K> stateInternalsForKey(K key) {
-                return (StateInternals<K>) new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService());
+            public StateInternals stateInternalsForKey(K key) {
+                return new JStormStateInternals<K>(key, kvStoreManager, executorsBolt.timerService());
             }
         };
         TimerInternalsFactory<K> timerFactory = new TimerInternalsFactory<K>() {
@@ -107,14 +107,12 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
                 this.mainTupleTag,
                 this.sideOutputTags,
                 this.stepContext,
-                aggregatorFactory,
                 this.windowingStrategy);
 
         DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.lateDataDroppingRunner(
                 simpleRunner,
                 this.stepContext,
-                this.windowingStrategy,
-                ((GroupAlsoByWindowViaWindowSetNewDoFn) doFn).getDroppedDueToLatenessAggregator());
+                this.windowingStrategy);
         return doFnRunner;
     }
 
