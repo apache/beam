@@ -28,6 +28,7 @@ import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Sort;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.output.DataSinkOutputFormat;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
@@ -82,14 +83,14 @@ public class SparkFlowTranslator {
   private final Map<Class, Translation> translations = new IdentityHashMap<>();
   private final JavaSparkContext sparkEnv;
 
-  public SparkFlowTranslator(JavaSparkContext sparkEnv) {
+  public SparkFlowTranslator(JavaSparkContext sparkEnv, Settings flowSettings) {
     this.sparkEnv = Objects.requireNonNull(sparkEnv);
 
     // basic operators
     Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
     Translation.set(translations, FlatMap.class, new FlatMapTranslator());
     Translation.set(translations, Repartition.class, new RepartitionTranslator());
-    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
+    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(flowSettings));
     Translation.set(translations, Union.class, new UnionTranslator());
 
     // derived operators
@@ -104,8 +105,7 @@ public class SparkFlowTranslator {
     // transform flow to acyclic graph of supported operators
     DAG<Operator<?, ?>> dag = flowToDag(flow);
 
-    SparkExecutorContext executorContext =
-            new SparkExecutorContext(sparkEnv, dag);
+    SparkExecutorContext executorContext = new SparkExecutorContext(sparkEnv, dag);
 
     // translate each operator to proper Spark transformation
     dag.traverse().map(Node::get).forEach(op -> {
