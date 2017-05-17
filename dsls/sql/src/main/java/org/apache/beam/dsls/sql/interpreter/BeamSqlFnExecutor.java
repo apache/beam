@@ -35,6 +35,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlReinterpretExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
@@ -177,6 +178,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           return new BeamSqlOverlayExpression(subExps);
         case "INITCAP":
           return new BeamSqlInitCapExpression(subExps);
+
+        // date functions
+        case "REINTERPRET":
+          return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
 
         case "CASE":
           return new BeamSqlCaseExpression(subExps);
