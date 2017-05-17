@@ -1,0 +1,657 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.pipeline &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.pipeline</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Pipeline, the top-level Dataflow object.</span>
+
+<span class="sd">A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG</span>
+<span class="sd">are transforms (PTransform objects) and the edges are values (mostly PCollection</span>
+<span class="sd">objects). The transforms take as inputs one or more PValues and output one or</span>
+<span class="sd">more PValues.</span>
+
+<span class="sd">The pipeline offers functionality to traverse the graph.  The actual operation</span>
+<span class="sd">to be executed for each node visited is specified through a runner object.</span>
+
+<span class="sd">Typical usage:</span>
+
+<span class="sd">  # Create a pipeline object using a local runner for execution.</span>
+<span class="sd">  p = beam.Pipeline(&#39;DirectRunner&#39;)</span>
+
+<span class="sd">  # Add to the pipeline a &quot;Create&quot; transform. When executed this</span>
+<span class="sd">  # transform will produce a PCollection object with the specified values.</span>
+<span class="sd">  pcoll = p | &#39;Create&#39; &gt;&gt; beam.Create([1, 2, 3])</span>
+
+<span class="sd">  # Another transform could be applied to pcoll, e.g., writing to a text file.</span>
+<span class="sd">  # For other transforms, refer to transforms/ directory.</span>
+<span class="sd">  pcoll | &#39;Write&#39; &gt;&gt; beam.io.WriteToText(&#39;./output&#39;)</span>
+
+<span class="sd">  # run() will execute the DAG stored in the pipeline.  The execution of the</span>
+<span class="sd">  # nodes visited is done using the specified local runner.</span>
+<span class="sd">  p.run()</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">pickler</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">create_runner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">PipelineRunner</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">ptransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">typehints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">TypeCheckError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">SetupOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">StandardOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">TypeOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options_validator</span> <span class="k">import</span> <span class="n">PipelineOptionsValidator</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.annotations</span> <span class="k">import</span> <span class="n">deprecated</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Pipeline&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="Pipeline"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline">[docs]</a><span class="k">class</span> <span class="nc">Pipeline</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A pipeline object that manages a DAG of PValues and their PTransforms.</span>
+
+<span class="sd">  Conceptually the PValues are the DAG&#39;s nodes and the PTransforms computing</span>
+<span class="sd">  the PValues are the edges.</span>
+
+<span class="sd">  All the transforms applied to the pipeline must have distinct full labels.</span>
+<span class="sd">  If same transform instance needs to be applied then the right shift operator</span>
+<span class="sd">  should be used to designate new names (e.g. `input | &quot;label&quot; &gt;&gt; my_tranform`).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a pipeline object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      runner: An object of type &#39;PipelineRunner&#39; that will be used to execute</span>
+<span class="sd">        the pipeline. For registered runners, the runner name can be specified,</span>
+<span class="sd">        otherwise a runner object must be supplied.</span>
+<span class="sd">      options: A configured &#39;PipelineOptions&#39; object containing arguments</span>
+<span class="sd">        that should be used for running the Dataflow job.</span>
+<span class="sd">      argv: a list of arguments (such as sys.argv) to be used for building a</span>
+<span class="sd">        &#39;PipelineOptions&#39; object. This will only be used if argument &#39;options&#39;</span>
+<span class="sd">        is None.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError: if either the runner or options argument is not of the</span>
+<span class="sd">      expected type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="n">PipelineOptions</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">options</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;Parameter options, if specified, must be of type PipelineOptions. &#39;</span>
+            <span class="s1">&#39;Received : </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">options</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">argv</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">argv</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s1">&#39;Parameter argv, if specified, must be a list. Received : </span><span class="si">%r</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">argv</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([])</span>
+
+    <span class="k">if</span> <span class="n">runner</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">runner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">StandardOptions</span><span class="p">)</span><span class="o">.</span><span class="n">runner</span>
+      <span class="k">if</span> <span class="n">runner</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">runner</span> <span class="o">=</span> <span class="n">StandardOptions</span><span class="o">.</span><span class="n">DEFAULT_RUNNER</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">((</span><span class="s1">&#39;Missing pipeline option (runner). Executing pipeline &#39;</span>
+                      <span class="s1">&#39;using the default runner: </span><span class="si">%s</span><span class="s1">.&#39;</span><span class="p">),</span> <span class="n">runner</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="n">runner</span> <span class="o">=</span> <span class="n">create_runner</span><span class="p">(</span><span class="n">runner</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="n">PipelineRunner</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Runner must be a PipelineRunner object or the &#39;</span>
+                      <span class="s1">&#39;name of a registered runner.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Validate pipeline options</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="n">PipelineOptionsValidator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="p">,</span> <span class="n">runner</span><span class="p">)</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">errors</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Pipeline has validations errors: </span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">errors</span><span class="p">))</span>
+
+    <span class="c1"># Default runner to be used.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">runner</span> <span class="o">=</span> <span class="n">runner</span>
+    <span class="c1"># Stack of transforms generated by nested apply() calls. The stack will</span>
+    <span class="c1"># contain a root node as an enclosing (parent) node for top transforms.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">transforms_stack</span> <span class="o">=</span> <span class="p">[</span><span class="n">AppliedPTransform</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span>
+    <span class="c1"># Set of transform labels (full labels) applied to the pipeline.</span>
+    <span class="c1"># If a transform is applied and the full label is already in the set</span>
+    <span class="c1"># then the transform will have to be cloned with a new label.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">applied_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+  <span class="nd">@property</span>
+  <span class="nd">@deprecated</span><span class="p">(</span><span class="n">since</span><span class="o">=</span><span class="s1">&#39;First stable release&#39;</span><span class="p">,</span>
+              <span class="n">extra_message</span><span class="o">=</span><span class="s1">&#39;References to &lt;pipeline&gt;.options&#39;</span>
+              <span class="s1">&#39; will not be supported&#39;</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">options</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span>
+
+  <span class="k">def</span> <span class="nf">_current_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the transform currently on the top of the stack.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms_stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">_root_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the root transform of the transform stack.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms_stack</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Pipeline.run"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_runner_api</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Runs the pipeline. Returns whatever our runner returns after running.&quot;&quot;&quot;</span>
+
+    <span class="c1"># When possible, invoke a round trip through the runner API.</span>
+    <span class="k">if</span> <span class="n">test_runner_api</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_verify_runner_api_compatible</span><span class="p">():</span>
+      <span class="k">return</span> <span class="n">Pipeline</span><span class="o">.</span><span class="n">from_runner_api</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span><span class="p">:</span>
+      <span class="c1"># If this option is chosen, verify we can pickle the main session early.</span>
+      <span class="n">tmpdir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">()</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">pickler</span><span class="o">.</span><span class="n">dump_session</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">,</span> <span class="s1">&#39;main_session.pickle&#39;</span><span class="p">))</span>
+      <span class="k">finally</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_val</span><span class="p">,</span> <span class="n">exc_tb</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">exc_type</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Pipeline.visit"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline.visit">[docs]</a>  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visitor</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Visits depth-first every node of a pipeline&#39;s DAG.</span>
+
+<span class="sd">    Runner-internal implementation detail; no backwards-compatibility guarantees</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      visitor: PipelineVisitor object whose callbacks will be called for each</span>
+<span class="sd">        node visited. See PipelineVisitor comments.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: if node is specified and is not a PValue.</span>
+<span class="sd">      pipeline.PipelineError: if node is specified and does not belong to this</span>
+<span class="sd">        pipeline instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">visited</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_root_transform</span><span class="p">()</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">visited</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Pipeline.apply"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline.apply">[docs]</a>  <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies a custom transform using the pvalueish specified.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      transform: the PTranform to apply.</span>
+<span class="sd">      pvalueish: the input for the PTransform (typically a PCollection).</span>
+<span class="sd">      label: label of the PTransform.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: if the transform object extracted from the argument list is</span>
+<span class="sd">        not a PTransform.</span>
+<span class="sd">      RuntimeError: if the transform object was already applied to this pipeline</span>
+<span class="sd">        and needs to be cloned in order to apply again.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">_NamedPTransform</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">,</span>
+                        <span class="n">label</span> <span class="ow">or</span> <span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a PTransform object, got </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">transform</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">label</span><span class="p">:</span>
+      <span class="c1"># Fix self.label as it is inspected by some PTransform operations</span>
+      <span class="c1"># (e.g. to produce error messages for type hint violations).</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">old_label</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">label</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">)</span>
+      <span class="k">finally</span><span class="p">:</span>
+        <span class="n">transform</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">old_label</span>
+
+    <span class="n">full_label</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_current_transform</span><span class="p">()</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span>
+                           <span class="n">label</span> <span class="ow">or</span> <span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">])</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">full_label</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">applied_labels</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="s1">&#39;Transform &quot;</span><span class="si">%s</span><span class="s1">&quot; does not have a stable unique label. &#39;</span>
+          <span class="s1">&#39;This will prevent updating of pipelines. &#39;</span>
+          <span class="s1">&#39;To apply a transform with a specified label write &#39;</span>
+          <span class="s1">&#39;pvalue | &quot;label&quot; &gt;&gt; transform&#39;</span>
+          <span class="o">%</span> <span class="n">full_label</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">applied_labels</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">full_label</span><span class="p">)</span>
+
+    <span class="n">pvalueish</span><span class="p">,</span> <span class="n">inputs</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">_extract_input_pvalues</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">inputs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">leaf_input</span> <span class="ow">in</span> <span class="n">inputs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">leaf_input</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">TypeError</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+          <span class="s1">&#39;Unable to extract PValue inputs from </span><span class="si">%s</span><span class="s1">; either </span><span class="si">%s</span><span class="s1"> does not accept &#39;</span>
+          <span class="s1">&#39;inputs of this format, or it does not properly override &#39;</span>
+          <span class="s1">&#39;_extract_input_pvalues&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">pvalueish</span><span class="p">,</span> <span class="n">transform</span><span class="p">))</span>
+
+    <span class="n">current</span> <span class="o">=</span> <span class="n">AppliedPTransform</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_current_transform</span><span class="p">(),</span> <span class="n">transform</span><span class="p">,</span> <span class="n">full_label</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_current_transform</span><span class="p">()</span><span class="o">.</span><span class="n">add_part</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">transforms_stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+
+    <span class="n">type_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">TypeOptions</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">type_options</span><span class="o">.</span><span class="n">pipeline_type_check</span><span class="p">:</span>
+      <span class="n">transform</span><span class="o">.</span><span class="n">type_check_inputs</span><span class="p">(</span><span class="n">pvalueish</span><span class="p">)</span>
+
+    <span class="n">pvalueish_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">runner</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">pvalueish</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">type_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">type_options</span><span class="o">.</span><span class="n">pipeline_type_check</span><span class="p">:</span>
+      <span class="n">transform</span><span class="o">.</span><span class="n">type_check_outputs</span><span class="p">(</span><span class="n">pvalueish_result</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">ptransform</span><span class="o">.</span><span class="n">GetPValues</span><span class="p">()</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">pvalueish_result</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="p">(</span><span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">))</span>
+
+      <span class="c1"># Make sure we set the producer only for a leaf node in the transform DAG.</span>
+      <span class="c1"># This way we preserve the last transform of a composite transform as</span>
+      <span class="c1"># being the real producer of the result.</span>
+      <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">producer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="n">current</span>
+      <span class="c1"># TODO(robertwb): Multi-input, multi-output inference.</span>
+      <span class="c1"># TODO(robertwb): Ideally we&#39;d do intersection here.</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">type_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">type_options</span><span class="o">.</span><span class="n">pipeline_type_check</span>
+          <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span>
+          <span class="ow">and</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">element_type</span><span class="p">):</span>
+        <span class="n">input_element_type</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">element_type</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+            <span class="k">else</span> <span class="n">typehints</span><span class="o">.</span><span class="n">Any</span><span class="p">)</span>
+        <span class="n">type_hints</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">()</span>
+        <span class="n">declared_output_type</span> <span class="o">=</span> <span class="n">type_hints</span><span class="o">.</span><span class="n">simple_output_type</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">label</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">declared_output_type</span><span class="p">:</span>
+          <span class="n">input_types</span> <span class="o">=</span> <span class="n">type_hints</span><span class="o">.</span><span class="n">input_types</span>
+          <span class="k">if</span> <span class="n">input_types</span> <span class="ow">and</span> <span class="n">input_types</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">declared_input_type</span> <span class="o">=</span> <span class="n">input_types</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">typehints</span><span class="o">.</span><span class="n">bind_type_variables</span><span class="p">(</span>
+                <span class="n">declared_output_type</span><span class="p">,</span>
+                <span class="n">typehints</span><span class="o">.</span><span class="n">match_type_variables</span><span class="p">(</span><span class="n">declared_input_type</span><span class="p">,</span>
+                                               <span class="n">input_element_type</span><span class="p">))</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">declared_output_type</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">result</span><span class="o">.</span><span class="n">element_type</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">infer_output_type</span><span class="p">(</span><span class="n">input_element_type</span><span class="p">)</span>
+
+      <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
+      <span class="n">current</span><span class="o">.</span><span class="n">add_output</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">type_options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="n">type_options</span><span class="o">.</span><span class="n">type_check_strictness</span> <span class="o">==</span> <span class="s1">&#39;ALL_REQUIRED&#39;</span> <span class="ow">and</span>
+        <span class="n">transform</span><span class="o">.</span><span class="n">get_type_hints</span><span class="p">()</span><span class="o">.</span><span class="n">output_types</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="n">ptransform_name</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">full_label</span><span class="p">)</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Pipeline type checking is enabled, however no &#39;</span>
+                           <span class="s1">&#39;output type-hint was found for the &#39;</span>
+                           <span class="s1">&#39;PTransform </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">ptransform_name</span><span class="p">)</span>
+
+    <span class="n">current</span><span class="o">.</span><span class="n">update_input_refcounts</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">transforms_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">pvalueish_result</span></div>
+
+  <span class="k">def</span> <span class="nf">_verify_runner_api_compatible</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">Visitor</span><span class="p">(</span><span class="n">PipelineVisitor</span><span class="p">):</span>  <span class="c1"># pylint: disable=used-before-assignment</span>
+      <span class="n">ok</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Really a nonlocal.</span>
+
+      <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">transform_node</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">:</span>
+          <span class="c1"># No side inputs (yet).</span>
+          <span class="n">Visitor</span><span class="o">.</span><span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="c1"># Transforms must be picklable.</span>
+          <span class="n">pickler</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">pickler</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">transform_node</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span>
+                                      <span class="n">enable_trace</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+                        <span class="n">enable_trace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+          <span class="n">Visitor</span><span class="o">.</span><span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span>
+
+      <span class="k">def</span> <span class="nf">visit_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">_</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PDone</span><span class="p">):</span>
+          <span class="n">Visitor</span><span class="o">.</span><span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">Visitor</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">Visitor</span><span class="o">.</span><span class="n">ok</span>
+
+<div class="viewcode-block" id="Pipeline.to_runner_api"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline.to_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">to_runner_api</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">pipeline_context</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+    <span class="n">context</span> <span class="o">=</span> <span class="n">pipeline_context</span><span class="o">.</span><span class="n">PipelineContext</span><span class="p">()</span>
+    <span class="c1"># Mutates context; placing inline would force dependence on</span>
+    <span class="c1"># argument evaluation order.</span>
+    <span class="n">root_transform_id</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_root_transform</span><span class="p">())</span>
+    <span class="n">proto</span> <span class="o">=</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span>
+        <span class="n">root_transform_ids</span><span class="o">=</span><span class="p">[</span><span class="n">root_transform_id</span><span class="p">],</span>
+        <span class="n">components</span><span class="o">=</span><span class="n">context</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">proto</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="Pipeline.from_runner_api"><a class="viewcode-back" href="../../apache_beam.html#apache_beam.pipeline.Pipeline.from_runner_api">[docs]</a>  <span class="k">def</span> <span class="nf">from_runner_api</span><span class="p">(</span><span class="n">proto</span><span class="p">,</span> <span class="n">runner</span><span class="p">,</span> <span class="n">options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="p">(</span><span class="n">runner</span><span class="o">=</span><span class="n">runner</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners</span> <span class="k">import</span> <span class="n">pipeline_context</span>
+    <span class="n">context</span> <span class="o">=</span> <span class="n">pipeline_context</span><span class="o">.</span><span class="n">PipelineContext</span><span class="p">(</span><span class="n">proto</span><span class="o">.</span><span class="n">components</span><span class="p">)</span>
+    <span class="n">root_transform_id</span><span class="p">,</span> <span class="o">=</span> <span class="n">proto</span><span class="o">.</span><span class="n">root_transform_ids</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">transforms_stack</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="n">root_transform_id</span><span class="p">)]</span>
+    <span class="c1"># TODO(robertwb): These are only needed to continue construction. Omit?</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">applied_labels</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">unique_name</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+    <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">proto</span><span class="o">.</span><span class="n">components</span><span class="o">.</span><span class="n">pcollections</span><span class="p">:</span>
+      <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">p</span>
+    <span class="k">return</span> <span class="n">p</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">PipelineVisitor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Visitor pattern class used to traverse a DAG of transforms</span>
+<span class="sd">  (used internally by Pipeline for bookeeping purposes).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">visit_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">producer_node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Callback for visiting a PValue in the pipeline DAG.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      value: PValue visited (typically a PCollection instance).</span>
+<span class="sd">      producer_node: AppliedPTransform object whose transform produced the</span>
+<span class="sd">        pvalue.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Callback for visiting a transform node in the pipeline DAG.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">enter_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Callback for entering traversal of a composite transform node.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">leave_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_node</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Callback for leaving traversal of a composite transform node.&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">AppliedPTransform</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A transform node representing an instance of applying a PTransform</span>
+<span class="sd">  (used internally by Pipeline for bookeeping purposes).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">full_label</span><span class="p">,</span> <span class="n">inputs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">parent</span> <span class="o">=</span> <span class="n">parent</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">transform</span> <span class="o">=</span> <span class="n">transform</span>
+    <span class="c1"># Note that we want the PipelineVisitor classes to use the full_label,</span>
+    <span class="c1"># inputs, side_inputs, and outputs fields from this instance instead of the</span>
+    <span class="c1"># ones of the PTransform instance associated with it. Doing this permits</span>
+    <span class="c1"># reusing PTransform instances in different contexts (apply() calls) without</span>
+    <span class="c1"># any interference. This is particularly useful for composite transforms.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_label</span> <span class="o">=</span> <span class="n">full_label</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span> <span class="ow">or</span> <span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span> <span class="o">=</span> <span class="p">()</span> <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">transform</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># Per tag refcount dictionary for PValues for which this node is a</span>
+    <span class="c1"># root producer.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">refcounts</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">(</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span>
+                           <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">update_input_refcounts</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Increment refcounts for all transforms providing inputs.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">real_producer</span><span class="p">(</span><span class="n">pv</span><span class="p">):</span>
+      <span class="n">real</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">producer</span>
+      <span class="k">while</span> <span class="n">real</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+        <span class="n">real</span> <span class="o">=</span> <span class="n">real</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+      <span class="k">return</span> <span class="n">real</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_composite</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">main_input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">main_input</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PBegin</span><span class="p">):</span>
+          <span class="n">real_producer</span><span class="p">(</span><span class="n">main_input</span><span class="p">)</span><span class="o">.</span><span class="n">refcounts</span><span class="p">[</span><span class="n">main_input</span><span class="o">.</span><span class="n">tag</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">for</span> <span class="n">side_input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">:</span>
+        <span class="n">real_producer</span><span class="p">(</span><span class="n">side_input</span><span class="o">.</span><span class="n">pvalue</span><span class="p">)</span><span class="o">.</span><span class="n">refcounts</span><span class="p">[</span><span class="n">side_input</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">tag</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+  <span class="k">def</span> <span class="nf">add_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">add_output</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="n">output</span><span class="o">.</span><span class="n">_main_tag</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PValue</span><span class="p">):</span>
+      <span class="c1"># TODO(BEAM-1833): Require tags when calling this method.</span>
+      <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">:</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
+      <span class="k">assert</span> <span class="n">tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Unexpected output type: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">output</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">add_part</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">part</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">part</span><span class="p">,</span> <span class="n">AppliedPTransform</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">is_composite</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns whether this is a composite transform.</span>
+
+<span class="sd">    A composite transform has parts (inner transforms) or isn&#39;t the</span>
+<span class="sd">    producer for any of its outputs. (An example of a transform that</span>
+<span class="sd">    is not a producer is one that returns its inputs instead.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parts</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">all</span><span class="p">(</span>
+        <span class="n">pval</span><span class="o">.</span><span class="n">producer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span> <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+  <span class="k">def</span> <span class="nf">visit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">visitor</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">visited</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Visits all nodes reachable from the current node.&quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">pval</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pval</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PBegin</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">pval</span><span class="o">.</span><span class="n">producer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">pval</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">visited</span><span class="p">)</span>
+        <span class="c1"># The value should be visited now since we visit outputs too.</span>
+        <span class="k">assert</span> <span class="n">pval</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">,</span> <span class="n">pval</span>
+
+    <span class="c1"># Visit side inputs.</span>
+    <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pval</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">AsSideInput</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pval</span><span class="o">.</span><span class="n">pvalue</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+        <span class="n">pval</span> <span class="o">=</span> <span class="n">pval</span><span class="o">.</span><span class="n">pvalue</span>  <span class="c1"># Unpack marker-object-wrapped pvalue.</span>
+        <span class="k">assert</span> <span class="n">pval</span><span class="o">.</span><span class="n">producer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="n">pval</span><span class="o">.</span><span class="n">producer</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">visited</span><span class="p">)</span>
+        <span class="c1"># The value should be visited now since we visit outputs too.</span>
+        <span class="k">assert</span> <span class="n">pval</span> <span class="ow">in</span> <span class="n">visited</span>
+        <span class="c1"># TODO(silviuc): Is there a way to signal that we are visiting a side</span>
+        <span class="c1"># value? The issue is that the same PValue can be reachable through</span>
+        <span class="c1"># multiple paths and therefore it is not guaranteed that the value</span>
+        <span class="c1"># will be visited as a side value.</span>
+
+    <span class="c1"># Visit a composite or primitive transform.</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_composite</span><span class="p">():</span>
+      <span class="n">visitor</span><span class="o">.</span><span class="n">enter_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+        <span class="n">part</span><span class="o">.</span><span class="n">visit</span><span class="p">(</span><span class="n">visitor</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="n">visited</span><span class="p">)</span>
+      <span class="n">visitor</span><span class="o">.</span><span class="n">leave_composite_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">visitor</span><span class="o">.</span><span class="n">visit_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="c1"># Visit the outputs (one or more). It is essential to mark as visited the</span>
+    <span class="c1"># tagged PCollections of the DoOutputsTuple object. A tagged PCollection is</span>
+    <span class="c1"># connected directly with its producer (a multi-output ParDo), but the</span>
+    <span class="c1"># output of such a transform is the containing DoOutputsTuple, not the</span>
+    <span class="c1"># PCollection inside it. Without the code below a tagged PCollection will</span>
+    <span class="c1"># not be marked as visited while visiting its producer.</span>
+    <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pval</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+        <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pval</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">pval</span><span class="p">,)</span>
+      <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pvals</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">v</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+          <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+          <span class="n">visitor</span><span class="o">.</span><span class="n">visit_value</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">named_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># TODO(BEAM-1833): Push names up into the sdk construction.</span>
+    <span class="k">return</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">ix</span><span class="p">):</span> <span class="nb">input</span> <span class="k">for</span> <span class="n">ix</span><span class="p">,</span> <span class="nb">input</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">input</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)}</span>
+
+  <span class="k">def</span> <span class="nf">named_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">tag</span><span class="p">):</span> <span class="n">output</span> <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">output</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)}</span>
+
+  <span class="k">def</span> <span class="nf">to_runner_api</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">apache_beam.runners.api</span> <span class="k">import</span> <span class="n">beam_runner_api_pb2</span>
+
+    <span class="k">def</span> <span class="nf">transform_to_runner_api</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">transform</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">transform</span><span class="o">.</span><span class="n">to_runner_api</span><span class="p">(</span><span class="n">context</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">beam_runner_api_pb2</span><span class="o">.</span><span class="n">PTransform</span><span class="p">(</span>
+        <span class="n">unique_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span>
+        <span class="n">spec</span><span class="o">=</span><span class="n">transform_to_runner_api</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">,</span> <span class="n">context</span><span class="p">),</span>
+        <span class="n">subtransforms</span><span class="o">=</span><span class="p">[</span><span class="n">context</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span><span class="n">part</span><span class="p">)</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parts</span><span class="p">],</span>
+        <span class="c1"># TODO(BEAM-115): Side inputs.</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="n">tag</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span><span class="n">pc</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">pc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_inputs</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+        <span class="n">outputs</span><span class="o">=</span><span class="p">{</span><span class="nb">str</span><span class="p">(</span><span class="n">tag</span><span class="p">):</span> <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_id</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">out</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">named_outputs</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+        <span class="c1"># TODO(BEAM-115): display_data</span>
+        <span class="n">display_data</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">from_runner_api</span><span class="p">(</span><span class="n">proto</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">AppliedPTransform</span><span class="p">(</span>
+        <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">transform</span><span class="o">=</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="o">.</span><span class="n">from_runner_api</span><span class="p">(</span><span class="n">proto</span><span class="o">.</span><span class="n">spec</span><span class="p">,</span> <span class="n">context</span><span class="p">),</span>
+        <span class="n">full_label</span><span class="o">=</span><span class="n">proto</span><span class="o">.</span><span class="n">unique_name</span><span class="p">,</span>
+        <span class="n">inputs</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">proto</span><span class="o">.</span><span class="n">inputs</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">parts</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span> <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">proto</span><span class="o">.</span><span class="n">subtransforms</span><span class="p">]</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="kc">None</span> <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s1">&#39;None&#39;</span> <span class="k">else</span> <span class="n">tag</span><span class="p">:</span> <span class="n">context</span><span class="o">.</span><span class="n">pcollections</span><span class="o">.</span><span class="n">get_by_id</span><span class="p">(</span><span class="nb">id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">proto</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">pc</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">pc</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+          <span class="n">pc</span><span class="o">.</span><span class="n">producer</span> <span class="o">=</span> <span class="n">result</span>
+          <span class="n">pc</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">update_input_refcounts</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">result</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

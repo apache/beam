@@ -1,0 +1,399 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.cy_combiners &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.cy_combiners</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A library of basic cythonized CombineFn subclasses.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">core</span>
+
+
+<div class="viewcode-block" id="AccumulatorCombineFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AccumulatorCombineFn">[docs]</a><span class="k">class</span> <span class="nc">AccumulatorCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="c1"># singleton?</span>
+<div class="viewcode-block" id="AccumulatorCombineFn.create_accumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AccumulatorCombineFn.create_accumulator">[docs]</a>  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator_type</span><span class="p">()</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="AccumulatorCombineFn.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AccumulatorCombineFn.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">accumulator</span></div>
+
+<div class="viewcode-block" id="AccumulatorCombineFn.merge_accumulators"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AccumulatorCombineFn.merge_accumulators">[docs]</a>  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="n">accumulator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator_type</span><span class="p">()</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">accumulators</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">accumulator</span></div>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="AccumulatorCombineFn.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AccumulatorCombineFn.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="n">accumulator</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">extract_output</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">AccumulatorCombineFn</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_accumulator_type</span> <span class="ow">is</span> <span class="n">other</span><span class="o">.</span><span class="n">_accumulator_type</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_accumulator_type</span><span class="p">)</span></div>
+
+
+<span class="n">_63</span> <span class="o">=</span> <span class="mi">63</span>  <span class="c1"># Avoid large literals in C source code.</span>
+<span class="nb">globals</span><span class="p">()[</span><span class="s1">&#39;INT64_MAX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span><span class="o">**</span><span class="n">_63</span> <span class="o">-</span> <span class="mi">1</span>
+<span class="nb">globals</span><span class="p">()[</span><span class="s1">&#39;INT64_MIN&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="o">**</span><span class="n">_63</span>
+
+
+<div class="viewcode-block" id="CountAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.CountAccumulator">[docs]</a><span class="k">class</span> <span class="nc">CountAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="CountAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.CountAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">unused_element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="CountAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.CountAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="CountAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.CountAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="SumInt64Accumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumInt64Accumulator">[docs]</a><span class="k">class</span> <span class="nc">SumInt64Accumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="SumInt64Accumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumInt64Accumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="n">element</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="SumInt64Accumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumInt64Accumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="SumInt64Accumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumInt64Accumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">%=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">64</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">-=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">64</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MinInt64Accumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinInt64Accumulator">[docs]</a><span class="k">class</span> <span class="nc">MinInt64Accumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">INT64_MAX</span>
+
+<div class="viewcode-block" id="MinInt64Accumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinInt64Accumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="n">element</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="MinInt64Accumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinInt64Accumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="MinInt64Accumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinInt64Accumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MaxInt64Accumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxInt64Accumulator">[docs]</a><span class="k">class</span> <span class="nc">MaxInt64Accumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">INT64_MIN</span>
+
+<div class="viewcode-block" id="MaxInt64Accumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxInt64Accumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="n">element</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="MaxInt64Accumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxInt64Accumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="MaxInt64Accumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxInt64Accumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MeanInt64Accumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanInt64Accumulator">[docs]</a><span class="k">class</span> <span class="nc">MeanInt64Accumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="MeanInt64Accumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanInt64Accumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="n">element</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">+=</span> <span class="n">element</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="MeanInt64Accumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanInt64Accumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span></div>
+
+<div class="viewcode-block" id="MeanInt64Accumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanInt64Accumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">INT64_MIN</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">&lt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">%=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">64</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">&gt;=</span> <span class="n">INT64_MAX</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">-=</span> <span class="mi">2</span><span class="o">**</span><span class="mi">64</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="k">else</span> <span class="n">_NAN</span></div></div>
+
+
+<div class="viewcode-block" id="CountCombineFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.CountCombineFn">[docs]</a><span class="k">class</span> <span class="nc">CountCombineFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">CountAccumulator</span></div>
+
+
+<div class="viewcode-block" id="SumInt64Fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumInt64Fn">[docs]</a><span class="k">class</span> <span class="nc">SumInt64Fn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">SumInt64Accumulator</span></div>
+
+
+<div class="viewcode-block" id="MinInt64Fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinInt64Fn">[docs]</a><span class="k">class</span> <span class="nc">MinInt64Fn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MinInt64Accumulator</span></div>
+
+
+<div class="viewcode-block" id="MaxInt64Fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxInt64Fn">[docs]</a><span class="k">class</span> <span class="nc">MaxInt64Fn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MaxInt64Accumulator</span></div>
+
+
+<div class="viewcode-block" id="MeanInt64Fn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanInt64Fn">[docs]</a><span class="k">class</span> <span class="nc">MeanInt64Fn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MeanInt64Accumulator</span></div>
+
+
+<span class="n">_POS_INF</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+<span class="n">_NEG_INF</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-inf&#39;</span><span class="p">)</span>
+<span class="n">_NAN</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;nan&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="SumDoubleAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumDoubleAccumulator">[docs]</a><span class="k">class</span> <span class="nc">SumDoubleAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="SumDoubleAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumDoubleAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="SumDoubleAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumDoubleAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="SumDoubleAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumDoubleAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MinDoubleAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinDoubleAccumulator">[docs]</a><span class="k">class</span> <span class="nc">MinDoubleAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">_POS_INF</span>
+
+<div class="viewcode-block" id="MinDoubleAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinDoubleAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="MinDoubleAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinDoubleAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="MinDoubleAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinDoubleAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MaxDoubleAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxDoubleAccumulator">[docs]</a><span class="k">class</span> <span class="nc">MaxDoubleAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">_NEG_INF</span>
+
+<div class="viewcode-block" id="MaxDoubleAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxDoubleAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="MaxDoubleAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxDoubleAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="MaxDoubleAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxDoubleAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="MeanDoubleAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanDoubleAccumulator">[docs]</a><span class="k">class</span> <span class="nc">MeanDoubleAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="MeanDoubleAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanDoubleAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">+=</span> <span class="n">element</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="MeanDoubleAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanDoubleAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">sum</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">+=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">count</span></div>
+
+<div class="viewcode-block" id="MeanDoubleAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanDoubleAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">sum</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="k">else</span> <span class="n">_NAN</span></div></div>
+
+
+<div class="viewcode-block" id="SumFloatFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.SumFloatFn">[docs]</a><span class="k">class</span> <span class="nc">SumFloatFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">SumDoubleAccumulator</span></div>
+
+
+<div class="viewcode-block" id="MinFloatFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MinFloatFn">[docs]</a><span class="k">class</span> <span class="nc">MinFloatFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MinDoubleAccumulator</span></div>
+
+
+<div class="viewcode-block" id="MaxFloatFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MaxFloatFn">[docs]</a><span class="k">class</span> <span class="nc">MaxFloatFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MaxDoubleAccumulator</span></div>
+
+
+<div class="viewcode-block" id="MeanFloatFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.MeanFloatFn">[docs]</a><span class="k">class</span> <span class="nc">MeanFloatFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">MeanDoubleAccumulator</span></div>
+
+
+<div class="viewcode-block" id="AllAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AllAccumulator">[docs]</a><span class="k">class</span> <span class="nc">AllAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="kc">True</span>
+
+<div class="viewcode-block" id="AllAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AllAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&amp;=</span> <span class="ow">not</span> <span class="ow">not</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="AllAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AllAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">&amp;=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="AllAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AllAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="AnyAccumulator"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AnyAccumulator">[docs]</a><span class="k">class</span> <span class="nc">AnyAccumulator</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="AnyAccumulator.add_input"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AnyAccumulator.add_input">[docs]</a>  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">|=</span> <span class="ow">not</span> <span class="ow">not</span> <span class="n">element</span></div>
+
+<div class="viewcode-block" id="AnyAccumulator.merge"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AnyAccumulator.merge">[docs]</a>  <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">|=</span> <span class="n">accumulator</span><span class="o">.</span><span class="n">value</span></div>
+
+<div class="viewcode-block" id="AnyAccumulator.extract_output"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AnyAccumulator.extract_output">[docs]</a>  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span></div></div>
+
+
+<div class="viewcode-block" id="AnyCombineFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AnyCombineFn">[docs]</a><span class="k">class</span> <span class="nc">AnyCombineFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">AnyAccumulator</span></div>
+
+
+<div class="viewcode-block" id="AllCombineFn"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.cy_combiners.AllCombineFn">[docs]</a><span class="k">class</span> <span class="nc">AllCombineFn</span><span class="p">(</span><span class="n">AccumulatorCombineFn</span><span class="p">):</span>
+  <span class="n">_accumulator_type</span> <span class="o">=</span> <span class="n">AllAccumulator</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

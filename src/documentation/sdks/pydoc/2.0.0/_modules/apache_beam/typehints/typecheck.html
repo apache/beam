@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.typecheck &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.typecheck</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Runtime type checking support.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">types</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">TaggedOutput</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">DoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">_check_instance_type</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">getcallargs_forhints</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">GeneratorWrapper</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.decorators</span> <span class="k">import</span> <span class="n">TypeCheckError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">check_constraint</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">CompositeTypeHintError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints.typehints</span> <span class="k">import</span> <span class="n">SimpleTypeHintError</span>
+
+
+<div class="viewcode-block" id="AbstractDoFnWrapper"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper">[docs]</a><span class="k">class</span> <span class="nc">AbstractDoFnWrapper</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An abstract class to create wrapper around DoFn&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dofn</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">AbstractDoFnWrapper</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span> <span class="o">=</span> <span class="n">dofn</span>
+
+  <span class="k">def</span> <span class="nf">_inspect_start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">get_function_arguments</span><span class="p">(</span><span class="s1">&#39;start_bundle&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_inspect_process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">get_function_arguments</span><span class="p">(</span><span class="s1">&#39;process&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_inspect_finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">get_function_arguments</span><span class="p">(</span><span class="s1">&#39;finish_bundle&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AbstractDoFnWrapper.wrapper"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper.wrapper">[docs]</a>  <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">method</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AbstractDoFnWrapper.start_bundle"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper.start_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">start_bundle</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AbstractDoFnWrapper.process"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">process</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AbstractDoFnWrapper.finish_bundle"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper.finish_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">finish_bundle</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AbstractDoFnWrapper.is_process_bounded"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.AbstractDoFnWrapper.is_process_bounded">[docs]</a>  <span class="k">def</span> <span class="nf">is_process_bounded</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">is_process_bounded</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="OutputCheckWrapperDoFn"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.OutputCheckWrapperDoFn">[docs]</a><span class="k">class</span> <span class="nc">OutputCheckWrapperDoFn</span><span class="p">(</span><span class="n">AbstractDoFnWrapper</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A DoFn that verifies against common errors in the output type.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dofn</span><span class="p">,</span> <span class="n">full_label</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">OutputCheckWrapperDoFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dofn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_label</span> <span class="o">=</span> <span class="n">full_label</span>
+
+<div class="viewcode-block" id="OutputCheckWrapperDoFn.wrapper"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.OutputCheckWrapperDoFn.wrapper">[docs]</a>  <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">TypeCheckError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Runtime type violation detected within ParDo(</span><span class="si">%s</span><span class="s1">): &#39;</span>
+                   <span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_label</span><span class="p">,</span> <span class="n">e</span><span class="p">))</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">,</span> <span class="n">error_msg</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_type</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_check_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">output</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">output</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="n">basestring</span><span class="p">)):</span>
+      <span class="n">object_type</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">output</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;Returning a </span><span class="si">%s</span><span class="s1"> from a ParDo or FlatMap is &#39;</span>
+                           <span class="s1">&#39;discouraged. Please use list(&quot;</span><span class="si">%s</span><span class="s1">&quot;) if you really &#39;</span>
+                           <span class="s1">&#39;want this behavior.&#39;</span> <span class="o">%</span>
+                           <span class="p">(</span><span class="n">object_type</span><span class="p">,</span> <span class="n">output</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">(</span><span class="s1">&#39;FlatMap and ParDo must return an &#39;</span>
+                           <span class="s1">&#39;iterable. </span><span class="si">%s</span><span class="s1"> was returned instead.&#39;</span>
+                           <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">output</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="TypeCheckWrapperDoFn"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.TypeCheckWrapperDoFn">[docs]</a><span class="k">class</span> <span class="nc">TypeCheckWrapperDoFn</span><span class="p">(</span><span class="n">AbstractDoFnWrapper</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A wrapper around a DoFn which performs type-checking of input and output.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dofn</span><span class="p">,</span> <span class="n">type_hints</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">TypeCheckWrapperDoFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">dofn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span> <span class="o">=</span> <span class="n">dofn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_process_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">_process_argspec_fn</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">type_hints</span><span class="o">.</span><span class="n">input_types</span><span class="p">:</span>
+      <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span> <span class="o">=</span> <span class="n">type_hints</span><span class="o">.</span><span class="n">input_types</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_input_hints</span> <span class="o">=</span> <span class="n">getcallargs_forhints</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_process_fn</span><span class="p">,</span> <span class="o">*</span><span class="n">input_args</span><span class="p">,</span> <span class="o">**</span><span class="n">input_kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_input_hints</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="c1"># TODO(robertwb): Multi-output.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_output_type_hint</span> <span class="o">=</span> <span class="n">type_hints</span><span class="o">.</span><span class="n">simple_output_type</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TypeCheckWrapperDoFn.wrapper"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.TypeCheckWrapperDoFn.wrapper">[docs]</a>  <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type_check_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="TypeCheckWrapperDoFn.process"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.typecheck.TypeCheckWrapperDoFn.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_hints</span><span class="p">:</span>
+      <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getcallargs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+      <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">hint</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_hints</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">hint</span> <span class="ow">is</span> <span class="n">actual_inputs</span><span class="p">[</span><span class="n">var</span><span class="p">]:</span>
+          <span class="c1"># self parameter</span>
+          <span class="k">continue</span>
+        <span class="n">_check_instance_type</span><span class="p">(</span><span class="n">hint</span><span class="p">,</span> <span class="n">actual_inputs</span><span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="n">var</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_type_check_result</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dofn</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span></div>
+
+  <span class="k">def</span> <span class="nf">_type_check_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform_results</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_type_hint</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">transform_results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">transform_results</span>
+
+    <span class="k">def</span> <span class="nf">type_check_output</span><span class="p">(</span><span class="n">o</span><span class="p">):</span>
+      <span class="c1"># TODO(robertwb): Multi-output.</span>
+      <span class="n">x</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="p">(</span><span class="n">TaggedOutput</span><span class="p">,</span> <span class="n">WindowedValue</span><span class="p">))</span> <span class="k">else</span> <span class="n">o</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_type_check</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_output_type_hint</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">is_input</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># If the return type is a generator, then we will need to interleave our</span>
+    <span class="c1"># type-checking with its normal iteration so we don&#39;t deplete the</span>
+    <span class="c1"># generator initially just by type-checking its yielded contents.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">transform_results</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">GeneratorType</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">GeneratorWrapper</span><span class="p">(</span><span class="n">transform_results</span><span class="p">,</span> <span class="n">type_check_output</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">transform_results</span><span class="p">:</span>
+      <span class="n">type_check_output</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">transform_results</span>
+
+  <span class="k">def</span> <span class="nf">_type_check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">type_constraint</span><span class="p">,</span> <span class="n">datum</span><span class="p">,</span> <span class="n">is_input</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Typecheck a PTransform related datum according to a type constraint.</span>
+
+<span class="sd">    This function is used to optionally type-check either an input or an output</span>
+<span class="sd">    to a PTransform.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        type_constraint: An instance of a typehints.TypeContraint, one of the</span>
+<span class="sd">          white-listed builtin Python types, or a custom user class.</span>
+<span class="sd">        datum: An instance of a Python object.</span>
+<span class="sd">        is_input: True if &#39;datum&#39; is an input to a PTransform&#39;s DoFn. False</span>
+<span class="sd">          otherwise.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeError: If &#39;datum&#39; fails to type-check according to &#39;type_constraint&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">datum_type</span> <span class="o">=</span> <span class="s1">&#39;input&#39;</span> <span class="k">if</span> <span class="n">is_input</span> <span class="k">else</span> <span class="s1">&#39;output&#39;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">check_constraint</span><span class="p">(</span><span class="n">type_constraint</span><span class="p">,</span> <span class="n">datum</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">CompositeTypeHintError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">,</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">except</span> <span class="n">SimpleTypeHintError</span><span class="p">:</span>
+      <span class="n">error_msg</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;According to type-hint expected </span><span class="si">%s</span><span class="s2"> should be of type </span><span class="si">%s</span><span class="s2">. &quot;</span>
+                   <span class="s2">&quot;Instead, received &#39;</span><span class="si">%s</span><span class="s2">&#39;, an instance of type </span><span class="si">%s</span><span class="s2">.&quot;</span>
+                   <span class="o">%</span> <span class="p">(</span><span class="n">datum_type</span><span class="p">,</span> <span class="n">type_constraint</span><span class="p">,</span> <span class="n">datum</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="n">datum</span><span class="p">)))</span>
+      <span class="k">raise</span> <span class="n">TypeCheckError</span><span class="p">,</span> <span class="n">error_msg</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

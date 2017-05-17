@@ -1,0 +1,1110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>google.protobuf.descriptor &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for google.protobuf.descriptor</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Protocol Buffers - Google&#39;s data interchange format</span>
+<span class="c1"># Copyright 2008 Google Inc.  All rights reserved.</span>
+<span class="c1"># https://developers.google.com/protocol-buffers/</span>
+<span class="c1">#</span>
+<span class="c1"># Redistribution and use in source and binary forms, with or without</span>
+<span class="c1"># modification, are permitted provided that the following conditions are</span>
+<span class="c1"># met:</span>
+<span class="c1">#</span>
+<span class="c1">#     * Redistributions of source code must retain the above copyright</span>
+<span class="c1"># notice, this list of conditions and the following disclaimer.</span>
+<span class="c1">#     * Redistributions in binary form must reproduce the above</span>
+<span class="c1"># copyright notice, this list of conditions and the following disclaimer</span>
+<span class="c1"># in the documentation and/or other materials provided with the</span>
+<span class="c1"># distribution.</span>
+<span class="c1">#     * Neither the name of Google Inc. nor the names of its</span>
+<span class="c1"># contributors may be used to endorse or promote products derived from</span>
+<span class="c1"># this software without specific prior written permission.</span>
+<span class="c1">#</span>
+<span class="c1"># THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS</span>
+<span class="c1"># &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT</span>
+<span class="c1"># LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR</span>
+<span class="c1"># A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT</span>
+<span class="c1"># OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,</span>
+<span class="c1"># SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT</span>
+<span class="c1"># LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,</span>
+<span class="c1"># DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY</span>
+<span class="c1"># THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT</span>
+<span class="c1"># (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE</span>
+<span class="c1"># OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</span>
+
+<span class="sd">&quot;&quot;&quot;Descriptors essentially contain exactly the information found in a .proto</span>
+<span class="sd">file, in types that make this information accessible in Python.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;robinson@google.com (Will Robinson)&#39;</span>
+
+<span class="kn">import</span> <span class="nn">six</span>
+
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">api_implementation</span>
+
+<span class="n">_USE_C_DESCRIPTORS</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="k">if</span> <span class="n">api_implementation</span><span class="o">.</span><span class="n">Type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cpp&#39;</span><span class="p">:</span>
+  <span class="c1"># Used by MakeDescriptor in cpp mode</span>
+  <span class="kn">import</span> <span class="nn">os</span>
+  <span class="kn">import</span> <span class="nn">uuid</span>
+  <span class="kn">from</span> <span class="nn">google.protobuf.pyext</span> <span class="k">import</span> <span class="n">_message</span>
+  <span class="n">_USE_C_DESCRIPTORS</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">_message</span><span class="p">,</span> <span class="s1">&#39;_USE_C_DESCRIPTORS&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Error</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Base error for this module.&quot;&quot;&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">TypeTransformationError</span><span class="p">(</span><span class="n">Error</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Error transforming between python proto type and corresponding C++ type.&quot;&quot;&quot;</span>
+
+
+<span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+  <span class="c1"># This metaclass allows to override the behavior of code like</span>
+  <span class="c1">#     isinstance(my_descriptor, FieldDescriptor)</span>
+  <span class="c1"># and make it return True when the descriptor is an instance of the extension</span>
+  <span class="c1"># type written in C++.</span>
+  <span class="k">class</span> <span class="nc">DescriptorMetaclass</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__instancecheck__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+      <span class="k">if</span> <span class="nb">super</span><span class="p">(</span><span class="n">DescriptorMetaclass</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__instancecheck__</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_C_DESCRIPTOR_CLASS</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+      <span class="k">return</span> <span class="kc">False</span>
+<span class="k">else</span><span class="p">:</span>
+  <span class="c1"># The standard metaclass; nothing changes.</span>
+  <span class="n">DescriptorMetaclass</span> <span class="o">=</span> <span class="nb">type</span>
+
+
+<span class="k">class</span> <span class="nc">DescriptorBase</span><span class="p">(</span><span class="n">six</span><span class="o">.</span><span class="n">with_metaclass</span><span class="p">(</span><span class="n">DescriptorMetaclass</span><span class="p">)):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptors base class.</span>
+
+<span class="sd">  This class is the base of all descriptor classes. It provides common options</span>
+<span class="sd">  related functionality.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    has_options:  True if the descriptor has non-default options.  Usually it</span>
+<span class="sd">        is not necessary to read this -- just call GetOptions() which will</span>
+<span class="sd">        happily return the default instance.  However, it&#39;s sometimes useful</span>
+<span class="sd">        for efficiency, and also useful inside the protobuf implementation to</span>
+<span class="sd">        avoid some bootstrapping issues.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="c1"># The class, or tuple of classes, that are considered as &quot;virtual</span>
+    <span class="c1"># subclasses&quot; of this descriptor class.</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options_class_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize the descriptor given its options message and the name of the</span>
+<span class="sd">    class of the options message. The name of the class is required in case</span>
+<span class="sd">    the options message is None and has to be created.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_options_class_name</span> <span class="o">=</span> <span class="n">options_class_name</span>
+
+    <span class="c1"># Does this descriptor have non-default options?</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">has_options</span> <span class="o">=</span> <span class="n">options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">_SetOptions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options_class_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets the descriptor&#39;s options</span>
+
+<span class="sd">    This function is used in generated proto2 files to update descriptor</span>
+<span class="sd">    options. It must not be used outside proto2.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">options</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_options_class_name</span> <span class="o">=</span> <span class="n">options_class_name</span>
+
+    <span class="c1"># Does this descriptor have non-default options?</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">has_options</span> <span class="o">=</span> <span class="n">options</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">GetOptions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Retrieves descriptor options.</span>
+
+<span class="sd">    This method returns the options set or creates the default options for the</span>
+<span class="sd">    descriptor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span>
+    <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">descriptor_pb2</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">options_class</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">descriptor_pb2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options_class_name</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Unknown options class name </span><span class="si">%s</span><span class="s1">!&#39;</span> <span class="o">%</span>
+                         <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_options_class_name</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_options</span> <span class="o">=</span> <span class="n">options_class</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_options</span>
+
+
+<span class="k">class</span> <span class="nc">_NestedDescriptorBase</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Common class for descriptors that can be nested.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">options</span><span class="p">,</span> <span class="n">options_class_name</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span>
+               <span class="n">file</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      options: Protocol message options or None</span>
+<span class="sd">        to use default message options.</span>
+<span class="sd">      options_class_name: (str) The class name of the above options.</span>
+
+<span class="sd">      name: (str) Name of this protocol message type.</span>
+<span class="sd">      full_name: (str) Fully-qualified name of this protocol message type,</span>
+<span class="sd">        which will include protocol &quot;package&quot; name and the name of any</span>
+<span class="sd">        enclosing types.</span>
+<span class="sd">      file: (FileDescriptor) Reference to file info.</span>
+<span class="sd">      containing_type: if provided, this is a nested descriptor, with this</span>
+<span class="sd">        descriptor as parent, otherwise None.</span>
+<span class="sd">      serialized_start: The start index (inclusive) in block in the</span>
+<span class="sd">        file.serialized_pb that describes this descriptor.</span>
+<span class="sd">      serialized_end: The end index (exclusive) in block in the</span>
+<span class="sd">        file.serialized_pb that describes this descriptor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_NestedDescriptorBase</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">options</span><span class="p">,</span> <span class="n">options_class_name</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="c1"># TODO(falk): Add function to calculate full_name instead of having it in</span>
+    <span class="c1">#             memory?</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">file</span> <span class="o">=</span> <span class="n">file</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="n">containing_type</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_serialized_start</span> <span class="o">=</span> <span class="n">serialized_start</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_serialized_end</span> <span class="o">=</span> <span class="n">serialized_end</span>
+
+  <span class="k">def</span> <span class="nf">CopyToProto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies this to the matching proto in descriptor_pb2.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto: An empty proto instance from descriptor_pb2.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      Error: If self couldnt be serialized, due to to few constructor arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serialized_start</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_serialized_end</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="n">proto</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">serialized_pb</span><span class="p">[</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_serialized_start</span><span class="p">:</span><span class="bp">self</span><span class="o">.</span><span class="n">_serialized_end</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">Error</span><span class="p">(</span><span class="s1">&#39;Descriptor does not contain serialization.&#39;</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">Descriptor</span><span class="p">(</span><span class="n">_NestedDescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for a protocol message type.</span>
+
+<span class="sd">  A Descriptor instance has the following attributes:</span>
+
+<span class="sd">    name: (str) Name of this protocol message type.</span>
+<span class="sd">    full_name: (str) Fully-qualified name of this protocol message type,</span>
+<span class="sd">      which will include protocol &quot;package&quot; name and the name of any</span>
+<span class="sd">      enclosing types.</span>
+
+<span class="sd">    containing_type: (Descriptor) Reference to the descriptor of the</span>
+<span class="sd">      type containing us, or None if this is top-level.</span>
+
+<span class="sd">    fields: (list of FieldDescriptors) Field descriptors for all</span>
+<span class="sd">      fields in this type.</span>
+<span class="sd">    fields_by_number: (dict int -&gt; FieldDescriptor) Same FieldDescriptor</span>
+<span class="sd">      objects as in |fields|, but indexed by &quot;number&quot; attribute in each</span>
+<span class="sd">      FieldDescriptor.</span>
+<span class="sd">    fields_by_name: (dict str -&gt; FieldDescriptor) Same FieldDescriptor</span>
+<span class="sd">      objects as in |fields|, but indexed by &quot;name&quot; attribute in each</span>
+<span class="sd">      FieldDescriptor.</span>
+<span class="sd">    fields_by_camelcase_name: (dict str -&gt; FieldDescriptor) Same</span>
+<span class="sd">      FieldDescriptor objects as in |fields|, but indexed by</span>
+<span class="sd">      &quot;camelcase_name&quot; attribute in each FieldDescriptor.</span>
+
+<span class="sd">    nested_types: (list of Descriptors) Descriptor references</span>
+<span class="sd">      for all protocol message types nested within this one.</span>
+<span class="sd">    nested_types_by_name: (dict str -&gt; Descriptor) Same Descriptor</span>
+<span class="sd">      objects as in |nested_types|, but indexed by &quot;name&quot; attribute</span>
+<span class="sd">      in each Descriptor.</span>
+
+<span class="sd">    enum_types: (list of EnumDescriptors) EnumDescriptor references</span>
+<span class="sd">      for all enums contained within this type.</span>
+<span class="sd">    enum_types_by_name: (dict str -&gt;EnumDescriptor) Same EnumDescriptor</span>
+<span class="sd">      objects as in |enum_types|, but indexed by &quot;name&quot; attribute</span>
+<span class="sd">      in each EnumDescriptor.</span>
+<span class="sd">    enum_values_by_name: (dict str -&gt; EnumValueDescriptor) Dict mapping</span>
+<span class="sd">      from enum value name to EnumValueDescriptor for that value.</span>
+
+<span class="sd">    extensions: (list of FieldDescriptor) All extensions defined directly</span>
+<span class="sd">      within this message type (NOT within a nested type).</span>
+<span class="sd">    extensions_by_name: (dict, string -&gt; FieldDescriptor) Same FieldDescriptor</span>
+<span class="sd">      objects as |extensions|, but indexed by &quot;name&quot; attribute of each</span>
+<span class="sd">      FieldDescriptor.</span>
+
+<span class="sd">    is_extendable:  Does this type define any extension ranges?</span>
+
+<span class="sd">    oneofs: (list of OneofDescriptor) The list of descriptors for oneof fields</span>
+<span class="sd">      in this message.</span>
+<span class="sd">    oneofs_by_name: (dict str -&gt; OneofDescriptor) Same objects as in |oneofs|,</span>
+<span class="sd">      but indexed by &quot;name&quot; attribute.</span>
+
+<span class="sd">    file: (FileDescriptor) Reference to file descriptor.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">Descriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span>
+                <span class="n">nested_types</span><span class="p">,</span> <span class="n">enum_types</span><span class="p">,</span> <span class="n">extensions</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">is_extendable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extension_ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">oneofs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># pylint: disable=redefined-builtin</span>
+                <span class="n">syntax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>
+      <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindMessageTypeByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="c1"># NOTE(tmarek): The file argument redefining a builtin is nothing we can</span>
+  <span class="c1"># fix right now since we don&#39;t know how many clients already rely on the</span>
+  <span class="c1"># name of the argument.</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span>
+               <span class="n">nested_types</span><span class="p">,</span> <span class="n">enum_types</span><span class="p">,</span> <span class="n">extensions</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">is_extendable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extension_ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">oneofs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># pylint: disable=redefined-builtin</span>
+               <span class="n">syntax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Arguments to __init__() are as described in the description</span>
+<span class="sd">    of Descriptor fields above.</span>
+
+<span class="sd">    Note that filename is an obsolete argument, that is not used anymore.</span>
+<span class="sd">    Please use file.name to access this as an attribute.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">Descriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">options</span><span class="p">,</span> <span class="s1">&#39;MessageOptions&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span>
+        <span class="n">containing_type</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="n">serialized_start</span><span class="p">,</span>
+        <span class="n">serialized_end</span><span class="o">=</span><span class="n">serialized_end</span><span class="p">)</span>
+
+    <span class="c1"># We have fields in addition to fields_by_name and fields_by_number,</span>
+    <span class="c1"># so that:</span>
+    <span class="c1">#   1. Clients can index fields by &quot;order in which they&#39;re listed.&quot;</span>
+    <span class="c1">#   2. Clients can easily iterate over all fields with the terse</span>
+    <span class="c1">#      syntax: for f in descriptor.fields: ...</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="n">fields</span>
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+      <span class="n">field</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fields_by_number</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">f</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fields_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fields_by_camelcase_name</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">nested_types</span> <span class="o">=</span> <span class="n">nested_types</span>
+    <span class="k">for</span> <span class="n">nested_type</span> <span class="ow">in</span> <span class="n">nested_types</span><span class="p">:</span>
+      <span class="n">nested_type</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">nested_types_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">nested_types</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">enum_types</span> <span class="o">=</span> <span class="n">enum_types</span>
+    <span class="k">for</span> <span class="n">enum_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">enum_types</span><span class="p">:</span>
+      <span class="n">enum_type</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enum_types_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">enum_types</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enum_values_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">enum_types</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">extensions</span> <span class="o">=</span> <span class="n">extensions</span>
+    <span class="k">for</span> <span class="n">extension</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extensions</span><span class="p">:</span>
+      <span class="n">extension</span><span class="o">.</span><span class="n">extension_scope</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extensions_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">extensions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_extendable</span> <span class="o">=</span> <span class="n">is_extendable</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extension_ranges</span> <span class="o">=</span> <span class="n">extension_ranges</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">oneofs</span> <span class="o">=</span> <span class="n">oneofs</span> <span class="k">if</span> <span class="n">oneofs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">oneofs_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">o</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">oneofs</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">oneof</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">oneofs</span><span class="p">:</span>
+      <span class="n">oneof</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">syntax</span> <span class="o">=</span> <span class="n">syntax</span> <span class="ow">or</span> <span class="s2">&quot;proto2&quot;</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">fields_by_camelcase_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields_by_camelcase_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fields_by_camelcase_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+          <span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">camelcase_name</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields_by_camelcase_name</span>
+
+  <span class="k">def</span> <span class="nf">EnumValueName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enum</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the string name of an enum value.</span>
+
+<span class="sd">    This is just a small helper method to simplify a common operation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      enum: string name of the Enum.</span>
+<span class="sd">      value: int, value of the enum.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      string name of the enum value.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      KeyError if either the Enum doesn&#39;t exist or the value is not a valid</span>
+<span class="sd">        value for the enum.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">enum_types_by_name</span><span class="p">[</span><span class="n">enum</span><span class="p">]</span><span class="o">.</span><span class="n">values_by_number</span><span class="p">[</span><span class="n">value</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+
+  <span class="k">def</span> <span class="nf">CopyToProto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies this to a descriptor_pb2.DescriptorProto.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto: An empty descriptor_pb2.DescriptorProto.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This function is overridden to give a better doc comment.</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">Descriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">CopyToProto</span><span class="p">(</span><span class="n">proto</span><span class="p">)</span>
+
+
+<span class="c1"># TODO(robinson): We should have aggressive checking here,</span>
+<span class="c1"># for example:</span>
+<span class="c1">#   * If you specify a repeated field, you should not be allowed</span>
+<span class="c1">#     to specify a default value.</span>
+<span class="c1">#   * [Other examples here as needed].</span>
+<span class="c1">#</span>
+<span class="c1"># TODO(robinson): for this and other *Descriptor classes, we</span>
+<span class="c1"># might also want to lock things down aggressively (e.g.,</span>
+<span class="c1"># prevent clients from setting the attributes).  Having</span>
+<span class="c1"># stronger invariants here in general will reduce the number</span>
+<span class="c1"># of runtime checks we must do in reflection.py...</span>
+<span class="k">class</span> <span class="nc">FieldDescriptor</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for a single field in a .proto file.</span>
+
+<span class="sd">  A FieldDescriptor instance has the following attributes:</span>
+
+<span class="sd">    name: (str) Name of this field, exactly as it appears in .proto.</span>
+<span class="sd">    full_name: (str) Name of this field, including containing scope.  This is</span>
+<span class="sd">      particularly relevant for extensions.</span>
+<span class="sd">    camelcase_name: (str) Camelcase name of this field.</span>
+<span class="sd">    index: (int) Dense, 0-indexed index giving the order that this</span>
+<span class="sd">      field textually appears within its message in the .proto file.</span>
+<span class="sd">    number: (int) Tag number declared for this field in the .proto file.</span>
+
+<span class="sd">    type: (One of the TYPE_* constants below) Declared type.</span>
+<span class="sd">    cpp_type: (One of the CPPTYPE_* constants below) C++ type used to</span>
+<span class="sd">      represent this field.</span>
+
+<span class="sd">    label: (One of the LABEL_* constants below) Tells whether this</span>
+<span class="sd">      field is optional, required, or repeated.</span>
+<span class="sd">    has_default_value: (bool) True if this field has a default value defined,</span>
+<span class="sd">      otherwise false.</span>
+<span class="sd">    default_value: (Varies) Default value of this field.  Only</span>
+<span class="sd">      meaningful for non-repeated scalar fields.  Repeated fields</span>
+<span class="sd">      should always set this to [], and non-repeated composite</span>
+<span class="sd">      fields should always set this to None.</span>
+
+<span class="sd">    containing_type: (Descriptor) Descriptor of the protocol message</span>
+<span class="sd">      type that contains this field.  Set by the Descriptor constructor</span>
+<span class="sd">      if we&#39;re passed into one.</span>
+<span class="sd">      Somewhat confusingly, for extension fields, this is the</span>
+<span class="sd">      descriptor of the EXTENDED message, not the descriptor</span>
+<span class="sd">      of the message containing this field.  (See is_extension and</span>
+<span class="sd">      extension_scope below).</span>
+<span class="sd">    message_type: (Descriptor) If a composite field, a descriptor</span>
+<span class="sd">      of the message type contained in this field.  Otherwise, this is None.</span>
+<span class="sd">    enum_type: (EnumDescriptor) If this field contains an enum, a</span>
+<span class="sd">      descriptor of that enum.  Otherwise, this is None.</span>
+
+<span class="sd">    is_extension: True iff this describes an extension field.</span>
+<span class="sd">    extension_scope: (Descriptor) Only meaningful if is_extension is True.</span>
+<span class="sd">      Gives the message that immediately contains this extension field.</span>
+<span class="sd">      Will be None iff we&#39;re a top-level (file-level) extension field.</span>
+
+<span class="sd">    options: (descriptor_pb2.FieldOptions) Protocol message field options or</span>
+<span class="sd">      None to use default field options.</span>
+
+<span class="sd">    containing_oneof: (OneofDescriptor) If the field is a member of a oneof</span>
+<span class="sd">      union, contains its descriptor. Otherwise, None.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Must be consistent with C++ FieldDescriptor::Type enum in</span>
+  <span class="c1"># descriptor.h.</span>
+  <span class="c1">#</span>
+  <span class="c1"># TODO(robinson): Find a way to eliminate this repetition.</span>
+  <span class="n">TYPE_DOUBLE</span>         <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">TYPE_FLOAT</span>          <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">TYPE_INT64</span>          <span class="o">=</span> <span class="mi">3</span>
+  <span class="n">TYPE_UINT64</span>         <span class="o">=</span> <span class="mi">4</span>
+  <span class="n">TYPE_INT32</span>          <span class="o">=</span> <span class="mi">5</span>
+  <span class="n">TYPE_FIXED64</span>        <span class="o">=</span> <span class="mi">6</span>
+  <span class="n">TYPE_FIXED32</span>        <span class="o">=</span> <span class="mi">7</span>
+  <span class="n">TYPE_BOOL</span>           <span class="o">=</span> <span class="mi">8</span>
+  <span class="n">TYPE_STRING</span>         <span class="o">=</span> <span class="mi">9</span>
+  <span class="n">TYPE_GROUP</span>          <span class="o">=</span> <span class="mi">10</span>
+  <span class="n">TYPE_MESSAGE</span>        <span class="o">=</span> <span class="mi">11</span>
+  <span class="n">TYPE_BYTES</span>          <span class="o">=</span> <span class="mi">12</span>
+  <span class="n">TYPE_UINT32</span>         <span class="o">=</span> <span class="mi">13</span>
+  <span class="n">TYPE_ENUM</span>           <span class="o">=</span> <span class="mi">14</span>
+  <span class="n">TYPE_SFIXED32</span>       <span class="o">=</span> <span class="mi">15</span>
+  <span class="n">TYPE_SFIXED64</span>       <span class="o">=</span> <span class="mi">16</span>
+  <span class="n">TYPE_SINT32</span>         <span class="o">=</span> <span class="mi">17</span>
+  <span class="n">TYPE_SINT64</span>         <span class="o">=</span> <span class="mi">18</span>
+  <span class="n">MAX_TYPE</span>            <span class="o">=</span> <span class="mi">18</span>
+
+  <span class="c1"># Must be consistent with C++ FieldDescriptor::CppType enum in</span>
+  <span class="c1"># descriptor.h.</span>
+  <span class="c1">#</span>
+  <span class="c1"># TODO(robinson): Find a way to eliminate this repetition.</span>
+  <span class="n">CPPTYPE_INT32</span>       <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">CPPTYPE_INT64</span>       <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">CPPTYPE_UINT32</span>      <span class="o">=</span> <span class="mi">3</span>
+  <span class="n">CPPTYPE_UINT64</span>      <span class="o">=</span> <span class="mi">4</span>
+  <span class="n">CPPTYPE_DOUBLE</span>      <span class="o">=</span> <span class="mi">5</span>
+  <span class="n">CPPTYPE_FLOAT</span>       <span class="o">=</span> <span class="mi">6</span>
+  <span class="n">CPPTYPE_BOOL</span>        <span class="o">=</span> <span class="mi">7</span>
+  <span class="n">CPPTYPE_ENUM</span>        <span class="o">=</span> <span class="mi">8</span>
+  <span class="n">CPPTYPE_STRING</span>      <span class="o">=</span> <span class="mi">9</span>
+  <span class="n">CPPTYPE_MESSAGE</span>     <span class="o">=</span> <span class="mi">10</span>
+  <span class="n">MAX_CPPTYPE</span>         <span class="o">=</span> <span class="mi">10</span>
+
+  <span class="n">_PYTHON_TO_CPP_PROTO_TYPE_MAP</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="n">TYPE_DOUBLE</span><span class="p">:</span> <span class="n">CPPTYPE_DOUBLE</span><span class="p">,</span>
+      <span class="n">TYPE_FLOAT</span><span class="p">:</span> <span class="n">CPPTYPE_FLOAT</span><span class="p">,</span>
+      <span class="n">TYPE_ENUM</span><span class="p">:</span> <span class="n">CPPTYPE_ENUM</span><span class="p">,</span>
+      <span class="n">TYPE_INT64</span><span class="p">:</span> <span class="n">CPPTYPE_INT64</span><span class="p">,</span>
+      <span class="n">TYPE_SINT64</span><span class="p">:</span> <span class="n">CPPTYPE_INT64</span><span class="p">,</span>
+      <span class="n">TYPE_SFIXED64</span><span class="p">:</span> <span class="n">CPPTYPE_INT64</span><span class="p">,</span>
+      <span class="n">TYPE_UINT64</span><span class="p">:</span> <span class="n">CPPTYPE_UINT64</span><span class="p">,</span>
+      <span class="n">TYPE_FIXED64</span><span class="p">:</span> <span class="n">CPPTYPE_UINT64</span><span class="p">,</span>
+      <span class="n">TYPE_INT32</span><span class="p">:</span> <span class="n">CPPTYPE_INT32</span><span class="p">,</span>
+      <span class="n">TYPE_SFIXED32</span><span class="p">:</span> <span class="n">CPPTYPE_INT32</span><span class="p">,</span>
+      <span class="n">TYPE_SINT32</span><span class="p">:</span> <span class="n">CPPTYPE_INT32</span><span class="p">,</span>
+      <span class="n">TYPE_UINT32</span><span class="p">:</span> <span class="n">CPPTYPE_UINT32</span><span class="p">,</span>
+      <span class="n">TYPE_FIXED32</span><span class="p">:</span> <span class="n">CPPTYPE_UINT32</span><span class="p">,</span>
+      <span class="n">TYPE_BYTES</span><span class="p">:</span> <span class="n">CPPTYPE_STRING</span><span class="p">,</span>
+      <span class="n">TYPE_STRING</span><span class="p">:</span> <span class="n">CPPTYPE_STRING</span><span class="p">,</span>
+      <span class="n">TYPE_BOOL</span><span class="p">:</span> <span class="n">CPPTYPE_BOOL</span><span class="p">,</span>
+      <span class="n">TYPE_MESSAGE</span><span class="p">:</span> <span class="n">CPPTYPE_MESSAGE</span><span class="p">,</span>
+      <span class="n">TYPE_GROUP</span><span class="p">:</span> <span class="n">CPPTYPE_MESSAGE</span>
+      <span class="p">}</span>
+
+  <span class="c1"># Must be consistent with C++ FieldDescriptor::Label enum in</span>
+  <span class="c1"># descriptor.h.</span>
+  <span class="c1">#</span>
+  <span class="c1"># TODO(robinson): Find a way to eliminate this repetition.</span>
+  <span class="n">LABEL_OPTIONAL</span>      <span class="o">=</span> <span class="mi">1</span>
+  <span class="n">LABEL_REQUIRED</span>      <span class="o">=</span> <span class="mi">2</span>
+  <span class="n">LABEL_REPEATED</span>      <span class="o">=</span> <span class="mi">3</span>
+  <span class="n">MAX_LABEL</span>           <span class="o">=</span> <span class="mi">3</span>
+
+  <span class="c1"># Must be consistent with C++ constants kMaxNumber, kFirstReservedNumber,</span>
+  <span class="c1"># and kLastReservedNumber in descriptor.h</span>
+  <span class="n">MAX_FIELD_NUMBER</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="mi">29</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+  <span class="n">FIRST_RESERVED_FIELD_NUMBER</span> <span class="o">=</span> <span class="mi">19000</span>
+  <span class="n">LAST_RESERVED_FIELD_NUMBER</span> <span class="o">=</span> <span class="mi">19999</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">FieldDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">cpp_type</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span>
+                <span class="n">default_value</span><span class="p">,</span> <span class="n">message_type</span><span class="p">,</span> <span class="n">enum_type</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span>
+                <span class="n">is_extension</span><span class="p">,</span> <span class="n">extension_scope</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">has_default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">containing_oneof</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">json_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>
+      <span class="k">if</span> <span class="n">is_extension</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindExtensionByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindFieldByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">cpp_type</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span>
+               <span class="n">default_value</span><span class="p">,</span> <span class="n">message_type</span><span class="p">,</span> <span class="n">enum_type</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span>
+               <span class="n">is_extension</span><span class="p">,</span> <span class="n">extension_scope</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">has_default_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">containing_oneof</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">json_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The arguments are as described in the description of FieldDescriptor</span>
+<span class="sd">    attributes above.</span>
+
+<span class="sd">    Note that containing_type may be None, and may be set later if necessary</span>
+<span class="sd">    (to deal with circular references between message types, for example).</span>
+<span class="sd">    Likewise for extension_scope.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">FieldDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s1">&#39;FieldOptions&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_camelcase_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">json_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">json_name</span> <span class="o">=</span> <span class="n">_ToJsonName</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">json_name</span> <span class="o">=</span> <span class="n">json_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">number</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">=</span> <span class="n">cpp_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">has_default_value</span> <span class="o">=</span> <span class="n">has_default_value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">default_value</span> <span class="o">=</span> <span class="n">default_value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="n">containing_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">message_type</span> <span class="o">=</span> <span class="n">message_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enum_type</span> <span class="o">=</span> <span class="n">enum_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">is_extension</span> <span class="o">=</span> <span class="n">is_extension</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extension_scope</span> <span class="o">=</span> <span class="n">extension_scope</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">containing_oneof</span> <span class="o">=</span> <span class="n">containing_oneof</span>
+    <span class="k">if</span> <span class="n">api_implementation</span><span class="o">.</span><span class="n">Type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cpp&#39;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">is_extension</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cdescriptor</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindExtensionByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cdescriptor</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindFieldByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cdescriptor</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">camelcase_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camelcase_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_camelcase_name</span> <span class="o">=</span> <span class="n">_ToCamelCase</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_camelcase_name</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">ProtoTypeToCppProtoType</span><span class="p">(</span><span class="n">proto_type</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts from a Python proto type to a C++ Proto Type.</span>
+
+<span class="sd">    The Python ProtocolBuffer classes specify both the &#39;Python&#39; datatype and the</span>
+<span class="sd">    &#39;C++&#39; datatype - and they&#39;re not the same. This helper method should</span>
+<span class="sd">    translate from one to another.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto_type: the Python proto type (descriptor.FieldDescriptor.TYPE_*)</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      descriptor.FieldDescriptor.CPPTYPE_*, the C++ type.</span>
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeTransformationError: when the Python proto type isn&#39;t known.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">FieldDescriptor</span><span class="o">.</span><span class="n">_PYTHON_TO_CPP_PROTO_TYPE_MAP</span><span class="p">[</span><span class="n">proto_type</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">TypeTransformationError</span><span class="p">(</span><span class="s1">&#39;Unknown proto_type: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">proto_type</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">EnumDescriptor</span><span class="p">(</span><span class="n">_NestedDescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for an enum defined in a .proto file.</span>
+
+<span class="sd">  An EnumDescriptor instance has the following attributes:</span>
+
+<span class="sd">    name: (str) Name of the enum type.</span>
+<span class="sd">    full_name: (str) Full name of the type, including package name</span>
+<span class="sd">      and any enclosing type(s).</span>
+
+<span class="sd">    values: (list of EnumValueDescriptors) List of the values</span>
+<span class="sd">      in this enum.</span>
+<span class="sd">    values_by_name: (dict str -&gt; EnumValueDescriptor) Same as |values|,</span>
+<span class="sd">      but indexed by the &quot;name&quot; field of each EnumValueDescriptor.</span>
+<span class="sd">    values_by_number: (dict int -&gt; EnumValueDescriptor) Same as |values|,</span>
+<span class="sd">      but indexed by the &quot;number&quot; field of each EnumValueDescriptor.</span>
+<span class="sd">    containing_type: (Descriptor) Descriptor of the immediate containing</span>
+<span class="sd">      type of this enum, or None if this is an enum defined at the</span>
+<span class="sd">      top level in a .proto file.  Set by Descriptor&#39;s constructor</span>
+<span class="sd">      if we&#39;re passed into one.</span>
+<span class="sd">    file: (FileDescriptor) Reference to file descriptor.</span>
+<span class="sd">    options: (descriptor_pb2.EnumOptions) Enum options message or</span>
+<span class="sd">      None to use default enum options.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">EnumDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span>
+                <span class="n">containing_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>
+      <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindEnumTypeByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span>
+               <span class="n">containing_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Arguments are as described in the attribute description above.</span>
+
+<span class="sd">    Note that filename is an obsolete argument, that is not used anymore.</span>
+<span class="sd">    Please use file.name to access this as an attribute.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">EnumDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">options</span><span class="p">,</span> <span class="s1">&#39;EnumOptions&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span>
+        <span class="n">containing_type</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="n">serialized_start</span><span class="p">,</span>
+        <span class="n">serialized_end</span><span class="o">=</span><span class="n">serialized_end</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span>
+    <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+      <span class="n">value</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">values_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">values_by_number</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">v</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">CopyToProto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies this to a descriptor_pb2.EnumDescriptorProto.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto: An empty descriptor_pb2.EnumDescriptorProto.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This function is overridden to give a better doc comment.</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">EnumDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">CopyToProto</span><span class="p">(</span><span class="n">proto</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">EnumValueDescriptor</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for a single value within an enum.</span>
+
+<span class="sd">    name: (str) Name of this value.</span>
+<span class="sd">    index: (int) Dense, 0-indexed index giving the order that this</span>
+<span class="sd">      value appears textually within its enum in the .proto file.</span>
+<span class="sd">    number: (int) Actual number assigned to this enum value.</span>
+<span class="sd">    type: (EnumDescriptor) EnumDescriptor to which this value</span>
+<span class="sd">      belongs.  Set by EnumDescriptor&#39;s constructor if we&#39;re</span>
+<span class="sd">      passed into one.</span>
+<span class="sd">    options: (descriptor_pb2.EnumValueOptions) Enum value options message or</span>
+<span class="sd">      None to use default enum value options options.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">EnumValueDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>
+      <span class="c1"># There is no way we can build a complete EnumValueDescriptor with the</span>
+      <span class="c1"># given parameters (the name of the Enum is not known, for example).</span>
+      <span class="c1"># Fortunately generated files just pass it to the EnumDescriptor()</span>
+      <span class="c1"># constructor, which will ignore it, so returning None is good enough.</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">number</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Arguments are as described in the attribute description above.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">EnumValueDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s1">&#39;EnumValueOptions&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">number</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span> <span class="o">=</span> <span class="nb">type</span>
+
+
+<span class="k">class</span> <span class="nc">OneofDescriptor</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Descriptor for a oneof field.</span>
+
+<span class="sd">    name: (str) Name of the oneof field.</span>
+<span class="sd">    full_name: (str) Full name of the oneof field, including package name.</span>
+<span class="sd">    index: (int) 0-based index giving the order of the oneof field inside</span>
+<span class="sd">      its containing type.</span>
+<span class="sd">    containing_type: (Descriptor) Descriptor of the protocol message</span>
+<span class="sd">      type that contains this field.  Set by the Descriptor constructor</span>
+<span class="sd">      if we&#39;re passed into one.</span>
+<span class="sd">    fields: (list of FieldDescriptor) The list of field descriptors this</span>
+<span class="sd">      oneof can contain.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">OneofDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>
+      <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindOneofByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+      <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">containing_type</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Arguments are as described in the attribute description above.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">OneofDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s1">&#39;OneofOptions&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="n">containing_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="n">fields</span>
+
+
+<span class="k">class</span> <span class="nc">ServiceDescriptor</span><span class="p">(</span><span class="n">_NestedDescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for a service.</span>
+
+<span class="sd">    name: (str) Name of the service.</span>
+<span class="sd">    full_name: (str) Full name of the service, including package name.</span>
+<span class="sd">    index: (int) 0-indexed index giving the order that this services</span>
+<span class="sd">      definition appears withing the .proto file.</span>
+<span class="sd">    methods: (list of MethodDescriptor) List of methods provided by this</span>
+<span class="sd">      service.</span>
+<span class="sd">    methods_by_name: (dict str -&gt; MethodDescriptor) Same MethodDescriptor</span>
+<span class="sd">      objects as in |methods_by_name|, but indexed by &quot;name&quot; attribute in each</span>
+<span class="sd">      MethodDescriptor.</span>
+<span class="sd">    options: (descriptor_pb2.ServiceOptions) Service options message or</span>
+<span class="sd">      None to use default service options.</span>
+<span class="sd">    file: (FileDescriptor) Reference to file info.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">ServiceDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">methods</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># pylint: disable=redefined-builtin</span>
+                <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>  <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindServiceByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">methods</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">serialized_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_end</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ServiceDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="n">options</span><span class="p">,</span> <span class="s1">&#39;ServiceOptions&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span>
+        <span class="kc">None</span><span class="p">,</span> <span class="n">serialized_start</span><span class="o">=</span><span class="n">serialized_start</span><span class="p">,</span>
+        <span class="n">serialized_end</span><span class="o">=</span><span class="n">serialized_end</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">methods</span> <span class="o">=</span> <span class="n">methods</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">methods_by_name</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">((</span><span class="n">m</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">methods</span><span class="p">)</span>
+    <span class="c1"># Set the containing service for each method in this service.</span>
+    <span class="k">for</span> <span class="n">method</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">methods</span><span class="p">:</span>
+      <span class="n">method</span><span class="o">.</span><span class="n">containing_service</span> <span class="o">=</span> <span class="bp">self</span>
+
+  <span class="k">def</span> <span class="nf">FindMethodByName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Searches for the specified method, and returns its descriptor.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">methods_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">CopyToProto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies this to a descriptor_pb2.ServiceDescriptorProto.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto: An empty descriptor_pb2.ServiceDescriptorProto.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This function is overridden to give a better doc comment.</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ServiceDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">CopyToProto</span><span class="p">(</span><span class="n">proto</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">MethodDescriptor</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Descriptor for a method in a service.</span>
+
+<span class="sd">  name: (str) Name of the method within the service.</span>
+<span class="sd">  full_name: (str) Full name of method.</span>
+<span class="sd">  index: (int) 0-indexed index of the method inside the service.</span>
+<span class="sd">  containing_service: (ServiceDescriptor) The service that contains this</span>
+<span class="sd">    method.</span>
+<span class="sd">  input_type: The descriptor of the message that this method accepts.</span>
+<span class="sd">  output_type: The descriptor of the message that this method returns.</span>
+<span class="sd">  options: (descriptor_pb2.MethodOptions) Method options message or</span>
+<span class="sd">    None to use default method options.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">MethodDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">containing_service</span><span class="p">,</span>
+                <span class="n">input_type</span><span class="p">,</span> <span class="n">output_type</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">Message</span><span class="o">.</span><span class="n">_CheckCalledFromGeneratedFile</span><span class="p">()</span>  <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindMethodByName</span><span class="p">(</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">containing_service</span><span class="p">,</span>
+               <span class="n">input_type</span><span class="p">,</span> <span class="n">output_type</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The arguments are as described in the description of MethodDescriptor</span>
+<span class="sd">    attributes above.</span>
+
+<span class="sd">    Note that containing_service may be None, and may be set later if necessary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">MethodDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s1">&#39;MethodOptions&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">full_name</span> <span class="o">=</span> <span class="n">full_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">index</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">containing_service</span> <span class="o">=</span> <span class="n">containing_service</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span> <span class="o">=</span> <span class="n">input_type</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_type</span> <span class="o">=</span> <span class="n">output_type</span>
+
+
+<span class="k">class</span> <span class="nc">FileDescriptor</span><span class="p">(</span><span class="n">DescriptorBase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Descriptor for a file. Mimics the descriptor_pb2.FileDescriptorProto.</span>
+
+<span class="sd">  Note that enum_types_by_name, extensions_by_name, and dependencies</span>
+<span class="sd">  fields are only set by the message_factory module, and not by the</span>
+<span class="sd">  generated proto code.</span>
+
+<span class="sd">  name: name of file, relative to root of source tree.</span>
+<span class="sd">  package: name of the package</span>
+<span class="sd">  syntax: string indicating syntax of the file (can be &quot;proto2&quot; or &quot;proto3&quot;)</span>
+<span class="sd">  serialized_pb: (str) Byte string of serialized</span>
+<span class="sd">    descriptor_pb2.FileDescriptorProto.</span>
+<span class="sd">  dependencies: List of other FileDescriptors this FileDescriptor depends on.</span>
+<span class="sd">  public_dependencies: A list of FileDescriptors, subset of the dependencies</span>
+<span class="sd">    above, which were declared as &quot;public&quot;.</span>
+<span class="sd">  message_types_by_name: Dict of message names of their descriptors.</span>
+<span class="sd">  enum_types_by_name: Dict of enum names and their descriptors.</span>
+<span class="sd">  extensions_by_name: Dict of extension names and their descriptors.</span>
+<span class="sd">  services_by_name: Dict of services names and their descriptors.</span>
+<span class="sd">  pool: the DescriptorPool this descriptor belongs to.  When not passed to the</span>
+<span class="sd">    constructor, the global default pool is used.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+    <span class="n">_C_DESCRIPTOR_CLASS</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">FileDescriptor</span>
+
+    <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_pb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">dependencies</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">public_dependencies</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">syntax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pool</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+      <span class="c1"># FileDescriptor() is called from various places, not only from generated</span>
+      <span class="c1"># files, to register dynamic proto files and messages.</span>
+      <span class="k">if</span> <span class="n">serialized_pb</span><span class="p">:</span>
+        <span class="c1"># TODO(amauryfa): use the pool passed as argument. This will work only</span>
+        <span class="c1"># for C++-implemented DescriptorPools.</span>
+        <span class="k">return</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">AddSerializedFile</span><span class="p">(</span><span class="n">serialized_pb</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">FileDescriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">serialized_pb</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">dependencies</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">public_dependencies</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">syntax</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pool</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.&quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">FileDescriptor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">options</span><span class="p">,</span> <span class="s1">&#39;FileOptions&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">pool</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">descriptor_pool</span>
+      <span class="n">pool</span> <span class="o">=</span> <span class="n">descriptor_pool</span><span class="o">.</span><span class="n">Default</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pool</span> <span class="o">=</span> <span class="n">pool</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">message_types_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">package</span> <span class="o">=</span> <span class="n">package</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">syntax</span> <span class="o">=</span> <span class="n">syntax</span> <span class="ow">or</span> <span class="s2">&quot;proto2&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">serialized_pb</span> <span class="o">=</span> <span class="n">serialized_pb</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">enum_types_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extensions_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">services_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dependencies</span> <span class="o">=</span> <span class="p">(</span><span class="n">dependencies</span> <span class="ow">or</span> <span class="p">[])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">public_dependencies</span> <span class="o">=</span> <span class="p">(</span><span class="n">public_dependencies</span> <span class="ow">or</span> <span class="p">[])</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">api_implementation</span><span class="o">.</span><span class="n">Type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cpp&#39;</span> <span class="ow">and</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serialized_pb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+      <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">AddSerializedFile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serialized_pb</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">CopyToProto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proto</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies this to a descriptor_pb2.FileDescriptorProto.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      proto: An empty descriptor_pb2.FileDescriptorProto.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">proto</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serialized_pb</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_ParseOptions</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">string</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Parses serialized options.</span>
+
+<span class="sd">  This helper function is used to parse serialized options in generated</span>
+<span class="sd">  proto2 files. It must not be used outside proto2.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">message</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">string</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">message</span>
+
+
+<span class="k">def</span> <span class="nf">_ToCamelCase</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Converts name to camel-case and returns it.&quot;&quot;&quot;</span>
+  <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">result</span><span class="p">:</span>
+        <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">elif</span> <span class="n">capitalize_next</span><span class="p">:</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+      <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">c</span>
+
+  <span class="c1"># Lower-case the first letter.</span>
+  <span class="k">if</span> <span class="n">result</span> <span class="ow">and</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isupper</span><span class="p">():</span>
+    <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+  <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_OptionsOrNone</span><span class="p">(</span><span class="n">descriptor_proto</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the value of the field `options`, or None if it is not set.&quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">descriptor_proto</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;options&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">descriptor_proto</span><span class="o">.</span><span class="n">options</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span> <span class="nf">_ToJsonName</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Converts name to Json name and returns it.&quot;&quot;&quot;</span>
+  <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">c</span> <span class="o">==</span> <span class="s1">&#39;_&#39;</span><span class="p">:</span>
+      <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">elif</span> <span class="n">capitalize_next</span><span class="p">:</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+      <span class="n">capitalize_next</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">+=</span> <span class="n">c</span>
+
+  <span class="k">return</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">MakeDescriptor</span><span class="p">(</span><span class="n">desc_proto</span><span class="p">,</span> <span class="n">package</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">build_file_if_cpp</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                   <span class="n">syntax</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Make a protobuf Descriptor given a DescriptorProto protobuf.</span>
+
+<span class="sd">  Handles nested descriptors. Note that this is limited to the scope of defining</span>
+<span class="sd">  a message inside of another message. Composite fields can currently only be</span>
+<span class="sd">  resolved if the message is defined in the same scope as the field.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    desc_proto: The descriptor_pb2.DescriptorProto protobuf message.</span>
+<span class="sd">    package: Optional package name for the new message Descriptor (string).</span>
+<span class="sd">    build_file_if_cpp: Update the C++ descriptor pool if api matches.</span>
+<span class="sd">                       Set to False on recursion, so no duplicates are created.</span>
+<span class="sd">    syntax: The syntax/semantics that should be used.  Set to &quot;proto3&quot; to get</span>
+<span class="sd">            proto3 field presence semantics.</span>
+<span class="sd">  Returns:</span>
+<span class="sd">    A Descriptor for protobuf messages.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">if</span> <span class="n">api_implementation</span><span class="o">.</span><span class="n">Type</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;cpp&#39;</span> <span class="ow">and</span> <span class="n">build_file_if_cpp</span><span class="p">:</span>
+    <span class="c1"># The C++ implementation requires all descriptors to be backed by the same</span>
+    <span class="c1"># definition in the C++ descriptor pool. To do this, we build a</span>
+    <span class="c1"># FileDescriptorProto with the same definition as this descriptor and build</span>
+    <span class="c1"># it into the pool.</span>
+    <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">descriptor_pb2</span>
+    <span class="n">file_descriptor_proto</span> <span class="o">=</span> <span class="n">descriptor_pb2</span><span class="o">.</span><span class="n">FileDescriptorProto</span><span class="p">()</span>
+    <span class="n">file_descriptor_proto</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">desc_proto</span><span class="p">)</span>
+
+    <span class="c1"># Generate a random name for this proto file to prevent conflicts with any</span>
+    <span class="c1"># imported ones. We need to specify a file name so the descriptor pool</span>
+    <span class="c1"># accepts our FileDescriptorProto, but it is not important what that file</span>
+    <span class="c1"># name is actually set to.</span>
+    <span class="n">proto_name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">package</span><span class="p">:</span>
+      <span class="n">file_descriptor_proto</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">),</span>
+                                                <span class="n">proto_name</span> <span class="o">+</span> <span class="s1">&#39;.proto&#39;</span><span class="p">)</span>
+      <span class="n">file_descriptor_proto</span><span class="o">.</span><span class="n">package</span> <span class="o">=</span> <span class="n">package</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">file_descriptor_proto</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">proto_name</span> <span class="o">+</span> <span class="s1">&#39;.proto&#39;</span>
+
+    <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">file_descriptor_proto</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">_message</span><span class="o">.</span><span class="n">default_pool</span><span class="o">.</span><span class="n">FindFileByName</span><span class="p">(</span><span class="n">file_descriptor_proto</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">_USE_C_DESCRIPTORS</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">message_types_by_name</span><span class="p">[</span><span class="n">desc_proto</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+
+  <span class="n">full_message_name</span> <span class="o">=</span> <span class="p">[</span><span class="n">desc_proto</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+  <span class="k">if</span> <span class="n">package</span><span class="p">:</span> <span class="n">full_message_name</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">package</span><span class="p">)</span>
+
+  <span class="c1"># Create Descriptors for enum types</span>
+  <span class="n">enum_types</span> <span class="o">=</span> <span class="p">{}</span>
+  <span class="k">for</span> <span class="n">enum_proto</span> <span class="ow">in</span> <span class="n">desc_proto</span><span class="o">.</span><span class="n">enum_type</span><span class="p">:</span>
+    <span class="n">full_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span> <span class="o">+</span> <span class="p">[</span><span class="n">enum_proto</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+    <span class="n">enum_desc</span> <span class="o">=</span> <span class="n">EnumDescriptor</span><span class="p">(</span>
+      <span class="n">enum_proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[</span>
+          <span class="n">EnumValueDescriptor</span><span class="p">(</span><span class="n">enum_val</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">ii</span><span class="p">,</span> <span class="n">enum_val</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+          <span class="k">for</span> <span class="n">ii</span><span class="p">,</span> <span class="n">enum_val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">enum_proto</span><span class="o">.</span><span class="n">value</span><span class="p">)])</span>
+    <span class="n">enum_types</span><span class="p">[</span><span class="n">full_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">enum_desc</span>
+
+  <span class="c1"># Create Descriptors for nested types</span>
+  <span class="n">nested_types</span> <span class="o">=</span> <span class="p">{}</span>
+  <span class="k">for</span> <span class="n">nested_proto</span> <span class="ow">in</span> <span class="n">desc_proto</span><span class="o">.</span><span class="n">nested_type</span><span class="p">:</span>
+    <span class="n">full_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span> <span class="o">+</span> <span class="p">[</span><span class="n">nested_proto</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+    <span class="c1"># Nested types are just those defined inside of the message, not all types</span>
+    <span class="c1"># used by fields in the message, so no loops are possible here.</span>
+    <span class="n">nested_desc</span> <span class="o">=</span> <span class="n">MakeDescriptor</span><span class="p">(</span><span class="n">nested_proto</span><span class="p">,</span>
+                                 <span class="n">package</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span><span class="p">),</span>
+                                 <span class="n">build_file_if_cpp</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                                 <span class="n">syntax</span><span class="o">=</span><span class="n">syntax</span><span class="p">)</span>
+    <span class="n">nested_types</span><span class="p">[</span><span class="n">full_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">nested_desc</span>
+
+  <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">field_proto</span> <span class="ow">in</span> <span class="n">desc_proto</span><span class="o">.</span><span class="n">field</span><span class="p">:</span>
+    <span class="n">full_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span> <span class="o">+</span> <span class="p">[</span><span class="n">field_proto</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+    <span class="n">enum_desc</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">nested_desc</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">json_name</span><span class="p">:</span>
+      <span class="n">json_name</span> <span class="o">=</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">json_name</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">json_name</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s1">&#39;type_name&#39;</span><span class="p">):</span>
+      <span class="n">type_name</span> <span class="o">=</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">type_name</span>
+      <span class="n">full_type_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span> <span class="o">+</span>
+                                <span class="p">[</span><span class="n">type_name</span><span class="p">[</span><span class="n">type_name</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:]])</span>
+      <span class="k">if</span> <span class="n">full_type_name</span> <span class="ow">in</span> <span class="n">nested_types</span><span class="p">:</span>
+        <span class="n">nested_desc</span> <span class="o">=</span> <span class="n">nested_types</span><span class="p">[</span><span class="n">full_type_name</span><span class="p">]</span>
+      <span class="k">elif</span> <span class="n">full_type_name</span> <span class="ow">in</span> <span class="n">enum_types</span><span class="p">:</span>
+        <span class="n">enum_desc</span> <span class="o">=</span> <span class="n">enum_types</span><span class="p">[</span><span class="n">full_type_name</span><span class="p">]</span>
+      <span class="c1"># Else type_name references a non-local type, which isn&#39;t implemented</span>
+    <span class="n">field</span> <span class="o">=</span> <span class="n">FieldDescriptor</span><span class="p">(</span>
+        <span class="n">field_proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">full_name</span><span class="p">,</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">number</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">field_proto</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">field_proto</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+        <span class="n">FieldDescriptor</span><span class="o">.</span><span class="n">ProtoTypeToCppProtoType</span><span class="p">(</span><span class="n">field_proto</span><span class="o">.</span><span class="n">type</span><span class="p">),</span>
+        <span class="n">field_proto</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">nested_desc</span><span class="p">,</span> <span class="n">enum_desc</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="n">_OptionsOrNone</span><span class="p">(</span><span class="n">field_proto</span><span class="p">),</span> <span class="n">has_default_value</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">json_name</span><span class="o">=</span><span class="n">json_name</span><span class="p">)</span>
+    <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+
+  <span class="n">desc_name</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">full_message_name</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">Descriptor</span><span class="p">(</span><span class="n">desc_proto</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">desc_name</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="n">nested_types</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="nb">list</span><span class="p">(</span><span class="n">enum_types</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="p">[],</span>
+                    <span class="n">options</span><span class="o">=</span><span class="n">_OptionsOrNone</span><span class="p">(</span><span class="n">desc_proto</span><span class="p">))</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
