@@ -85,6 +85,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           longCoder.encode(value.getLong(idx), outStream, context.nested());
           break;
         case VARCHAR:
+        case CHAR:
           stringCoder.encode(value.getString(idx), outStream, context.nested());
           break;
         case TIMESTAMP:
@@ -134,6 +135,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           record.addField(idx, longCoder.decode(inStream, context.nested()));
           break;
         case VARCHAR:
+        case CHAR:
           record.addField(idx, stringCoder.decode(inStream, context.nested()));
           break;
         case TIMESTAMP:
