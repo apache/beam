@@ -19,23 +19,24 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
+import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
+import cz.seznam.euphoria.core.util.Settings;
 import org.apache.spark.HashPartitioner;
 import org.apache.spark.Partitioner;
+import org.apache.spark.SparkEnv;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,6 +46,15 @@ import java.util.List;
 import java.util.Map;
 
 class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateByKey> {
+
+  static final String CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY = "euphoria.spark.batch.list-storage.max-memory-elements";
+  static final int CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT = 1000;
+
+  private int listStorageMaxElements;
+
+  ReduceStateByKeyTranslator(Settings settings) {
+    this.listStorageMaxElements = settings.getInt(CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY, CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
+  }
 
   @Override
   @SuppressWarnings("unchecked")
@@ -84,7 +94,9 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
             comparator);
 
     // ~ iterate through the sorted partition and incrementally reduce states
-    return sorted.mapPartitions(new StateReducer(windowing, stateFactory, stateCombiner));
+    return sorted.mapPartitions(
+        new StateReducer(windowing, stateFactory, stateCombiner,
+            new SparkStorageProvider(SparkEnv.get().serializer(), listStorageMaxElements)));
   }
 
   /**
@@ -147,19 +159,20 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final Trigger trigger;
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
     private final StateMerger<?, ?, State<?, ?>> stateCombiner;
-    private final SparkStorageProvider storageProvider;
+    private final StorageProvider storageProvider;
 
     // mapping of [Key -> GroupReducer]
     private transient Map<Object, GroupReducer> activeReducers;
 
     public StateReducer(Windowing windowing,
                         StateFactory<?, ?, State<?, ?>> stateFactory,
-                        StateMerger<?, ?, State<?, ?>> stateCombiner) {
+                        StateMerger<?, ?, State<?, ?>> stateCombiner,
+                        StorageProvider storageProvider) {
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
       this.stateFactory = stateFactory;
       this.stateCombiner = stateCombiner;
-      this.storageProvider = new SparkStorageProvider();
+      this.storageProvider = storageProvider;
     }
 
     @Override
