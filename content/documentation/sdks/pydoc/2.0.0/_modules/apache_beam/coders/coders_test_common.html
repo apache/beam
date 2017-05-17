@@ -1,0 +1,480 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.coders.coders_test_common &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.coders.coders_test_common</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Tests common to all coder implementations.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">unittest</span>
+
+<span class="kn">import</span> <span class="nn">dill</span>
+
+<span class="kn">import</span> <span class="nn">observable</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">timestamp</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">windowed_value</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam.coders</span> <span class="k">import</span> <span class="n">proto2_coder_test_messages_pb2</span> <span class="k">as</span> <span class="n">test_message</span>
+
+
+<span class="c1"># Defined out of line for picklability.</span>
+<div class="viewcode-block" id="CustomCoder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CustomCoder">[docs]</a><span class="k">class</span> <span class="nc">CustomCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+
+<div class="viewcode-block" id="CustomCoder.encode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CustomCoder.encode">[docs]</a>  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CustomCoder.decode"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CustomCoder.decode">[docs]</a>  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoded</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span></div></div>
+
+
+<div class="viewcode-block" id="CodersTest"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest">[docs]</a><span class="k">class</span> <span class="nc">CodersTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+
+  <span class="c1"># These class methods ensure that we test each defined coder in both</span>
+  <span class="c1"># nested and unnested context.</span>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="CodersTest.setUpClass"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.setUpClass">[docs]</a>  <span class="k">def</span> <span class="nf">setUpClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">seen</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">seen_nested</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span></div>
+
+  <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="CodersTest.tearDownClass"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.tearDownClass">[docs]</a>  <span class="k">def</span> <span class="nf">tearDownClass</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="n">standard</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">c</span>
+                   <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coders</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+                   <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">)</span> <span class="ow">and</span>
+                   <span class="s1">&#39;Base&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">c</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">standard</span> <span class="o">-=</span> <span class="nb">set</span><span class="p">([</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">,</span>
+                     <span class="n">coders</span><span class="o">.</span><span class="n">FastCoder</span><span class="p">,</span>
+                     <span class="n">coders</span><span class="o">.</span><span class="n">ProtoCoder</span><span class="p">,</span>
+                     <span class="n">coders</span><span class="o">.</span><span class="n">ToStringCoder</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">standard</span> <span class="o">-</span> <span class="bp">cls</span><span class="o">.</span><span class="n">seen</span><span class="p">,</span> <span class="n">standard</span> <span class="o">-</span> <span class="bp">cls</span><span class="o">.</span><span class="n">seen</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">standard</span> <span class="o">-</span> <span class="bp">cls</span><span class="o">.</span><span class="n">seen_nested</span><span class="p">,</span> <span class="n">standard</span> <span class="o">-</span> <span class="bp">cls</span><span class="o">.</span><span class="n">seen_nested</span></div>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_observe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coder</span><span class="p">):</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">coder</span><span class="p">))</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_observe_nested</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+
+  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">_observe_nested</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coder</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">coder</span><span class="o">.</span><span class="n">coders</span><span class="p">():</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">seen_nested</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_observe_nested</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CodersTest.check_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.check_coder">[docs]</a>  <span class="k">def</span> <span class="nf">check_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder</span><span class="p">,</span> <span class="o">*</span><span class="n">values</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_observe</span><span class="p">(</span><span class="n">coder</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">v</span><span class="p">),</span>
+                       <span class="nb">len</span><span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">v</span><span class="p">),</span>
+                       <span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span><span class="n">v</span><span class="p">),</span>
+                       <span class="p">(</span><span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">estimate_size</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="p">[]))</span>
+    <span class="n">copy1</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">coder</span><span class="p">))</span>
+    <span class="n">copy2</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">coder</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">values</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">copy1</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">copy2</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span>
+      <span class="k">if</span> <span class="n">coder</span><span class="o">.</span><span class="n">is_deterministic</span><span class="p">():</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">copy1</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">copy2</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_custom_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_custom_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_custom_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">CustomCoder</span><span class="p">(),</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">CustomCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">())),</span>
+                     <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_pickle_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_pickle_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_pickle_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">PickleCoder</span><span class="p">(),</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_deterministic_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_deterministic_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_deterministic_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">()</span>
+    <span class="n">deterministic_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">DeterministicFastPrimitivesCoder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="s1">&#39;step&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">deterministic_coder</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">deterministic_coder</span><span class="p">,</span> <span class="nb">dict</span><span class="p">())</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">assertRaises</span><span class="p">(</span><span class="ne">TypeError</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">deterministic_coder</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="nb">dict</span><span class="p">()])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">deterministic_coder</span><span class="p">,</span> <span class="n">coder</span><span class="p">)),</span>
+                     <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">dict</span><span class="p">()),</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="p">[</span><span class="nb">dict</span><span class="p">()]))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_dill_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_dill_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_dill_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">cell_value</span> <span class="o">=</span> <span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">x</span><span class="p">)(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">func_closure</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">DillCoder</span><span class="p">(),</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">cell_value</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">DillCoder</span><span class="p">())),</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">cell_value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_fast_primitives_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_fast_primitives_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_fast_primitives_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">SingletonCoder</span><span class="p">(</span><span class="nb">len</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="s1">&#39;str</span><span class="se">\0</span><span class="s1">str&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;unicode</span><span class="se">\0\u0101</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="p">(),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="s1">&#39;b&#39;</span><span class="p">},</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="nb">dict</span><span class="p">(),</span> <span class="mi">1</span><span class="p">:</span> <span class="nb">len</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="nb">set</span><span class="p">(),</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">})</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="nb">len</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coder</span><span class="p">,)),</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_bytes_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_bytes_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_bytes_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">(),</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\0</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_varint_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_varint_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_varint_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Small ints.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span> <span class="o">*</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="c1"># Multi-byte encoding starts at 128</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span> <span class="o">*</span><span class="nb">range</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">140</span><span class="p">))</span>
+    <span class="c1"># Large values</span>
+    <span class="n">MAX_64_BIT_INT</span> <span class="o">=</span> <span class="mh">0x7fffffffffffffff</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span>
+                     <span class="o">*</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+                       <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">MAX_64_BIT_INT</span><span class="p">)))])</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_float_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_float_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_float_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">(),</span>
+                     <span class="o">*</span><span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">(),</span>
+                     <span class="o">*</span><span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">(),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;-Inf&#39;</span><span class="p">),</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;Inf&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">())),</span>
+        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_singleton_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_singleton_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_singleton_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">a</span> <span class="o">=</span> <span class="s1">&#39;anything&#39;</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="s1">&#39;something else&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">SingletonCoder</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">a</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">SingletonCoder</span><span class="p">(</span><span class="n">b</span><span class="p">),</span> <span class="n">b</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">SingletonCoder</span><span class="p">(</span><span class="n">a</span><span class="p">),</span>
+                                        <span class="n">coders</span><span class="o">.</span><span class="n">SingletonCoder</span><span class="p">(</span><span class="n">b</span><span class="p">))),</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_interval_window_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_interval_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_interval_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">(),</span>
+                     <span class="o">*</span><span class="p">[</span><span class="n">window</span><span class="o">.</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+                       <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="o">**</span><span class="mi">52</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">52</span><span class="p">]</span>
+                       <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">IntervalWindowCoder</span><span class="p">(),)),</span>
+        <span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">IntervalWindow</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_timestamp_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_timestamp_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_timestamp_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TimestampCoder</span><span class="p">(),</span>
+                     <span class="o">*</span><span class="p">[</span><span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TimestampCoder</span><span class="p">(),</span>
+                     <span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=-</span><span class="mi">1234567890</span><span class="p">),</span>
+                     <span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="mi">1234567890</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TimestampCoder</span><span class="p">(),</span>
+                     <span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=-</span><span class="mi">1234567890123456789</span><span class="p">),</span>
+                     <span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="n">micros</span><span class="o">=</span><span class="mi">1234567890123456789</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">TimestampCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">())),</span>
+        <span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="mi">27</span><span class="p">),</span> <span class="s1">&#39;abc&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_tuple_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_tuple_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_tuple_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">kv_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">()))</span>
+    <span class="c1"># Verify cloud object representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;kind:pair&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;is_pair_like&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;component_encodings&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">(),</span>
+                <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">()],</span>
+        <span class="p">},</span>
+        <span class="n">kv_coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">())</span>
+    <span class="c1"># Test binary representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="s1">&#39;</span><span class="se">\x04</span><span class="s1">abc&#39;</span><span class="p">,</span>
+        <span class="n">kv_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;abc&#39;</span><span class="p">)))</span>
+    <span class="c1"># Test unnested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">kv_coder</span><span class="p">,</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span>
+        <span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span> <span class="o">*</span> <span class="mi">100</span><span class="p">),</span>
+        <span class="p">(</span><span class="mi">300</span><span class="p">,</span> <span class="s1">&#39;abc</span><span class="se">\0</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">5</span><span class="p">))</span>
+    <span class="c1"># Test nested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">PickleCoder</span><span class="p">(),</span> <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">())),</span>
+             <span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">())),</span>
+        <span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span>
+        <span class="p">((</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="sa">u</span><span class="s1">&#39;a</span><span class="se">\u0101</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">100</span><span class="p">),</span>
+        <span class="p">((</span><span class="mi">300</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;abc</span><span class="se">\0</span><span class="s1">&#39;</span> <span class="o">*</span> <span class="mi">5</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_tuple_sequence_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_tuple_sequence_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_tuple_sequence_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">int_tuple_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleSequenceCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">int_tuple_coder</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(),</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1000</span><span class="p">)))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span> <span class="n">int_tuple_coder</span><span class="p">)),</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_base64_pickle_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_base64_pickle_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_base64_pickle_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">Base64PickleCoder</span><span class="p">(),</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_utf8_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_utf8_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_utf8_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;ab</span><span class="se">\u00FF</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="se">\u0101\0</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_iterable_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_iterable_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_iterable_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">iterable_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">())</span>
+    <span class="c1"># Verify cloud object representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;kind:stream&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;is_stream_like&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;component_encodings&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">()]</span>
+        <span class="p">},</span>
+        <span class="n">iterable_coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">())</span>
+    <span class="c1"># Test unnested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">iterable_coder</span><span class="p">,</span>
+                     <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">])</span>
+    <span class="c1"># Test nested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span>
+                           <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()))),</span>
+        <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_iterable_coder_unknown_length"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_iterable_coder_unknown_length">[docs]</a>  <span class="k">def</span> <span class="nf">test_iterable_coder_unknown_length</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Empty</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_iterable_coder_of_unknown_length</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="c1"># Single element</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_iterable_coder_of_unknown_length</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># Multiple elements</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_iterable_coder_of_unknown_length</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="c1"># Multiple elements with underlying stream buffer overflow.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_test_iterable_coder_of_unknown_length</span><span class="p">(</span><span class="mi">80000</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_test_iterable_coder_of_unknown_length</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">iter_generator</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">i</span>
+
+    <span class="n">iterable_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">IterableCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertItemsEqual</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">iter_generator</span><span class="p">(</span><span class="n">count</span><span class="p">)),</span>
+                          <span class="n">iterable_coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span>
+                              <span class="n">iterable_coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">iter_generator</span><span class="p">(</span><span class="n">count</span><span class="p">))))</span>
+
+<div class="viewcode-block" id="CodersTest.test_windowed_value_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_windowed_value_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_windowed_value_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span>
+                                      <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">())</span>
+    <span class="c1"># Verify cloud object representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;kind:windowed_value&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;is_wrapper&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;component_encodings&#39;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">(),</span>
+                <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">(),</span>
+            <span class="p">],</span>
+        <span class="p">},</span>
+        <span class="n">coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">())</span>
+    <span class="c1"># Test binary representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x7f\xdf</span><span class="s1">;dZ</span><span class="se">\x1c\xac\t\x00\x00\x00\x01\x0f\x01</span><span class="s1">&#39;</span><span class="p">,</span>
+                     <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="o">.</span><span class="n">windowed_value</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="c1"># Test unnested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()),</span>
+        <span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">,</span> <span class="p">()),</span>
+        <span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)))</span>
+
+    <span class="c1"># Test Global Window</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">(),</span>
+                                  <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">()),</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="o">.</span><span class="n">windowed_value</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+
+    <span class="c1"># Test nested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span>
+        <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span>
+            <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">FloatCoder</span><span class="p">()),</span>
+            <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">()))),</span>
+        <span class="p">(</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span><span class="mf">1.5</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">()),</span>
+         <span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span><span class="s2">&quot;abc&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;window&#39;</span><span class="p">,))))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_proto_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_proto_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_proto_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># For instructions on how these test proto message were generated,</span>
+    <span class="c1"># see coders_test.py</span>
+    <span class="n">ma</span> <span class="o">=</span> <span class="n">test_message</span><span class="o">.</span><span class="n">MessageA</span><span class="p">()</span>
+    <span class="n">mab</span> <span class="o">=</span> <span class="n">ma</span><span class="o">.</span><span class="n">field2</span><span class="o">.</span><span class="n">add</span><span class="p">()</span>
+    <span class="n">mab</span><span class="o">.</span><span class="n">field1</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">ma</span><span class="o">.</span><span class="n">field1</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;hello world&#39;</span>
+
+    <span class="n">mb</span> <span class="o">=</span> <span class="n">test_message</span><span class="o">.</span><span class="n">MessageA</span><span class="p">()</span>
+    <span class="n">mb</span><span class="o">.</span><span class="n">field1</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;beam&#39;</span>
+
+    <span class="n">proto_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">ProtoCoder</span><span class="p">(</span><span class="n">ma</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">proto_coder</span><span class="p">,</span> <span class="n">ma</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">proto_coder</span><span class="p">,</span> <span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">())),</span>
+                     <span class="p">(</span><span class="n">ma</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">mb</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_global_window_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_global_window_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_global_window_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">GlobalWindowCoder</span><span class="p">()</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">()</span>
+    <span class="c1"># Verify cloud object representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">({</span><span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;kind:global_window&#39;</span><span class="p">},</span>
+                     <span class="n">coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">())</span>
+    <span class="c1"># Test binary representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span>
+    <span class="c1"># Test unnested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="c1"># Test nested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coder</span><span class="p">,</span> <span class="n">coder</span><span class="p">)),</span>
+                     <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_length_prefix_coder"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_length_prefix_coder">[docs]</a>  <span class="k">def</span> <span class="nf">test_length_prefix_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">LengthPrefixCoder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">())</span>
+    <span class="c1"># Verify cloud object representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s1">&#39;@type&#39;</span><span class="p">:</span> <span class="s1">&#39;kind:length_prefix&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;component_encodings&#39;</span><span class="p">:</span> <span class="p">[</span><span class="n">coders</span><span class="o">.</span><span class="n">BytesCoder</span><span class="p">()</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">()]</span>
+        <span class="p">},</span>
+        <span class="n">coder</span><span class="o">.</span><span class="n">as_cloud_object</span><span class="p">())</span>
+    <span class="c1"># Test binary representation</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x00</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x01</span><span class="s1">a&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\x02</span><span class="s1">bc&#39;</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;bc&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\xff\x7f</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="s1">&#39;z&#39;</span> <span class="o">*</span> <span class="mi">16383</span><span class="p">,</span> <span class="n">coder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;z&#39;</span> <span class="o">*</span> <span class="mi">16383</span><span class="p">))</span>
+    <span class="c1"># Test unnested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coder</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;bc&#39;</span><span class="p">,</span> <span class="s1">&#39;def&#39;</span><span class="p">)</span>
+    <span class="c1"># Test nested</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">check_coder</span><span class="p">(</span><span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coder</span><span class="p">,</span> <span class="n">coder</span><span class="p">)),</span>
+                     <span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span>
+                     <span class="p">(</span><span class="s1">&#39;bc&#39;</span><span class="p">,</span> <span class="s1">&#39;def&#39;</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="CodersTest.test_nested_observables"><a class="viewcode-back" href="../../../apache_beam.coders.html#apache_beam.coders.coders_test_common.CodersTest.test_nested_observables">[docs]</a>  <span class="k">def</span> <span class="nf">test_nested_observables</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">class</span> <span class="nc">FakeObservableIterator</span><span class="p">(</span><span class="n">observable</span><span class="o">.</span><span class="n">ObservableMixin</span><span class="p">):</span>
+
+      <span class="k">def</span> <span class="nf">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+
+    <span class="c1"># Coder for elements from the observable iterator.</span>
+    <span class="n">elem_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">VarIntCoder</span><span class="p">()</span>
+    <span class="n">iter_coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleSequenceCoder</span><span class="p">(</span><span class="n">elem_coder</span><span class="p">)</span>
+
+    <span class="c1"># Test nested WindowedValue observable.</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">WindowedValueCoder</span><span class="p">(</span><span class="n">iter_coder</span><span class="p">)</span>
+    <span class="n">observ</span> <span class="o">=</span> <span class="n">FakeObservableIterator</span><span class="p">()</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span><span class="n">observ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span><span class="n">value</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">[(</span><span class="n">observ</span><span class="p">,</span> <span class="n">elem_coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">())])</span>
+
+    <span class="c1"># Test nested tuple observable.</span>
+    <span class="n">coder</span> <span class="o">=</span> <span class="n">coders</span><span class="o">.</span><span class="n">TupleCoder</span><span class="p">((</span><span class="n">coders</span><span class="o">.</span><span class="n">StrUtf8Coder</span><span class="p">(),</span> <span class="n">iter_coder</span><span class="p">))</span>
+    <span class="n">value</span> <span class="o">=</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;123&#39;</span><span class="p">,</span> <span class="n">observ</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span>
+        <span class="n">coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">()</span><span class="o">.</span><span class="n">get_estimated_size_and_observables</span><span class="p">(</span><span class="n">value</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">[(</span><span class="n">observ</span><span class="p">,</span> <span class="n">elem_coder</span><span class="o">.</span><span class="n">get_impl</span><span class="p">())])</span></div></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+  <span class="n">unittest</span><span class="o">.</span><span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

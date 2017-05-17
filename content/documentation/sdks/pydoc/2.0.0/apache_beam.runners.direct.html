@@ -1,0 +1,671 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.testing package" href="apache_beam.testing.html" />
+    <link rel="prev" title="apache_beam.runners.dataflow.native_io package" href="apache_beam.runners.dataflow.native_io.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.testing.html" title="apache_beam.testing package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" accesskey="U">apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.runners.direct package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.bundle_factory">apache_beam.runners.direct.bundle_factory module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.clock">apache_beam.runners.direct.clock module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor">apache_beam.runners.direct.consumer_tracking_pipeline_visitor module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.direct_metrics">apache_beam.runners.direct.direct_metrics module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.direct_runner">apache_beam.runners.direct.direct_runner module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.evaluation_context">apache_beam.runners.direct.evaluation_context module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.executor">apache_beam.runners.direct.executor module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.helper_transforms">apache_beam.runners.direct.helper_transforms module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.transform_evaluator">apache_beam.runners.direct.transform_evaluator module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.transform_result">apache_beam.runners.direct.transform_result module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct.watermark_manager">apache_beam.runners.direct.watermark_manager module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.direct">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.native_io.html"
+                        title="previous chapter">apache_beam.runners.dataflow.native_io package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.testing.html"
+                        title="next chapter">apache_beam.testing package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.runners.direct.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-runners-direct-package">
+<h1>apache_beam.runners.direct package<a class="headerlink" href="#apache-beam-runners-direct-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.runners.direct.bundle_factory">
+<span id="apache-beam-runners-direct-bundle-factory-module"></span><h2>apache_beam.runners.direct.bundle_factory module<a class="headerlink" href="#module-apache_beam.runners.direct.bundle_factory" title="Permalink to this headline">¶</a></h2>
+<p>A factory that creates UncommittedBundles.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.bundle_factory.BundleFactory">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.bundle_factory.</code><code class="descname">BundleFactory</code><span class="sig-paren">(</span><em>stacked</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/bundle_factory.html#BundleFactory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.bundle_factory.BundleFactory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>BundleFactory creates output bundles to be used by transform evaluators.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>stacked</strong> &#8211; whether or not to stack the WindowedValues within the bundle
+in case consecutive ones share the same timestamp and windows.
+DirectRunnerOptions.direct_runner_use_stacked_bundle controls this option.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.runners.direct.bundle_factory.BundleFactory.create_bundle">
+<code class="descname">create_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/bundle_factory.html#BundleFactory.create_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.bundle_factory.BundleFactory.create_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.bundle_factory.BundleFactory.create_empty_committed_bundle">
+<code class="descname">create_empty_committed_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/bundle_factory.html#BundleFactory.create_empty_committed_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.bundle_factory.BundleFactory.create_empty_committed_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.clock">
+<span id="apache-beam-runners-direct-clock-module"></span><h2>apache_beam.runners.direct.clock module<a class="headerlink" href="#module-apache_beam.runners.direct.clock" title="Permalink to this headline">¶</a></h2>
+<p>Clock implementations for real time processing and testing.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.clock.Clock">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.clock.</code><code class="descname">Clock</code><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#Clock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.Clock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.clock.Clock.time">
+<code class="descname">time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#Clock.time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.Clock.time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the number of milliseconds since epoch.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.clock.MockClock">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.clock.</code><code class="descname">MockClock</code><span class="sig-paren">(</span><em>now_in_ms</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#MockClock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.MockClock" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.runners.direct.clock.Clock" title="apache_beam.runners.direct.clock.Clock"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.direct.clock.Clock</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Mock clock implementation for testing.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.clock.MockClock.advance">
+<code class="descname">advance</code><span class="sig-paren">(</span><em>duration_in_ms</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#MockClock.advance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.MockClock.advance" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.clock.MockClock.set_time">
+<code class="descname">set_time</code><span class="sig-paren">(</span><em>value_in_ms</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#MockClock.set_time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.MockClock.set_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.clock.MockClock.time">
+<code class="descname">time</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/clock.html#MockClock.time"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.clock.MockClock.time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor">
+<span id="apache-beam-runners-direct-consumer-tracking-pipeline-visitor-module"></span><h2>apache_beam.runners.direct.consumer_tracking_pipeline_visitor module<a class="headerlink" href="#module-apache_beam.runners.direct.consumer_tracking_pipeline_visitor" title="Permalink to this headline">¶</a></h2>
+<p>ConsumerTrackingPipelineVisitor, a PipelineVisitor object.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.consumer_tracking_pipeline_visitor.ConsumerTrackingPipelineVisitor">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.consumer_tracking_pipeline_visitor.</code><code class="descname">ConsumerTrackingPipelineVisitor</code><a class="reference internal" href="_modules/apache_beam/runners/direct/consumer_tracking_pipeline_visitor.html#ConsumerTrackingPipelineVisitor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.consumer_tracking_pipeline_visitor.ConsumerTrackingPipelineVisitor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pipeline.PipelineVisitor</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Visitor for extracting value-consumer relations from the graph.</p>
+<p>Tracks the AppliedPTransforms that consume each PValue in the Pipeline. This
+is used to schedule consuming PTransforms to consume input after the upstream
+transform has produced and committed output.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.consumer_tracking_pipeline_visitor.ConsumerTrackingPipelineVisitor.visit_transform">
+<code class="descname">visit_transform</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/consumer_tracking_pipeline_visitor.html#ConsumerTrackingPipelineVisitor.visit_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.consumer_tracking_pipeline_visitor.ConsumerTrackingPipelineVisitor.visit_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.direct_metrics">
+<span id="apache-beam-runners-direct-direct-metrics-module"></span><h2>apache_beam.runners.direct.direct_metrics module<a class="headerlink" href="#module-apache_beam.runners.direct.direct_metrics" title="Permalink to this headline">¶</a></h2>
+<p>DirectRunner implementation of MetricResults. It is in charge not only of
+responding to queries of current metrics, but also of keeping the common
+state consistent.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.direct_metrics.</code><code class="descname">DirectMetric</code><span class="sig-paren">(</span><em>aggregator</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Keeps a consistent state for a single metric.</p>
+<p>It keeps track of the metric&#8217;s physical and logical updates.
+It&#8217;s thread safe.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.commit_logical">
+<code class="descname">commit_logical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.commit_logical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_logical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.commit_physical">
+<code class="descname">commit_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.commit_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.commit_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.extract_committed">
+<code class="descname">extract_committed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.extract_committed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_committed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.extract_latest_attempted">
+<code class="descname">extract_latest_attempted</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.extract_latest_attempted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.extract_latest_attempted" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetric.update_physical">
+<code class="descname">update_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>update</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetric.update_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetric.update_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.direct_metrics.</code><code class="descname">DirectMetrics</code><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metric.MetricResults</span></code></p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_logical">
+<code class="descname">commit_logical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.commit_logical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_logical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_physical">
+<code class="descname">commit_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.commit_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.commit_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.query">
+<code class="descname">query</code><span class="sig-paren">(</span><em>filter=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.query" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_metrics.DirectMetrics.update_physical">
+<code class="descname">update_physical</code><span class="sig-paren">(</span><em>bundle</em>, <em>updates</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_metrics.html#DirectMetrics.update_physical"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_metrics.DirectMetrics.update_physical" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.direct_runner">
+<span id="apache-beam-runners-direct-direct-runner-module"></span><h2>apache_beam.runners.direct.direct_runner module<a class="headerlink" href="#module-apache_beam.runners.direct.direct_runner" title="Permalink to this headline">¶</a></h2>
+<p>DirectRunner, executing on the local machine.</p>
+<p>The DirectRunner is a runner implementation that executes the entire
+graph of transformations belonging to a pipeline on the local machine.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.direct_runner.DirectRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.direct_runner.</code><code class="descname">DirectRunner</code><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_runner.html#DirectRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_runner.DirectRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.runner.PipelineRunner</span></code></a></p>
+<p>Executes a single pipeline on the local machine.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_runner.DirectRunner.apply_CombinePerKey">
+<code class="descname">apply_CombinePerKey</code><span class="sig-paren">(</span><em>transform</em>, <em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_runner.html#DirectRunner.apply_CombinePerKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_runner.DirectRunner.apply_CombinePerKey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.direct.direct_runner.DirectRunner.cache">
+<code class="descname">cache</code><a class="headerlink" href="#apache_beam.runners.direct.direct_runner.DirectRunner.cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.direct_runner.DirectRunner.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>pipeline</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/direct_runner.html#DirectRunner.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.direct_runner.DirectRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute the entire pipeline and returns an DirectPipelineResult.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.evaluation_context">
+<span id="apache-beam-runners-direct-evaluation-context-module"></span><h2>apache_beam.runners.direct.evaluation_context module<a class="headerlink" href="#module-apache_beam.runners.direct.evaluation_context" title="Permalink to this headline">¶</a></h2>
+<p>EvaluationContext tracks global state, triggers and watermarks.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.evaluation_context.</code><code class="descname">EvaluationContext</code><span class="sig-paren">(</span><em>pipeline_options</em>, <em>bundle_factory</em>, <em>root_transforms</em>, <em>value_to_consumers</em>, <em>step_names</em>, <em>views</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Evaluation context with the global state information of the pipeline.</p>
+<p>The evaluation context for a specific pipeline being executed by the
+DirectRunner. Contains state shared within the execution across all
+transforms.</p>
+<p>EvaluationContext contains shared state for an execution of the
+DirectRunner that can be used while evaluating a PTransform. This
+consists of views into underlying state and watermark implementations, access
+to read and write side inputs, and constructing counter sets and
+execution contexts. This includes executing callbacks asynchronously when
+state changes to the appropriate point (e.g. when a side input is
+requested and known to be empty).</p>
+<p>EvaluationContext also handles results by committing finalizing
+bundles based on the current global state and updating the global state
+appropriately. This includes updating the per-(step,key) state, updating
+global watermarks, and executing any callbacks that can be executed.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.append_to_cache">
+<code class="descname">append_to_cache</code><span class="sig-paren">(</span><em>applied_ptransform</em>, <em>tag</em>, <em>elements</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.append_to_cache"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.append_to_cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.create_bundle">
+<code class="descname">create_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.create_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.create_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an uncommitted bundle for the specified PCollection.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.create_empty_committed_bundle">
+<code class="descname">create_empty_committed_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.create_empty_committed_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.create_empty_committed_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create empty bundle useful for triggering evaluation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.extract_fired_timers">
+<code class="descname">extract_fired_timers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.extract_fired_timers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.extract_fired_timers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_aggregator_values">
+<code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_execution_context">
+<code class="descname">get_execution_context</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_execution_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_execution_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_value_or_schedule_after_output">
+<code class="descname">get_value_or_schedule_after_output</code><span class="sig-paren">(</span><em>side_input</em>, <em>task</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_value_or_schedule_after_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_value_or_schedule_after_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.handle_result">
+<code class="descname">handle_result</code><span class="sig-paren">(</span><em>completed_bundle</em>, <em>completed_timers</em>, <em>result</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.handle_result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.handle_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle the provided result produced after evaluating the input bundle.</p>
+<p>Handle the provided TransformResult, produced after evaluating
+the provided committed bundle (potentially None, if the result of a root
+PTransform).</p>
+<p>The result is the output of running the transform contained in the
+TransformResult on the contents of the provided bundle.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>completed_bundle</strong> &#8211; the bundle that was processed to produce the result.</li>
+<li><strong>completed_timers</strong> &#8211; the timers that were delivered to produce the
+completed_bundle.</li>
+<li><strong>result</strong> &#8211; the TransformResult of evaluating the input bundle</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">the committed bundles contained within the handled result.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.has_cache">
+<code class="descname">has_cache</code><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.has_cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.is_done">
+<code class="descname">is_done</code><span class="sig-paren">(</span><em>transform=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.is_done"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.is_done" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks completion of a step or the pipeline.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>transform</strong> &#8211; AppliedPTransform to check for completion.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if the step will not produce additional output. If transform is None
+returns true if all steps are done.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.is_root_transform">
+<code class="descname">is_root_transform</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.is_root_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.is_root_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.metrics">
+<code class="descname">metrics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.metrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.metrics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.schedule_pending_unblocked_tasks">
+<code class="descname">schedule_pending_unblocked_tasks</code><span class="sig-paren">(</span><em>executor_service</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.schedule_pending_unblocked_tasks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.schedule_pending_unblocked_tasks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.use_pvalue_cache">
+<code class="descname">use_pvalue_cache</code><span class="sig-paren">(</span><em>cache</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.use_pvalue_cache"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.use_pvalue_cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.executor">
+<span id="apache-beam-runners-direct-executor-module"></span><h2>apache_beam.runners.direct.executor module<a class="headerlink" href="#module-apache_beam.runners.direct.executor" title="Permalink to this headline">¶</a></h2>
+<p>An executor that schedules and executes applied ptransforms.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.executor.Executor">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.executor.</code><code class="descname">Executor</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/executor.html#Executor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.executor.Executor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.executor.Executor.await_completion">
+<code class="descname">await_completion</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/executor.html#Executor.await_completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.executor.Executor.await_completion" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.executor.Executor.start">
+<code class="descname">start</code><span class="sig-paren">(</span><em>roots</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/executor.html#Executor.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.executor.Executor.start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.executor.TransformExecutor">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.executor.</code><code class="descname">TransformExecutor</code><span class="sig-paren">(</span><em>transform_evaluator_registry</em>, <em>evaluation_context</em>, <em>input_bundle</em>, <em>applied_transform</em>, <em>completion_callback</em>, <em>transform_evaluation_state</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/executor.html#TransformExecutor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.executor.TransformExecutor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.direct.executor.CallableTask</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>TransformExecutor will evaluate a bundle using an applied ptransform.</p>
+<p>A CallableTask responsible for constructing a TransformEvaluator and
+evaluating it on some bundle of input, and registering the result using the
+completion callback.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.executor.TransformExecutor.call">
+<code class="descname">call</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/executor.html#TransformExecutor.call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.executor.TransformExecutor.call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.helper_transforms">
+<span id="apache-beam-runners-direct-helper-transforms-module"></span><h2>apache_beam.runners.direct.helper_transforms module<a class="headerlink" href="#module-apache_beam.runners.direct.helper_transforms" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="apache_beam.runners.direct.helper_transforms.FinishCombine">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.helper_transforms.</code><code class="descname">FinishCombine</code><span class="sig-paren">(</span><em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#FinishCombine"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.FinishCombine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Merges partially combined results.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.FinishCombine.default_type_hints">
+<code class="descname">default_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#FinishCombine.default_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.FinishCombine.default_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.FinishCombine.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#FinishCombine.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.FinishCombine.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.helper_transforms.LiftedCombinePerKey">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.helper_transforms.</code><code class="descname">LiftedCombinePerKey</code><span class="sig-paren">(</span><em>combine_fn</em>, <em>args</em>, <em>kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#LiftedCombinePerKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.LiftedCombinePerKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>An implementation of CombinePerKey that does mapper-side pre-combining.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.LiftedCombinePerKey.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#LiftedCombinePerKey.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.LiftedCombinePerKey.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.helper_transforms.</code><code class="descname">PartialGroupByKeyCombiningValues</code><span class="sig-paren">(</span><em>combine_fn</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#PartialGroupByKeyCombiningValues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>Aggregates values into a per-key-window cache.</p>
+<p>As bundles are in-memory-sized, we don&#8217;t bother flushing until the very end.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.default_type_hints">
+<code class="descname">default_type_hints</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#PartialGroupByKeyCombiningValues.default_type_hints"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.default_type_hints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.finish_bundle">
+<code class="descname">finish_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#PartialGroupByKeyCombiningValues.finish_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.finish_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>element</em>, <em>window='WindowParam'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#PartialGroupByKeyCombiningValues.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.start_bundle">
+<code class="descname">start_bundle</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/helper_transforms.html#PartialGroupByKeyCombiningValues.start_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.helper_transforms.PartialGroupByKeyCombiningValues.start_bundle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.transform_evaluator">
+<span id="apache-beam-runners-direct-transform-evaluator-module"></span><h2>apache_beam.runners.direct.transform_evaluator module<a class="headerlink" href="#module-apache_beam.runners.direct.transform_evaluator" title="Permalink to this headline">¶</a></h2>
+<p>An evaluator of a specific application of a transform.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.transform_evaluator.</code><code class="descname">TransformEvaluatorRegistry</code><span class="sig-paren">(</span><em>evaluation_context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/transform_evaluator.html#TransformEvaluatorRegistry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Creates instances of TransformEvaluator for the application of a transform.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.for_application">
+<code class="descname">for_application</code><span class="sig-paren">(</span><em>applied_ptransform</em>, <em>input_committed_bundle</em>, <em>side_inputs</em>, <em>scoped_metrics_container</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/transform_evaluator.html#TransformEvaluatorRegistry.for_application"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.for_application" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a TransformEvaluator suitable for processing given inputs.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.should_execute_serially">
+<code class="descname">should_execute_serially</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/transform_evaluator.html#TransformEvaluatorRegistry.should_execute_serially"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.transform_evaluator.TransformEvaluatorRegistry.should_execute_serially" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns True if this applied_ptransform should run one bundle at a time.</p>
+<p>Some TransformEvaluators use a global state object to keep track of their
+global execution state. For example evaluator for _GroupByKeyOnly uses this
+state as an in memory dictionary to buffer keys.</p>
+<p>Serially executed evaluators will act as syncing point in the graph and
+execution will not move forward until they receive all of their inputs. Once
+they receive all of their input, they will release the combined output.
+Their output may consist of multiple bundles as they may divide their output
+into pieces before releasing.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>applied_ptransform</strong> &#8211; Transform to be used for execution.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if executor should execute applied_ptransform serially.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.transform_result">
+<span id="apache-beam-runners-direct-transform-result-module"></span><h2>apache_beam.runners.direct.transform_result module<a class="headerlink" href="#module-apache_beam.runners.direct.transform_result" title="Permalink to this headline">¶</a></h2>
+<p>The result of evaluating an AppliedPTransform with a TransformEvaluator.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.transform_result.TransformResult">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.transform_result.</code><code class="descname">TransformResult</code><span class="sig-paren">(</span><em>applied_ptransform</em>, <em>uncommitted_output_bundles</em>, <em>state</em>, <em>timer_update</em>, <em>counters</em>, <em>watermark_hold</em>, <em>undeclared_tag_values=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/transform_result.html#TransformResult"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.transform_result.TransformResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>The result of evaluating an AppliedPTransform with a TransformEvaluator.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct.watermark_manager">
+<span id="apache-beam-runners-direct-watermark-manager-module"></span><h2>apache_beam.runners.direct.watermark_manager module<a class="headerlink" href="#module-apache_beam.runners.direct.watermark_manager" title="Permalink to this headline">¶</a></h2>
+<p>Manages watermarks of PCollections and AppliedPTransforms.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.watermark_manager.</code><code class="descname">WatermarkManager</code><span class="sig-paren">(</span><em>clock</em>, <em>root_transforms</em>, <em>value_to_consumers</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/watermark_manager.html#WatermarkManager"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Tracks and updates watermarks for all AppliedPTransforms.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager.WATERMARK_NEG_INF">
+<code class="descname">WATERMARK_NEG_INF</code><em class="property"> = Timestamp(-9223372036854.775808)</em><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager.WATERMARK_NEG_INF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager.WATERMARK_POS_INF">
+<code class="descname">WATERMARK_POS_INF</code><em class="property"> = Timestamp(9223372036854.775807)</em><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager.WATERMARK_POS_INF" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager.extract_fired_timers">
+<code class="descname">extract_fired_timers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/watermark_manager.html#WatermarkManager.extract_fired_timers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager.extract_fired_timers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager.get_watermarks">
+<code class="descname">get_watermarks</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/watermark_manager.html#WatermarkManager.get_watermarks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager.get_watermarks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the input and output watermarks for an AppliedPTransform.</p>
+<p>If the applied_ptransform has not processed any elements, return a
+watermark with minimum value.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>applied_ptransform</strong> &#8211; AppliedPTransform to get the watermarks for.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A snapshot (TransformWatermarks) of the input watermark and output
+watermark for the provided transform.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.watermark_manager.WatermarkManager.update_watermarks">
+<code class="descname">update_watermarks</code><span class="sig-paren">(</span><em>completed_committed_bundle</em>, <em>applied_ptransform</em>, <em>timer_update</em>, <em>outputs</em>, <em>earliest_hold</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/watermark_manager.html#WatermarkManager.update_watermarks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.watermark_manager.WatermarkManager.update_watermarks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.direct">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.runners.direct" title="Permalink to this headline">¶</a></h2>
+<p>Inprocess runner executes pipelines locally in a single process.</p>
+<p>Anything in this package not imported here is an internal implementation detail
+with no backwards-compatibility guarantees.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.testing.html" title="apache_beam.testing package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.native_io.html" title="apache_beam.runners.dataflow.native_io package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" >apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

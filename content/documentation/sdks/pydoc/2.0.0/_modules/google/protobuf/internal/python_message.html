@@ -1,0 +1,1627 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>google.protobuf.internal.python_message &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for google.protobuf.internal.python_message</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Protocol Buffers - Google&#39;s data interchange format</span>
+<span class="c1"># Copyright 2008 Google Inc.  All rights reserved.</span>
+<span class="c1"># https://developers.google.com/protocol-buffers/</span>
+<span class="c1">#</span>
+<span class="c1"># Redistribution and use in source and binary forms, with or without</span>
+<span class="c1"># modification, are permitted provided that the following conditions are</span>
+<span class="c1"># met:</span>
+<span class="c1">#</span>
+<span class="c1">#     * Redistributions of source code must retain the above copyright</span>
+<span class="c1"># notice, this list of conditions and the following disclaimer.</span>
+<span class="c1">#     * Redistributions in binary form must reproduce the above</span>
+<span class="c1"># copyright notice, this list of conditions and the following disclaimer</span>
+<span class="c1"># in the documentation and/or other materials provided with the</span>
+<span class="c1"># distribution.</span>
+<span class="c1">#     * Neither the name of Google Inc. nor the names of its</span>
+<span class="c1"># contributors may be used to endorse or promote products derived from</span>
+<span class="c1"># this software without specific prior written permission.</span>
+<span class="c1">#</span>
+<span class="c1"># THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS</span>
+<span class="c1"># &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT</span>
+<span class="c1"># LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR</span>
+<span class="c1"># A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT</span>
+<span class="c1"># OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,</span>
+<span class="c1"># SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT</span>
+<span class="c1"># LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,</span>
+<span class="c1"># DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY</span>
+<span class="c1"># THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT</span>
+<span class="c1"># (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE</span>
+<span class="c1"># OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</span>
+
+<span class="c1"># This code is meant to work on Python 2.4 and above only.</span>
+<span class="c1">#</span>
+<span class="c1"># TODO(robinson): Helpers for verbose, common checks like seeing if a</span>
+<span class="c1"># descriptor&#39;s cpp_type is CPPTYPE_MESSAGE.</span>
+
+<span class="sd">&quot;&quot;&quot;Contains a metaclass and helper functions used to create</span>
+<span class="sd">protocol message classes from Descriptor objects at runtime.</span>
+
+<span class="sd">Recall that a metaclass is the &quot;type&quot; of a class.</span>
+<span class="sd">(A class is to a metaclass what an instance is to a class.)</span>
+
+<span class="sd">In this case, we use the GeneratedProtocolMessageType metaclass</span>
+<span class="sd">to inject all the useful functionality into the classes</span>
+<span class="sd">output by the protocol compiler at compile-time.</span>
+
+<span class="sd">The upshot of all this is that the real implementation</span>
+<span class="sd">details for ALL pure-Python protocol buffers are *here in</span>
+<span class="sd">this file*.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;robinson@google.com (Will Robinson)&#39;</span>
+
+<span class="kn">from</span> <span class="nn">io</span> <span class="k">import</span> <span class="n">BytesIO</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">weakref</span>
+
+<span class="kn">import</span> <span class="nn">six</span>
+
+<span class="c1"># We use &quot;as&quot; to avoid name collisions with variables.</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">containers</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">decoder</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">encoder</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">enum_type_wrapper</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">message_listener</span> <span class="k">as</span> <span class="n">message_listener_mod</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">type_checkers</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">well_known_types</span>
+<span class="kn">from</span> <span class="nn">google.protobuf.internal</span> <span class="k">import</span> <span class="n">wire_format</span>
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">descriptor</span> <span class="k">as</span> <span class="n">descriptor_mod</span>
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">message</span> <span class="k">as</span> <span class="n">message_mod</span>
+<span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">text_format</span>
+
+<span class="n">_FieldDescriptor</span> <span class="o">=</span> <span class="n">descriptor_mod</span><span class="o">.</span><span class="n">FieldDescriptor</span>
+<span class="n">_AnyFullTypeName</span> <span class="o">=</span> <span class="s1">&#39;google.protobuf.Any&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">GeneratedProtocolMessageType</span><span class="p">(</span><span class="nb">type</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Metaclass for protocol message classes created at runtime from Descriptors.</span>
+
+<span class="sd">  We add implementations for all methods described in the Message class.  We</span>
+<span class="sd">  also create properties to allow getting/setting all fields in the protocol</span>
+<span class="sd">  message.  Finally, we create slots to prevent users from accidentally</span>
+<span class="sd">  &quot;setting&quot; nonexistent fields in the protocol message, which then wouldn&#39;t get</span>
+<span class="sd">  serialized / deserialized properly.</span>
+
+<span class="sd">  The protocol compiler currently uses this metaclass to create protocol</span>
+<span class="sd">  message classes at runtime.  Clients can also manually create their own</span>
+<span class="sd">  classes at runtime, as in this example:</span>
+
+<span class="sd">  mydescriptor = Descriptor(.....)</span>
+<span class="sd">  factory = symbol_database.Default()</span>
+<span class="sd">  factory.pool.AddDescriptor(mydescriptor)</span>
+<span class="sd">  MyProtoClass = factory.GetPrototype(mydescriptor)</span>
+<span class="sd">  myproto_instance = MyProtoClass()</span>
+<span class="sd">  myproto.foo_field = 23</span>
+<span class="sd">  ...</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># Must be consistent with the protocol-compiler code in</span>
+  <span class="c1"># proto2/compiler/internal/generator.*.</span>
+  <span class="n">_DESCRIPTOR_KEY</span> <span class="o">=</span> <span class="s1">&#39;DESCRIPTOR&#39;</span>
+
+  <span class="k">def</span> <span class="nf">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Custom allocation for runtime-generated class types.</span>
+
+<span class="sd">    We override __new__ because this is apparently the only place</span>
+<span class="sd">    where we can meaningfully set __slots__ on the class we&#39;re creating(?).</span>
+<span class="sd">    (The interplay between metaclasses and slots is not very well-documented).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name: Name of the class (ignored, but required by the</span>
+<span class="sd">        metaclass protocol).</span>
+<span class="sd">      bases: Base classes of the class we&#39;re constructing.</span>
+<span class="sd">        (Should be message.Message).  We ignore this field, but</span>
+<span class="sd">        it&#39;s required by the metaclass protocol</span>
+<span class="sd">      dictionary: The class dictionary of the class we&#39;re</span>
+<span class="sd">        constructing.  dictionary[_DESCRIPTOR_KEY] must contain</span>
+<span class="sd">        a Descriptor object describing this protocol message</span>
+<span class="sd">        type.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Newly-allocated class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">descriptor</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="n">GeneratedProtocolMessageType</span><span class="o">.</span><span class="n">_DESCRIPTOR_KEY</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">full_name</span> <span class="ow">in</span> <span class="n">well_known_types</span><span class="o">.</span><span class="n">WKTBASES</span><span class="p">:</span>
+      <span class="n">bases</span> <span class="o">+=</span> <span class="p">(</span><span class="n">well_known_types</span><span class="o">.</span><span class="n">WKTBASES</span><span class="p">[</span><span class="n">descriptor</span><span class="o">.</span><span class="n">full_name</span><span class="p">],)</span>
+    <span class="n">_AddClassAttributesForNestedExtensions</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">)</span>
+    <span class="n">_AddSlots</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">)</span>
+
+    <span class="n">superclass</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">GeneratedProtocolMessageType</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">new_class</span> <span class="o">=</span> <span class="n">superclass</span><span class="o">.</span><span class="fm">__new__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">new_class</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Here we perform the majority of our work on the class.</span>
+<span class="sd">    We add enum getters, an __init__ method, implementations</span>
+<span class="sd">    of all Message methods, and properties for all fields</span>
+<span class="sd">    in the protocol type.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name: Name of the class (ignored, but required by the</span>
+<span class="sd">        metaclass protocol).</span>
+<span class="sd">      bases: Base classes of the class we&#39;re constructing.</span>
+<span class="sd">        (Should be message.Message).  We ignore this field, but</span>
+<span class="sd">        it&#39;s required by the metaclass protocol</span>
+<span class="sd">      dictionary: The class dictionary of the class we&#39;re</span>
+<span class="sd">        constructing.  dictionary[_DESCRIPTOR_KEY] must contain</span>
+<span class="sd">        a Descriptor object describing this protocol message</span>
+<span class="sd">        type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">descriptor</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="n">GeneratedProtocolMessageType</span><span class="o">.</span><span class="n">_DESCRIPTOR_KEY</span><span class="p">]</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_decoders_by_tag</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+        <span class="n">descriptor</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">message_set_wire_format</span><span class="p">):</span>
+      <span class="bp">cls</span><span class="o">.</span><span class="n">_decoders_by_tag</span><span class="p">[</span><span class="n">decoder</span><span class="o">.</span><span class="n">MESSAGE_SET_ITEM_TAG</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">decoder</span><span class="o">.</span><span class="n">MessageSetItemDecoder</span><span class="p">(</span><span class="n">descriptor</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="c1"># Attach stuff to each FieldDescriptor for quick lookup later on.</span>
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+      <span class="n">_AttachFieldHelpers</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+    <span class="n">descriptor</span><span class="o">.</span><span class="n">_concrete_class</span> <span class="o">=</span> <span class="bp">cls</span>  <span class="c1"># pylint: disable=protected-access</span>
+    <span class="n">_AddEnumValues</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddInitMethod</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddPropertiesForFields</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddPropertiesForExtensions</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddStaticMethods</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddMessageMethods</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddPrivateHelperMethods</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+
+    <span class="n">superclass</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">GeneratedProtocolMessageType</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+    <span class="n">superclass</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">bases</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">)</span>
+
+
+<span class="c1"># Stateless helpers for GeneratedProtocolMessageType below.</span>
+<span class="c1"># Outside clients should not access these directly.</span>
+<span class="c1">#</span>
+<span class="c1"># I opted not to make any of these methods on the metaclass, to make it more</span>
+<span class="c1"># clear that I&#39;m not really using any state there and to keep clients from</span>
+<span class="c1"># thinking that they have direct access to these construction helpers.</span>
+
+
+<span class="k">def</span> <span class="nf">_PropertyName</span><span class="p">(</span><span class="n">proto_field_name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the name of the public property attribute which</span>
+<span class="sd">  clients can use to get and (in some cases) set the value</span>
+<span class="sd">  of a protocol message field.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    proto_field_name: The protocol message field name, exactly</span>
+<span class="sd">      as it appears (or would appear) in a .proto file.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># TODO(robinson): Escape Python keywords (e.g., yield), and test this support.</span>
+  <span class="c1"># nnorwitz makes my day by writing:</span>
+  <span class="c1"># &quot;&quot;&quot;</span>
+  <span class="c1"># FYI.  See the keyword module in the stdlib. This could be as simple as:</span>
+  <span class="c1">#</span>
+  <span class="c1"># if keyword.iskeyword(proto_field_name):</span>
+  <span class="c1">#   return proto_field_name + &quot;_&quot;</span>
+  <span class="c1"># return proto_field_name</span>
+  <span class="c1"># &quot;&quot;&quot;</span>
+  <span class="c1"># Kenton says:  The above is a BAD IDEA.  People rely on being able to use</span>
+  <span class="c1">#   getattr() and setattr() to reflectively manipulate field values.  If we</span>
+  <span class="c1">#   rename the properties, then every such user has to also make sure to apply</span>
+  <span class="c1">#   the same transformation.  Note that currently if you name a field &quot;yield&quot;,</span>
+  <span class="c1">#   you can still access it just fine using getattr/setattr -- it&#39;s not even</span>
+  <span class="c1">#   that cumbersome to do so.</span>
+  <span class="c1"># TODO(kenton):  Remove this method entirely if/when everyone agrees with my</span>
+  <span class="c1">#   position.</span>
+  <span class="k">return</span> <span class="n">proto_field_name</span>
+
+
+<span class="k">def</span> <span class="nf">_VerifyExtensionHandle</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Verify that the given extension handle is valid.&quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">,</span> <span class="n">_FieldDescriptor</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;HasExtension() expects an extension handle, got: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span>
+                   <span class="n">extension_handle</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">is_extension</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; is not an extension.&#39;</span> <span class="o">%</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">containing_type</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; is missing a containing_type.&#39;</span>
+                   <span class="o">%</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">full_name</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">containing_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">message</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Extension &quot;</span><span class="si">%s</span><span class="s1">&quot; extends message type &quot;</span><span class="si">%s</span><span class="s1">&quot;, but this &#39;</span>
+                   <span class="s1">&#39;message is of type &quot;</span><span class="si">%s</span><span class="s1">&quot;.&#39;</span> <span class="o">%</span>
+                   <span class="p">(</span><span class="n">extension_handle</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span>
+                    <span class="n">extension_handle</span><span class="o">.</span><span class="n">containing_type</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span>
+                    <span class="n">message</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="o">.</span><span class="n">full_name</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddSlots</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds a __slots__ entry to dictionary, containing the names of all valid</span>
+<span class="sd">  attributes for this message type.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    message_descriptor: A Descriptor instance describing this message type.</span>
+<span class="sd">    dictionary: Class dictionary to which we&#39;ll add a &#39;__slots__&#39; entry.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">dictionary</span><span class="p">[</span><span class="s1">&#39;__slots__&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_cached_byte_size&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_cached_byte_size_dirty&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_fields&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_unknown_fields&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_is_present_in_parent&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_listener&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_listener_for_children&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;__weakref__&#39;</span><span class="p">,</span>
+                             <span class="s1">&#39;_oneofs&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_IsMessageSetExtension</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">is_extension</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">containing_type</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">containing_type</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">message_set_wire_format</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">TYPE_MESSAGE</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_OPTIONAL</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_IsMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+  <span class="k">return</span> <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">TYPE_MESSAGE</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">map_entry</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_IsMessageMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+  <span class="n">value_type</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">fields_by_name</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span>
+  <span class="k">return</span> <span class="n">value_type</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span>
+
+
+<span class="k">def</span> <span class="nf">_AttachFieldHelpers</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">field_descriptor</span><span class="p">):</span>
+  <span class="n">is_repeated</span> <span class="o">=</span> <span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">)</span>
+  <span class="n">is_packable</span> <span class="o">=</span> <span class="p">(</span><span class="n">is_repeated</span> <span class="ow">and</span>
+                 <span class="n">wire_format</span><span class="o">.</span><span class="n">IsTypePackable</span><span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span><span class="p">))</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">is_packable</span><span class="p">:</span>
+    <span class="n">is_packed</span> <span class="o">=</span> <span class="kc">False</span>
+  <span class="k">elif</span> <span class="n">field_descriptor</span><span class="o">.</span><span class="n">containing_type</span><span class="o">.</span><span class="n">syntax</span> <span class="o">==</span> <span class="s2">&quot;proto2&quot;</span><span class="p">:</span>
+    <span class="n">is_packed</span> <span class="o">=</span> <span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+                <span class="n">field_descriptor</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">packed</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">has_packed_false</span> <span class="o">=</span> <span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+                        <span class="n">field_descriptor</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="s2">&quot;packed&quot;</span><span class="p">)</span> <span class="ow">and</span>
+                        <span class="n">field_descriptor</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">packed</span> <span class="o">==</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="n">is_packed</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">has_packed_false</span>
+  <span class="n">is_map_entry</span> <span class="o">=</span> <span class="n">_IsMapField</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">is_map_entry</span><span class="p">:</span>
+    <span class="n">field_encoder</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">MapEncoder</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">)</span>
+    <span class="n">sizer</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">MapSizer</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">_IsMessageSetExtension</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">):</span>
+    <span class="n">field_encoder</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">MessageSetItemEncoder</span><span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+    <span class="n">sizer</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">MessageSetItemSizer</span><span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">field_encoder</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">TYPE_TO_ENCODER</span><span class="p">[</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span><span class="p">](</span>
+        <span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">is_repeated</span><span class="p">,</span> <span class="n">is_packed</span><span class="p">)</span>
+    <span class="n">sizer</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">TYPE_TO_SIZER</span><span class="p">[</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span><span class="p">](</span>
+        <span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">is_repeated</span><span class="p">,</span> <span class="n">is_packed</span><span class="p">)</span>
+
+  <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_encoder</span> <span class="o">=</span> <span class="n">field_encoder</span>
+  <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_sizer</span> <span class="o">=</span> <span class="n">sizer</span>
+  <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_default_constructor</span> <span class="o">=</span> <span class="n">_DefaultValueConstructorForField</span><span class="p">(</span>
+      <span class="n">field_descriptor</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">AddDecoder</span><span class="p">(</span><span class="n">wiretype</span><span class="p">,</span> <span class="n">is_packed</span><span class="p">):</span>
+    <span class="n">tag_bytes</span> <span class="o">=</span> <span class="n">encoder</span><span class="o">.</span><span class="n">TagBytes</span><span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">wiretype</span><span class="p">)</span>
+    <span class="n">decode_type</span> <span class="o">=</span> <span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">decode_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">TYPE_ENUM</span> <span class="ow">and</span>
+        <span class="n">type_checkers</span><span class="o">.</span><span class="n">SupportsOpenEnums</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">)):</span>
+      <span class="n">decode_type</span> <span class="o">=</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">TYPE_INT32</span>
+
+    <span class="n">oneof_descriptor</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">field_descriptor</span><span class="o">.</span><span class="n">containing_oneof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">oneof_descriptor</span> <span class="o">=</span> <span class="n">field_descriptor</span>
+
+    <span class="k">if</span> <span class="n">is_map_entry</span><span class="p">:</span>
+      <span class="n">is_message_map</span> <span class="o">=</span> <span class="n">_IsMessageMapField</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">)</span>
+
+      <span class="n">field_decoder</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">MapDecoder</span><span class="p">(</span>
+          <span class="n">field_descriptor</span><span class="p">,</span> <span class="n">_GetInitializeDefaultForMap</span><span class="p">(</span><span class="n">field_descriptor</span><span class="p">),</span>
+          <span class="n">is_message_map</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">field_decoder</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">TYPE_TO_DECODER</span><span class="p">[</span><span class="n">decode_type</span><span class="p">](</span>
+              <span class="n">field_descriptor</span><span class="o">.</span><span class="n">number</span><span class="p">,</span> <span class="n">is_repeated</span><span class="p">,</span> <span class="n">is_packed</span><span class="p">,</span>
+              <span class="n">field_descriptor</span><span class="p">,</span> <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">)</span>
+
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_decoders_by_tag</span><span class="p">[</span><span class="n">tag_bytes</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">field_decoder</span><span class="p">,</span> <span class="n">oneof_descriptor</span><span class="p">)</span>
+
+  <span class="n">AddDecoder</span><span class="p">(</span><span class="n">type_checkers</span><span class="o">.</span><span class="n">FIELD_TYPE_TO_WIRE_TYPE</span><span class="p">[</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span><span class="p">],</span>
+             <span class="kc">False</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">is_repeated</span> <span class="ow">and</span> <span class="n">wire_format</span><span class="o">.</span><span class="n">IsTypePackable</span><span class="p">(</span><span class="n">field_descriptor</span><span class="o">.</span><span class="n">type</span><span class="p">):</span>
+    <span class="c1"># To support wire compatibility of adding packed = true, add a decoder for</span>
+    <span class="c1"># packed values regardless of the field&#39;s options.</span>
+    <span class="n">AddDecoder</span><span class="p">(</span><span class="n">wire_format</span><span class="o">.</span><span class="n">WIRETYPE_LENGTH_DELIMITED</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_AddClassAttributesForNestedExtensions</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">):</span>
+  <span class="n">extension_dict</span> <span class="o">=</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">extensions_by_name</span>
+  <span class="k">for</span> <span class="n">extension_name</span><span class="p">,</span> <span class="n">extension_field</span> <span class="ow">in</span> <span class="n">extension_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="k">assert</span> <span class="n">extension_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dictionary</span>
+    <span class="n">dictionary</span><span class="p">[</span><span class="n">extension_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">extension_field</span>
+
+
+<span class="k">def</span> <span class="nf">_AddEnumValues</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Sets class-level attributes for all enum fields defined in this message.</span>
+
+<span class="sd">  Also exporting a class-level object that can name enum values.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    descriptor: Descriptor object for this message type.</span>
+<span class="sd">    cls: Class we&#39;re constructing for this message type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">for</span> <span class="n">enum_type</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">enum_types</span><span class="p">:</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">enum_type</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">enum_type_wrapper</span><span class="o">.</span><span class="n">EnumTypeWrapper</span><span class="p">(</span><span class="n">enum_type</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">enum_value</span> <span class="ow">in</span> <span class="n">enum_type</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+      <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">enum_value</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">enum_value</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_GetInitializeDefaultForMap</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;map_entry set on non-repeated field </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+  <span class="n">fields_by_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">fields_by_name</span>
+  <span class="n">key_checker</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">GetTypeChecker</span><span class="p">(</span><span class="n">fields_by_name</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">])</span>
+
+  <span class="n">value_field</span> <span class="o">=</span> <span class="n">fields_by_name</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+  <span class="k">if</span> <span class="n">_IsMessageMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">MakeMessageMapDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">containers</span><span class="o">.</span><span class="n">MessageMap</span><span class="p">(</span>
+          <span class="n">message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">,</span> <span class="n">value_field</span><span class="o">.</span><span class="n">message_type</span><span class="p">,</span> <span class="n">key_checker</span><span class="p">,</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">MakeMessageMapDefault</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">value_checker</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">GetTypeChecker</span><span class="p">(</span><span class="n">value_field</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">MakePrimitiveMapDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">containers</span><span class="o">.</span><span class="n">ScalarMap</span><span class="p">(</span>
+          <span class="n">message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">,</span> <span class="n">key_checker</span><span class="p">,</span> <span class="n">value_checker</span><span class="p">,</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">MakePrimitiveMapDefault</span>
+
+<span class="k">def</span> <span class="nf">_DefaultValueConstructorForField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns a function which returns a default value for a field.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    field: FieldDescriptor object for this field.</span>
+
+<span class="sd">  The returned function has one argument:</span>
+<span class="sd">    message: Message instance containing this field, or a weakref proxy</span>
+<span class="sd">      of same.</span>
+
+<span class="sd">  That function in turn returns a default value for this field.  The default</span>
+<span class="sd">    value may refer back to |message| via a weak reference.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">_IsMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">_GetInitializeDefaultForMap</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">has_default_value</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">default_value</span> <span class="o">!=</span> <span class="p">[]:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Repeated field default value not empty list: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="n">field</span><span class="o">.</span><span class="n">default_value</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+      <span class="c1"># We can&#39;t look at _concrete_class yet since it might not have</span>
+      <span class="c1"># been set.  (Depends on order in which we initialize the classes).</span>
+      <span class="n">message_type</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span>
+      <span class="k">def</span> <span class="nf">MakeRepeatedMessageDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">containers</span><span class="o">.</span><span class="n">RepeatedCompositeFieldContainer</span><span class="p">(</span>
+            <span class="n">message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">MakeRepeatedMessageDefault</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">type_checker</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">GetTypeChecker</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+      <span class="k">def</span> <span class="nf">MakeRepeatedScalarDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">containers</span><span class="o">.</span><span class="n">RepeatedScalarFieldContainer</span><span class="p">(</span>
+            <span class="n">message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">,</span> <span class="n">type_checker</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">MakeRepeatedScalarDefault</span>
+
+  <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+    <span class="c1"># _concrete_class may not yet be initialized.</span>
+    <span class="n">message_type</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span>
+    <span class="k">def</span> <span class="nf">MakeSubMessageDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">message_type</span><span class="o">.</span><span class="n">_concrete_class</span><span class="p">()</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">_SetListener</span><span class="p">(</span>
+          <span class="n">_OneofListener</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+          <span class="k">else</span> <span class="n">message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">result</span>
+    <span class="k">return</span> <span class="n">MakeSubMessageDefault</span>
+
+  <span class="k">def</span> <span class="nf">MakeScalarDefault</span><span class="p">(</span><span class="n">message</span><span class="p">):</span>
+    <span class="c1"># TODO(protobuf-team): This may be broken since there may not be</span>
+    <span class="c1"># default_value.  Combine with has_default_value somehow.</span>
+    <span class="k">return</span> <span class="n">field</span><span class="o">.</span><span class="n">default_value</span>
+  <span class="k">return</span> <span class="n">MakeScalarDefault</span>
+
+
+<span class="k">def</span> <span class="nf">_ReraiseTypeErrorWithFieldName</span><span class="p">(</span><span class="n">message_name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Re-raise the currently-handled TypeError with the field name added.&quot;&quot;&quot;</span>
+  <span class="n">exc</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">1</span><span class="p">]</span>
+  <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span> <span class="ow">is</span> <span class="ne">TypeError</span><span class="p">:</span>
+    <span class="c1"># simple TypeError; add field name to exception message</span>
+    <span class="n">exc</span> <span class="o">=</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> for field </span><span class="si">%s</span><span class="s1">.</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">message_name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">))</span>
+
+  <span class="c1"># re-raise possibly-amended exception with original traceback:</span>
+  <span class="n">six</span><span class="o">.</span><span class="n">reraise</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">exc</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">_AddInitMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds an __init__ method to cls.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_GetIntegerEnumValue</span><span class="p">(</span><span class="n">enum_type</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a string or integer enum value to an integer.</span>
+
+<span class="sd">    If the value is a string, it is converted to the enum value in</span>
+<span class="sd">    enum_type with the same name.  If the value is not a string, it&#39;s</span>
+<span class="sd">    returned as-is.  (No conversion or bounds-checking is done.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">six</span><span class="o">.</span><span class="n">string_types</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">enum_type</span><span class="o">.</span><span class="n">values_by_name</span><span class="p">[</span><span class="n">value</span><span class="p">]</span><span class="o">.</span><span class="n">number</span>
+      <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Enum type </span><span class="si">%s</span><span class="s1">: unknown label &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">enum_type</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="n">value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># Contains a mapping from oneof field descriptors to the descriptor</span>
+    <span class="c1"># of the currently set field in that oneof field.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># _unknown_fields is () when empty for efficiency, and will be turned into</span>
+    <span class="c1"># a list if fields are added.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span> <span class="o">=</span> <span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_is_present_in_parent</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_listener</span> <span class="o">=</span> <span class="n">message_listener_mod</span><span class="o">.</span><span class="n">NullMessageListener</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_listener_for_children</span> <span class="o">=</span> <span class="n">_Listener</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">field_value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="n">_GetFieldByName</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">field</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">() got an unexpected keyword argument &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span> <span class="o">%</span>
+                        <span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">field_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># field=None is the same as no field at all.</span>
+        <span class="k">continue</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+        <span class="n">copy</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>  <span class="c1"># Composite</span>
+          <span class="k">if</span> <span class="n">_IsMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">_IsMessageMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+              <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">field_value</span><span class="p">:</span>
+                <span class="n">copy</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">field_value</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+              <span class="n">copy</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">field_value</span><span class="p">)</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">field_value</span><span class="p">:</span>
+              <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">copy</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="o">**</span><span class="n">val</span><span class="p">)</span>
+              <span class="k">else</span><span class="p">:</span>
+                <span class="n">copy</span><span class="o">.</span><span class="n">add</span><span class="p">()</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># Scalar</span>
+          <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_ENUM</span><span class="p">:</span>
+            <span class="n">field_value</span> <span class="o">=</span> <span class="p">[</span><span class="n">_GetIntegerEnumValue</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">enum_type</span><span class="p">,</span> <span class="n">val</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">field_value</span><span class="p">]</span>
+          <span class="n">copy</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">field_value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span>
+      <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+        <span class="n">copy</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">new_val</span> <span class="o">=</span> <span class="n">field_value</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field_value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+          <span class="n">new_val</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">_concrete_class</span><span class="p">(</span><span class="o">**</span><span class="n">field_value</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">copy</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">new_val</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+          <span class="n">_ReraiseTypeErrorWithFieldName</span><span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_ENUM</span><span class="p">:</span>
+          <span class="n">field_value</span> <span class="o">=</span> <span class="n">_GetIntegerEnumValue</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">enum_type</span><span class="p">,</span> <span class="n">field_value</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">field_value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+          <span class="n">_ReraiseTypeErrorWithFieldName</span><span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">)</span>
+
+  <span class="n">init</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">init</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="fm">__init__</span> <span class="o">=</span> <span class="n">init</span>
+
+
+<span class="k">def</span> <span class="nf">_GetFieldByName</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns a field descriptor by field name.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    message_descriptor: A Descriptor describing all fields in message.</span>
+<span class="sd">    field_name: The name of the field to retrieve.</span>
+<span class="sd">  Returns:</span>
+<span class="sd">    The field descriptor associated with the field name.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">fields_by_name</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span>
+  <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Protocol message </span><span class="si">%s</span><span class="s1"> has no &quot;</span><span class="si">%s</span><span class="s1">&quot; field.&#39;</span> <span class="o">%</span>
+                     <span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForFields</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds properties for all fields in this protocol message type.&quot;&quot;&quot;</span>
+  <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+    <span class="n">_AddPropertiesForField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">is_extendable</span><span class="p">:</span>
+    <span class="c1"># _ExtensionDict is just an adaptor with no state so we allocate a new one</span>
+    <span class="c1"># every time it is accessed.</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">Extensions</span> <span class="o">=</span> <span class="nb">property</span><span class="p">(</span><span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="n">_ExtensionDict</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds a public property for a protocol message field.</span>
+<span class="sd">  Clients can use this property to get and (in the case</span>
+<span class="sd">  of non-repeated scalar fields) directly set the value</span>
+<span class="sd">  of a protocol message field.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    field: A FieldDescriptor for this field.</span>
+<span class="sd">    cls: The class we&#39;re constructing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># Catch it if we add other types that we should</span>
+  <span class="c1"># handle specially here.</span>
+  <span class="k">assert</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">MAX_CPPTYPE</span> <span class="o">==</span> <span class="mi">10</span>
+
+  <span class="n">constant_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;_FIELD_NUMBER&quot;</span>
+  <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">constant_name</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+    <span class="n">_AddPropertiesForRepeatedField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+    <span class="n">_AddPropertiesForNonRepeatedCompositeField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">_AddPropertiesForNonRepeatedScalarField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForRepeatedField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds a public property for a &quot;repeated&quot; protocol message field.  Clients</span>
+<span class="sd">  can use this property to get the value of the field, which will be either a</span>
+<span class="sd">  _RepeatedScalarFieldContainer or _RepeatedCompositeFieldContainer (see</span>
+<span class="sd">  below).</span>
+
+<span class="sd">  Note that when clients add values to these containers, we perform</span>
+<span class="sd">  type-checking in the case of repeated scalar fields, and we also set any</span>
+<span class="sd">  necessary &quot;has&quot; bits as a side-effect.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    field: A FieldDescriptor for this field.</span>
+<span class="sd">    cls: The class we&#39;re constructing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">proto_field_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+  <span class="n">property_name</span> <span class="o">=</span> <span class="n">_PropertyName</span><span class="p">(</span><span class="n">proto_field_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">getter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">field_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">field_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># Construct a new object to represent this field.</span>
+      <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+      <span class="c1"># Atomically check if another thread has preempted us and, if not, swap</span>
+      <span class="c1"># in the new object we just created.  If someone has preempted us, we</span>
+      <span class="c1"># take that object and discard ours.</span>
+      <span class="c1"># WARNING:  We are relying on setdefault() being atomic.  This is true</span>
+      <span class="c1">#   in CPython but we haven&#39;t investigated others.  This warning appears</span>
+      <span class="c1">#   in several other locations in this file.</span>
+      <span class="n">field_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">field_value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">field_value</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="s1">&#39;Getter for </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+
+  <span class="c1"># We define a setter just so we can throw an exception with a more</span>
+  <span class="c1"># helpful error message.</span>
+  <span class="k">def</span> <span class="nf">setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Assignment not allowed to repeated field &#39;</span>
+                         <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; in protocol message object.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span><span class="p">)</span>
+
+  <span class="n">doc</span> <span class="o">=</span> <span class="s1">&#39;Magic attribute generated for &quot;</span><span class="si">%s</span><span class="s1">&quot; proto field.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+  <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="nb">property</span><span class="p">(</span><span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="n">doc</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForNonRepeatedScalarField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds a public property for a nonrepeated, scalar protocol message field.</span>
+<span class="sd">  Clients can use this property to get and directly set the value of the field.</span>
+<span class="sd">  Note that when the client sets the value of a field by using this property,</span>
+<span class="sd">  all necessary &quot;has&quot; bits are set as a side-effect, and we also perform</span>
+<span class="sd">  type-checking.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    field: A FieldDescriptor for this field.</span>
+<span class="sd">    cls: The class we&#39;re constructing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">proto_field_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+  <span class="n">property_name</span> <span class="o">=</span> <span class="n">_PropertyName</span><span class="p">(</span><span class="n">proto_field_name</span><span class="p">)</span>
+  <span class="n">type_checker</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">GetTypeChecker</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+  <span class="n">default_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">default_value</span>
+  <span class="n">valid_values</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+  <span class="n">is_proto3</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_type</span><span class="o">.</span><span class="n">syntax</span> <span class="o">==</span> <span class="s2">&quot;proto3&quot;</span>
+
+  <span class="k">def</span> <span class="nf">getter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># TODO(protobuf-team): This may be broken since there may not be</span>
+    <span class="c1"># default_value.  Combine with has_default_value somehow.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">default_value</span><span class="p">)</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="s1">&#39;Getter for </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+
+  <span class="n">clear_when_set_to_default</span> <span class="o">=</span> <span class="n">is_proto3</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span>
+
+  <span class="k">def</span> <span class="nf">field_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+    <span class="c1"># pylint: disable=protected-access</span>
+    <span class="c1"># Testing the value for truthiness captures all of the proto3 defaults</span>
+    <span class="c1"># (0, 0.0, enum 0, and False).</span>
+    <span class="n">new_value</span> <span class="o">=</span> <span class="n">type_checker</span><span class="o">.</span><span class="n">CheckValue</span><span class="p">(</span><span class="n">new_value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">clear_when_set_to_default</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">new_value</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_value</span>
+    <span class="c1"># Check _cached_byte_size_dirty inline to improve performance, since scalar</span>
+    <span class="c1"># setters are called frequently.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+
+  <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+      <span class="n">field_setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_UpdateOneofState</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">setter</span> <span class="o">=</span> <span class="n">field_setter</span>
+
+  <span class="n">setter</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">setter</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="s1">&#39;Setter for </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+
+  <span class="c1"># Add a property to encapsulate the getter/setter.</span>
+  <span class="n">doc</span> <span class="o">=</span> <span class="s1">&#39;Magic attribute generated for &quot;</span><span class="si">%s</span><span class="s1">&quot; proto field.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+  <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="nb">property</span><span class="p">(</span><span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="n">doc</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForNonRepeatedCompositeField</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds a public property for a nonrepeated, composite protocol message field.</span>
+<span class="sd">  A composite field is a &quot;group&quot; or &quot;message&quot; field.</span>
+
+<span class="sd">  Clients can use this property to get the value of the field, but cannot</span>
+<span class="sd">  assign to the property directly.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    field: A FieldDescriptor for this field.</span>
+<span class="sd">    cls: The class we&#39;re constructing.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># TODO(robinson): Remove duplication with similar method</span>
+  <span class="c1"># for non-repeated scalars.</span>
+  <span class="n">proto_field_name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+  <span class="n">property_name</span> <span class="o">=</span> <span class="n">_PropertyName</span><span class="p">(</span><span class="n">proto_field_name</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">getter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">field_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">field_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># Construct a new object to represent this field.</span>
+      <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+      <span class="c1"># Atomically check if another thread has preempted us and, if not, swap</span>
+      <span class="c1"># in the new object we just created.  If someone has preempted us, we</span>
+      <span class="c1"># take that object and discard ours.</span>
+      <span class="c1"># WARNING:  We are relying on setdefault() being atomic.  This is true</span>
+      <span class="c1">#   in CPython but we haven&#39;t investigated others.  This warning appears</span>
+      <span class="c1">#   in several other locations in this file.</span>
+      <span class="n">field_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">field_value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">field_value</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">=</span> <span class="kc">None</span>
+  <span class="n">getter</span><span class="o">.</span><span class="vm">__doc__</span> <span class="o">=</span> <span class="s1">&#39;Getter for </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+
+  <span class="c1"># We define a setter just so we can throw an exception with a more</span>
+  <span class="c1"># helpful error message.</span>
+  <span class="k">def</span> <span class="nf">setter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_value</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;Assignment not allowed to composite field &#39;</span>
+                         <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; in protocol message object.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span><span class="p">)</span>
+
+  <span class="c1"># Add a property to encapsulate the getter.</span>
+  <span class="n">doc</span> <span class="o">=</span> <span class="s1">&#39;Magic attribute generated for &quot;</span><span class="si">%s</span><span class="s1">&quot; proto field.&#39;</span> <span class="o">%</span> <span class="n">proto_field_name</span>
+  <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">property_name</span><span class="p">,</span> <span class="nb">property</span><span class="p">(</span><span class="n">getter</span><span class="p">,</span> <span class="n">setter</span><span class="p">,</span> <span class="n">doc</span><span class="o">=</span><span class="n">doc</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPropertiesForExtensions</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds properties for all fields in this protocol message type.&quot;&quot;&quot;</span>
+  <span class="n">extension_dict</span> <span class="o">=</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">extensions_by_name</span>
+  <span class="k">for</span> <span class="n">extension_name</span><span class="p">,</span> <span class="n">extension_field</span> <span class="ow">in</span> <span class="n">extension_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">constant_name</span> <span class="o">=</span> <span class="n">extension_name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;_FIELD_NUMBER&quot;</span>
+    <span class="nb">setattr</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">constant_name</span><span class="p">,</span> <span class="n">extension_field</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+
+  <span class="c1"># TODO(amauryfa): Migrate all users of these attributes to functions like</span>
+  <span class="c1">#   pool.FindExtensionByNumber(descriptor).</span>
+  <span class="k">if</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># TODO(amauryfa): Use cls.MESSAGE_FACTORY.pool when available.</span>
+    <span class="n">pool</span> <span class="o">=</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">pool</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_extensions_by_number</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">_extensions_by_number</span><span class="p">[</span><span class="n">descriptor</span><span class="p">]</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_extensions_by_name</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">_extensions_by_name</span><span class="p">[</span><span class="n">descriptor</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">_AddStaticMethods</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="c1"># TODO(robinson): This probably needs to be thread-safe(?)</span>
+  <span class="k">def</span> <span class="nf">RegisterExtension</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">):</span>
+    <span class="n">extension_handle</span><span class="o">.</span><span class="n">containing_type</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">DESCRIPTOR</span>
+    <span class="c1"># TODO(amauryfa): Use cls.MESSAGE_FACTORY.pool when available.</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="o">.</span><span class="n">file</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">AddExtensionDescriptor</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">)</span>
+    <span class="n">_AttachFieldHelpers</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">)</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">RegisterExtension</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">RegisterExtension</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">FromString</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="n">message</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+    <span class="n">message</span><span class="o">.</span><span class="n">MergeFromString</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">message</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">FromString</span> <span class="o">=</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">FromString</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_IsPresent</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Given a (FieldDescriptor, value) tuple from _fields, return true if the</span>
+<span class="sd">  value should be included in the list returned by ListFields().&quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+  <span class="k">elif</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">_is_present_in_parent</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span> <span class="nf">_AddListFieldsMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">ListFields</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">all_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">_IsPresent</span><span class="p">(</span><span class="n">item</span><span class="p">)]</span>
+    <span class="n">all_fields</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">number</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">all_fields</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">ListFields</span> <span class="o">=</span> <span class="n">ListFields</span>
+
+<span class="n">_Proto3HasError</span> <span class="o">=</span> <span class="s1">&#39;Protocol message has no non-repeated submessage field &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span>
+<span class="n">_Proto2HasError</span> <span class="o">=</span> <span class="s1">&#39;Protocol message has no non-repeated field &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span>
+
+<span class="k">def</span> <span class="nf">_AddHasFieldMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="n">is_proto3</span> <span class="o">=</span> <span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">syntax</span> <span class="o">==</span> <span class="s2">&quot;proto3&quot;</span><span class="p">)</span>
+  <span class="n">error_msg</span> <span class="o">=</span> <span class="n">_Proto3HasError</span> <span class="k">if</span> <span class="n">is_proto3</span> <span class="k">else</span> <span class="n">_Proto2HasError</span>
+
+  <span class="n">hassable_fields</span> <span class="o">=</span> <span class="p">{}</span>
+  <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">fields</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+      <span class="k">continue</span>
+    <span class="c1"># For proto3, only submessages and fields inside a oneof have presence.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">is_proto3</span> <span class="ow">and</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">!=</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span> <span class="ow">and</span>
+        <span class="ow">not</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">):</span>
+      <span class="k">continue</span>
+    <span class="n">hassable_fields</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">is_proto3</span><span class="p">:</span>
+    <span class="c1"># Fields inside oneofs are never repeated (enforced by the compiler).</span>
+    <span class="k">for</span> <span class="n">oneof</span> <span class="ow">in</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">oneofs</span><span class="p">:</span>
+      <span class="n">hassable_fields</span><span class="p">[</span><span class="n">oneof</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">oneof</span>
+
+  <span class="k">def</span> <span class="nf">HasField</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="n">hassable_fields</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">error_msg</span> <span class="o">%</span> <span class="n">field_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">descriptor_mod</span><span class="o">.</span><span class="n">OneofDescriptor</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">HasField</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">_is_present_in_parent</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">HasField</span> <span class="o">=</span> <span class="n">HasField</span>
+
+
+<span class="k">def</span> <span class="nf">_AddClearFieldMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">ClearField</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_name</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">fields_by_name</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">field</span> <span class="o">=</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">oneofs_by_name</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="p">:</span>
+          <span class="n">field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="p">[</span><span class="n">field</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">return</span>
+      <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Protocol message </span><span class="si">%s</span><span class="s1">() has no &quot;</span><span class="si">%s</span><span class="s1">&quot; field.&#39;</span> <span class="o">%</span>
+                         <span class="p">(</span><span class="n">message_descriptor</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field_name</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">:</span>
+      <span class="c1"># To match the C++ implementation, we need to invalidate iterators</span>
+      <span class="c1"># for map fields when ClearField() happens.</span>
+      <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">],</span> <span class="s1">&#39;InvalidateIterators&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">InvalidateIterators</span><span class="p">()</span>
+
+      <span class="c1"># Note:  If the field is a sub-message, its listener will still point</span>
+      <span class="c1">#   at us.  That&#39;s fine, because the worst than can happen is that it</span>
+      <span class="c1">#   will call _Modified() and invalidate our byte size.  Big deal.</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="n">field</span><span class="p">:</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">]</span>
+
+    <span class="c1"># Always call _Modified() -- even if nothing was changed, this is</span>
+    <span class="c1"># a mutating method, and thus calling it should cause the field to become</span>
+    <span class="c1"># present in the parent message.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">ClearField</span> <span class="o">=</span> <span class="n">ClearField</span>
+
+
+<span class="k">def</span> <span class="nf">_AddClearExtensionMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">ClearExtension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">):</span>
+    <span class="n">_VerifyExtensionHandle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">)</span>
+
+    <span class="c1"># Similar to ClearField(), above.</span>
+    <span class="k">if</span> <span class="n">extension_handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">:</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">extension_handle</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">ClearExtension</span> <span class="o">=</span> <span class="n">ClearExtension</span>
+
+
+<span class="k">def</span> <span class="nf">_AddHasExtensionMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">HasExtension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">):</span>
+    <span class="n">_VerifyExtensionHandle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot; is repeated.&#39;</span> <span class="o">%</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">full_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">value</span><span class="o">.</span><span class="n">_is_present_in_parent</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">extension_handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">HasExtension</span> <span class="o">=</span> <span class="n">HasExtension</span>
+
+<span class="k">def</span> <span class="nf">_InternalUnpackAny</span><span class="p">(</span><span class="n">msg</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Unpacks Any message and returns the unpacked message.</span>
+
+<span class="sd">  This internal method is differnt from public Any Unpack method which takes</span>
+<span class="sd">  the target message as argument. _InternalUnpackAny method does not have</span>
+<span class="sd">  target message type and need to find the message type in descriptor pool.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    msg: An Any message to be unpacked.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    The unpacked message.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="c1"># TODO(amauryfa): Don&#39;t use the factory of generated messages.</span>
+  <span class="c1"># To make Any work with custom factories, use the message factory of the</span>
+  <span class="c1"># parent message.</span>
+  <span class="c1"># pylint: disable=g-import-not-at-top</span>
+  <span class="kn">from</span> <span class="nn">google.protobuf</span> <span class="k">import</span> <span class="n">symbol_database</span>
+  <span class="n">factory</span> <span class="o">=</span> <span class="n">symbol_database</span><span class="o">.</span><span class="n">Default</span><span class="p">()</span>
+
+  <span class="n">type_url</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">type_url</span>
+
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">type_url</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="c1"># TODO(haberman): For now we just strip the hostname.  Better logic will be</span>
+  <span class="c1"># required.</span>
+  <span class="n">type_name</span> <span class="o">=</span> <span class="n">type_url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+  <span class="n">descriptor</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">FindMessageTypeByName</span><span class="p">(</span><span class="n">type_name</span><span class="p">)</span>
+
+  <span class="k">if</span> <span class="n">descriptor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="n">message_class</span> <span class="o">=</span> <span class="n">factory</span><span class="o">.</span><span class="n">GetPrototype</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span>
+  <span class="n">message</span> <span class="o">=</span> <span class="n">message_class</span><span class="p">()</span>
+
+  <span class="n">message</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">message</span>
+
+
+<span class="k">def</span> <span class="nf">_AddEqualsMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">Message</span><span class="p">)</span> <span class="ow">or</span>
+        <span class="n">other</span><span class="o">.</span><span class="n">DESCRIPTOR</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="bp">self</span> <span class="ow">is</span> <span class="n">other</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="o">.</span><span class="n">full_name</span> <span class="o">==</span> <span class="n">_AnyFullTypeName</span><span class="p">:</span>
+      <span class="n">any_a</span> <span class="o">=</span> <span class="n">_InternalUnpackAny</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+      <span class="n">any_b</span> <span class="o">=</span> <span class="n">_InternalUnpackAny</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">any_a</span> <span class="ow">and</span> <span class="n">any_b</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">any_a</span> <span class="o">==</span> <span class="n">any_b</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListFields</span><span class="p">()</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">ListFields</span><span class="p">():</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># Sort unknown fields because their order shouldn&#39;t affect equality test.</span>
+    <span class="n">unknown_fields</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">)</span>
+    <span class="n">unknown_fields</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="n">other_unknown_fields</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">other</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">)</span>
+    <span class="n">other_unknown_fields</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">unknown_fields</span> <span class="o">==</span> <span class="n">other_unknown_fields</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="fm">__eq__</span> <span class="o">=</span> <span class="fm">__eq__</span>
+
+
+<span class="k">def</span> <span class="nf">_AddStrMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">text_format</span><span class="o">.</span><span class="n">MessageToString</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="fm">__str__</span> <span class="o">=</span> <span class="fm">__str__</span>
+
+
+<span class="k">def</span> <span class="nf">_AddReprMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">text_format</span><span class="o">.</span><span class="n">MessageToString</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="fm">__repr__</span> <span class="o">=</span> <span class="fm">__repr__</span>
+
+
+<span class="k">def</span> <span class="nf">_AddUnicodeMethod</span><span class="p">(</span><span class="n">unused_message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__unicode__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">text_format</span><span class="o">.</span><span class="n">MessageToString</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">as_utf8</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">__unicode__</span> <span class="o">=</span> <span class="n">__unicode__</span>
+
+
+<span class="k">def</span> <span class="nf">_BytesForNonRepeatedElement</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field_number</span><span class="p">,</span> <span class="n">field_type</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns the number of bytes needed to serialize a non-repeated element.</span>
+<span class="sd">  The returned byte count includes space for tag information and any</span>
+<span class="sd">  other additional space associated with serializing value.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    value: Value we&#39;re serializing.</span>
+<span class="sd">    field_number: Field number of this value.  (Since the field number</span>
+<span class="sd">      is stored as part of a varint-encoded tag, this has an impact</span>
+<span class="sd">      on the total bytes required to serialize the value).</span>
+<span class="sd">    field_type: The type of the field.  One of the TYPE_* constants</span>
+<span class="sd">      within FieldDescriptor.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">TYPE_TO_BYTE_SIZE_FN</span><span class="p">[</span><span class="n">field_type</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">fn</span><span class="p">(</span><span class="n">field_number</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">EncodeError</span><span class="p">(</span><span class="s1">&#39;Unrecognized field type: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">field_type</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_AddByteSizeMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">ByteSize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size</span>
+
+    <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">field_descriptor</span><span class="p">,</span> <span class="n">field_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListFields</span><span class="p">():</span>
+      <span class="n">size</span> <span class="o">+=</span> <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_sizer</span><span class="p">(</span><span class="n">field_value</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">tag_bytes</span><span class="p">,</span> <span class="n">value_bytes</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">:</span>
+      <span class="n">size</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tag_bytes</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">value_bytes</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size</span> <span class="o">=</span> <span class="n">size</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="o">.</span><span class="n">dirty</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">size</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">ByteSize</span> <span class="o">=</span> <span class="n">ByteSize</span>
+
+
+<span class="k">def</span> <span class="nf">_AddSerializeToStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">SerializeToString</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Check if the message has all of its required fields set.</span>
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">IsInitialized</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">EncodeError</span><span class="p">(</span>
+          <span class="s1">&#39;Message </span><span class="si">%s</span><span class="s1"> is missing required fields: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">DESCRIPTOR</span><span class="o">.</span><span class="n">full_name</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">())))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">SerializePartialToString</span><span class="p">()</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">SerializeToString</span> <span class="o">=</span> <span class="n">SerializeToString</span>
+
+
+<span class="k">def</span> <span class="nf">_AddSerializePartialToStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">SerializePartialToString</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">BytesIO</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_InternalSerialize</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">SerializePartialToString</span> <span class="o">=</span> <span class="n">SerializePartialToString</span>
+
+  <span class="k">def</span> <span class="nf">InternalSerialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">write_bytes</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">field_descriptor</span><span class="p">,</span> <span class="n">field_value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListFields</span><span class="p">():</span>
+      <span class="n">field_descriptor</span><span class="o">.</span><span class="n">_encoder</span><span class="p">(</span><span class="n">write_bytes</span><span class="p">,</span> <span class="n">field_value</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">tag_bytes</span><span class="p">,</span> <span class="n">value_bytes</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">:</span>
+      <span class="n">write_bytes</span><span class="p">(</span><span class="n">tag_bytes</span><span class="p">)</span>
+      <span class="n">write_bytes</span><span class="p">(</span><span class="n">value_bytes</span><span class="p">)</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">_InternalSerialize</span> <span class="o">=</span> <span class="n">InternalSerialize</span>
+
+
+<span class="k">def</span> <span class="nf">_AddMergeFromStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Helper for _AddMessageMethods().&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">MergeFromString</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serialized</span><span class="p">):</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">serialized</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_InternalParse</span><span class="p">(</span><span class="n">serialized</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">length</span><span class="p">)</span> <span class="o">!=</span> <span class="n">length</span><span class="p">:</span>
+        <span class="c1"># The only reason _InternalParse would return early is if it</span>
+        <span class="c1"># encountered an end-group tag.</span>
+        <span class="k">raise</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">DecodeError</span><span class="p">(</span><span class="s1">&#39;Unexpected end-group tag.&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">IndexError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+      <span class="c1"># Now ord(buf[p:p+1]) == ord(&#39;&#39;) gets TypeError.</span>
+      <span class="k">raise</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">DecodeError</span><span class="p">(</span><span class="s1">&#39;Truncated message.&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">struct</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">message_mod</span><span class="o">.</span><span class="n">DecodeError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">length</span>   <span class="c1"># Return this for legacy reasons.</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">MergeFromString</span> <span class="o">=</span> <span class="n">MergeFromString</span>
+
+  <span class="n">local_ReadTag</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">ReadTag</span>
+  <span class="n">local_SkipField</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">SkipField</span>
+  <span class="n">decoders_by_tag</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_decoders_by_tag</span>
+  <span class="n">is_proto3</span> <span class="o">=</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">syntax</span> <span class="o">==</span> <span class="s2">&quot;proto3&quot;</span>
+
+  <span class="k">def</span> <span class="nf">InternalParse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">end</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+    <span class="n">field_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span>
+    <span class="n">unknown_field_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span>
+    <span class="k">while</span> <span class="n">pos</span> <span class="o">!=</span> <span class="n">end</span><span class="p">:</span>
+      <span class="p">(</span><span class="n">tag_bytes</span><span class="p">,</span> <span class="n">new_pos</span><span class="p">)</span> <span class="o">=</span> <span class="n">local_ReadTag</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+      <span class="n">field_decoder</span><span class="p">,</span> <span class="n">field_desc</span> <span class="o">=</span> <span class="n">decoders_by_tag</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tag_bytes</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+      <span class="k">if</span> <span class="n">field_decoder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">value_start_pos</span> <span class="o">=</span> <span class="n">new_pos</span>
+        <span class="n">new_pos</span> <span class="o">=</span> <span class="n">local_SkipField</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">new_pos</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="n">tag_bytes</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">new_pos</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+          <span class="k">return</span> <span class="n">pos</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_proto3</span><span class="p">:</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="n">unknown_field_list</span><span class="p">:</span>
+            <span class="n">unknown_field_list</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span> <span class="o">=</span> <span class="p">[]</span>
+          <span class="n">unknown_field_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+              <span class="p">(</span><span class="n">tag_bytes</span><span class="p">,</span> <span class="n">buffer</span><span class="p">[</span><span class="n">value_start_pos</span><span class="p">:</span><span class="n">new_pos</span><span class="p">]))</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">new_pos</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">field_decoder</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">new_pos</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="bp">self</span><span class="p">,</span> <span class="n">field_dict</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">field_desc</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_UpdateOneofState</span><span class="p">(</span><span class="n">field_desc</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pos</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">_InternalParse</span> <span class="o">=</span> <span class="n">InternalParse</span>
+
+
+<span class="k">def</span> <span class="nf">_AddIsInitializedMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds the IsInitialized and FindInitializationError methods to the</span>
+<span class="sd">  protocol message class.&quot;&quot;&quot;</span>
+
+  <span class="n">required_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">fields</span>
+                           <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REQUIRED</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">IsInitialized</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Checks if all required fields of a message are set.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      errors:  A list which, if provided, will be populated with the field</span>
+<span class="sd">               paths of all missing required fields.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      True iff the specified message has all required fields set.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Performance is critical so we avoid HasField() and ListFields().</span>
+
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">required_fields</span><span class="p">:</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">field</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="ow">or</span>
+          <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span> <span class="ow">and</span>
+           <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">_is_present_in_parent</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">errors</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">())</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>  <span class="c1"># dict can change size!</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+          <span class="k">if</span> <span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">has_options</span> <span class="ow">and</span>
+              <span class="n">field</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">GetOptions</span><span class="p">()</span><span class="o">.</span><span class="n">map_entry</span><span class="p">):</span>
+            <span class="k">continue</span>
+          <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">element</span><span class="o">.</span><span class="n">IsInitialized</span><span class="p">():</span>
+              <span class="k">if</span> <span class="n">errors</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">())</span>
+              <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">_is_present_in_parent</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">IsInitialized</span><span class="p">():</span>
+          <span class="k">if</span> <span class="n">errors</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">())</span>
+          <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">return</span> <span class="kc">True</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">IsInitialized</span> <span class="o">=</span> <span class="n">IsInitialized</span>
+
+  <span class="k">def</span> <span class="nf">FindInitializationErrors</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Finds required fields which are not initialized.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A list of strings.  Each string is a path to an uninitialized field from</span>
+<span class="sd">      the top-level message, e.g. &quot;foo.bar[5].baz&quot;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">errors</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># simplify things</span>
+
+    <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">required_fields</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListFields</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">is_extension</span><span class="p">:</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;(</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="n">field</span><span class="o">.</span><span class="n">full_name</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">name</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span>
+
+        <span class="k">if</span> <span class="n">_IsMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+          <span class="k">if</span> <span class="n">_IsMessageMapField</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+              <span class="n">element</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+              <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%s</span><span class="s2">].&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+              <span class="n">sub_errors</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">()</span>
+              <span class="n">errors</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">error</span> <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">sub_errors</span><span class="p">]</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># ScalarMaps can&#39;t have any initialization errors.</span>
+            <span class="k">pass</span>
+        <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+          <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)):</span>
+            <span class="n">element</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">[</span><span class="si">%d</span><span class="s2">].&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+            <span class="n">sub_errors</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">()</span>
+            <span class="n">errors</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">error</span> <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">sub_errors</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">prefix</span> <span class="o">=</span> <span class="n">name</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span>
+          <span class="n">sub_errors</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">FindInitializationErrors</span><span class="p">()</span>
+          <span class="n">errors</span> <span class="o">+=</span> <span class="p">[</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">error</span> <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">sub_errors</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">errors</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">FindInitializationErrors</span> <span class="o">=</span> <span class="n">FindInitializationErrors</span>
+
+
+<span class="k">def</span> <span class="nf">_AddMergeFromMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="n">LABEL_REPEATED</span> <span class="o">=</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span>
+  <span class="n">CPPTYPE_MESSAGE</span> <span class="o">=</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span>
+
+  <span class="k">def</span> <span class="nf">MergeFrom</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s2">&quot;Parameter to MergeFrom() must be instance of same class: &quot;</span>
+          <span class="s1">&#39;expected </span><span class="si">%s</span><span class="s1"> got </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">assert</span> <span class="n">msg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+
+    <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span>
+
+    <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">msg</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">LABEL_REPEATED</span><span class="p">:</span>
+        <span class="n">field_value</span> <span class="o">=</span> <span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">field_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+          <span class="c1"># Construct a new object to represent this field.</span>
+          <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+          <span class="n">fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">field_value</span>
+        <span class="n">field_value</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">value</span><span class="o">.</span><span class="n">_is_present_in_parent</span><span class="p">:</span>
+          <span class="n">field_value</span> <span class="o">=</span> <span class="n">fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+          <span class="k">if</span> <span class="n">field_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Construct a new object to represent this field.</span>
+            <span class="n">field_value</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">field_value</span>
+          <span class="n">field_value</span><span class="o">.</span><span class="n">MergeFrom</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_UpdateOneofState</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">msg</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">_unknown_fields</span><span class="p">)</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">MergeFrom</span> <span class="o">=</span> <span class="n">MergeFrom</span>
+
+
+<span class="k">def</span> <span class="nf">_AddWhichOneofMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">WhichOneof</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">oneof_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the name of the currently set field inside a oneof, or None.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">oneofs_by_name</span><span class="p">[</span><span class="n">oneof_name</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;Protocol message has no oneof &quot;</span><span class="si">%s</span><span class="s1">&quot; field.&#39;</span> <span class="o">%</span> <span class="n">oneof_name</span><span class="p">)</span>
+
+    <span class="n">nested_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nested_field</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">HasField</span><span class="p">(</span><span class="n">nested_field</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">nested_field</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">WhichOneof</span> <span class="o">=</span> <span class="n">WhichOneof</span>
+
+
+<span class="k">def</span> <span class="nf">_AddReduceMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__reduce__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getstate__</span><span class="p">())</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">__reduce__</span> <span class="o">=</span> <span class="n">__reduce__</span>
+
+
+<span class="k">def</span> <span class="nf">_Clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+  <span class="c1"># Clear fields.</span>
+  <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span> <span class="o">=</span> <span class="p">{}</span>
+  <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span> <span class="o">=</span> <span class="p">()</span>
+  <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span> <span class="o">=</span> <span class="p">{}</span>
+  <span class="bp">self</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_DiscardUnknownFields</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+  <span class="bp">self</span><span class="o">.</span><span class="n">_unknown_fields</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ListFields</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">sub_message</span> <span class="ow">in</span> <span class="n">value</span><span class="p">:</span>
+          <span class="n">sub_message</span><span class="o">.</span><span class="n">DiscardUnknownFields</span><span class="p">()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">value</span><span class="o">.</span><span class="n">DiscardUnknownFields</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_SetListener</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">listener</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">listener</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_listener</span> <span class="o">=</span> <span class="n">message_listener_mod</span><span class="o">.</span><span class="n">NullMessageListener</span><span class="p">()</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_listener</span> <span class="o">=</span> <span class="n">listener</span>
+
+
+<span class="k">def</span> <span class="nf">_AddMessageMethods</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds implementations of all Message methods to cls.&quot;&quot;&quot;</span>
+  <span class="n">_AddListFieldsMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddHasFieldMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddClearFieldMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">message_descriptor</span><span class="o">.</span><span class="n">is_extendable</span><span class="p">:</span>
+    <span class="n">_AddClearExtensionMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+    <span class="n">_AddHasExtensionMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddEqualsMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddStrMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddReprMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddUnicodeMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddByteSizeMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddSerializeToStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddSerializePartialToStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddMergeFromStringMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddIsInitializedMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddMergeFromMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddWhichOneofMethod</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">)</span>
+  <span class="n">_AddReduceMethod</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span>
+  <span class="c1"># Adds methods which do not depend on cls.</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">Clear</span> <span class="o">=</span> <span class="n">_Clear</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">DiscardUnknownFields</span> <span class="o">=</span> <span class="n">_DiscardUnknownFields</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">_SetListener</span> <span class="o">=</span> <span class="n">_SetListener</span>
+
+
+<span class="k">def</span> <span class="nf">_AddPrivateHelperMethods</span><span class="p">(</span><span class="n">message_descriptor</span><span class="p">,</span> <span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Adds implementation of private helper methods to cls.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">Modified</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets the _cached_byte_size_dirty bit to true,</span>
+<span class="sd">    and propagates this to our listener iff this was a state change.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Note:  Some callers check _cached_byte_size_dirty before calling</span>
+    <span class="c1">#   _Modified() as an extra optimization.  So, if this method is ever</span>
+    <span class="c1">#   changed such that it does stuff even when _cached_byte_size_dirty is</span>
+    <span class="c1">#   already true, the callers need to be updated.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_cached_byte_size_dirty</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="o">.</span><span class="n">dirty</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_is_present_in_parent</span> <span class="o">=</span> <span class="kc">True</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_listener</span><span class="o">.</span><span class="n">Modified</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_UpdateOneofState</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sets field as the active field in its containing oneof.</span>
+
+<span class="sd">    Will also delete currently active field in the oneof, if it is different</span>
+<span class="sd">    from the argument. Does not mark the message as modified.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">other_field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">other_field</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">field</span><span class="p">:</span>
+      <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">other_field</span><span class="p">]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_oneofs</span><span class="p">[</span><span class="n">field</span><span class="o">.</span><span class="n">containing_oneof</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+  <span class="bp">cls</span><span class="o">.</span><span class="n">_Modified</span> <span class="o">=</span> <span class="n">Modified</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">SetInParent</span> <span class="o">=</span> <span class="n">Modified</span>
+  <span class="bp">cls</span><span class="o">.</span><span class="n">_UpdateOneofState</span> <span class="o">=</span> <span class="n">_UpdateOneofState</span>
+
+
+<span class="k">class</span> <span class="nc">_Listener</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;MessageListener implementation that a parent message registers with its</span>
+<span class="sd">  child message.</span>
+
+<span class="sd">  In order to support semantics like:</span>
+
+<span class="sd">    foo.bar.baz.qux = 23</span>
+<span class="sd">    assert foo.HasField(&#39;bar&#39;)</span>
+
+<span class="sd">  ...child objects must have back references to their parents.</span>
+<span class="sd">  This helper class is at the heart of this support.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent_message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Args:</span>
+<span class="sd">      parent_message: The message whose _Modified() method we should call when</span>
+<span class="sd">        we receive Modified() messages.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># This listener establishes a back reference from a child (contained) object</span>
+    <span class="c1"># to its parent (containing) object.  We make this a weak reference to avoid</span>
+    <span class="c1"># creating cyclic garbage when the client finishes with the &#39;parent&#39; object</span>
+    <span class="c1"># in the tree.</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">parent_message</span><span class="p">,</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ProxyType</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_parent_message_weakref</span> <span class="o">=</span> <span class="n">parent_message</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_parent_message_weakref</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">proxy</span><span class="p">(</span><span class="n">parent_message</span><span class="p">)</span>
+
+    <span class="c1"># As an optimization, we also indicate directly on the listener whether</span>
+    <span class="c1"># or not the parent message is dirty.  This way we can avoid traversing</span>
+    <span class="c1"># up the tree in the common case.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dirty</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="k">def</span> <span class="nf">Modified</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dirty</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># Propagate the signal to our parents iff this is the first field set.</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_parent_message_weakref</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">ReferenceError</span><span class="p">:</span>
+      <span class="c1"># We can get here if a client has kept a reference to a child object,</span>
+      <span class="c1"># and is now setting a field on it, but the child&#39;s parent has been</span>
+      <span class="c1"># garbage-collected.  This is not an error.</span>
+      <span class="k">pass</span>
+
+
+<span class="k">class</span> <span class="nc">_OneofListener</span><span class="p">(</span><span class="n">_Listener</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Special listener implementation for setting composite oneof fields.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent_message</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Args:</span>
+<span class="sd">      parent_message: The message whose _Modified() method we should call when</span>
+<span class="sd">        we receive Modified() messages.</span>
+<span class="sd">      field: The descriptor of the field being set in the parent message.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">_OneofListener</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent_message</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_field</span> <span class="o">=</span> <span class="n">field</span>
+
+  <span class="k">def</span> <span class="nf">Modified</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Also updates the state of the containing oneof in the parent message.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_parent_message_weakref</span><span class="o">.</span><span class="n">_UpdateOneofState</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_field</span><span class="p">)</span>
+      <span class="nb">super</span><span class="p">(</span><span class="n">_OneofListener</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">Modified</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">ReferenceError</span><span class="p">:</span>
+      <span class="k">pass</span>
+
+
+<span class="c1"># TODO(robinson): Move elsewhere?  This file is getting pretty ridiculous...</span>
+<span class="c1"># TODO(robinson): Unify error handling of &quot;unknown extension&quot; crap.</span>
+<span class="c1"># TODO(robinson): Support iteritems()-style iteration over all</span>
+<span class="c1"># extensions with the &quot;has&quot; bits turned on?</span>
+<span class="k">class</span> <span class="nc">_ExtensionDict</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="sd">&quot;&quot;&quot;Dict-like container for supporting an indexable &quot;Extensions&quot;</span>
+<span class="sd">  field on proto instances.</span>
+
+<span class="sd">  Note that in all cases we expect extension handles to be</span>
+<span class="sd">  FieldDescriptors.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extended_message</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;extended_message: Message instance for which we are the Extensions dict.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span> <span class="o">=</span> <span class="n">extended_message</span>
+
+  <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the current value of the given extension handle.&quot;&quot;&quot;</span>
+
+    <span class="n">_VerifyExtensionHandle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">if</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">_default_constructor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">message_type</span><span class="o">.</span><span class="n">_concrete_class</span><span class="p">()</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">_SetListener</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_listener_for_children</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">ReferenceError</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Singular scalar -- just return the default without inserting into the</span>
+      <span class="c1"># dict.</span>
+      <span class="k">return</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">default_value</span>
+
+    <span class="c1"># Atomically check if another thread has preempted us and, if not, swap</span>
+    <span class="c1"># in the new object we just created.  If someone has preempted us, we</span>
+    <span class="c1"># take that object and discard ours.</span>
+    <span class="c1"># WARNING:  We are relying on setdefault() being atomic.  This is true</span>
+    <span class="c1">#   in CPython but we haven&#39;t investigated others.  This warning appears</span>
+    <span class="c1">#   in several other locations in this file.</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_fields</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span>
+        <span class="n">extension_handle</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">my_fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">ListFields</span><span class="p">()</span>
+    <span class="n">other_fields</span> <span class="o">=</span> <span class="n">other</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">ListFields</span><span class="p">()</span>
+
+    <span class="c1"># Get rid of non-extension fields.</span>
+    <span class="n">my_fields</span>    <span class="o">=</span> <span class="p">[</span> <span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">my_fields</span>    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">is_extension</span> <span class="p">]</span>
+    <span class="n">other_fields</span> <span class="o">=</span> <span class="p">[</span> <span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">other_fields</span> <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">is_extension</span> <span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">my_fields</span> <span class="o">==</span> <span class="n">other_fields</span>
+
+  <span class="k">def</span> <span class="nf">__ne__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span> <span class="o">==</span> <span class="n">other</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;unhashable object&#39;</span><span class="p">)</span>
+
+  <span class="c1"># Note that this is only meaningful for non-repeated, scalar extension</span>
+  <span class="c1"># fields.  Note also that we may have to call _Modified() when we do</span>
+  <span class="c1"># successfully set a field this way, to set any necssary &quot;has&quot; bits in the</span>
+  <span class="c1"># ancestors of the extended message.</span>
+  <span class="k">def</span> <span class="nf">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;If extension_handle specifies a non-repeated, scalar extension</span>
+<span class="sd">    field, sets the value of that field.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_VerifyExtensionHandle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="p">,</span> <span class="n">extension_handle</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">extension_handle</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">LABEL_REPEATED</span> <span class="ow">or</span>
+        <span class="n">extension_handle</span><span class="o">.</span><span class="n">cpp_type</span> <span class="o">==</span> <span class="n">_FieldDescriptor</span><span class="o">.</span><span class="n">CPPTYPE_MESSAGE</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+          <span class="s1">&#39;Cannot assign to extension &quot;</span><span class="si">%s</span><span class="s1">&quot; because it is a repeated or &#39;</span>
+          <span class="s1">&#39;composite type.&#39;</span> <span class="o">%</span> <span class="n">extension_handle</span><span class="o">.</span><span class="n">full_name</span><span class="p">)</span>
+
+    <span class="c1"># It&#39;s slightly wasteful to lookup the type checker each time,</span>
+    <span class="c1"># but we expect this to be a vanishingly uncommon case anyway.</span>
+    <span class="n">type_checker</span> <span class="o">=</span> <span class="n">type_checkers</span><span class="o">.</span><span class="n">GetTypeChecker</span><span class="p">(</span><span class="n">extension_handle</span><span class="p">)</span>
+    <span class="c1"># pylint: disable=protected-access</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_fields</span><span class="p">[</span><span class="n">extension_handle</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">type_checker</span><span class="o">.</span><span class="n">CheckValue</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_Modified</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_FindExtensionByName</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tries to find a known extension with the specified name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      name: Extension full name.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Extension field descriptor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_extensions_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_FindExtensionByNumber</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">number</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Tries to find a known extension with the field number.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      number: Extension field number.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Extension field descriptor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extended_message</span><span class="o">.</span><span class="n">_extensions_by_number</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">number</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,337 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.internal.pickler &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.internal.pickler</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Pickler for values, functions, and classes.</span>
+
+<span class="sd">For internal use only. No backwards compatibility guarantees.</span>
+
+<span class="sd">Pickles created by the pickling library contain non-ASCII characters, so</span>
+<span class="sd">we base64-encode the results so that we can put them in a JSON objects.</span>
+<span class="sd">The pickler is used to embed FlatMap callable objects into the workflow JSON</span>
+<span class="sd">description.</span>
+
+<span class="sd">The pickler module should be used to pickle functions and modules; for values,</span>
+<span class="sd">the coders.*PickleCoder classes should be used instead.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">import</span> <span class="nn">zlib</span>
+
+<span class="kn">import</span> <span class="nn">dill</span>
+
+
+<span class="k">def</span> <span class="nf">_is_nested_class</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns true if argument is a class object that appears to be nested.&quot;&quot;&quot;</span>
+  <span class="k">return</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
+          <span class="ow">and</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">!=</span> <span class="s1">&#39;__builtin__&#39;</span>
+          <span class="ow">and</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__module__</span><span class="p">]</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_find_containing_class</span><span class="p">(</span><span class="n">nested_class</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Finds containing class of a nestec class passed as argument.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">_find_containing_class_inner</span><span class="p">(</span><span class="n">outer</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">outer</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">v</span> <span class="ow">is</span> <span class="n">nested_class</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">outer</span><span class="p">,</span> <span class="n">k</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ClassType</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="s1">&#39;__dict__&#39;</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">_find_containing_class_inner</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span><span class="p">:</span> <span class="k">return</span> <span class="n">res</span>
+
+  <span class="k">return</span> <span class="n">_find_containing_class_inner</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">nested_class</span><span class="o">.</span><span class="vm">__module__</span><span class="p">])</span>
+
+
+<span class="k">def</span> <span class="nf">_nested_type_wrapper</span><span class="p">(</span><span class="n">fun</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A wrapper for the standard pickler handler for class objects.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    fun: Original pickler handler for type objects.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    A wrapper for type objects that handles nested classes.</span>
+
+<span class="sd">  The wrapper detects if an object being pickled is a nested class object.</span>
+<span class="sd">  For nested class object only it will save the containing class object so</span>
+<span class="sd">  the nested structure is recreated during unpickle.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="c1"># When the nested class is defined in the __main__ module we do not have to</span>
+    <span class="c1"># do anything special because the pickler itself will save the constituent</span>
+    <span class="c1"># parts of the type (i.e., name, base classes, dictionary) and then</span>
+    <span class="c1"># recreate it during unpickling.</span>
+    <span class="k">if</span> <span class="n">_is_nested_class</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="ow">and</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span> <span class="o">!=</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+      <span class="n">containing_class_and_name</span> <span class="o">=</span> <span class="n">_find_containing_class</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">containing_class_and_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pickler</span><span class="o">.</span><span class="n">save_reduce</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">,</span> <span class="n">containing_class_and_name</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">fun</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">PicklingError</span><span class="p">:</span>
+      <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">return</span> <span class="n">pickler</span><span class="o">.</span><span class="n">save_reduce</span><span class="p">(</span>
+          <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_create_type</span><span class="p">,</span>
+          <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__bases__</span><span class="p">,</span>
+           <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_dict_from_dictproxy</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)),</span>
+          <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+      <span class="c1"># pylint: enable=protected-access</span>
+
+  <span class="k">return</span> <span class="n">wrapper</span>
+
+
+<span class="c1"># Monkey patch the standard pickler dispatch table entry for type objects.</span>
+<span class="c1"># Dill, for certain types, defers to the standard pickler (including type</span>
+<span class="c1"># objects). We wrap the standard handler using type_wrapper() because</span>
+<span class="c1"># for nested class we want to pickle the actual enclosing class object so we</span>
+<span class="c1"># can recreate it during unpickling.</span>
+<span class="c1"># TODO(silviuc): Make sure we submit the fix upstream to GitHub dill project.</span>
+<span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dispatch</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span> <span class="o">=</span> <span class="n">_nested_type_wrapper</span><span class="p">(</span>
+    <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dispatch</span><span class="p">[</span><span class="nb">type</span><span class="p">])</span>
+
+
+<span class="c1"># Dill pickles generators objects without complaint, but unpickling produces</span>
+<span class="c1"># TypeError: object.__new__(generator) is not safe, use generator.__new__()</span>
+<span class="c1"># on some versions of Python.</span>
+<span class="k">def</span> <span class="nf">_reject_generators</span><span class="p">(</span><span class="n">unused_pickler</span><span class="p">,</span> <span class="n">unused_obj</span><span class="p">):</span>
+  <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;can&#39;t (safely) pickle generator objects&quot;</span><span class="p">)</span>
+
+
+<span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">Pickler</span><span class="o">.</span><span class="n">dispatch</span><span class="p">[</span><span class="n">types</span><span class="o">.</span><span class="n">GeneratorType</span><span class="p">]</span> <span class="o">=</span> <span class="n">_reject_generators</span>
+
+
+<span class="c1"># This if guards against dill not being full initialized when generating docs.</span>
+<span class="k">if</span> <span class="s1">&#39;save_module&#39;</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="p">):</span>
+
+  <span class="c1"># Always pickle non-main modules by name.</span>
+  <span class="n">old_save_module</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">save_module</span>
+
+  <span class="nd">@dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">ModuleType</span><span class="p">)</span>
+<div class="viewcode-block" id="save_module"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.save_module">[docs]</a>  <span class="k">def</span> <span class="nf">save_module</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">is_dill</span><span class="p">(</span><span class="n">pickler</span><span class="p">)</span> <span class="ow">and</span> <span class="n">obj</span> <span class="ow">is</span> <span class="n">pickler</span><span class="o">.</span><span class="n">_main</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">old_save_module</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;M2: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">obj</span><span class="p">)</span>
+      <span class="c1"># pylint: disable=protected-access</span>
+      <span class="n">pickler</span><span class="o">.</span><span class="n">save_reduce</span><span class="p">(</span><span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_import_module</span><span class="p">,</span> <span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,),</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+      <span class="c1"># pylint: enable=protected-access</span>
+      <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;# M2&#39;</span><span class="p">)</span></div>
+
+  <span class="c1"># Pickle module dictionaries (commonly found in lambda&#39;s globals)</span>
+  <span class="c1"># by referencing their module.</span>
+  <span class="n">old_save_module_dict</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">save_module_dict</span>
+  <span class="n">known_module_dicts</span> <span class="o">=</span> <span class="p">{}</span>
+
+  <span class="nd">@dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+<div class="viewcode-block" id="new_save_module_dict"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.new_save_module_dict">[docs]</a>  <span class="k">def</span> <span class="nf">new_save_module_dict</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+    <span class="n">obj_id</span> <span class="o">=</span> <span class="nb">id</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">known_module_dicts</span> <span class="ow">or</span> <span class="s1">&#39;__file__&#39;</span> <span class="ow">in</span> <span class="n">obj</span> <span class="ow">or</span> <span class="s1">&#39;__package__&#39;</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">obj_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">known_module_dicts</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+          <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">m</span> <span class="ow">and</span> <span class="n">m</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">!=</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+              <span class="n">d</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="vm">__dict__</span>
+              <span class="n">known_module_dicts</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">d</span><span class="p">)]</span> <span class="o">=</span> <span class="n">m</span><span class="p">,</span> <span class="n">d</span>
+          <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="c1"># Skip modules that do not have the __name__ attribute.</span>
+            <span class="k">pass</span>
+    <span class="k">if</span> <span class="n">obj_id</span> <span class="ow">in</span> <span class="n">known_module_dicts</span> <span class="ow">and</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">is_dill</span><span class="p">(</span><span class="n">pickler</span><span class="p">):</span>
+      <span class="n">m</span> <span class="o">=</span> <span class="n">known_module_dicts</span><span class="p">[</span><span class="n">obj_id</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># pylint: disable=protected-access</span>
+        <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_import_module</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pickler</span><span class="o">.</span><span class="n">save_reduce</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">,</span> <span class="p">(</span><span class="n">known_module_dicts</span><span class="p">[</span><span class="n">obj_id</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;__dict__&#39;</span><span class="p">),</span> <span class="n">obj</span><span class="o">=</span><span class="n">obj</span><span class="p">)</span>
+      <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">old_save_module_dict</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">old_save_module_dict</span><span class="p">(</span><span class="n">pickler</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span></div>
+  <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">save_module_dict</span> <span class="o">=</span> <span class="n">new_save_module_dict</span>
+
+  <span class="k">def</span> <span class="nf">_nest_dill_logging</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Prefix all dill logging with its depth in the callstack.</span>
+
+<span class="sd">    Useful for debugging pickling of deeply nested structures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">old_log_info</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span>
+
+    <span class="k">def</span> <span class="nf">new_log_info</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+      <span class="n">old_log_info</span><span class="p">(</span>
+          <span class="p">(</span><span class="s1">&#39;1 2 3 4 5 6 7 8 9 0 &#39;</span> <span class="o">*</span> <span class="mi">10</span><span class="p">)[:</span><span class="nb">len</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">extract_stack</span><span class="p">())]</span> <span class="o">+</span> <span class="n">msg</span><span class="p">,</span>
+          <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">info</span> <span class="o">=</span> <span class="n">new_log_info</span>
+
+
+<span class="c1"># Turn off verbose logging from the dill pickler.</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;dill&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">WARN</span><span class="p">)</span>
+
+
+<span class="c1"># TODO(ccy): Currently, there are still instances of pickler.dumps() and</span>
+<span class="c1"># pickler.loads() being used for data, which results in an unnecessary base64</span>
+<span class="c1"># encoding.  This should be cleaned up.</span>
+<div class="viewcode-block" id="dumps"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.dumps">[docs]</a><span class="k">def</span> <span class="nf">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">enable_trace</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">try</span><span class="p">:</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>      <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">if</span> <span class="n">enable_trace</span><span class="p">:</span>
+      <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_trace</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="n">dill</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span>
+  <span class="k">finally</span><span class="p">:</span>
+    <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_trace</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span>
+
+  <span class="c1"># Compress as compactly as possible to decrease peak memory usage (of multiple</span>
+  <span class="c1"># in-memory copies) and free up some possibly large and no-longer-needed</span>
+  <span class="c1"># memory.</span>
+  <span class="n">c</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+  <span class="k">del</span> <span class="n">s</span>
+
+  <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">c</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="loads"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.loads">[docs]</a><span class="k">def</span> <span class="nf">loads</span><span class="p">(</span><span class="n">encoded</span><span class="p">,</span> <span class="n">enable_trace</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="n">c</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+
+  <span class="n">s</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+  <span class="k">del</span> <span class="n">c</span>  <span class="c1"># Free up some possibly large and no-longer-needed memory.</span>
+
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>          <span class="c1"># pylint: disable=broad-except</span>
+    <span class="k">if</span> <span class="n">enable_trace</span><span class="p">:</span>
+      <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_trace</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>   <span class="c1"># pylint: disable=protected-access</span>
+      <span class="k">return</span> <span class="n">dill</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span>
+  <span class="k">finally</span><span class="p">:</span>
+    <span class="n">dill</span><span class="o">.</span><span class="n">dill</span><span class="o">.</span><span class="n">_trace</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># pylint: disable=protected-access</span></div>
+
+
+<div class="viewcode-block" id="dump_session"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.dump_session">[docs]</a><span class="k">def</span> <span class="nf">dump_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Pickle the current python session to be used in the worker.</span>
+
+<span class="sd">  Note: Due to the inconsistency in the first dump of dill dump_session we</span>
+<span class="sd">  create and load the dump twice to have consistent results in the worker and</span>
+<span class="sd">  the running session. Check: https://github.com/uqfoundation/dill/issues/195</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="n">dill</span><span class="o">.</span><span class="n">dump_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+  <span class="n">dill</span><span class="o">.</span><span class="n">load_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">dill</span><span class="o">.</span><span class="n">dump_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_session"><a class="viewcode-back" href="../../../apache_beam.internal.html#apache_beam.internal.pickler.load_session">[docs]</a><span class="k">def</span> <span class="nf">load_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">dill</span><span class="o">.</span><span class="n">load_session</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

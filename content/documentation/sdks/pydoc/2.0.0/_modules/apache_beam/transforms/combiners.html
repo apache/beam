@@ -1,0 +1,675 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.transforms.combiners &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.transforms.combiners</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A library of basic combiner PTransform subclasses.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">operator</span>
+<span class="kn">import</span> <span class="nn">random</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">core</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">cy_combiners</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">ptransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.display</span> <span class="k">import</span> <span class="n">DisplayDataItem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Dict</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">KV</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Tuple</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">TypeVariable</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_input_types</span>
+<span class="kn">from</span> <span class="nn">apache_beam.typehints</span> <span class="k">import</span> <span class="n">with_output_types</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;Count&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Mean&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Sample&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;Top&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ToDict&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ToList&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+<span class="c1"># Type variables</span>
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVariable</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">)</span>
+<span class="n">K</span> <span class="o">=</span> <span class="n">TypeVariable</span><span class="p">(</span><span class="s1">&#39;K&#39;</span><span class="p">)</span>
+<span class="n">V</span> <span class="o">=</span> <span class="n">TypeVariable</span><span class="p">(</span><span class="s1">&#39;V&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Mean"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Mean">[docs]</a><span class="k">class</span> <span class="nc">Mean</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Combiners for computing arithmetic means of elements.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Mean.Globally"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Mean.Globally">[docs]</a>  <span class="k">class</span> <span class="nc">Globally</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combiners.Mean.Globally computes the arithmetic mean of the elements.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Mean.Globally.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Mean.Globally.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">MeanCombineFn</span><span class="p">())</span></div></div>
+
+<div class="viewcode-block" id="Mean.PerKey"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Mean.PerKey">[docs]</a>  <span class="k">class</span> <span class="nc">PerKey</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combiners.Mean.PerKey finds the means of the values for each key.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Mean.PerKey.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Mean.PerKey.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">MeanCombineFn</span><span class="p">())</span></div></div></div>
+
+
+<span class="c1"># TODO(laolu): This type signature is overly restrictive. This should be</span>
+<span class="c1"># more general.</span>
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="n">long</span><span class="p">])</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">MeanCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn for computing an arithmetic mean.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">sum_</span><span class="p">,</span> <span class="n">count</span><span class="p">),</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sum_</span> <span class="o">+</span> <span class="n">element</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="n">sums</span><span class="p">,</span> <span class="n">counts</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">accumulators</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">sums</span><span class="p">),</span> <span class="nb">sum</span><span class="p">(</span><span class="n">counts</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">sum_</span><span class="p">,</span> <span class="n">count</span><span class="p">)):</span>
+    <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;NaN&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sum_</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">for_input_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_type</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">input_type</span> <span class="ow">is</span> <span class="nb">int</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanInt64Fn</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="n">input_type</span> <span class="ow">is</span> <span class="nb">float</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">cy_combiners</span><span class="o">.</span><span class="n">MeanFloatFn</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span>
+
+
+<div class="viewcode-block" id="Count"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count">[docs]</a><span class="k">class</span> <span class="nc">Count</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Combiners for counting elements.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Count.Globally"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.Globally">[docs]</a>  <span class="k">class</span> <span class="nc">Globally</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combiners.Count.Globally counts the total number of elements.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Count.Globally.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.Globally.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">CountCombineFn</span><span class="p">())</span></div></div>
+
+<div class="viewcode-block" id="Count.PerKey"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.PerKey">[docs]</a>  <span class="k">class</span> <span class="nc">PerKey</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combiners.Count.PerKey counts how many elements each unique key has.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Count.PerKey.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.PerKey.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">CountCombineFn</span><span class="p">())</span></div></div>
+
+<div class="viewcode-block" id="Count.PerElement"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.PerElement">[docs]</a>  <span class="k">class</span> <span class="nc">PerElement</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;combiners.Count.PerElement counts how many times each element occurs.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Count.PerElement.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Count.PerElement.expand">[docs]</a>    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="n">paired_with_void_type</span> <span class="o">=</span> <span class="n">KV</span><span class="p">[</span><span class="n">pcoll</span><span class="o">.</span><span class="n">element_type</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">pcoll</span>
+              <span class="o">|</span> <span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">:PairWithVoid&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">&gt;&gt;</span> <span class="n">core</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+                 <span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="n">paired_with_void_type</span><span class="p">))</span>
+              <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">CountCombineFn</span><span class="p">()))</span></div></div></div>
+
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CountCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn for computing PCollection size.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="mi">0</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span> <span class="o">+</span> <span class="mi">1</span>
+
+  <span class="k">def</span> <span class="nf">add_inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">accumulators</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+
+<div class="viewcode-block" id="Top"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Top">[docs]</a><span class="k">class</span> <span class="nc">Top</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Combiners for obtaining extremal elements.&quot;&quot;&quot;</span>
+  <span class="c1"># pylint: disable=no-self-argument</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">Of</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtain a list of the compare-most N elements in a PCollection.</span>
+
+<span class="sd">    This transform will retrieve the n greatest elements in the PCollection</span>
+<span class="sd">    to which it is applied, where &quot;greatest&quot; is determined by the comparator</span>
+<span class="sd">    function supplied as the compare argument.</span>
+
+<span class="sd">    compare should be an implementation of &quot;a &lt; b&quot; taking at least two arguments</span>
+<span class="sd">    (a and b). Additional arguments and side inputs specified in the apply call</span>
+<span class="sd">    become additional arguments to the comparator.  Defaults to the natural</span>
+<span class="sd">    ordering of the elements.</span>
+
+<span class="sd">    The arguments &#39;key&#39; and &#39;reverse&#39; may instead be passed as keyword</span>
+<span class="sd">    arguments, and have the same meaning as for Python&#39;s sort functions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pcoll: PCollection to process.</span>
+<span class="sd">      n: number of elements to extract from pcoll.</span>
+<span class="sd">      compare: as described above.</span>
+<span class="sd">      *args: as described above.</span>
+<span class="sd">      **kwargs: as described above.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">reverse</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;reverse&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span>
+        <span class="n">TopCombineFn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">compare</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">PerKey</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Identifies the compare-most N elements associated with each key.</span>
+
+<span class="sd">    This transform will produce a PCollection mapping unique keys in the input</span>
+<span class="sd">    PCollection to the n greatest elements with which they are associated, where</span>
+<span class="sd">    &quot;greatest&quot; is determined by the comparator function supplied as the compare</span>
+<span class="sd">    argument.</span>
+
+<span class="sd">    compare should be an implementation of &quot;a &lt; b&quot; taking at least two arguments</span>
+<span class="sd">    (a and b). Additional arguments and side inputs specified in the apply call</span>
+<span class="sd">    become additional arguments to the comparator.  Defaults to the natural</span>
+<span class="sd">    ordering of the elements.</span>
+
+<span class="sd">    The arguments &#39;key&#39; and &#39;reverse&#39; may instead be passed as keyword</span>
+<span class="sd">    arguments, and have the same meaning as for Python&#39;s sort functions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      pcoll: PCollection to process.</span>
+<span class="sd">      n: number of elements to extract from pcoll.</span>
+<span class="sd">      compare: as described above.</span>
+<span class="sd">      *args: as described above.</span>
+<span class="sd">      **kwargs: as described above.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      TypeCheckError: If the output type of the input PCollection is not</span>
+<span class="sd">        compatible with KV[A, B].</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;key&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">reverse</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;reverse&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span>
+        <span class="n">TopCombineFn</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">compare</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">reverse</span><span class="p">),</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">Largest</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtain a list of the greatest N elements in a PCollection.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Top</span><span class="o">.</span><span class="n">Of</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">Smallest</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Obtain a list of the least N elements in a PCollection.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Top</span><span class="o">.</span><span class="n">Of</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">LargestPerKey</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Identifies the N greatest elements associated with each key.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Top</span><span class="o">.</span><span class="n">PerKey</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">SmallestPerKey</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Identifies the N least elements associated with each key.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">Top</span><span class="o">.</span><span class="n">PerKey</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">])</span>
+<span class="k">class</span> <span class="nc">TopCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn doing the combining for all of the Top transforms.</span>
+
+<span class="sd">  This CombineFn uses a key or comparison operator to rank the elements.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    compare: (optional) an implementation of &quot;a &lt; b&quot; taking at least two</span>
+<span class="sd">        arguments (a and b). Additional arguments and side inputs specified</span>
+<span class="sd">        in the apply call become additional arguments to the comparator.</span>
+<span class="sd">    key: (optional) a mapping of elements to a comparable key, similar to</span>
+<span class="sd">        the key argument of Python&#39;s sorting methods.</span>
+<span class="sd">    reverse: (optional) whether to order things smallest to largest, rather</span>
+<span class="sd">        than largest to smallest</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">_MIN_BUFFER_OVERSIZE</span> <span class="o">=</span> <span class="mi">100</span>
+  <span class="n">_MAX_BUFFER_OVERSIZE</span> <span class="o">=</span> <span class="mi">1000</span>
+
+  <span class="c1"># TODO(robertwb): Allow taking a key rather than a compare.</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">compare</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_n</span> <span class="o">=</span> <span class="n">n</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+        <span class="nb">min</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="n">TopCombineFn</span><span class="o">.</span><span class="n">_MAX_BUFFER_OVERSIZE</span><span class="p">),</span>
+        <span class="n">n</span> <span class="o">+</span> <span class="n">TopCombineFn</span><span class="o">.</span><span class="n">_MIN_BUFFER_OVERSIZE</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">compare</span> <span class="ow">is</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">:</span>
+      <span class="n">compare</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">compare</span> <span class="ow">is</span> <span class="n">operator</span><span class="o">.</span><span class="n">gt</span><span class="p">:</span>
+      <span class="n">compare</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="n">reverse</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">reverse</span>
+
+    <span class="k">if</span> <span class="n">compare</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="p">(</span><span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="ow">not</span> <span class="n">compare</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+          <span class="k">if</span> <span class="n">reverse</span>
+          <span class="k">else</span> <span class="n">compare</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span> <span class="o">=</span> <span class="n">operator</span><span class="o">.</span><span class="n">gt</span> <span class="k">if</span> <span class="n">reverse</span> <span class="k">else</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span> <span class="o">=</span> <span class="n">key</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_reverse</span> <span class="o">=</span> <span class="n">reverse</span>
+
+  <span class="k">def</span> <span class="nf">_sort_buffer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">lt</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">lt</span> <span class="ow">in</span> <span class="p">(</span><span class="n">operator</span><span class="o">.</span><span class="n">gt</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">lt</span><span class="p">):</span>
+      <span class="n">buffer</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_reverse</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">buffer</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="nb">cmp</span><span class="o">=</span><span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="p">(</span><span class="ow">not</span> <span class="n">lt</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span> <span class="o">-</span> <span class="p">(</span><span class="ow">not</span> <span class="n">lt</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">)),</span>
+                  <span class="n">key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">,</span>
+            <span class="s1">&#39;compare&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compare</span><span class="o">.</span><span class="vm">__name__</span>
+                                       <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_compare</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">)</span>
+                                       <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                       <span class="o">.</span><span class="n">drop_if_none</span><span class="p">()}</span>
+
+  <span class="c1"># The accumulator type is a tuple (threshold, buffer), where threshold</span>
+  <span class="c1"># is the smallest element [key] that could possibly be in the top n based</span>
+  <span class="c1"># on the elements observed so far, and buffer is a (periodically sorted)</span>
+  <span class="c1"># list of candidates of bounded size.</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+      <span class="n">lt</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">lt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span>
+
+    <span class="n">threshold</span><span class="p">,</span> <span class="n">buffer</span> <span class="o">=</span> <span class="n">accumulator</span>
+    <span class="n">element_key</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span> <span class="k">else</span> <span class="n">element</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">buffer</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">element_key</span><span class="p">,</span> <span class="p">[</span><span class="n">element</span><span class="p">]</span>
+      <span class="n">buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">lt</span><span class="p">(</span><span class="n">element_key</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>  <span class="c1"># element_key &lt; threshold</span>
+        <span class="k">return</span> <span class="n">element_key</span><span class="p">,</span> <span class="n">buffer</span>
+      <span class="k">return</span> <span class="n">accumulator</span>  <span class="c1"># with mutated buffer</span>
+    <span class="k">elif</span> <span class="n">lt</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="n">element_key</span><span class="p">):</span>  <span class="c1"># threshold &lt; element_key</span>
+      <span class="n">buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">buffer</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_buffer_size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">accumulator</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_sort_buffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">lt</span><span class="p">)</span>
+      <span class="n">min_element</span> <span class="o">=</span> <span class="n">buffer</span><span class="p">[</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">]</span>
+      <span class="n">threshold</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span><span class="p">(</span><span class="n">min_element</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_fn</span> <span class="k">else</span> <span class="n">min_element</span>
+      <span class="k">return</span> <span class="n">threshold</span><span class="p">,</span> <span class="n">buffer</span><span class="p">[</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="n">accumulators</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">accumulators</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+      <span class="n">add_input</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span>
+          <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">add_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_input</span>
+
+    <span class="n">total_accumulator</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">accumulator</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">total_accumulator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">total_accumulator</span> <span class="o">=</span> <span class="n">accumulator</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">accumulator</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+          <span class="n">total_accumulator</span> <span class="o">=</span> <span class="n">add_input</span><span class="p">(</span><span class="n">total_accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">total_accumulator</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+      <span class="n">lt</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">lt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compare</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">buffer</span> <span class="o">=</span> <span class="n">accumulator</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sort_buffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span> <span class="n">lt</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">buffer</span><span class="p">[:</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="o">-</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># tail, reversed</span>
+
+
+<span class="k">class</span> <span class="nc">Largest</span><span class="p">(</span><span class="n">TopCombineFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Largest(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span>
+
+
+<span class="k">class</span> <span class="nc">Smallest</span><span class="p">(</span><span class="n">TopCombineFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">Smallest</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;Smallest(</span><span class="si">%s</span><span class="s1">)&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span>
+
+
+<div class="viewcode-block" id="Sample"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.Sample">[docs]</a><span class="k">class</span> <span class="nc">Sample</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Combiners for sampling n elements without replacement.&quot;&quot;&quot;</span>
+  <span class="c1"># pylint: disable=no-self-argument</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">FixedSizeGlobally</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">SampleCombineFn</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+
+  <span class="nd">@ptransform</span><span class="o">.</span><span class="n">ptransform_fn</span>
+  <span class="k">def</span> <span class="nf">FixedSizePerKey</span><span class="p">(</span><span class="n">pcoll</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">core</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="n">SampleCombineFn</span><span class="p">(</span><span class="n">n</span><span class="p">))</span></div>
+
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">])</span>
+<span class="k">class</span> <span class="nc">SampleCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn for all Sample transforms.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">SampleCombineFn</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="c1"># Most of this combiner&#39;s work is done by a TopCombineFn. We could just</span>
+    <span class="c1"># subclass TopCombineFn to make this class, but since sampling is not</span>
+    <span class="c1"># really a kind of Top operation, we use a TopCombineFn instance as a</span>
+    <span class="c1"># helper instead.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_top_combiner</span> <span class="o">=</span> <span class="n">TopCombineFn</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_combiner</span><span class="o">.</span><span class="n">create_accumulator</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">heap</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="c1"># Before passing elements to the Top combiner, we pair them with random</span>
+    <span class="c1"># numbers. The elements with the n largest random number &quot;keys&quot; will be</span>
+    <span class="c1"># selected for the output.</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_combiner</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span><span class="n">heap</span><span class="p">,</span> <span class="p">(</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(),</span> <span class="n">element</span><span class="p">))</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">heaps</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_combiner</span><span class="o">.</span><span class="n">merge_accumulators</span><span class="p">(</span><span class="n">heaps</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">heap</span><span class="p">):</span>
+    <span class="c1"># Here we strip off the random number keys we added in add_input.</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_combiner</span><span class="o">.</span><span class="n">extract_output</span><span class="p">(</span><span class="n">heap</span><span class="p">)]</span>
+
+
+<span class="k">class</span> <span class="nc">_TupleCombineFnBase</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">combiners</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span> <span class="o">=</span> <span class="p">[</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="o">.</span><span class="n">maybe_from_callable</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">combiners</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_named_combiners</span> <span class="o">=</span> <span class="n">combiners</span>
+
+  <span class="k">def</span> <span class="nf">display_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">combiners</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="s1">&#39;__name__&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="n">c</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+                 <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_named_combiners</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;combiners&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">combiners</span><span class="p">)}</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">create_accumulator</span><span class="p">()</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">merge_accumulators</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">,</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">accumulators</span><span class="p">))]</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">c</span><span class="o">.</span><span class="n">extract_output</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+                  <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">)])</span>
+
+
+<span class="k">class</span> <span class="nc">TupleCombineFn</span><span class="p">(</span><span class="n">_TupleCombineFnBase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A combiner for combining tuples via a tuple of combiners.</span>
+
+<span class="sd">  Takes as input a tuple of N CombineFns and combines N-tuples by</span>
+<span class="sd">  combining the k-th element of each tuple with the k-th CombineFn,</span>
+<span class="sd">  outputting a new N-tuple of combined values.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">)]</span>
+
+  <span class="k">def</span> <span class="nf">with_common_input</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">SingleInputTupleCombineFn</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">SingleInputTupleCombineFn</span><span class="p">(</span><span class="n">_TupleCombineFnBase</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A combiner for combining a single value via a tuple of combiners.</span>
+
+<span class="sd">  Takes as input a tuple of N CombineFns and combines elements by</span>
+<span class="sd">  applying each CombineFn to each input, producing an N-tuple of</span>
+<span class="sd">  the outputs corresponding to each of the N CombineFn&#39;s outputs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">element</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_combiners</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">)]</span>
+
+
+<div class="viewcode-block" id="ToList"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.ToList">[docs]</a><span class="k">class</span> <span class="nc">ToList</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A global CombineFn that condenses a PCollection into a single list.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;ToList&#39;</span><span class="p">):</span>  <span class="c1"># pylint: disable=useless-super-delegation</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ToList</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ToList.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.ToList.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">&gt;&gt;</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">ToListCombineFn</span><span class="p">())</span></div></div>
+
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">T</span><span class="p">])</span>
+<span class="k">class</span> <span class="nc">ToListCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn for to_list.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">accumulator</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">accumulators</span><span class="p">,</span> <span class="p">[])</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+
+<div class="viewcode-block" id="ToDict"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.ToDict">[docs]</a><span class="k">class</span> <span class="nc">ToDict</span><span class="p">(</span><span class="n">ptransform</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A global CombineFn that condenses a PCollection into a single dict.</span>
+
+<span class="sd">  PCollections should consist of 2-tuples, notionally (key, value) pairs.</span>
+<span class="sd">  If multiple values are associated with the same key, only one of the values</span>
+<span class="sd">  will be present in the resulting dict.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;ToDict&#39;</span><span class="p">):</span>  <span class="c1"># pylint: disable=useless-super-delegation</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">ToDict</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ToDict.expand"><a class="viewcode-back" href="../../../apache_beam.transforms.html#apache_beam.transforms.combiners.ToDict.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">&gt;&gt;</span> <span class="n">core</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">ToDictCombineFn</span><span class="p">())</span></div></div>
+
+
+<span class="nd">@with_input_types</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">])</span>
+<span class="nd">@with_output_types</span><span class="p">(</span><span class="n">Dict</span><span class="p">[</span><span class="n">K</span><span class="p">,</span> <span class="n">V</span><span class="p">])</span>
+<span class="k">class</span> <span class="nc">ToDictCombineFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;CombineFn for to_dict.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">element</span>
+    <span class="n">accumulator</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+  <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">accumulators</span><span class="p">:</span>
+      <span class="n">result</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span>
+
+  <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">accumulator</span>
+
+
+<span class="k">def</span> <span class="nf">curry_combine_fn</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+  <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">fn</span>
+
+  <span class="c1"># Create CurriedFn class for the combiner</span>
+  <span class="k">class</span> <span class="nc">CurriedFn</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;CombineFn that applies extra arguments.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">create_accumulator</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">add_input</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">merge_accumulators</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">merge_accumulators</span><span class="p">(</span><span class="n">accumulators</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">extract_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">extract_output</span><span class="p">(</span><span class="n">accumulator</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">CurriedFn</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">PhasedCombineFnExecutor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Executor for phases of combine operations.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phase</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span> <span class="o">=</span> <span class="n">curry_combine_fn</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;all&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">apply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">full_combine</span>
+    <span class="k">elif</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;add&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">apply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_only</span>
+    <span class="k">elif</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;merge&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">apply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">merge_only</span>
+    <span class="k">elif</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;extract&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">apply</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_only</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unexpected phase: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">phase</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">full_combine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">add_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">add_inputs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">create_accumulator</span><span class="p">(),</span> <span class="n">elements</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">merge_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulators</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">merge_accumulators</span><span class="p">(</span><span class="n">accumulators</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">extract_only</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">accumulator</span><span class="p">):</span>  <span class="c1"># pylint: disable=invalid-name</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">combine_fn</span><span class="o">.</span><span class="n">extract_output</span><span class="p">(</span><span class="n">accumulator</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

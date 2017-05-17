@@ -73,12 +73,12 @@
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">SDKs</li>
             <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/0.6.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/javadoc/2.0.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
             <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/0.6.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/pydoc/2.0.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
@@ -216,7 +216,7 @@
 
 <h2 id="a-namepipelineacreating-the-pipeline"><a name="pipeline"></a>Creating the pipeline</h2>
 
-<p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline</a></span> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
+<p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <span class="language-java"><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline</a></span> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
 
 <p>To use Beam, your driver program must first create an instance of the Beam SDK class <code class="highlighter-rouge">Pipeline</code> (typically in the <code class="highlighter-rouge">main()</code> function). When you create your <code class="highlighter-rouge">Pipeline</code>, you’ll also need to set some <strong>configuration options</strong>. You can set your pipeline’s configuration options programatically, but it’s often easier to set the options ahead of time (or read them from the command line) and pass them to the <code class="highlighter-rouge">Pipeline</code> object when you create the object.</p>
 
@@ -339,7 +339,7 @@
 
 <h2 id="a-namepcollectionaworking-with-pcollections"><a name="pcollection"></a>Working with PCollections</h2>
 
-<p>The <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span><span class="language-py"><code class="highlighter-rouge">PCollection</code></span> abstraction represents a potentially distributed, multi-element data set. You can think of a <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a <code class="highlighter-rouge">PCollection</code>.</p>
+<p>The <span class="language-java"><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span><span class="language-py"><code class="highlighter-rouge">PCollection</code></span> abstraction represents a potentially distributed, multi-element data set. You can think of a <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p>After you’ve created your <code class="highlighter-rouge">Pipeline</code>, you’ll need to begin by creating at least one <code class="highlighter-rouge">PCollection</code> in some form. The <code class="highlighter-rouge">PCollection</code> you create serves as the input for the first operation in your pipeline.</p>
 
@@ -755,7 +755,7 @@ guest, [[], [order4]]
 
 <h4 id="a-nametransforms-combineausing-combine"><a name="transforms-combine"></a>Using Combine</h4>
 
-<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Combine</code></a></span> is a Beam transform for combining collections of elements or values in your data. <code class="highlighter-rouge">Combine</code> has variants that work on entire <code class="highlighter-rouge">PCollection</code>s, and some that combine the values for each key in <code class="highlighter-rouge">PCollection</code>s of key/value pairs.</p>
+<p><span class="language-java"><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Combine</code></a></span> is a Beam transform for combining collections of elements or values in your data. <code class="highlighter-rouge">Combine</code> has variants that work on entire <code class="highlighter-rouge">PCollection</code>s, and some that combine the values for each key in <code class="highlighter-rouge">PCollection</code>s of key/value pairs.</p>
 
 <p>When you apply a <code class="highlighter-rouge">Combine</code> transform, you must provide the function that contains the logic for combining the elements or values. The combining function should be commutative and associative, as the function is not necessarily invoked exactly once on all values with a given key. Because the input data (including the value collection) may be distributed across multiple workers, the combining function might be called multiple times to perform partial combining on subsets of the value collection. The Beam SDK also provides some pre-built combine functions for common numeric combination operations such as sum, min, and max.</p>
 
@@ -951,7 +951,7 @@ guest, [[], [order4]]
 
 <h4 id="a-nametransforms-flatten-partitionausing-flatten-and-partition"><a name="transforms-flatten-partition"></a>Using Flatten and Partition</h4>
 
-<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Flatten</code></a></span> and <span class="language-java"><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Partition</code></a></span> are Beam transforms for <code class="highlighter-rouge">PCollection</code> objects that store the same data type. <code class="highlighter-rouge">Flatten</code> merges multiple <code class="highlighter-rouge">PCollection</code> objects into a single logical <code class="highlighter-rouge">PCollection</code>, and <code class="highlighter-rouge">Partition</code> splits a single <code class="highlighter-rouge">PCollection</code> into a fixed number of smaller collections.</p>
+<p><span class="language-java"><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Flatten</code></a></span> and <span class="language-java"><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Partition</code></a></span> are Beam transforms for <code class="highlighter-rouge">PCollection</code> objects that store the same data type. <code class="highlighter-rouge">Flatten</code> merges multiple <code class="highlighter-rouge">PCollection</code> objects into a single logical <code class="highlighter-rouge">PCollection</code>, and <code class="highlighter-rouge">Partition</code> splits a single <code class="highlighter-rouge">PCollection</code> into a fixed number of smaller collections.</p>
 
 <h5 id="flatten"><strong>Flatten</strong></h5>
 
@@ -1302,8 +1302,8 @@ guest, [[], [order4]]
 
 <p>The Beam SDK comes packed with many useful composite transforms. See the API reference pages for a list of transforms:</p>
 <ul>
-  <li><a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
-  <li><a href="/documentation/sdks/pydoc/0.6.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
+  <li><a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
+  <li><a href="/documentation/sdks/pydoc/2.0.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
 </ul>
 
 <h3 id="an-example-of-a-composite-transform">An example of a composite transform</h3>
@@ -1705,7 +1705,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 
 <p>You can use windowing with fixed-size data sets in <strong>bounded</strong> <code class="highlighter-rouge">PCollection</code>s. However, note that windowing considers only the implicit timestamps attached to each element of a <code class="highlighter-rouge">PCollection</code>, and data sources that create fixed data sets (such as <code class="highlighter-rouge">TextIO</code>) assign the same timestamp to every element. This means that all the elements are by default part of a single, global window.</p>
 
-<p>To use windowing with fixed data sets, you can assign your own timestamps to each element. To assign timestamps to elements, use a <code class="highlighter-rouge">ParDo</code> transform with a <code class="highlighter-rouge">DoFn</code> that outputs each element with a new timestamp (for example, the <a href="/documentation/sdks/javadoc/0.6.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a> transform in the Beam SDK for Java).</p>
+<p>To use windowing with fixed data sets, you can assign your own timestamps to each element. To assign timestamps to elements, use a <code class="highlighter-rouge">ParDo</code> transform with a <code class="highlighter-rouge">DoFn</code> that outputs each element with a new timestamp (for example, the <a href="/documentation/sdks/javadoc/2.0.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a> transform in the Beam SDK for Java).</p>
 
 <p>To illustrate how windowing with a bounded <code class="highlighter-rouge">PCollection</code> can affect how your pipeline processes data, consider the following pipeline:</p>
 

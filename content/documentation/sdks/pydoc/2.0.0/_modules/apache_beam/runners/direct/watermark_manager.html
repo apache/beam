@@ -1,0 +1,316 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.direct.watermark_manager &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.direct.watermark_manager</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Manages watermarks of PCollections and AppliedPTransforms.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MAX_TIMESTAMP</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.timestamp</span> <span class="k">import</span> <span class="n">MIN_TIMESTAMP</span>
+
+
+<div class="viewcode-block" id="WatermarkManager"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.watermark_manager.WatermarkManager">[docs]</a><span class="k">class</span> <span class="nc">WatermarkManager</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Tracks and updates watermarks for all AppliedPTransforms.&quot;&quot;&quot;</span>
+
+  <span class="n">WATERMARK_POS_INF</span> <span class="o">=</span> <span class="n">MAX_TIMESTAMP</span>
+  <span class="n">WATERMARK_NEG_INF</span> <span class="o">=</span> <span class="n">MIN_TIMESTAMP</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clock</span><span class="p">,</span> <span class="n">root_transforms</span><span class="p">,</span> <span class="n">value_to_consumers</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span> <span class="o">=</span> <span class="n">clock</span>  <span class="c1"># processing time clock</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_consumers</span> <span class="o">=</span> <span class="n">value_to_consumers</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_root_transforms</span> <span class="o">=</span> <span class="n">root_transforms</span>
+    <span class="c1"># AppliedPTransform -&gt; TransformWatermarks</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">root_transform</span> <span class="ow">in</span> <span class="n">root_transforms</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span><span class="n">root_transform</span><span class="p">]</span> <span class="o">=</span> <span class="n">_TransformWatermarks</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">consumers</span> <span class="ow">in</span> <span class="n">value_to_consumers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="n">consumers</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span><span class="n">consumer</span><span class="p">]</span> <span class="o">=</span> <span class="n">_TransformWatermarks</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">consumers</span> <span class="ow">in</span> <span class="n">value_to_consumers</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="n">consumers</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_input_transform_watermarks</span><span class="p">(</span><span class="n">consumer</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_update_input_transform_watermarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">AppliedPTransform</span><span class="p">)</span>
+    <span class="n">input_transform_watermarks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">input_pvalue</span> <span class="ow">in</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">inputs</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">input_pvalue</span><span class="o">.</span><span class="n">producer</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">input_pvalue</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PBegin</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">input_pvalue</span><span class="o">.</span><span class="n">producer</span><span class="p">:</span>
+        <span class="n">input_transform_watermarks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_watermarks</span><span class="p">(</span><span class="n">input_pvalue</span><span class="o">.</span><span class="n">producer</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span>
+        <span class="n">applied_ptransform</span><span class="p">]</span><span class="o">.</span><span class="n">update_input_transform_watermarks</span><span class="p">(</span>
+            <span class="n">input_transform_watermarks</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WatermarkManager.get_watermarks"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.watermark_manager.WatermarkManager.get_watermarks">[docs]</a>  <span class="k">def</span> <span class="nf">get_watermarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets the input and output watermarks for an AppliedPTransform.</span>
+
+<span class="sd">    If the applied_ptransform has not processed any elements, return a</span>
+<span class="sd">    watermark with minimum value.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      applied_ptransform: AppliedPTransform to get the watermarks for.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A snapshot (TransformWatermarks) of the input watermark and output</span>
+<span class="sd">      watermark for the provided transform.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># TODO(altay): Composite transforms should have a composite watermark. Until</span>
+    <span class="c1"># then they are represented by their last transform.</span>
+    <span class="k">while</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">parts</span><span class="p">:</span>
+      <span class="n">applied_ptransform</span> <span class="o">=</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span><span class="n">applied_ptransform</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="WatermarkManager.update_watermarks"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.watermark_manager.WatermarkManager.update_watermarks">[docs]</a>  <span class="k">def</span> <span class="nf">update_watermarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">completed_committed_bundle</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+                        <span class="n">timer_update</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">earliest_hold</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">AppliedPTransform</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_update_pending</span><span class="p">(</span>
+        <span class="n">completed_committed_bundle</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">timer_update</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+    <span class="n">tw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_watermarks</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">)</span>
+    <span class="n">tw</span><span class="o">.</span><span class="n">hold</span><span class="p">(</span><span class="n">earliest_hold</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_watermarks</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_update_pending</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_committed_bundle</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">,</span>
+                      <span class="n">timer_update</span><span class="p">,</span> <span class="n">output_committed_bundles</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Updated list of pending bundles for the given AppliedPTransform.&quot;&quot;&quot;</span>
+
+    <span class="c1"># Update pending elements. Filter out empty bundles. They do not impact</span>
+    <span class="c1"># watermarks and should not trigger downstream execution.</span>
+    <span class="k">for</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">output_committed_bundles</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">has_elements</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">pcollection</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_consumers</span><span class="p">:</span>
+          <span class="n">consumers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_consumers</span><span class="p">[</span><span class="n">output</span><span class="o">.</span><span class="n">pcollection</span><span class="p">]</span>
+          <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="n">consumers</span><span class="p">:</span>
+            <span class="n">consumer_tw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span><span class="n">consumer</span><span class="p">]</span>
+            <span class="n">consumer_tw</span><span class="o">.</span><span class="n">add_pending</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="n">completed_tw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="p">[</span><span class="n">applied_ptransform</span><span class="p">]</span>
+    <span class="n">completed_tw</span><span class="o">.</span><span class="n">update_timers</span><span class="p">(</span><span class="n">timer_update</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">input_committed_bundle</span> <span class="ow">or</span> <span class="n">applied_ptransform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root_transforms</span>
+    <span class="k">if</span> <span class="n">input_committed_bundle</span> <span class="ow">and</span> <span class="n">input_committed_bundle</span><span class="o">.</span><span class="n">has_elements</span><span class="p">():</span>
+      <span class="n">completed_tw</span><span class="o">.</span><span class="n">remove_pending</span><span class="p">(</span><span class="n">input_committed_bundle</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_refresh_watermarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">applied_ptransform</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">AppliedPTransform</span><span class="p">)</span>
+    <span class="n">tw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_watermarks</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">tw</span><span class="o">.</span><span class="n">refresh</span><span class="p">():</span>
+      <span class="k">for</span> <span class="n">pval</span> <span class="ow">in</span> <span class="n">applied_ptransform</span><span class="o">.</span><span class="n">outputs</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pval</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">DoOutputsTuple</span><span class="p">):</span>
+          <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pval</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="n">pvals</span> <span class="o">=</span> <span class="p">(</span><span class="n">pval</span><span class="p">,)</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pvals</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_consumers</span><span class="p">:</span>  <span class="c1"># If there are downstream consumers</span>
+            <span class="n">consumers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_value_to_consumers</span><span class="p">[</span><span class="n">v</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">consumer</span> <span class="ow">in</span> <span class="n">consumers</span><span class="p">:</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">_refresh_watermarks</span><span class="p">(</span><span class="n">consumer</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WatermarkManager.extract_fired_timers"><a class="viewcode-back" href="../../../../apache_beam.runners.direct.html#apache_beam.runners.direct.watermark_manager.WatermarkManager.extract_fired_timers">[docs]</a>  <span class="k">def</span> <span class="nf">extract_fired_timers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">all_timers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">applied_ptransform</span><span class="p">,</span> <span class="n">tw</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_transform_to_watermarks</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+      <span class="k">if</span> <span class="n">tw</span><span class="o">.</span><span class="n">extract_fired_timers</span><span class="p">():</span>
+        <span class="n">all_timers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">applied_ptransform</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">all_timers</span></div></div>
+
+
+<span class="k">class</span> <span class="nc">_TransformWatermarks</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Tracks input and output watermarks for aan AppliedPTransform.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clock</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span> <span class="o">=</span> <span class="n">clock</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_input_transform_watermarks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_NEG_INF</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_output_watermark</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_NEG_INF</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_earliest_hold</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>  <span class="c1"># Scheduled bundles targeted for this transform.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_fired_timers</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">update_input_transform_watermarks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_transform_watermarks</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_input_transform_watermarks</span> <span class="o">=</span> <span class="n">input_transform_watermarks</span>
+
+  <span class="k">def</span> <span class="nf">update_timers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timer_update</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">timer_update</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fired_timers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fired_timers</span> <span class="o">=</span> <span class="kc">False</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">input_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">output_watermark</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_watermark</span>
+
+  <span class="k">def</span> <span class="nf">hold</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_earliest_hold</span> <span class="o">=</span> <span class="n">value</span>
+
+  <span class="k">def</span> <span class="nf">add_pending</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pending</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pending</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">remove_pending</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">completed</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="c1"># Ignore repeated removes. This will happen if a transform has a repeated</span>
+      <span class="c1"># input.</span>
+      <span class="k">if</span> <span class="n">completed</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">completed</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="n">pending_holder</span> <span class="o">=</span> <span class="p">(</span><span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_NEG_INF</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pending</span> <span class="k">else</span>
+                        <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+
+      <span class="n">input_watermarks</span> <span class="o">=</span> <span class="p">[</span>
+          <span class="n">tw</span><span class="o">.</span><span class="n">output_watermark</span> <span class="k">for</span> <span class="n">tw</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input_transform_watermarks</span><span class="p">]</span>
+      <span class="n">input_watermarks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+      <span class="n">producer_watermark</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">input_watermarks</span><span class="p">)</span>
+
+      <span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span><span class="p">,</span>
+                                  <span class="nb">min</span><span class="p">(</span><span class="n">pending_holder</span><span class="p">,</span> <span class="n">producer_watermark</span><span class="p">))</span>
+      <span class="n">new_output_watermark</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_earliest_hold</span><span class="p">)</span>
+
+      <span class="n">advanced</span> <span class="o">=</span> <span class="n">new_output_watermark</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_output_watermark</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_output_watermark</span> <span class="o">=</span> <span class="n">new_output_watermark</span>
+      <span class="k">return</span> <span class="n">advanced</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">synchronized_processing_output_time</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">extract_fired_timers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_lock</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fired_timers</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+      <span class="n">should_fire</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_earliest_hold</span> <span class="o">&lt;</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span> <span class="ow">and</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">_input_watermark</span> <span class="o">==</span> <span class="n">WatermarkManager</span><span class="o">.</span><span class="n">WATERMARK_POS_INF</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_fired_timers</span> <span class="o">=</span> <span class="n">should_fire</span>
+      <span class="k">return</span> <span class="n">should_fire</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

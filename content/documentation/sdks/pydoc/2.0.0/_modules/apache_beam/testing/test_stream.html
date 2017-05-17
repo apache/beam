@@ -1,0 +1,265 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.testing.test_stream &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.testing.test_stream</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Provides TestStream for verifying streaming runner semantics.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">ABCMeta</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="k">import</span> <span class="n">abstractmethod</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils</span> <span class="k">import</span> <span class="n">timestamp</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.windowed_value</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;Event&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ElementEvent&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;WatermarkEvent&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;ProcessingTimeEvent&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TestStream&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<div class="viewcode-block" id="Event"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.Event">[docs]</a><span class="k">class</span> <span class="nc">Event</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Test stream event to be emitted during execution of a TestStream.&quot;&quot;&quot;</span>
+
+  <span class="n">__metaclass__</span> <span class="o">=</span> <span class="n">ABCMeta</span>
+
+  <span class="k">def</span> <span class="nf">__cmp__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">other</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_typed_cmp</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+  <span class="nd">@abstractmethod</span>
+  <span class="k">def</span> <span class="nf">_typed_cmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+<div class="viewcode-block" id="ElementEvent"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.ElementEvent">[docs]</a><span class="k">class</span> <span class="nc">ElementEvent</span><span class="p">(</span><span class="n">Event</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Element-producing test stream event.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamped_values</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">timestamped_values</span> <span class="o">=</span> <span class="n">timestamped_values</span>
+
+  <span class="k">def</span> <span class="nf">_typed_cmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timestamped_values</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">timestamped_values</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="WatermarkEvent"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.WatermarkEvent">[docs]</a><span class="k">class</span> <span class="nc">WatermarkEvent</span><span class="p">(</span><span class="n">Event</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Watermark-advancing test stream event.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_watermark</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">new_watermark</span> <span class="o">=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">new_watermark</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_typed_cmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_watermark</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">new_watermark</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ProcessingTimeEvent"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.ProcessingTimeEvent">[docs]</a><span class="k">class</span> <span class="nc">ProcessingTimeEvent</span><span class="p">(</span><span class="n">Event</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Processing time-advancing test stream event.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">advance_by</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">advance_by</span> <span class="o">=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">Duration</span><span class="o">.</span><span class="n">of</span><span class="p">(</span><span class="n">advance_by</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_typed_cmp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">cmp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advance_by</span><span class="p">,</span> <span class="n">other</span><span class="o">.</span><span class="n">advance_by</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TestStream"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream">[docs]</a><span class="k">class</span> <span class="nc">TestStream</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Test stream that generates events on an unbounded PCollection of elements.</span>
+
+<span class="sd">  Each event emits elements, advances the watermark or advances the processing</span>
+<span class="sd">  time.  After all of the specified elements are emitted, ceases to produce</span>
+<span class="sd">  output.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coder</span><span class="o">=</span><span class="n">coders</span><span class="o">.</span><span class="n">FastPrimitivesCoder</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="n">coder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">coder</span> <span class="o">=</span> <span class="n">coder</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">current_watermark</span> <span class="o">=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">MIN_TIMESTAMP</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">events</span> <span class="o">=</span> <span class="p">[]</span>
+
+<div class="viewcode-block" id="TestStream.expand"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream.expand">[docs]</a>  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pbegin</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pbegin</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PBegin</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">pbegin</span><span class="o">.</span><span class="n">pipeline</span>
+    <span class="k">return</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_infer_output_coder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_type</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">input_coder</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">coder</span>
+
+  <span class="k">def</span> <span class="nf">_add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ElementEvent</span><span class="p">):</span>
+      <span class="k">for</span> <span class="n">tv</span> <span class="ow">in</span> <span class="n">event</span><span class="o">.</span><span class="n">timestamped_values</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">tv</span><span class="o">.</span><span class="n">timestamp</span> <span class="o">&lt;</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">MAX_TIMESTAMP</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s1">&#39;Element timestamp must be before timestamp.MAX_TIMESTAMP.&#39;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">WatermarkEvent</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="n">event</span><span class="o">.</span><span class="n">new_watermark</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_watermark</span><span class="p">,</span> <span class="p">(</span>
+          <span class="s1">&#39;Watermark must strictly-monotonically advance.&#39;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">current_watermark</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">new_watermark</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">ProcessingTimeEvent</span><span class="p">):</span>
+      <span class="k">assert</span> <span class="n">event</span><span class="o">.</span><span class="n">advance_by</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span>
+          <span class="s1">&#39;Must advance processing time by positive amount.&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown event: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">event</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TestStream.add_elements"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream.add_elements">[docs]</a>  <span class="k">def</span> <span class="nf">add_elements</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Add elements to the TestStream.</span>
+
+<span class="sd">    Elements added to the TestStream will be produced during pipeline execution.</span>
+<span class="sd">    These elements can be TimestampedValue, WindowedValue or raw unwrapped</span>
+<span class="sd">    elements that are serializable using the TestStream&#39;s specified Coder.  When</span>
+<span class="sd">    a TimestampedValue or a WindowedValue element is used, the timestamp of the</span>
+<span class="sd">    TimestampedValue or WindowedValue will be the timestamp of the produced</span>
+<span class="sd">    element; otherwise, the current watermark timestamp will be used for that</span>
+<span class="sd">    element.  The windows of a given WindowedValue are ignored by the</span>
+<span class="sd">    TestStream.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">timestamped_values</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">TimestampedValue</span><span class="p">):</span>
+        <span class="n">timestamped_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">WindowedValue</span><span class="p">):</span>
+        <span class="c1"># Drop windows for elements in test stream.</span>
+        <span class="n">timestamped_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">element</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">element</span><span class="o">.</span><span class="n">timestamp</span><span class="p">))</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Add elements with timestamp equal to current watermark.</span>
+        <span class="n">timestamped_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_watermark</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">ElementEvent</span><span class="p">(</span><span class="n">timestamped_values</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="TestStream.advance_watermark_to"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream.advance_watermark_to">[docs]</a>  <span class="k">def</span> <span class="nf">advance_watermark_to</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_watermark</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Advance the watermark to a given Unix timestamp.</span>
+
+<span class="sd">    The Unix timestamp value used must be later than the previous watermark</span>
+<span class="sd">    value and should be given as an int, float or utils.timestamp.Timestamp</span>
+<span class="sd">    object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">WatermarkEvent</span><span class="p">(</span><span class="n">new_watermark</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="TestStream.advance_watermark_to_infinity"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream.advance_watermark_to_infinity">[docs]</a>  <span class="k">def</span> <span class="nf">advance_watermark_to_infinity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Advance the watermark to the end of time.&quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">advance_watermark_to</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">MAX_TIMESTAMP</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="TestStream.advance_processing_time"><a class="viewcode-back" href="../../../apache_beam.testing.html#apache_beam.testing.test_stream.TestStream.advance_processing_time">[docs]</a>  <span class="k">def</span> <span class="nf">advance_processing_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">advance_by</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Advance the current processing time by a given duration in seconds.</span>
+
+<span class="sd">    The duration must be a positive second duration and should be given as an</span>
+<span class="sd">    int, float or utils.timestamp.Duration object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_add</span><span class="p">(</span><span class="n">ProcessingTimeEvent</span><span class="p">(</span><span class="n">advance_by</span><span class="p">))</span>
+    <span class="k">return</span> <span class="bp">self</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

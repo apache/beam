@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.runners.dataflow.internal package" href="apache_beam.runners.dataflow.internal.html" />
+    <link rel="prev" title="apache_beam.runners package" href="apache_beam.runners.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.internal.html" title="apache_beam.runners.dataflow.internal package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" accesskey="U">apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.runners.dataflow package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.dataflow_metrics">apache_beam.runners.dataflow.dataflow_metrics module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.dataflow_runner">apache_beam.runners.dataflow.dataflow_runner module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow.test_dataflow_runner">apache_beam.runners.dataflow.test_dataflow_runner module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.runners.dataflow">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.runners.html"
+                        title="previous chapter">apache_beam.runners package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.runners.dataflow.internal.html"
+                        title="next chapter">apache_beam.runners.dataflow.internal package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.runners.dataflow.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-runners-dataflow-package">
+<h1>apache_beam.runners.dataflow package<a class="headerlink" href="#apache-beam-runners-dataflow-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html">apache_beam.runners.dataflow.internal package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.apiclient">apache_beam.runners.dataflow.internal.apiclient module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.dependency">apache_beam.runners.dataflow.internal.dependency module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal.names">apache_beam.runners.dataflow.internal.names module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.internal.html#module-apache_beam.runners.dataflow.internal">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io.iobase">apache_beam.runners.dataflow.native_io.iobase module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.dataflow.native_io.html#module-apache_beam.runners.dataflow.native_io">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.dataflow_metrics">
+<span id="apache-beam-runners-dataflow-dataflow-metrics-module"></span><h2>apache_beam.runners.dataflow.dataflow_metrics module<a class="headerlink" href="#module-apache_beam.runners.dataflow.dataflow_metrics" title="Permalink to this headline">¶</a></h2>
+<p>DataflowRunner implementation of MetricResults. It is in charge of
+responding to queries of current metrics by going to the dataflow
+service.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.dataflow_metrics.</code><code class="descname">DataflowMetrics</code><span class="sig-paren">(</span><em>dataflow_client=None</em>, <em>job_result=None</em>, <em>job_graph=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_metrics.html#DataflowMetrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.metrics.metric.MetricResults</span></code></p>
+<p>Implementation of MetricResults class for the Dataflow runner.</p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics.query">
+<code class="descname">query</code><span class="sig-paren">(</span><em>filter=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_metrics.html#DataflowMetrics.query"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_metrics.DataflowMetrics.query" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.dataflow_runner">
+<span id="apache-beam-runners-dataflow-dataflow-runner-module"></span><h2>apache_beam.runners.dataflow.dataflow_runner module<a class="headerlink" href="#module-apache_beam.runners.dataflow.dataflow_runner" title="Permalink to this headline">¶</a></h2>
+<p>A runner implementation that submits a job for remote execution.</p>
+<p>The runner will create a JSON description of the job graph and then submit it
+to the Dataflow Service for remote execution by a worker.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.dataflow_runner.</code><code class="descname">DataflowRunner</code><span class="sig-paren">(</span><em>cache=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.runners.html#apache_beam.runners.runner.PipelineRunner" title="apache_beam.runners.runner.PipelineRunner"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.runner.PipelineRunner</span></code></a></p>
+<p>A runner that creates job graphs and submits them for remote execution.</p>
+<p>Every execution of the run() method will submit an independent job for
+remote execution that consists of the nodes reachable from the passed in
+node argument or entire graph if node is None. The run() method returns
+after the service created the job and  will not wait for the job to finish
+if blocking is set to False.</p>
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION">
+<code class="descname">BATCH_ENVIRONMENT_MAJOR_VERSION</code><em class="property"> = '5'</em><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION">
+<code class="descname">STREAMING_ENVIRONMENT_MAJOR_VERSION</code><em class="property"> = '0'</em><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_CombineValues">
+<code class="descname">apply_CombineValues</code><span class="sig-paren">(</span><em>transform</em>, <em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.apply_CombineValues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_CombineValues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_GroupByKey">
+<code class="descname">apply_GroupByKey</code><span class="sig-paren">(</span><em>transform</em>, <em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.apply_GroupByKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.apply_GroupByKey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.flatten_input_visitor">
+<em class="property">static </em><code class="descname">flatten_input_visitor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.flatten_input_visitor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.flatten_input_visitor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.group_by_key_input_visitor">
+<em class="property">static </em><code class="descname">group_by_key_input_visitor</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.group_by_key_input_visitor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.group_by_key_input_visitor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.poll_for_job_completion">
+<em class="property">static </em><code class="descname">poll_for_job_completion</code><span class="sig-paren">(</span><em>runner</em>, <em>result</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.poll_for_job_completion"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.poll_for_job_completion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Polls for the specified job to finish running (successfully or not).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>pipeline</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remotely executes entire pipeline or parts reachable from node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_CombineValues">
+<code class="descname">run_CombineValues</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run_CombineValues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_CombineValues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Flatten">
+<code class="descname">run_Flatten</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run_Flatten"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Flatten" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_GroupByKey">
+<code class="descname">run_GroupByKey</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run_GroupByKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_GroupByKey" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_ParDo">
+<code class="descname">run_ParDo</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run_ParDo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_ParDo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Read">
+<code class="descname">run_Read</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run_Read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run_Read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run__NativeWrite">
+<code class="descname">run__NativeWrite</code><span class="sig-paren">(</span><em>transform_node</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/dataflow_runner.html#DataflowRunner.run__NativeWrite"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner.run__NativeWrite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow.test_dataflow_runner">
+<span id="apache-beam-runners-dataflow-test-dataflow-runner-module"></span><h2>apache_beam.runners.dataflow.test_dataflow_runner module<a class="headerlink" href="#module-apache_beam.runners.dataflow.test_dataflow_runner" title="Permalink to this headline">¶</a></h2>
+<p>Wrapper of Beam runners that&#8217;s built for running and verifying e2e tests.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.test_dataflow_runner.TestDataflowRunner">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.test_dataflow_runner.</code><code class="descname">TestDataflowRunner</code><span class="sig-paren">(</span><em>cache=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/test_dataflow_runner.html#TestDataflowRunner"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.test_dataflow_runner.TestDataflowRunner" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.runners.dataflow.dataflow_runner.DataflowRunner" title="apache_beam.runners.dataflow.dataflow_runner.DataflowRunner"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.runners.dataflow.dataflow_runner.DataflowRunner</span></code></a></p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.test_dataflow_runner.TestDataflowRunner.run">
+<code class="descname">run</code><span class="sig-paren">(</span><em>pipeline</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/test_dataflow_runner.html#TestDataflowRunner.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.test_dataflow_runner.TestDataflowRunner.run" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute test pipeline and verify test matcher</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.runners.dataflow">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.runners.dataflow" title="Permalink to this headline">¶</a></h2>
+<p>The DataflowRunner executes pipelines on Google Cloud Dataflow.</p>
+<p>Anything in this package not imported here is an internal implementation detail
+with no backwards-compatibility guarantees.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.dataflow.internal.html" title="apache_beam.runners.dataflow.internal package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.runners.html" >apache_beam.runners package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
