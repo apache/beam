@@ -32,9 +32,53 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
+/**
+ * A list storage implementation keeping a given maximum number of received
+ * elements, eventually starting to spill them to the local file system.
+ * Intended for use in batch executors.
+ *
+ * @param <T> the type of elements stored in this list storage
+ */
 public class FsSpillingListStorage<T> implements ListStorage<T> {
 
+  /**
+   * A factory for spill files.
+   */
+  @FunctionalInterface
+  public interface SpillFileFactory {
+    /**
+     * Invoked to request a unique path to a new spill file.
+     *
+     * @return the path to a new spill file
+     */
+    File newSpillFile();
+  }
+
+  /**
+   * The default spill file factory to create new files in the current
+   * working directory.
+   */
+  public static class DefaultSpillFileFactory implements SpillFileFactory {
+    static final SpillFileFactory INSTANCE = new DefaultSpillFileFactory();
+    private DefaultSpillFileFactory() {}
+
+    public static SpillFileFactory getInstance() {
+      return INSTANCE;
+    }
+
+    @Override
+    public File newSpillFile() {
+      try {
+        Path workDir = FileSystems.getFileSystem(new URI("file:///")).getPath("./");
+        return Files.createTempFile(workDir, getClass().getName(), ".dat").toFile();
+      } catch (Exception e) {
+        throw new IllegalStateException(e);
+      }
+    }
+  }
+
   private final SerializerFactory serializerFactory;
+  private final SpillFileFactory spillFileFactory;
   private final int maxElemsInMemory;
 
   // ~ new elements are appended to this list and eventually this list
@@ -47,8 +91,11 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
   private SerializerFactory.Serializer.OutputStream serializerStream;
   private boolean needsFlush;
 
-  public FsSpillingListStorage(SerializerFactory serializerFactory, int maxElemsInMemory) {
+  public FsSpillingListStorage(SerializerFactory serializerFactory,
+                               SpillFileFactory spillFileFactory,
+                               int maxElemsInMemory) {
     this.serializerFactory = Objects.requireNonNull(serializerFactory);
+    this.spillFileFactory = Objects.requireNonNull(spillFileFactory);
     this.maxElemsInMemory = maxElemsInMemory;
   }
 
@@ -87,7 +134,9 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
         try {
           is = serializerInstance.newInputStream(new FileInputStream(storageFile));
         } catch (FileNotFoundException e) {
-          throw new IllegalStateException("Failed to open spilling storage: " + storageFile, e);
+          throw new IllegalStateException(
+              "Failed to open spilling storage: "
+                  + storageFile, e);
         }
       } else {
         is = null;
@@ -127,7 +176,8 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
     if (serializerStream != null) {
       serializerStream.close();
       if (!storageFile.delete()) {
-        throw new IllegalStateException("Failed to clean up storage file: " + storageFile);
+        throw new IllegalStateException(
+            "Failed to clean up storage file: " + storageFile);
       }
     }
   }
@@ -136,12 +186,11 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
     assert storageFile == null;
     assert serializerInstance == null;
     assert serializerStream == null;
+    storageFile = spillFileFactory.newSpillFile();
+    serializerInstance = serializerFactory.newSerializer();
     try {
-      Path workDir = FileSystems.getFileSystem(new URI("file:///")).getPath("./");
-      storageFile = Files.createTempFile(workDir, getClass().getName(), ".dat").toFile();
-      serializerInstance = serializerFactory.newSerializer();
       serializerStream = serializerInstance.newOutputStream(new FileOutputStream(storageFile));
-    } catch (Exception e) {
+    } catch (FileNotFoundException e) {
       throw new IllegalStateException(e);
     }
   }

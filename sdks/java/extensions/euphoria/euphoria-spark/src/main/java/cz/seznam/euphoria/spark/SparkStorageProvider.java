@@ -94,6 +94,9 @@ class SparkStorageProvider implements StorageProvider, Serializable {
 
   @Override
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-      return new FsSpillingListStorage<>(sf, listStorageMaxElemsInMemory);
+      return new FsSpillingListStorage<>(
+          sf,
+          FsSpillingListStorage.DefaultSpillFileFactory.getInstance(),
+          listStorageMaxElemsInMemory);
   }
 }

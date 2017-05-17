@@ -51,11 +51,11 @@ class FlinkSerializerFactory implements SerializerFactory {
         public void writeObject(Object element) {
           if (clz == null) {
             clz = (Class) element.getClass();
-            ExecutionConfig.SerializableSerializer<?> serializedSerializer = flinkSerializers.get(clz);
-            if (serializedSerializer == null) {
+            ExecutionConfig.SerializableSerializer<?> flinkSerializer = flinkSerializers.get(clz);
+            if (flinkSerializer == null) {
               serializer = null;
             } else {
-              serializer = serializedSerializer.getSerializer();
+              serializer = flinkSerializer.getSerializer();
             }
           } else if (element.getClass() != clz) {
             throw new IllegalArgumentException(
