@@ -163,8 +163,7 @@ public class WindowingStrategies implements Serializable {
    * input {@link WindowFn}.
    */
   public static SdkFunctionSpec toProto(
-      WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components)
-      throws IOException {
+      WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
         // TODO: Set environment ID
         .setSpec(
@@ -245,20 +244,7 @@ public class WindowingStrategies implements Serializable {
       throws InvalidProtocolBufferException {
 
     SdkFunctionSpec windowFnSpec = proto.getWindowFn();
-
-    checkArgument(
-        windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
-        "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
-        WindowFn.class.getSimpleName(),
-        CUSTOM_WINDOWFN_URN,
-        windowFnSpec.getSpec().getUrn());
-
-    Object deserializedWindowFn =
-        SerializableUtils.deserializeFromByteArray(
-            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
-            "WindowFn");
-
-    WindowFn<?, ?> windowFn = (WindowFn<?, ?>) deserializedWindowFn;
+    WindowFn<?, ?> windowFn = windowFnFromProto(windowFnSpec);
     TimestampCombiner timestampCombiner = timestampCombinerFromProto(proto.getOutputTime());
     AccumulationMode accumulationMode = fromProto(proto.getAccumulationMode());
     Trigger trigger = Triggers.fromProto(proto.getTrigger());
@@ -271,5 +257,22 @@ public class WindowingStrategies implements Serializable {
         .withTrigger(trigger)
         .withTimestampCombiner(timestampCombiner)
         .withClosingBehavior(closingBehavior);
+  }
+
+  public static WindowFn<?, ?> windowFnFromProto(SdkFunctionSpec windowFnSpec)
+      throws InvalidProtocolBufferException {
+    checkArgument(
+        windowFnSpec.getSpec().getUrn().equals(CUSTOM_WINDOWFN_URN),
+        "Only Java-serialized %s instances are supported, with URN %s. But found URN %s",
+        WindowFn.class.getSimpleName(),
+        CUSTOM_WINDOWFN_URN,
+        windowFnSpec.getSpec().getUrn());
+
+    Object deserializedWindowFn =
+        SerializableUtils.deserializeFromByteArray(
+            windowFnSpec.getSpec().getParameter().unpack(BytesValue.class).getValue().toByteArray(),
+            "WindowFn");
+
+    return (WindowFn<?, ?>) deserializedWindowFn;
   }
 }
