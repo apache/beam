@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -87,6 +88,9 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         case VARCHAR:
           stringCoder.encode(value.getString(idx), outStream, context.nested());
           break;
+        case TIME:
+          longCoder.encode(value.getGregorianCalendar(idx).getTime().getTime(),
+              outStream, context.nested());
         case TIMESTAMP:
           longCoder.encode(value.getDate(idx).getTime(), outStream, context);
           break;
@@ -135,6 +139,11 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           break;
         case VARCHAR:
           record.addField(idx, stringCoder.decode(inStream, context.nested()));
+          break;
+        case TIME:
+          GregorianCalendar calendar = new GregorianCalendar();
+          calendar.setTime(new Date(longCoder.decode(inStream, context.nested())));
+          record.addField(idx, calendar);
           break;
         case TIMESTAMP:
           record.addField(idx, new Date(longCoder.decode(inStream, context)));

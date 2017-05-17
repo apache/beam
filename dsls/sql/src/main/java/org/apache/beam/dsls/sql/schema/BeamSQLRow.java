@@ -176,6 +176,10 @@ public class BeamSQLRow implements Serializable {
     return (Date) getFieldValue(idx);
   }
 
+  public GregorianCalendar getGregorianCalendar(int idx) {
+    return (GregorianCalendar) getFieldValue(idx);
+  }
+
   public Object getFieldValue(String fieldName) {
     return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
   }
