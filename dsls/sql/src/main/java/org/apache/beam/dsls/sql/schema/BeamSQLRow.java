@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.schema;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -84,63 +85,69 @@ public class BeamSQLRow implements Serializable {
 
     SqlTypeName fieldType = dataType.getFieldsType().get(index);
     switch (fieldType) {
-    case INTEGER:
-      if (!(fieldValue instanceof Integer)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case SMALLINT:
-      if (!(fieldValue instanceof Short)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case TINYINT:
-      if (!(fieldValue instanceof Byte)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case DOUBLE:
-      if (!(fieldValue instanceof Double)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case BIGINT:
-      if (!(fieldValue instanceof Long)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case FLOAT:
-      if (!(fieldValue instanceof Float)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case VARCHAR:
-    case CHAR:
-      if (!(fieldValue instanceof String)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case TIME:
-      if (!(fieldValue instanceof GregorianCalendar)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    case TIMESTAMP:
-      if (!(fieldValue instanceof Date)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      }
-      break;
-    default:
-      throw new UnsupportedDataTypeException(fieldType);
+      case INTEGER:
+        if (!(fieldValue instanceof Integer)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case SMALLINT:
+        if (!(fieldValue instanceof Short)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case TINYINT:
+        if (!(fieldValue instanceof Byte)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case DOUBLE:
+        if (!(fieldValue instanceof Double)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case BIGINT:
+        if (!(fieldValue instanceof Long)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case FLOAT:
+        if (!(fieldValue instanceof Float)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case DECIMAL:
+        if (!(fieldValue instanceof BigDecimal)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case VARCHAR:
+      case CHAR:
+        if (!(fieldValue instanceof String)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case TIME:
+        if (!(fieldValue instanceof GregorianCalendar)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      case TIMESTAMP:
+        if (!(fieldValue instanceof Date)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        }
+        break;
+      default:
+        throw new UnsupportedDataTypeException(fieldType);
     }
     dataValues.set(index, fieldValue);
   }
@@ -177,6 +184,14 @@ public class BeamSQLRow implements Serializable {
     return (Date) getFieldValue(idx);
   }
 
+  public GregorianCalendar getGregorianCalendar(int idx) {
+    return (GregorianCalendar) getFieldValue(idx);
+  }
+
+  public BigDecimal getBigDecimal(int idx) {
+    return (BigDecimal) getFieldValue(idx);
+  }
+
   public Object getFieldValue(String fieldName) {
     return getFieldValue(dataType.getFieldsName().indexOf(fieldName));
   }
@@ -190,72 +205,79 @@ public class BeamSQLRow implements Serializable {
     SqlTypeName fieldType = dataType.getFieldsType().get(fieldIdx);
 
     switch (fieldType) {
-    case INTEGER:
-      if (!(fieldValue instanceof Integer)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case SMALLINT:
-      if (!(fieldValue instanceof Short)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case TINYINT:
-      if (!(fieldValue instanceof Byte)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case DOUBLE:
-      if (!(fieldValue instanceof Double)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case BIGINT:
-      if (!(fieldValue instanceof Long)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case FLOAT:
-      if (!(fieldValue instanceof Float)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case VARCHAR:
-    case CHAR:
-      if (!(fieldValue instanceof String)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case TIME:
-      if (!(fieldValue instanceof GregorianCalendar)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    case TIMESTAMP:
-      if (!(fieldValue instanceof Date)) {
-        throw new InvalidFieldException(
-            String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
-      } else {
-        return fieldValue;
-      }
-    default:
-      throw new UnsupportedDataTypeException(fieldType);
+      case INTEGER:
+        if (!(fieldValue instanceof Integer)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case SMALLINT:
+        if (!(fieldValue instanceof Short)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case TINYINT:
+        if (!(fieldValue instanceof Byte)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case DOUBLE:
+        if (!(fieldValue instanceof Double)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case DECIMAL:
+        if (!(fieldValue instanceof BigDecimal)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case BIGINT:
+        if (!(fieldValue instanceof Long)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case FLOAT:
+        if (!(fieldValue instanceof Float)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case VARCHAR:
+      case CHAR:
+        if (!(fieldValue instanceof String)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case TIME:
+        if (!(fieldValue instanceof GregorianCalendar)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      case TIMESTAMP:
+        if (!(fieldValue instanceof Date)) {
+          throw new InvalidFieldException(
+              String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
+        } else {
+          return fieldValue;
+        }
+      default:
+        throw new UnsupportedDataTypeException(fieldType);
     }
   }
 
