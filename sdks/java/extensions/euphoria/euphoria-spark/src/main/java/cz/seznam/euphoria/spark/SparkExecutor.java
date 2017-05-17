@@ -68,7 +68,7 @@ public class SparkExecutor implements Executor {
     List<DataSink<?>> sinks = Collections.emptyList();
     try {
       // FIXME blocking operation in Spark
-      SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext);
+      SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext, flow.getSettings());
       sinks = translator.translateInto(flow);
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty
