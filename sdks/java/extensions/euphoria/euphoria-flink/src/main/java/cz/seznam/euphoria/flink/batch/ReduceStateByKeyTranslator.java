@@ -18,7 +18,6 @@ package cz.seznam.euphoria.flink.batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
@@ -48,7 +47,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   final StorageProvider stateStorageProvider;
 
   public ReduceStateByKeyTranslator(Settings settings, ExecutionEnvironment env) {
-    int maxMemoryElements = settings.getInt(CFG_MAX_MEMORY_ELEMENTS_KEY, CFG_MAX_MEMORY_ELEMENTS_DEFAULT);
+    int maxMemoryElements = settings.getInt(CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY, CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
     this.stateStorageProvider = new BatchStateStorageProvider(maxMemoryElements, env);
   }
 

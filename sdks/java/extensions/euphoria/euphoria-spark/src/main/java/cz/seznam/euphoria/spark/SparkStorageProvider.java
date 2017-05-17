@@ -20,6 +20,8 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import cz.seznam.euphoria.core.executor.storage.FsSpillingListStorage;
+import org.apache.spark.serializer.Serializer;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -77,6 +79,14 @@ class SparkStorageProvider implements StorageProvider, Serializable {
     }
   }
 
+  private final SparkSerializerFactory sf;
+  private final int listStorageMaxElemsInMemory;
+
+  SparkStorageProvider(Serializer serializer, int listStorageMaxElemsInMemory) {
+    this.sf = new SparkSerializerFactory(serializer);
+    this.listStorageMaxElemsInMemory = listStorageMaxElemsInMemory;
+  }
+
   @Override
   public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
     return new MemValueStorage<>(descriptor.getDefaultValue());
@@ -84,6 +94,6 @@ class SparkStorageProvider implements StorageProvider, Serializable {
 
   @Override
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-      return new MemListStorage<>();
+      return new FsSpillingListStorage<>(sf, listStorageMaxElemsInMemory);
   }
 }
