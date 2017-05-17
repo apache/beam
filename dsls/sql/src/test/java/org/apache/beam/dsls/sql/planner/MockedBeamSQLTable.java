@@ -141,12 +141,6 @@ public class MockedBeamSQLTable extends BaseBeamTable {
     @Override
     public PDone expand(PCollection<BeamSQLRow> input) {
       input.apply(ParDo.of(new DoFn<BeamSQLRow, Void>() {
-
-        @Setup
-        public void setup() {
-          CONTENT.clear();
-        }
-
         @ProcessElement
         public void processElement(ProcessContext c) {
           CONTENT.add(c.element());

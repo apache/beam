@@ -20,6 +20,7 @@ package org.apache.beam.dsls.sql.rel;
 
 import java.util.Date;
 import java.util.List;
+
 import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
@@ -27,6 +28,8 @@ import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -62,7 +65,6 @@ public class BeamSortRelTest {
 
   @Test
   public void testOrderBy_basic() throws Exception {
-    prepare();
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
@@ -162,7 +164,6 @@ public class BeamSortRelTest {
 
   @Test
   public void testOrderBy_with_offset() throws Exception {
-    prepare();
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
@@ -186,7 +187,6 @@ public class BeamSortRelTest {
 
   @Test
   public void testOrderBy_bigFetch() throws Exception {
-    prepare();
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
@@ -216,7 +216,6 @@ public class BeamSortRelTest {
 
   @Test(expected = BeamSqlUnsupportedException.class)
   public void testOrderBy_exception() throws Exception {
-    prepare();
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
         + " order_id, COUNT(*) "
         + "FROM ORDER_DETAILS "
@@ -227,9 +226,11 @@ public class BeamSortRelTest {
     runner.compileBeamPipeline(sql, pipeline);
   }
 
-  public static void prepare() {
+  @Before
+  public void prepare() {
     runner.addTableMetadata("ORDER_DETAILS", orderDetailTable);
     runner.addTableMetadata("SUB_ORDER_RAM", subOrderRamTable);
+    MockedBeamSQLTable.CONTENT.clear();
   }
 
   private void assertEquals(List<BeamSQLRow> rows1, List<BeamSQLRow> rows2) {

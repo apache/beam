@@ -24,6 +24,7 @@ import java.io.StringWriter;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
@@ -72,28 +73,42 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, String raw) {
+  public static void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, Object raw) {
+    if (raw == null) {
+      row.addField(idx, raw);
+      return;
+    }
+
     SqlTypeName columnType = row.getDataType().getFieldsType().get(idx);
+    String rawStr = raw.toString();
     switch (columnType) {
       case TINYINT:
-        row.addField(idx, Byte.valueOf(raw));
+        row.addField(idx, Byte.valueOf(rawStr));
         break;
       case SMALLINT:
-        row.addField(idx, Short.valueOf(raw));
+        row.addField(idx, Short.valueOf(rawStr));
         break;
       case INTEGER:
-        row.addField(idx, Integer.valueOf(raw));
+        row.addField(idx, Integer.valueOf(rawStr));
         break;
       case BIGINT:
-        row.addField(idx, Long.valueOf(raw));
+        row.addField(idx, Long.valueOf(rawStr));
         break;
       case FLOAT:
-        row.addField(idx, Float.valueOf(raw));
+        row.addField(idx, Float.valueOf(rawStr));
         break;
       case DOUBLE:
-        row.addField(idx, Double.valueOf(raw));
+        row.addField(idx, Double.valueOf(rawStr));
         break;
       case VARCHAR:
+      case CHAR:
+        if (raw instanceof NlsString) {
+          row.addField(idx, ((NlsString) raw).getValue());
+        } else {
+          row.addField(idx, rawStr);
+        }
+        break;
+      case TIMESTAMP:
         row.addField(idx, raw);
         break;
       default:

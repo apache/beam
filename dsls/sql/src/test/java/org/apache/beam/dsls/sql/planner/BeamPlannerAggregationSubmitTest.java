@@ -21,6 +21,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+
 import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
@@ -31,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +49,14 @@ public class BeamPlannerAggregationSubmitTest {
   public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void prepare() throws ParseException {
+  public static void prepareClass() throws ParseException {
     runner.addTableMetadata("ORDER_DETAILS", getOrderTable());
     runner.addTableMetadata("ORDER_SUMMARY", getSummaryTable());
+  }
+
+  @Before
+  public void prepare() throws ParseException {
+    MockedBeamSQLTable.CONTENT.clear();
   }
 
   private static BaseBeamTable getOrderTable() throws ParseException {

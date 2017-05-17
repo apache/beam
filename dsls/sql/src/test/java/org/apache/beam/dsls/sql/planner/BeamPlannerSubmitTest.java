@@ -21,6 +21,7 @@ import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -31,6 +32,11 @@ import org.junit.Test;
 public class BeamPlannerSubmitTest extends BasePlanner {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
+
+  @Before
+  public void prepare() {
+    MockedBeamSQLTable.CONTENT.clear();
+  }
 
   @Test
   public void insertSelectFilter() throws Exception {
