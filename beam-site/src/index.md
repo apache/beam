@@ -25,12 +25,12 @@ pillars:
   body: Write and share new SDKs, IO connectors, and transformation libraries.
 
 cards:
-- quote: "A powerful framework that delivers the flexibility and advanced functionality our customers need."
-  name: --Talend
-- quote: "Apache Beam [has] powerful semantics that solve real-world challenges of stream processing."
-  name: --PayPal
+- quote: "A framework that delivers the flexibility and advanced functionality our customers need."
+  name: –Talend
+- quote: "Apache Beam [has powerful semantics that solve real-world challenges of stream processing."
+  name: –PayPal
 - quote: "Apache Beam represents a principled approach for analyzing data streams."
-  name: --data Artisans
+  name: –data Artisans
 ---
 <div class="hero-bg">
   <div class="hero section">
@@ -111,7 +111,7 @@ cards:
 <div class="cards section section--wide">
   <div class="section__contained">
     <div class="cards__title">
-      A collaborative effort
+      Testimonials
     </div>
     <div class="cards__cards">
       {% for card in page.cards %}
