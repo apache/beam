@@ -393,14 +393,16 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
+  enum ShardAssignment { ASSIGN_IN_FINALIZE, ASSIGN_WHEN_WRITING };
+
   /**
    * Like {@link WriteWindowedBundles} and {@link WriteUnwindowedBundles}, but where the elements
    * for each shard have been collected into a single iterable.
    */
   private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
-    boolean setWindowedShardNumber;
-    WriteShardedBundles(boolean setWindowedShardNumber) {
-      this.setWindowedShardNumber = setWindowedShardNumber;
+    ShardAssignment shardNumberAssignment;
+    WriteShardedBundles(ShardAssignment shardNumberAssignment) {
+      this.shardNumberAssignment = shardNumberAssignment;
     }
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
@@ -409,7 +411,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       LOG.info("Opening writer for write operation {}", writeOperation);
       Writer<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
-        int shardNumber = setWindowedShardNumber ? c.element().getKey() : UNKNOWN_SHARDNUM;
+        int shardNumber = shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
+            ? c.element().getKey() : UNKNOWN_SHARDNUM;
         writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), shardNumber);
       } else {
         writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
@@ -545,19 +548,23 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
       if (windowedWrites) {
-        TupleTag<FileResult> writtenRecordsTag = new TupleTag<FileResult>() {};
-        TupleTag<KV<Integer, T>> unwrittedRecordsTag = new TupleTag<KV<Integer, T>>() {};
+        TupleTag<FileResult> writtenRecordsTag =
+            new TupleTag<FileResult>("writtenRecordsTag") {};
+        TupleTag<KV<Integer, T>> unwrittedRecordsTag =
+            new TupleTag<KV<Integer, T>>("writtenRecordsTag") {};
         PCollectionTuple writeTuple = input.apply("WriteWindowedBundles", ParDo.of(
             new WriteWindowedBundles(unwrittedRecordsTag))
             .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
         PCollection<FileResult> writtenBundleFiles = writeTuple.get(writtenRecordsTag)
             .setCoder(FileResultCoder.of(shardedWindowCoder));
-        // Any "spilled" elements are written using WriteShardedBundles.
+        // Any "spilled" elements are written using WriteShardedBundles. Assign shard numbers in
+        // finalize to stay consistent with what WriteWindowedBundles does.
         PCollection<FileResult> writtenGroupedFiles =
             writeTuple
                 .get(unwrittedRecordsTag)
                 .apply("GroupUnwritten", GroupByKey.<Integer, T>create())
-                .apply("WriteUnwritten", ParDo.of(new WriteShardedBundles(false)))
+                .apply("WriteUnwritten", ParDo.of(
+                    new WriteShardedBundles(ShardAssignment.ASSIGN_IN_FINALIZE)))
                 .setCoder(FileResultCoder.of(shardedWindowCoder));
         results = PCollectionList.of(writtenBundleFiles).and(writtenGroupedFiles)
             .apply(Flatten.<FileResult>pCollections());
@@ -581,7 +588,13 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                       (numShardsView != null) ? null : numShardsProvider))
                   .withSideInputs(sideInputs))
               .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
-      results = sharded.apply("WriteShardedBundles", ParDo.of(new WriteShardedBundles(true)));
+      // Since this path might be used by streaming runners processing triggers, it's important
+      // to assign shard numbers here so that they are deterministic. The ASSIGN_IN_FINALIZE
+      // strategy works by sorting all FileResult objects and assigning them numbers, which is not
+      // guaranteed to work well when processing triggers - if the finalize step retries it might
+      // see a different Iterable of FileResult objects, and it will assign different shard numbers.
+      results = sharded.apply("WriteShardedBundles",
+          ParDo.of(new WriteShardedBundles(ShardAssignment.ASSIGN_WHEN_WRITING)));
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder));
 

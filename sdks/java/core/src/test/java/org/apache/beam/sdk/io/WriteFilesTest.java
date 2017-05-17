@@ -174,7 +174,7 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(Collections.<String>emptyList(), IDENTITY_MAP, getBaseOutputFilename(),
-        Optional.<Integer>absent(), false);
+        Optional.<Integer>absent(), false /* windowedWrites */);
     checkFileContents(getBaseOutputFilename(), Collections.<String>emptyList(),
         Optional.of(1));
   }
@@ -200,10 +200,9 @@ public class WriteFilesTest {
         .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY);
 
   }
-  private SimpleSink makeSimpleSink(boolean windowedWrites) {
+  private SimpleSink makeSimpleSink() {
     FilenamePolicy filenamePolicy = new PerWindowFiles("file", "simple");
     return new SimpleSink(getBaseOutputDirectory(), filenamePolicy);
- //   return new SimpleSink(getBaseOutputDirectory(), "file", "-SS-of-NN", "simple");
   }
 
   @Test
@@ -222,7 +221,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
 
-    SimpleSink sink = makeSimpleSink(false);
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink).withSharding(new LargestInt());
     p.apply(Create.timestamped(inputs, timestamps).withCoder(StringUtf8Coder.of()))
         .apply(IDENTITY_MAP)
@@ -302,7 +301,7 @@ public class WriteFilesTest {
   }
 
   public void testBuildWrite() {
-    SimpleSink sink = makeSimpleSink(false);
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
@@ -455,7 +454,7 @@ public class WriteFilesTest {
       timestamps.add(i + 1);
     }
 
-    SimpleSink sink = makeSimpleSink(windowedWrites);
+    SimpleSink sink = makeSimpleSink();
     WriteFiles<String> write = WriteFiles.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
