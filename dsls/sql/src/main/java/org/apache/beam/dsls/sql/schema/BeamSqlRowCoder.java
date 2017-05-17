@@ -23,6 +23,8 @@ import java.io.OutputStream;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+
+import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,6 +49,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
   private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
   private static final DoubleCoder doubleCoder = DoubleCoder.of();
   private static final InstantCoder instantCoder = InstantCoder.of();
+  private static final BigDecimalCoder bigDecimalCoder = BigDecimalCoder.of();
 
   private static final BeamSqlRowCoder INSTANCE = new BeamSqlRowCoder();
   private BeamSqlRowCoder(){}
@@ -82,6 +85,9 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         case FLOAT:
           doubleCoder.encode((double) value.getFloat(idx), outStream, context.nested());
           break;
+        case DECIMAL:
+          bigDecimalCoder.encode(value.getBigDecimal(idx), outStream, context.nested());
+          break;
         case BIGINT:
           longCoder.encode(value.getLong(idx), outStream, context.nested());
           break;
@@ -91,8 +97,9 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         case TIME:
           longCoder.encode(value.getGregorianCalendar(idx).getTime().getTime(),
               outStream, context.nested());
+          break;
         case TIMESTAMP:
-          longCoder.encode(value.getDate(idx).getTime(), outStream, context);
+          longCoder.encode(value.getDate(idx).getTime(), outStream, context.nested());
           break;
 
         default:
@@ -100,7 +107,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
     }
 
-    instantCoder.encode(value.getWindowStart(), outStream, context.nested());
+    instantCoder.encode(value.getWindowStart(), outStream, context);
     instantCoder.encode(value.getWindowEnd(), outStream, context);
   }
 
@@ -137,6 +144,9 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
         case BIGINT:
           record.addField(idx, longCoder.decode(inStream, context.nested()));
           break;
+        case DECIMAL:
+          record.addField(idx, bigDecimalCoder.decode(inStream, context.nested()));
+          break;
         case VARCHAR:
           record.addField(idx, stringCoder.decode(inStream, context.nested()));
           break;
@@ -146,7 +156,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
           record.addField(idx, calendar);
           break;
         case TIMESTAMP:
-          record.addField(idx, new Date(longCoder.decode(inStream, context)));
+          record.addField(idx, new Date(longCoder.decode(inStream, context.nested())));
           break;
 
         default:
@@ -154,7 +164,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
     }
 
-    record.setWindowStart(instantCoder.decode(inStream, context.nested()));
+    record.setWindowStart(instantCoder.decode(inStream, context));
     record.setWindowEnd(instantCoder.decode(inStream, context));
 
     return record;
