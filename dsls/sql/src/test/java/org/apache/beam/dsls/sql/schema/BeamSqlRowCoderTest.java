@@ -18,6 +18,10 @@
 
 package org.apache.beam.dsls.sql.schema;
 
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.GregorianCalendar;
+
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
@@ -38,11 +42,16 @@ public class BeamSqlRowCoderTest {
       @Override
       public RelDataType apply(RelDataTypeFactory a0) {
         return a0.builder()
-            .add("id", SqlTypeName.INTEGER)
-            .add("order_id", SqlTypeName.BIGINT)
-            .add("price", SqlTypeName.FLOAT)
-            .add("amount", SqlTypeName.DOUBLE)
-            .add("user_name", SqlTypeName.VARCHAR)
+            .add("col_tinyint", SqlTypeName.TINYINT)
+            .add("col_smallint", SqlTypeName.SMALLINT)
+            .add("col_integer", SqlTypeName.INTEGER)
+            .add("col_bigint", SqlTypeName.BIGINT)
+            .add("col_float", SqlTypeName.FLOAT)
+            .add("col_double", SqlTypeName.DOUBLE)
+            .add("col_decimal", SqlTypeName.DECIMAL)
+            .add("col_string_varchar", SqlTypeName.VARCHAR)
+            .add("col_time", SqlTypeName.TIME)
+            .add("col_timestamp", SqlTypeName.TIMESTAMP)
             .build();
       }
     };
@@ -51,11 +60,19 @@ public class BeamSqlRowCoderTest {
         protoRowType.apply(new JavaTypeFactoryImpl(
         RelDataTypeSystem.DEFAULT)));
     BeamSQLRow row = new BeamSQLRow(beamSQLRecordType);
-    row.addField(0, 1);
-    row.addField(1, 1L);
-    row.addField(2, 1.1F);
-    row.addField(3, 1.1);
-    row.addField(4, "hello");
+    row.addField("col_tinyint", Byte.valueOf("1"));
+    row.addField("col_smallint", Short.valueOf("1"));
+    row.addField("col_integer", 1);
+    row.addField("col_bigint", 1L);
+    row.addField("col_float", 1.1F);
+    row.addField("col_double", 1.1);
+    row.addField("col_decimal", BigDecimal.ZERO);
+    row.addField("col_string_varchar", "hello");
+    GregorianCalendar calendar = new GregorianCalendar();
+    calendar.setTime(new Date());
+    row.addField("col_time", calendar);
+    row.addField("col_timestamp", new Date());
+
 
     BeamSqlRowCoder coder = BeamSqlRowCoder.of();
     CoderProperties.coderDecodeEncodeEqual(coder, row);
