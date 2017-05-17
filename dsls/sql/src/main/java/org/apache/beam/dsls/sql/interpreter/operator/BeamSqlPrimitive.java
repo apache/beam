@@ -130,11 +130,15 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression{
     case TIME:
       return value instanceof GregorianCalendar;
     case TIMESTAMP:
+    case DATE:
       return value instanceof Date;
     case INTERVAL_HOUR:
       return value instanceof BigDecimal;
     case INTERVAL_MINUTE:
       return value instanceof BigDecimal;
+    case SYMBOL:
+      // for SYMBOL, it supports anything...
+      return true;
     default:
       throw new BeamSqlUnsupportedException(outputType.name());
     }

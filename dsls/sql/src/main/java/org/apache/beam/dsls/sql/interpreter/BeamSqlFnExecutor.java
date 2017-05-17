@@ -18,6 +18,7 @@
 package org.apache.beam.dsls.sql.interpreter;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
@@ -35,6 +36,7 @@ import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlLessThanExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlNotEqualExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlOrExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlReinterpretExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlUdfExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlWindowExpression;
@@ -44,6 +46,13 @@ import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMinusExpr
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlModExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.arithmetic.BeamSqlPlusExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentDateExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlCurrentTimeExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateCeilExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlDateFloorExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlExtractExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimeExpression;
+import org.apache.beam.dsls.sql.interpreter.operator.date.BeamSqlLocalTimestampExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlAbsExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlSqrtExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.string.BeamSqlCharLengthExpression;
@@ -103,13 +112,20 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   static BeamSqlExpression buildExpression(RexNode rexNode) {
     if (rexNode instanceof RexLiteral) {
       RexLiteral node = (RexLiteral) rexNode;
-      // NlsString is not serializable, we need to convert
-      // it to string explicitly.
-      if (SqlTypeName.CHAR_TYPES.contains(node.getTypeName())
+      SqlTypeName type = node.getTypeName();
+      Object value = node.getValue();
+
+      if (SqlTypeName.CHAR_TYPES.contains(type)
           && node.getValue() instanceof NlsString) {
-        return BeamSqlPrimitive.of(node.getTypeName(), ((NlsString) node.getValue()).getValue());
+        // NlsString is not serializable, we need to convert
+        // it to string explicitly.
+        return BeamSqlPrimitive.of(type, ((NlsString) value).getValue());
+      } else if (type == SqlTypeName.DATE && value instanceof Calendar) {
+        // does this actually make sense?
+        // Calcite actually treat Calendar as the java type of Date Literal
+        return BeamSqlPrimitive.of(type, ((Calendar) value).getTime());
       } else {
-        return BeamSqlPrimitive.of(node.getTypeName(), node.getValue());
+        return BeamSqlPrimitive.of(type, value);
       }
     } else if (rexNode instanceof RexInputRef) {
       RexInputRef node = (RexInputRef) rexNode;
@@ -148,6 +164,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "*":
           return new BeamSqlMultiplyExpression(subExps);
         case "/":
+        case "/INT":
           return new BeamSqlDivideExpression(subExps);
         case "MOD":
           return new BeamSqlModExpression(subExps);
@@ -177,6 +194,27 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           return new BeamSqlOverlayExpression(subExps);
         case "INITCAP":
           return new BeamSqlInitCapExpression(subExps);
+
+        // date functions
+        case "REINTERPRET":
+          return new BeamSqlReinterpretExpression(subExps, node.type.getSqlTypeName());
+        case "CEIL":
+          return new BeamSqlDateCeilExpression(subExps);
+        case "FLOOR":
+          return new BeamSqlDateFloorExpression(subExps);
+        case "EXTRACT_DATE":
+        case "EXTRACT":
+          return new BeamSqlExtractExpression(subExps);
+        case "LOCALTIME":
+          return new BeamSqlLocalTimeExpression(subExps);
+        case "LOCALTIMESTAMP":
+          return new BeamSqlLocalTimestampExpression(subExps);
+        case "CURRENT_TIME":
+        case "CURRENT_TIMESTAMP":
+          return new BeamSqlCurrentTimeExpression();
+        case "CURRENT_DATE":
+          return new BeamSqlCurrentDateExpression();
+
 
         case "CASE":
           return new BeamSqlCaseExpression(subExps);
