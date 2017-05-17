@@ -51,13 +51,14 @@ public class BeamPCollectionTableTest extends BasePlanner{
     row.addField(0, 1);
     row.addField(1, "hello world.");
     PCollection<BeamSQLRow> inputStream = PBegin.in(pipeline).apply(Create.of(row));
-    runner.addTable("COLLECTION_TABLE", new BeamPCollectionTable(inputStream, protoRowType));
+    runner.addTableMetadata("COLLECTION_TABLE",
+        new BeamPCollectionTable(inputStream, protoRowType));
   }
 
   @Test
   public void testSelectFromPCollectionTable() throws Exception{
     String sql = "select c1, c2 from COLLECTION_TABLE";
-    runner.explainQuery(sql);
+    runner.executionPlan(sql);
   }
 
 }
