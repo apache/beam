@@ -41,7 +41,7 @@ public class BasePlanner {
   public static BeamSQLEnvironment runner = BeamSQLEnvironment.create();
 
   @BeforeClass
-  public static void prepare() {
+  public static void prepareClass() {
     runner.addTableMetadata("ORDER_DETAILS", getTable());
     runner.addTableMetadata("SUB_ORDER", getTable("127.0.0.1:9092", "sub_orders"));
     runner.addTableMetadata("SUB_ORDER_RAM", getTable());
