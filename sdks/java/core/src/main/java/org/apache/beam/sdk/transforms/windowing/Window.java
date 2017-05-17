@@ -353,14 +353,21 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
               + " mode be specified using .discardingFiredPanes() or .accumulatingFiredPanes()."
               + " See Javadoc for more details.");
     }
+
+  }
+
+  private boolean allowedLatenessShorterThanUpstream(PCollection<?> input){
     if (getAllowedLateness() != null
         && getAllowedLateness().isShorterThan(input.getWindowingStrategy().getAllowedLateness())) {
       LOG.warn(
           "allowedLateness of {} set on {} is shorter than allowedLateness of {} set "
-              + "upstream on {}. This might cause data loss.",
+              + "upstream on {}. This might cause data loss. "
+              + "Assigning allowedLateness {} to {}",
           getAllowedLateness(), getName(), input.getWindowingStrategy().getAllowedLateness(),
-          input.getName());
+          input.getName(), input.getWindowingStrategy().getAllowedLateness(), getName());
+     return true;
     }
+    return false;
   }
 
   private boolean canProduceMultiplePanes(WindowingStrategy<?, ?> strategy) {
@@ -380,6 +387,13 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
+
+    boolean latenessShorter = allowedLatenessShorterThanUpstream(input);
+    if (latenessShorter){
+      outputStrategy = outputStrategy.withAllowedLateness(input.getWindowingStrategy()
+          .getAllowedLateness());
+    }
+
     if (getWindowFn() == null) {
       // A new PCollection must be created in case input is reused in a different location as the
       // two PCollections will, in general, have a different windowing strategy.
