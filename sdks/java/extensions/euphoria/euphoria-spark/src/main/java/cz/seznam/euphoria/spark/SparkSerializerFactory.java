@@ -89,7 +89,6 @@ class SparkSerializerFactory implements SerializerFactory {
         }
       }
 
-      @SuppressWarnings("BC_IMPOSSIBLE_INSTANCEOF")
       private void tryReadNext() {
         try {
           next = sparkDeserializationStream.readObject(ClassTag$.MODULE$.Any());
