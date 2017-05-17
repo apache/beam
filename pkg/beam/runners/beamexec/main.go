@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	// The below 4 flags implement the Fn API container contract. Subject to change.
 	worker          = flag.Bool("worker", false, "Whether binary is running in worker mode.")
 	loggingEndpoint = flag.String("logging_endpoint", "", "Local logging gRPC endpoint (required in worker mode).")
 	controlEndpoint = flag.String("control_endpoint", "", "Local control gRPC endpoint (required in worker mode).")
@@ -20,6 +21,14 @@ var (
 
 	runner = flag.String("runner", "local", "Pipeline runner (required in non-worker mode).")
 )
+
+// TODO(herohde) 5/16/2017: if we were to move the dispatch to the beam package,
+// it would imply that it had a flag (runner) -- and we'd need to change the
+// signature of execute to not use beam to include local as default.
+//
+// We should probably also add an indirection for Init, too, so that we can
+// move the worker flags to harness (or wrapper). Then dataflow could register
+// both aspects when imported. It would no longer be available by default.
 
 // Init is the hook that all user code must call, for now.
 func Init(ctx context.Context) {
@@ -44,6 +53,9 @@ var runners = map[string]func(context.Context, *beam.Pipeline) error{
 }
 
 func Register(name string, fn func(context.Context, *beam.Pipeline) error) {
+	if _, ok := runners[name]; ok {
+		panic(fmt.Sprintf("runner %v already defined", name))
+	}
 	runners[name] = fn
 }
 
