@@ -115,7 +115,6 @@ public class BeamSQLRow implements Serializable {
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
       break;
-      case DECIMAL:
     case FLOAT:
       if (!(fieldValue instanceof Float)) {
         throw new InvalidFieldException(

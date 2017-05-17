@@ -21,6 +21,7 @@ package org.apache.beam.dsls.sql.schema;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.math.BigDecimal;
 
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -73,47 +74,50 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, Object raw) {
-    if (raw == null) {
-      row.addField(idx, raw);
+  public static void addFieldWithAutoTypeCasting(BeamSQLRow row, int idx, Object rawObj) {
+    if (rawObj == null) {
+      row.addField(idx, rawObj);
       return;
     }
 
     SqlTypeName columnType = row.getDataType().getFieldsType().get(idx);
-    String rawStr = raw.toString();
-    switch (columnType) {
-      case TINYINT:
-        row.addField(idx, Byte.valueOf(rawStr));
-        break;
-      case SMALLINT:
-        row.addField(idx, Short.valueOf(rawStr));
-        break;
-      case INTEGER:
-        row.addField(idx, Integer.valueOf(rawStr));
-        break;
-      case BIGINT:
-        row.addField(idx, Long.valueOf(rawStr));
-        break;
-      case FLOAT:
-        row.addField(idx, Float.valueOf(rawStr));
-        break;
-      case DOUBLE:
-        row.addField(idx, Double.valueOf(rawStr));
-        break;
-      case VARCHAR:
-      case CHAR:
-        if (raw instanceof NlsString) {
-          row.addField(idx, ((NlsString) raw).getValue());
-        } else {
-          row.addField(idx, rawStr);
-        }
-        break;
-      case TIMESTAMP:
-        row.addField(idx, raw);
-        break;
-      default:
-        throw new BeamSqlUnsupportedException(
-            String.format("Column type %s is not supported yet!", columnType));
+    // auto-casting for numberics
+    if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
+        || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {
+      String raw = rawObj.toString();
+      switch (columnType) {
+        case TINYINT:
+          row.addField(idx, Byte.valueOf(raw));
+          break;
+        case SMALLINT:
+          row.addField(idx, Short.valueOf(raw));
+          break;
+        case INTEGER:
+          row.addField(idx, Integer.valueOf(raw));
+          break;
+        case BIGINT:
+          row.addField(idx, Long.valueOf(raw));
+          break;
+        case FLOAT:
+          row.addField(idx, Float.valueOf(raw));
+          break;
+        case DOUBLE:
+          row.addField(idx, Double.valueOf(raw));
+          break;
+        default:
+          throw new BeamSqlUnsupportedException(
+              String.format("Column type %s is not supported yet!", columnType));
+      }
+    } else if (SqlTypeName.CHAR_TYPES.contains(columnType)) {
+      // convert NlsString to String
+      if (rawObj instanceof NlsString) {
+        row.addField(idx, ((NlsString) rawObj).getValue());
+      } else {
+        row.addField(idx, rawObj);
+      }
+    } else {
+      // keep the origin
+      row.addField(idx, rawObj);
     }
   }
 }

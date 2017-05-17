@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.planner;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamIOType;
@@ -42,7 +43,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class MockedBeamSQLTable extends BaseBeamTable {
 
-  public static final List<BeamSQLRow> CONTENT = new ArrayList<>();
+  public static final ConcurrentLinkedQueue<BeamSQLRow> CONTENT = new ConcurrentLinkedQueue<>();
 
   private List<BeamSQLRow> inputRecords;
 

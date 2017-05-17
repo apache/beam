@@ -18,8 +18,9 @@
 
 package org.apache.beam.dsls.sql.rel;
 
+import java.util.Collection;
 import java.util.Date;
-import java.util.List;
+import java.util.Iterator;
 
 import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.exception.BeamSqlUnsupportedException;
@@ -233,10 +234,13 @@ public class BeamSortRelTest {
     MockedBeamSQLTable.CONTENT.clear();
   }
 
-  private void assertEquals(List<BeamSQLRow> rows1, List<BeamSQLRow> rows2) {
+  private void assertEquals(Collection<BeamSQLRow> rows1, Collection<BeamSQLRow> rows2) {
     Assert.assertEquals(rows1.size(), rows2.size());
-    for (int i = 0; i < rows1.size(); i++) {
-      Assert.assertEquals(rows1.get(i), rows2.get(i));
+
+    Iterator<BeamSQLRow> it1 = rows1.iterator();
+    Iterator<BeamSQLRow> it2 = rows2.iterator();
+    while (it1.hasNext()) {
+      Assert.assertEquals(it1.next(), it2.next());
     }
   }
 }
