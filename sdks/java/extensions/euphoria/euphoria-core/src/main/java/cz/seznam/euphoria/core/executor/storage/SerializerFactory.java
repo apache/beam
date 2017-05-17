@@ -15,19 +15,20 @@
  */
 package cz.seznam.euphoria.core.executor.storage;
 
+import java.io.Closeable;
 import java.io.Serializable;
 
 public interface SerializerFactory extends Serializable {
 
   interface Serializer {
 
-    interface OutputStream {
+    interface OutputStream extends Closeable {
       void writeObject(Object o);
       void flush();
       void close();
     }
 
-    interface InputStream {
+    interface InputStream extends Closeable {
       Object readObject();
       boolean eof();
       void close();
