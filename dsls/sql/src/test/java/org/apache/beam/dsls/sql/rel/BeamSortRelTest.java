@@ -27,6 +27,7 @@ import org.apache.beam.dsls.sql.planner.MockedBeamSQLTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -55,6 +56,11 @@ public class BeamSortRelTest {
           8L, 8888, 8.0, new Date(),
           8L, 999, 9.0, new Date(),
           10L, 100, 10.0, new Date());
+
+  @Before
+  public void setUp() {
+    MockedBeamSQLTable.CONTENT.clear();
+  }
 
   @Test
   public void testOrderBy_basic() throws Exception {

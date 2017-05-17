@@ -19,6 +19,7 @@ package org.apache.beam.dsls.sql.planner;
 
 import org.apache.beam.sdk.Pipeline;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -26,6 +27,11 @@ import org.junit.Test;
  *
  */
 public class BeamPlannerSubmitTest extends BasePlanner {
+  @Before
+  public void prepareIt() {
+    MockedBeamSQLTable.CONTENT.clear();
+  }
+
   @Test
   public void insertSelectFilter() throws Exception {
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price) SELECT "
