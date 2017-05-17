@@ -249,7 +249,8 @@ class BatchLoads<DestinationT>
     // This transform will look at the set of files written for each table, and if any table has
     // too many files or bytes, will partition that table's files into multiple partitions for
     // loading.
-    PCollection<Void> singleton = p.apply(Create.of((Void) null).withCoder(VoidCoder.of()));
+    PCollection<Void> singleton = p.apply("singleton",
+        Create.of((Void) null).withCoder(VoidCoder.of()));
     PCollectionTuple partitions =
         singleton.apply(
             "WritePartition",
@@ -334,7 +335,8 @@ class BatchLoads<DestinationT>
                         dynamicDestinations))
                 .withSideInputs(writeTablesSideInputs));
 
-    PCollection<TableRow> empty = p.apply(Create.empty(TypeDescriptor.of(TableRow.class)));
+    PCollection<TableRow> empty = p.apply("CreateEmptyFailedInserts",
+        Create.empty(TypeDescriptor.of(TableRow.class)));
     return WriteResult.in(input.getPipeline(), empty);
   }
 }

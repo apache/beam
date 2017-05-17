@@ -993,7 +993,7 @@ public class BigQueryIO {
         streamingInserts.setTestServices(getBigQueryServices());
         return rowsWithDestination.apply(streamingInserts);
       } else {
-        checkArgument(getFailedInsertRetryPolicy() != null,
+        checkArgument(getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
 
         BatchLoads<DestinationT> batchLoads = new BatchLoads<>(
