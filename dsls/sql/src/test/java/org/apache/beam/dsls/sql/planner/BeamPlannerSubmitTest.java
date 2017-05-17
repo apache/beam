@@ -21,6 +21,7 @@ import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -31,6 +32,11 @@ import org.junit.Test;
 public class BeamPlannerSubmitTest extends BasePlanner {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
+
+  @Before
+  public void prepare() {
+    MockedBeamSQLTable.CONTENT.clear();
+  }
 
   @Test
   public void insertSelectFilter() throws Exception {
@@ -43,7 +49,7 @@ public class BeamPlannerSubmitTest extends BasePlanner {
     pipeline.run().waitUntilFinish();
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    Assert.assertTrue(MockedBeamSQLTable.CONTENT.get(0).valueInString()
+    Assert.assertTrue(MockedBeamSQLTable.CONTENT.peek().valueInString()
         .contains("order_id=12345,site_id=0,price=20.5,order_time="));
   }
 }
