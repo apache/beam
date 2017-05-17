@@ -883,7 +883,7 @@ be controlled within a test.&lt;/p&gt;
 &lt;h2 id=&quot;writing-deterministic-tests-to-emulate-nondeterminism&quot;&gt;Writing Deterministic Tests to Emulate Nondeterminism&lt;/h2&gt;
 
 &lt;p&gt;The Beam testing infrastructure provides the
-&lt;a href=&quot;/documentation/sdks/javadoc/0.6.0/org/apache/beam/sdk/testing/PAssert.html&quot;&gt;PAssert&lt;/a&gt;
+&lt;a href=&quot;/documentation/sdks/javadoc/2.0.0/org/apache/beam/sdk/testing/PAssert.html&quot;&gt;PAssert&lt;/a&gt;
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
 &lt;a href=&quot;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java&quot;&gt;TestStream&lt;/a&gt;,
