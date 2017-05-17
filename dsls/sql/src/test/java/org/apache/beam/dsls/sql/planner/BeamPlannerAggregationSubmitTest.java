@@ -21,6 +21,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+
 import org.apache.beam.dsls.sql.BeamSQLEnvironment;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
@@ -31,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,9 +49,14 @@ public class BeamPlannerAggregationSubmitTest {
   public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void prepare() throws ParseException {
+  public static void prepareClass() throws ParseException {
     runner.addTableMetadata("ORDER_DETAILS", getOrderTable());
     runner.addTableMetadata("ORDER_SUMMARY", getSummaryTable());
+  }
+
+  @Before
+  public void prepare() throws ParseException {
+    MockedBeamSQLTable.CONTENT.clear();
   }
 
   private static BaseBeamTable getOrderTable() throws ParseException {
@@ -118,7 +125,7 @@ public class BeamPlannerAggregationSubmitTest {
     pipeline.run().waitUntilFinish();
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
-    BeamSQLRow result = MockedBeamSQLTable.CONTENT.get(0);
+    BeamSQLRow result = MockedBeamSQLTable.CONTENT.peek();
     Assert.assertEquals(1, result.getInteger(0));
     Assert.assertEquals(format.parse("2017-01-01 01:00:00"), result.getDate(1));
     Assert.assertEquals(1L, result.getLong(2));
@@ -136,6 +143,6 @@ public class BeamPlannerAggregationSubmitTest {
 
     Assert.assertTrue(MockedBeamSQLTable.CONTENT.size() == 1);
     Assert.assertEquals("site_id=0,agg_hour=null,size=3",
-        MockedBeamSQLTable.CONTENT.get(0).valueInString());
+        MockedBeamSQLTable.CONTENT.peek().valueInString());
   }
 }

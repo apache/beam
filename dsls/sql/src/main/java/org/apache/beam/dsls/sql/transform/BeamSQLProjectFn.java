@@ -22,6 +22,7 @@ import org.apache.beam.dsls.sql.interpreter.BeamSQLExpressionExecutor;
 import org.apache.beam.dsls.sql.rel.BeamProjectRel;
 import org.apache.beam.dsls.sql.schema.BeamSQLRecordType;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.dsls.sql.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
@@ -57,7 +58,7 @@ public class BeamSQLProjectFn extends DoFn<BeamSQLRow, BeamSQLRow> {
     outRow.updateWindowRange(inputRecord, window);
 
     for (int idx = 0; idx < results.size(); ++idx) {
-      outRow.addField(idx, results.get(idx));
+      BeamTableUtils.addFieldWithAutoTypeCasting(outRow, idx, results.get(idx));
     }
 
     c.output(outRow);

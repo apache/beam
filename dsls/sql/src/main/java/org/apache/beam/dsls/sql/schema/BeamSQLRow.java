@@ -121,6 +121,7 @@ public class BeamSQLRow implements Serializable {
       }
       break;
     case VARCHAR:
+    case CHAR:
       if (!(fieldValue instanceof String)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
@@ -232,6 +233,7 @@ public class BeamSQLRow implements Serializable {
         return fieldValue;
       }
     case VARCHAR:
+    case CHAR:
       if (!(fieldValue instanceof String)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
