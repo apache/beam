@@ -102,7 +102,7 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
   @Override
   public void add(T element) {
     elems.add(element);
-    if (elems.size() >= maxElemsInMemory) {
+    if (elems.size() > maxElemsInMemory) {
       spillElems();
     }
   }
