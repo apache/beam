@@ -1142,6 +1142,16 @@ public class DataflowRunnerTest {
   public void testStreamingWriteWithNoShardingReturnsNewTransform() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.as(DataflowPipelineWorkerPoolOptions.class).setMaxNumWorkers(10);
+    testStreamingWriteOverride(options, 20);
+  }
+
+  @Test
+  public void testStreamingWriteWithNoShardingReturnsNewTransformMaxWorkersUnset() {
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    testStreamingWriteOverride(options, StreamingShardedWriteFactory.DEFAULT_NUM_SHARDS);
+  }
+
+  private void testStreamingWriteOverride(PipelineOptions options, int expectedNumShards) {
     TestPipeline p = TestPipeline.fromOptions(options);
 
     StreamingShardedWriteFactory<Object> factory =
@@ -1155,7 +1165,7 @@ public class DataflowRunnerTest {
     WriteFiles<Object> replacement = (WriteFiles<Object>)
         factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShards().get(), equalTo(20));
+    assertThat(replacement.getNumShards().get(), equalTo(expectedNumShards));
   }
 
   private static class TestSink extends FileBasedSink<Object> {

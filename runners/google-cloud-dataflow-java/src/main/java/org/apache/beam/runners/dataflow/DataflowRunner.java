@@ -1437,6 +1437,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<T>
       implements PTransformOverrideFactory<PCollection<T>, PDone, WriteFiles<T>> {
+    // We pick 10 as a a default, as it works well with the default number of workers started
+    // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
     DataflowPipelineWorkerPoolOptions options;
 
