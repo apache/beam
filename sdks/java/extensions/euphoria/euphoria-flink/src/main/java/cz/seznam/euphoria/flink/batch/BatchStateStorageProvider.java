@@ -75,6 +75,9 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
 
   @Override
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-    return new FsSpillingListStorage<>(serializerFactory, MAX_ELEMENTS_IN_MEMORY);
+    return new FsSpillingListStorage<>(
+        serializerFactory,
+        FsSpillingListStorage.DefaultSpillFileFactory.getInstance(),
+        MAX_ELEMENTS_IN_MEMORY);
   }
 }
