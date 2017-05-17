@@ -194,7 +194,6 @@ class BatchLoads<DestinationT>
                       @Override
                       public String apply(String input) {
                         String jobId = BigQueryHelpers.randomUUIDString();
-                        LOG.info("BigQuery export job id {}", jobId);
                         return jobId;
                       }
                     }))
