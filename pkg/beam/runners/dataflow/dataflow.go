@@ -20,18 +20,23 @@ import (
 	"time"
 )
 
+// TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
+
 var (
 	endpoint        = flag.String("api_root_url", "", "Dataflow endpoint (optional).")
 	project         = flag.String("project", "", "Dataflow project.")
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image.")
+	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 )
 
+// Execute runs the given pipeline on Google Cloud Dataflow. It uses the
+// default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *jobName == "" {
 		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
@@ -91,6 +96,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Steps: steps,
 	}
 
+	if *numWorkers != 0 {
+		job.Environment.WorkerPools[0].NumWorkers = *numWorkers
+	}
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
 	}
@@ -150,7 +158,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 func stageWorker(ctx context.Context, project, location, worker string) (string, error) {
 	bucket, prefix, err := storagex.ParseObject(location)
 	if err != nil {
-		return "", fmt.Errorf("Invalid staging location %v: %v", location, err)
+		return "", fmt.Errorf("invalid staging location %v: %v", location, err)
 	}
 	obj := path.Join(prefix, fmt.Sprintf("worker-%v", time.Now().UnixNano()))
 	if *dryRun {
@@ -165,7 +173,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	}
 	fd, err := os.Open(worker)
 	if err != nil {
-		return "", fmt.Errorf("Failed to open worker binary %s: %v", worker, err)
+		return "", fmt.Errorf("failed to open worker binary %s: %v", worker, err)
 	}
 	defer fd.Close()
 	defer os.Remove(worker)
@@ -196,7 +204,7 @@ func buildLocalBinary() (string, error) {
 		program = file
 	}
 	if program == "" {
-		return "", fmt.Errorf("Could not detect user main")
+		return "", fmt.Errorf("could not detect user main")
 	}
 
 	log.Printf("Cross-compiling %v as %v", program, ret)
@@ -208,7 +216,7 @@ func buildLocalBinary() (string, error) {
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Print(string(out))
-		return "", fmt.Errorf("Failed to cross-compile %v: %v", program, err)
+		return "", fmt.Errorf("failed to cross-compile %v: %v", program, err)
 	}
 	return ret, nil
 }
@@ -250,6 +258,9 @@ func newClient(ctx context.Context, basePath string) (*df.Service, error) {
 }
 
 func printJob(job *df.Job) {
-	str, _ := json.MarshalIndent(job, "", "  ")
+	str, err := json.MarshalIndent(job, "", "  ")
+	if err != nil {
+		log.Printf("Failed to print job %v: %v", job.Id, err)
+	}
 	log.Print(string(str))
 }

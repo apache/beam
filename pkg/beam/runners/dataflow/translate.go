@@ -11,6 +11,17 @@ import (
 	"path"
 )
 
+// translate translates a Graph into a sequence of Dataflow steps. The step
+// representation and its semantics are complex. In particular, the service
+// optimizes the steps (step fusing, etc.) and may move steps around. Our
+// decorations of the steps must thus be robust against such changes, so that
+// they can be properly decoded in the harness. There are multiple quirks and
+// requirements of specific semi-opaque formats, such as base64 encoded blobs.
+//
+// Moreover, the harness sees pieces of the translated steps only -- not the
+// full graph. Special steps are also inserted around GBK, for example, which
+// makes the placement of the decoration somewhat tricky. The harness will
+// also never see steps that the service executes directly, notably GBK/CoGBK.
 func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 	// NOTE: Dataflow apparently assumes that the steps are in topological order.
 	// Otherwise, it fails with "Output out for step  was not found." So we
@@ -26,41 +37,39 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 		}
 
 		if edge.Op == graph.Flatten {
-			for i := 0; i < len(edge.Input); i++ {
-				prop.Inputs = append(prop.Inputs, nodes[edge.Input[i].From.ID()])
+			for _, in := range edge.Input {
+				prop.Inputs = append(prop.Inputs, nodes[in.From.ID()])
 			}
-		} else {
-			if len(edge.Input) > 0 {
-				prop.ParallelInput = nodes[edge.Input[0].From.ID()]
+		} else if len(edge.Input) > 0 {
+			prop.ParallelInput = nodes[edge.Input[0].From.ID()]
 
-				prop.NonParallelInputs = make(map[string]*outputReference)
-				for i := 1; i < len(edge.Input); i++ {
-					// Side input requires an additional conversion step, which must
-					// be before the present one.
+			prop.NonParallelInputs = make(map[string]*outputReference)
+			for i := 1; i < len(edge.Input); i++ {
+				// Side input requires an additional conversion step, which must
+				// be before the present one.
 
-					ref := nodes[edge.Input[i].From.ID()]
-					c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
-					if err != nil {
-						return nil, err
-					}
-
-					side := &df.Step{
-						Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
-						Kind: "CollectionToSingleton",
-						Properties: newMsg(properties{
-							ParallelInput: ref,
-							OutputInfo: []output{{
-								UserName:   "out",
-								OutputName: "out",
-								Encoding:   graphx.WrapExtraWindowedValue(c),
-							}},
-							UserName: buildName(edge.Scope(), "AsView"),
-						}),
-					}
-					steps = append(steps, side)
-
-					prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "out")
+				ref := nodes[edge.Input[i].From.ID()]
+				c, err := graphx.EncodeCoder(edge.Input[i].From.Coder)
+				if err != nil {
+					return nil, err
 				}
+
+				side := &df.Step{
+					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
+					Kind: "CollectionToSingleton",
+					Properties: newMsg(properties{
+						ParallelInput: ref,
+						OutputInfo: []output{{
+							UserName:   "out",
+							OutputName: "out",
+							Encoding:   graphx.WrapExtraWindowedValue(c),
+						}},
+						UserName: buildName(edge.Scope(), "AsView"),
+					}),
+				}
+				steps = append(steps, side)
+
+				prop.NonParallelInputs[side.Name] = newOutputReference(side.Name, "out")
 			}
 		}
 
@@ -104,6 +113,10 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 	return steps, nil
 }
 
+// TODO(herohde) 5/16/2017: we might need to robustly encode the index into the
+// name, so that we can infer the ordering from the names in the harness.
+
+// translateNodes builds a map from nodeID to the Dataflow representation.
 func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 	nodes := make(map[int]*outputReference)
 	for _, edge := range edges {
@@ -121,6 +134,10 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 // TODO(herohde) 2/15/2017: user names encode composite names via "/"-separation.
 // We'll need to ensure that scopes are uniquely named.
 
+// translateEdge translates part of a MultiEdge to the Dataflow kind and
+// step-specific properties. We can't conveniently return a Step, because we
+// need to add more properties and the (partly-encoded) Step form prevents such
+// updates.
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
 	case graph.Source:
@@ -165,9 +182,9 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	}
 }
 
+// serializeFn encodes and then base64-encodes a MultiEdge. Dataflow requires
+// serialized functions to be base64 encoded.
 func serializeFn(edge *graph.MultiEdge) (string, error) {
-	// NOTE: Dataflow requires serialized functions to be base64 encoded.
-
 	ref, err := graphx.EncodeMultiEdge(edge)
 	if err != nil {
 		return "", fmt.Errorf("Failed to serialize %v: %v", edge, err)
@@ -177,9 +194,10 @@ func serializeFn(edge *graph.MultiEdge) (string, error) {
 	return protox.EncodeBase64(ref)
 }
 
-// NOTE: Dataflow uses "/" to separate composite transforms, so we must remove
-// them from the otherwise qualified package names of DoFns, etc.
-
+// buildName computes a Dataflow composite name understood by the Dataflow UI,
+// determined by the scope nesting. Dataflow simply uses "/" to separate
+// composite transforms, so we must remove them from the otherwise qualified
+// package names of DoFns, etc.
 func buildName(scope *graph.Scope, name string) string {
 	if scope.Parent == nil {
 		// Ignore "root" node in naming.
@@ -195,6 +213,8 @@ func buildScopeName(scope *graph.Scope) string {
 	return buildScopeName(scope.Parent) + "/" + scope.Label
 }
 
+// stepID converts a MultiEdge ID, i, to a Step ID, "s"+i. The name has no
+// semantic meaning.
 func stepID(id int) string {
 	return fmt.Sprintf("s%v", id)
 }
