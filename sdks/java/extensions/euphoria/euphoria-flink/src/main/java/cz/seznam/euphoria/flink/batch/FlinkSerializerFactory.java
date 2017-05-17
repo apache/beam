@@ -21,6 +21,7 @@ import com.esotericsoftware.kryo.io.Output;
 import cz.seznam.euphoria.core.executor.storage.SerializerFactory;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.util.LinkedHashMap;
 
@@ -123,6 +124,7 @@ class FlinkSerializerFactory implements SerializerFactory {
     if (this.kryo == null) {
       // FIXME: how to get to the kryo instance in flink?
       this.kryo = new Kryo();
+      this.kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
     }
     return this.kryo;
   }
