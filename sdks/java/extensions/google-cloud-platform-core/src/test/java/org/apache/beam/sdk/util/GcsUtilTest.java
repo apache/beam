@@ -50,6 +50,8 @@ import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.BackOff;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.Lifecycle;
+import com.google.api.services.storage.model.Bucket.Lifecycle.Rule.Action;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
@@ -68,6 +70,7 @@ import java.nio.file.AccessDeniedException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -628,8 +631,51 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
-        FluentBackoff.DEFAULT.backoff());
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(googleJsonResponseException(
+        HttpStatusCodes.STATUS_CODE_NOT_FOUND, "It don't exist", "Nothing here to see"));
+
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
+        mockBackOff, new FastNanoClockAndSleeper()));
+  }
+
+  @Test
+  public void testBucketAccessErrorNoTTLAttached() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    GoogleJsonResponseException expectedException = googleJsonResponseException(
+        HttpStatusCodes.STATUS_CODE_FORBIDDEN, "Waves hand mysteriously",
+        "These aren't the buckets you're looking for");
+
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(expectedException);
+
+    thrown.expect(AccessDeniedException.class);
+
+    assertFalse(gcsUtil.bucketHasTTL(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testBucketDoesNotExistNoTTLAttached() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -637,8 +683,69 @@ public class GcsUtilTest {
         .thenThrow(googleJsonResponseException(HttpStatusCodes.STATUS_CODE_NOT_FOUND,
             "It don't exist", "Nothing here to see"));
 
-    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
+    thrown.expect(FileNotFoundException.class);
+
+    assertFalse(gcsUtil.bucketHasTTL(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testGetBucketWithTTLAttached() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    Bucket b = new Bucket();
+    Lifecycle lc = new Lifecycle();
+    com.google.api.services.storage.model.Bucket.Lifecycle.Rule deleteRule =
+        new com.google.api.services.storage.model.Bucket.Lifecycle.Rule();
+    Action deleteAction = new Action();
+    deleteAction.setType("Delete");
+    deleteRule.setAction(deleteAction);
+    List<com.google.api.services.storage.model.Bucket.Lifecycle.Rule> rules = new LinkedList<>();
+    rules.add(deleteRule);
+    lc.setRule(rules);
+    b.setLifecycle(lc);
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(b);
+
+    assertTrue(gcsUtil.bucketHasTTL(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testGetBucketWithNoTTLAttached() throws IOException {
+    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
+    Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
+
+    Bucket b = new Bucket();
+    Lifecycle lc = new Lifecycle();
+    com.google.api.services.storage.model.Bucket.Lifecycle.Rule deleteRule =
+        new com.google.api.services.storage.model.Bucket.Lifecycle.Rule();
+    Action deleteAction = new Action();
+    deleteAction.setType("SomeOtherType");
+    deleteRule.setAction(deleteAction);
+    List<com.google.api.services.storage.model.Bucket.Lifecycle.Rule> rules = new LinkedList<>();
+    rules.add(deleteRule);
+    lc.setRule(rules);
+    b.setLifecycle(lc);
+    when(mockStorage.buckets()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
+    when(mockStorageGet.execute()).thenThrow(new SocketTimeoutException("SocketException"))
+        .thenReturn(b);
+
+    assertFalse(gcsUtil.bucketHasTTL(GcsPath.fromComponents("testbucket", "testobject")));
   }
 
   @Test

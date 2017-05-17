@@ -22,17 +22,25 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+
 import java.util.List;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for staging files to GCS.
  */
 public class GcsStager implements Stager {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GcsStager.class);
+
   private DataflowPipelineOptions options;
 
   private GcsStager(DataflowPipelineOptions options) {
@@ -46,7 +54,10 @@ public class GcsStager implements Stager {
 
   @Override
   public List<DataflowPackage> stageFiles() {
+
     checkNotNull(options.getStagingLocation());
+    warnIfStagingHasTTL();
+
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
     if (windmillBinary != null) {
@@ -67,4 +78,19 @@ public class GcsStager implements Stager {
         options.getStagingLocation(),
         createOptions);
   }
+
+  private void warnIfStagingHasTTL() {
+    try {
+      LOG.debug("Checking if staging location {} has TTL assigned", options.getStagingLocation());
+      boolean stagingHasTTL = options.as(GcsOptions.class).getGcsUtil()
+          .bucketHasTTL(GcsPath.fromUri(options.getStagingLocation()));
+      if (stagingHasTTL) {
+        LOG.warn("Staging location {} has TTL assigned. This might cause unpredictable bugs."
+            , options.getStagingLocation());
+      }
+    } catch (Exception ie) {
+      LOG.warn("Exception while trying to determine if staging location has TTL assigned", ie);
+    }
+  }
+
 }

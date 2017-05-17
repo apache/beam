@@ -30,6 +30,7 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.Lifecycle.Rule;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auto.value.AutoValue;
@@ -452,6 +453,26 @@ public class GcsUtil {
         path,
         createBackOff(),
         Sleeper.DEFAULT);
+  }
+
+  /**
+   * Returns whether the GCS bucket has TTL assigned.
+   *
+   * @param path the path to GCS bucket
+   * @return true if TTL is assigned to bucket, false otherwise
+   */
+  public boolean bucketHasTTL(GcsPath path) throws IOException {
+    Bucket bucket = getBucket(path, createBackOff(), Sleeper.DEFAULT);
+    if (bucket != null && bucket.getLifecycle() != null
+        && bucket.getLifecycle().getRule() != null) {
+      for (Rule r : bucket.getLifecycle().getRule()) {
+        if ("Delete".equalsIgnoreCase(r.getAction().getType())) {
+          LOG.debug("Bucket {} has TTL assigned", path);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**
