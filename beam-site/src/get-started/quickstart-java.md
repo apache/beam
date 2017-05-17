@@ -29,10 +29,9 @@ The easiest way to get a copy of the WordCount pipeline is to use the following 
 
 ```
 $ mvn archetype:generate \
-      -DarchetypeRepository=https://repository.apache.org/content/groups/snapshots \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=LATEST \
+      -DarchetypeVersion={{ site.release_latest }} \
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion="0.1" \
