@@ -84,7 +84,6 @@ class SparkSerializerFactory implements SerializerFactory {
           // readObject method's signature. but it actually does throw it
           // to signal the end-of-stream.
           if (EOFException.class.isAssignableFrom(e.getClass())) {
-            System.out.println("hoho!!!");
             streamFinished = true;
           } else {
             throw e;
