@@ -9,6 +9,119 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam publishes the first stable release</title>
+        <description>&lt;p&gt;The Apache Beam community is pleased to &lt;a href=&quot;https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12&quot;&gt;announce the availability of version 2.0.0&lt;/a&gt;. This is the first stable release of Apache Beam, signifying a statement from the community that it intends to maintain API stability with all releases for the foreseeable future, and making Beam suitable for enterprise deployment.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;This first stable release is the third important milestone for the Apache Beam community. Beam joined the Apache Incubator in February 2016 and graduated as a top-level project of The Apache Software Foundation in December. Through these fifteen months of concentrated effort, a slightly chaotic codebase, merged from multiple organizations, has been developed into a generalized framework for data processing that is truly engine- and environment-independent. Apache Beam has evolved and improved through three incubating and three post-incubation releases, culminating in the stable release announced today as version 2.0.0.&lt;/p&gt;
+
+&lt;p&gt;In the five months since graduation, Apache Beam has seen a significant growth, both in terms of adoption and community contribution. Apache Beam is &lt;a href=&quot;https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces12&quot;&gt;in use&lt;/a&gt; at Google Cloud, PayPal, and Talend, among others.&lt;/p&gt;
+
+&lt;p&gt;Apache Beam, version 2.0.0 improves user experience across the project, focusing on seamless portability across execution environments, including engines, operating systems, on-premise clusters, cloud providers, and data storage systems. Other highlights include:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;API stability and future compatibility within this major version.&lt;/li&gt;
+  &lt;li&gt;Stateful data processing paradigms that unlock efficient, data-dependent computations.&lt;/li&gt;
+  &lt;li&gt;Support for user-extensible file systems, with built-in support for Hadoop Distributed File System, among others.&lt;/li&gt;
+  &lt;li&gt;A metrics subsystem for deeper insight into pipeline execution.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Many contributors made this release possible, by participating in different roles: contributing code, writing documentation, testing release candidates, supporting users, or helping in some other way. The following is a partial list of contributors – 76 individuals contributed code to the project since the previous release, assembled from source history:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Ahmet Altay&lt;/li&gt;
+  &lt;li&gt;Eric Anderson&lt;/li&gt;
+  &lt;li&gt;Raghu Angadi&lt;/li&gt;
+  &lt;li&gt;Sourabh Bajaj&lt;/li&gt;
+  &lt;li&gt;Péter Gergő Barna&lt;/li&gt;
+  &lt;li&gt;Chen Bin&lt;/li&gt;
+  &lt;li&gt;Davor Bonaci&lt;/li&gt;
+  &lt;li&gt;Robert Bradshaw&lt;/li&gt;
+  &lt;li&gt;Ben Chambers&lt;/li&gt;
+  &lt;li&gt;Etienne Chauchot&lt;/li&gt;
+  &lt;li&gt;Chang Chen&lt;/li&gt;
+  &lt;li&gt;Charles Chen&lt;/li&gt;
+  &lt;li&gt;Craig Citro&lt;/li&gt;
+  &lt;li&gt;Lukasz Cwik&lt;/li&gt;
+  &lt;li&gt;Márton Elek&lt;/li&gt;
+  &lt;li&gt;Pablo Estrada&lt;/li&gt;
+  &lt;li&gt;Josh Forman-Gornall&lt;/li&gt;
+  &lt;li&gt;Maria García Herrero&lt;/li&gt;
+  &lt;li&gt;Jins George&lt;/li&gt;
+  &lt;li&gt;Damien Gouyette&lt;/li&gt;
+  &lt;li&gt;Thomas Groh&lt;/li&gt;
+  &lt;li&gt;Dan Halperin&lt;/li&gt;
+  &lt;li&gt;Pei He&lt;/li&gt;
+  &lt;li&gt;Hadar Hod&lt;/li&gt;
+  &lt;li&gt;Chamikara Jayalath&lt;/li&gt;
+  &lt;li&gt;Rekha Joshi&lt;/li&gt;
+  &lt;li&gt;Uwe Jugel&lt;/li&gt;
+  &lt;li&gt;Sung Junyoung&lt;/li&gt;
+  &lt;li&gt;Holden Karau&lt;/li&gt;
+  &lt;li&gt;Vikas Kedigehalli&lt;/li&gt;
+  &lt;li&gt;Eugene Kirpichov&lt;/li&gt;
+  &lt;li&gt;Tibor Kiss&lt;/li&gt;
+  &lt;li&gt;Kenneth Knowles&lt;/li&gt;
+  &lt;li&gt;Vassil Kolarov&lt;/li&gt;
+  &lt;li&gt;Chinmay Kolhatkar&lt;/li&gt;
+  &lt;li&gt;Aljoscha Krettek&lt;/li&gt;
+  &lt;li&gt;Dipti Kulkarni&lt;/li&gt;
+  &lt;li&gt;Radhika Kulkarni&lt;/li&gt;
+  &lt;li&gt;Jason Kuster&lt;/li&gt;
+  &lt;li&gt;Reuven Lax&lt;/li&gt;
+  &lt;li&gt;Stas Levin&lt;/li&gt;
+  &lt;li&gt;Julien Lhermitte&lt;/li&gt;
+  &lt;li&gt;Jingsong Li&lt;/li&gt;
+  &lt;li&gt;Neville Li&lt;/li&gt;
+  &lt;li&gt;Mark Liu&lt;/li&gt;
+  &lt;li&gt;Michael Luckey&lt;/li&gt;
+  &lt;li&gt;Andrew Martin&lt;/li&gt;
+  &lt;li&gt;Ismaël Mejía&lt;/li&gt;
+  &lt;li&gt;Devon Meunier&lt;/li&gt;
+  &lt;li&gt;Neda Mirian&lt;/li&gt;
+  &lt;li&gt;Anil Muppalla&lt;/li&gt;
+  &lt;li&gt;Gergely Novak&lt;/li&gt;
+  &lt;li&gt;Jean-Baptiste Onofré&lt;/li&gt;
+  &lt;li&gt;Melissa Pashniak&lt;/li&gt;
+  &lt;li&gt;peay&lt;/li&gt;
+  &lt;li&gt;David Rieber&lt;/li&gt;
+  &lt;li&gt;Rahul Sabbineni&lt;/li&gt;
+  &lt;li&gt;Kobi Salant&lt;/li&gt;
+  &lt;li&gt;Amit Sela&lt;/li&gt;
+  &lt;li&gt;Mark Shalda&lt;/li&gt;
+  &lt;li&gt;Stephen Sisk&lt;/li&gt;
+  &lt;li&gt;Yuya Tajima&lt;/li&gt;
+  &lt;li&gt;Wesley Tanaka&lt;/li&gt;
+  &lt;li&gt;JiJun Tang&lt;/li&gt;
+  &lt;li&gt;Valentyn Tymofieiev&lt;/li&gt;
+  &lt;li&gt;David Volquartz&lt;/li&gt;
+  &lt;li&gt;Huafeng Wang&lt;/li&gt;
+  &lt;li&gt;Thomas Weise&lt;/li&gt;
+  &lt;li&gt;Rafal Wojdyla&lt;/li&gt;
+  &lt;li&gt;Yangping Wu&lt;/li&gt;
+  &lt;li&gt;wyp&lt;/li&gt;
+  &lt;li&gt;James Xu&lt;/li&gt;
+  &lt;li&gt;Mingmin Xu&lt;/li&gt;
+  &lt;li&gt;Ted Yu&lt;/li&gt;
+  &lt;li&gt;Borisa Zivkovic&lt;/li&gt;
+  &lt;li&gt;Aviem Zur&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Apache Beam, version 2.0.0, is making its debut at Apache: Big Data, taking place this week in Miami, FL, with four sessions featuring Apache Beam. Apache Beam will also be highlighted at numerous face-to-face meetups and conferences, including the Future of Data San Jose meetup, Strata Data Conference London, Berlin Buzzwords, and DataWorks Summit San Jose.&lt;/p&gt;
+
+&lt;p&gt;We’d like to invite everyone to try out Apache Beam today and consider joining our vibrant community. We welcome feedback, contribution and participation through our mailing lists, issue tracker, pull requests, and events.&lt;/p&gt;
+</description>
+        <pubDate>Wed, 17 May 2017 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2017/05/17/beam-first-stable-release.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Python SDK released in Apache Beam 0.6.0</title>
         <description>&lt;p&gt;Apache Beam’s latest release, version &lt;a href=&quot;/get-started/downloads/&quot;&gt;0.6.0&lt;/a&gt;, introduces a new SDK – this time, for the Python programming language. The Python SDK joins the Java SDK as the second implementation of the Beam programming model.&lt;/p&gt;
 
@@ -1269,41 +1382,6 @@ to us via &lt;a href=&quot;/get-started/support/&quot;&gt;user’s mailing list&
         <category>beam</category>
         
         <category>release</category>
-        
-      </item>
-    
-      <item>
-        <title>How We Added Windowing to the Apache Flink Batch Runner</title>
-        <description>&lt;p&gt;We recently achieved a major milestone by adding support for windowing to the &lt;a href=&quot;http://flink.apache.org&quot;&gt;Apache Flink&lt;/a&gt; Batch runner. In this post we would like to explain what this means for users of Apache Beam and highlight some of the implementation details.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;Before we start, though, let’s quickly talk about the execution of Beam programs and how this is relevant to today’s post. A Beam pipeline can contain bounded and unbounded sources. If the pipeline only contains bounded sources it can be executed in a batch fashion, if it contains some unbounded sources it must be executed in a streaming fashion. When executing a Beam pipeline on Flink, you don’t have to choose the execution mode. Internally, the Flink runner either translates the pipeline to a Flink &lt;code class=&quot;highlighter-rouge&quot;&gt;DataSet&lt;/code&gt; program or a &lt;code class=&quot;highlighter-rouge&quot;&gt;DataStream&lt;/code&gt; program, depending on whether unbounded sources are used in the pipeline. In the following, when we say “Batch runner” what we are really talking about is the Flink runner being in batch execution mode.&lt;/p&gt;
-
-&lt;h2 id=&quot;what-does-this-mean-for-users&quot;&gt;What does this mean for users?&lt;/h2&gt;
-
-&lt;p&gt;Support for windowing was the last missing puzzle piece for making the Flink Batch runner compatible with the Beam model. With the latest change to the Batch runner users can now run any pipeline that only contains bounded sources and be certain that the results match those of the original reference-implementation runners that were provided by Google as part of the initial code drop coming from the Google Dataflow SDK.&lt;/p&gt;
-
-&lt;p&gt;The most obvious part of the change is that windows can now be assigned to elements and that the runner respects these windows for the &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine&lt;/code&gt; operations. A not-so-obvious change concerns side-inputs. In the Beam model, side inputs respect windows; when a value of the main input is being processed only the side input that corresponds to the correct window is available to the processing function, the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Getting side-input semantics right is an important milestone in it’s own because it allows to use a big suite of unit tests for verifying the correctness of a runner implementation. These tests exercise every obscure detail of the Beam programming model and verify that the results produced by a runner match what you would expect from a correct implementation. In the suite, side inputs are used to compare the expected result to the actual result. With these tests being executed regularly we can now be more confident that the implementation produces correct results for user-specified pipelines.&lt;/p&gt;
-
-&lt;h2 id=&quot;under-the-hood&quot;&gt;Under the Hood&lt;/h2&gt;
-&lt;p&gt;The basis for the changes is the introduction of &lt;code class=&quot;highlighter-rouge&quot;&gt;WindowedValue&lt;/code&gt; in the generated Flink transformations. Before, a Beam &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&amp;lt;T&amp;gt;&lt;/code&gt; would be transformed to a &lt;code class=&quot;highlighter-rouge&quot;&gt;DataSet&amp;lt;T&amp;gt;&lt;/code&gt;. Now, we instead create a &lt;code class=&quot;highlighter-rouge&quot;&gt;DataSet&amp;lt;WindowedValue&amp;lt;T&amp;gt;&amp;gt;&lt;/code&gt;. The &lt;code class=&quot;highlighter-rouge&quot;&gt;WindowedValue&amp;lt;T&amp;gt;&lt;/code&gt; stores meta data about the value, such as the timestamp and the windows to which it was assigned.&lt;/p&gt;
-
-&lt;p&gt;With this basic change out of the way we just had to make sure that windows were respected for side inputs and that &lt;code class=&quot;highlighter-rouge&quot;&gt;Combine&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt; correctly handled windows. The tricky part there is the handling of merging windows such as session windows. For these we essentially emulate the behavior of a merging &lt;code class=&quot;highlighter-rouge&quot;&gt;WindowFn&lt;/code&gt; in our own code.&lt;/p&gt;
-
-&lt;p&gt;After we got side inputs working we could enable the aforementioned suite of tests to check how well the runner behaves with respect to the Beam model. As can be expected there were quite some discrepancies but we managed to resolve them all. In the process, we also slimmed down the runner implementation. For example, we removed all custom translations for sources and sinks and are now relying only on Beam code for these, thereby greatly reducing the maintenance overhead.&lt;/p&gt;
-
-&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
-&lt;p&gt;We reached a major milestone in adding windowing support to the Flink Batch runner, thereby making it compatible with the Beam model. Because of the large suite of tests that can now be executed on the runner we are also confident about the correctness of the implementation and about it staying that way in the future.&lt;/p&gt;
-</description>
-        <pubDate>Mon, 13 Jun 2016 09:00:00 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
-        
-        
-        <category>blog</category>
         
       </item>
     
