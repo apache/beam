@@ -1,100 +1,99 @@
-<nav class="navbar navbar-default navbar-fixed-top">
-  <div class="container">
+<nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
       <a href="{{ site.baseurl }}/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="{{ "/images/beam_logo_navbar.png" | prepend: site.baseurl }}">
       </a>
-      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li class="dropdown">
-		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/get-started/beam-overview/">Beam Overview</a></li>
-        <li><a href="{{ site.baseurl }}/get-started/quickstart-java/">Quickstart - Java</a></li>
-        <li><a href="{{ site.baseurl }}/get-started/quickstart-py/">Quickstart - Python</a></li>
-			  <li role="separator" class="divider"></li>
-			  <li class="dropdown-header">Example Walkthroughs</li>
-			  <li><a href="{{ site.baseurl }}/get-started/wordcount-example/">WordCount</a></li>
-			  <li><a href="{{ site.baseurl }}/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-              <li role="separator" class="divider"></li>
-              <li class="dropdown-header">Resources</li>
-              <li><a href="{{ site.baseurl }}/get-started/downloads">Downloads</a></li>
-              <li><a href="{{ site.baseurl }}/get-started/support">Support</a></li>
-		  </ul>
-	    </li>
-        <li class="dropdown">
-		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/documentation">Using the Documentation</a></li>
-			  <li role="separator" class="divider"></li>
-			  <li class="dropdown-header">Beam Concepts</li>
-			  <li><a href="{{ site.baseurl }}/documentation/programming-guide/">Programming Guide</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/resources/">Additional Resources</a></li>
-			  <li role="separator" class="divider"></li>
-              <li class="dropdown-header">Pipeline Fundamentals</li>
-              <li><a href="{{ site.baseurl }}/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-              <li><a href="{{ site.baseurl }}/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-              <li><a href="{{ site.baseurl }}/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-              <li><a href="{{ site.baseurl }}/documentation/io/io-toc/">Pipeline I/O</a></li>
-              <li role="separator" class="divider"></li>
-			  <li class="dropdown-header">SDKs</li>
-			  <li><a href="{{ site.baseurl }}/documentation/sdks/java/">Java SDK</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/" target="_blank">Java SDK API Reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
-                 width="14" height="14"
-                 alt="External link."></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="{{ site.baseurl }}/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="{{ site.baseurl }}/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="{{ site.baseurl }}/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="{{ site.baseurl }}/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="{{ site.baseurl }}/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="{{ site.baseurl }}/get-started/downloads">Downloads</a></li>
+            <li><a href="{{ site.baseurl }}/get-started/support">Support</a></li>
+          </ul>
         </li>
-        <li><a href="{{ site.baseurl }}/documentation/sdks/python/">Python SDK</a></li>
-        <li><a href="{{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/" target="_blank">Python SDK API Reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
-                 width="14" height="14"
-                 alt="External link."></a>
-        </li>
-			  <li role="separator" class="divider"></li>
-			  <li class="dropdown-header">Runners</li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/direct/">Direct Runner</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/apex/">Apache Apex Runner</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/flink/">Apache Flink Runner</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/spark/">Apache Spark Runner</a></li>
-			  <li><a href="{{ site.baseurl }}/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-		  </ul>
-	    </li>
         <li class="dropdown">
-		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-		  <ul class="dropdown-menu">
-			  <li><a href="{{ site.baseurl }}/contribute">Get Started Contributing</a></li>
-        <li role="separator" class="divider"></li>
-        <li class="dropdown-header">Guides</li>
-			  <li><a href="{{ site.baseurl }}/contribute/contribution-guide/">Contribution Guide</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/testing/">Testing Guide</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/release-guide/">Release Guide</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-        <li role="separator" class="divider"></li>
-        <li class="dropdown-header">Technical References</li>
-        <li><a href="{{ site.baseurl }}/contribute/design-principles/">Design Principles</a></li>
-			  <li><a href="{{ site.baseurl }}/contribute/work-in-progress/">Ongoing Projects</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/source-repository/">Source Repository</a></li>
-        <li role="separator" class="divider"></li>
-			  <li class="dropdown-header">Promotion</li>
-        <li><a href="{{ site.baseurl }}/contribute/presentation-materials/">Presentation Materials</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/logos/">Logos and Design</a></li>
-        <li role="separator" class="divider"></li>
-        <li><a href="{{ site.baseurl }}/contribute/maturity-model/">Maturity Model</a></li>
-        <li><a href="{{ site.baseurl }}/contribute/team/">Team</a></li>
-		  </ul>
-	    </li>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="{{ site.baseurl }}/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="{{ site.baseurl }}/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="{{ site.baseurl }}/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="{{ site.baseurl }}/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/" target="_blank">Java SDK API Reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="{{ site.baseurl }}/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/" target="_blank">Python SDK API Reference <img src="{{ site.baseurl }}/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="{{ site.baseurl }}/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="{{ site.baseurl }}/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="{{ site.baseurl }}/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/testing/">Testing Guide</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="{{ site.baseurl }}/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/source-repository/">Source Repository</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="{{ site.baseurl }}/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="{{ site.baseurl }}/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="{{ site.baseurl }}/contribute/team/">Team</a></li>
+          </ul>
+        </li>
 
         <li><a href="{{ site.baseurl }}/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:24px;">Apache Software Foundation<span class="caret"></span></a>
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
           <ul class="dropdown-menu dropdown-menu-right">
             <li><a href="http://www.apache.org/">ASF Homepage</a></li>
             <li><a href="http://www.apache.org/licenses/">License</a></li>
@@ -106,8 +105,4 @@
         </li>
       </ul>
     </div><!--/.nav-collapse -->
-  </div>
 </nav>
-
-
-<link rel="stylesheet" href="">
