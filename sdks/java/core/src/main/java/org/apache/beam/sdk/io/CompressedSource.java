@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.joda.time.Instant;
 
 /**
  * A Source that reads from compressed files. A {@code CompressedSources} wraps a delegate
@@ -578,6 +579,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
         }
         return channel.getCount();
       }
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      return readerDelegate.getCurrentTimestamp();
     }
   }
 }

@@ -33,7 +33,6 @@ import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -135,7 +134,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   private static BeamFnApi.Elements messageWithData(byte[] ... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
-      CODER.encode(valueInGlobalWindow(data), output, Context.NESTED);
+      CODER.encode(valueInGlobalWindow(data), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()

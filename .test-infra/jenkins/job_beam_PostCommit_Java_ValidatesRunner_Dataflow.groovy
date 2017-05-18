@@ -41,5 +41,5 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
     'Run Dataflow ValidatesRunner')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/google-cloud-dataflow-java -DforkCount=0 -DvalidatesRunnerPipelineOptions=\'[ "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner", "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-validates-runner-tests/" ]\'')
+  goals('-B -e clean verify -am -pl runners/google-cloud-dataflow-java -DforkCount=0 -DvalidatesRunnerPipelineOptions=\'[ "--runner=TestDataflowRunner", "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-validates-runner-tests/" ]\'')
 }

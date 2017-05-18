@@ -56,15 +56,14 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -578,13 +577,13 @@ public class SplittableParDoTest {
     }
 
     @StartBundle
-    public void startBundle(Context c) {
+    public void startBundle() {
       assertEquals(State.OUTSIDE_BUNDLE, state);
       state = State.INSIDE_BUNDLE;
     }
 
     @FinishBundle
-    public void finishBundle(Context c) {
+    public void finishBundle() {
       assertEquals(State.INSIDE_BUNDLE, state);
       state = State.OUTSIDE_BUNDLE;
     }

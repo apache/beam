@@ -22,7 +22,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -77,6 +80,11 @@ public class StreamingWriteTables extends PTransform<
     tagged
         .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
         .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
+        // Put in the global window to ensure that DynamicDestinations side inputs are accessed
+        // correctly.
+        .apply("GlobalWindow",
+            Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
+            .triggering(DefaultTrigger.of()).discardingFiredPanes())
         .apply("StreamingWrite",
             ParDo.of(
                 new StreamingWriteFn(bigQueryServices)));

@@ -33,9 +33,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.runners.spark.PipelineRule;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.AvroIO;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
 import org.junit.Rule;
@@ -54,7 +53,7 @@ public class AvroPipelineTest {
   public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Rule
-  public final PipelineRule pipelineRule = PipelineRule.batch();
+  public final TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void setUp() throws IOException {
@@ -72,11 +71,10 @@ public class AvroPipelineTest {
     savedRecord.put("siblingnames", Lists.newArrayList("Jimmy", "Jane"));
     populateGenericFile(Lists.newArrayList(savedRecord), schema);
 
-    Pipeline p = pipelineRule.createPipeline();
-    PCollection<GenericRecord> input = p.apply(
+    PCollection<GenericRecord> input = pipeline.apply(
         AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
     input.apply(AvroIO.writeGenericRecords(schema).to(outputDir.getAbsolutePath()));
-    p.run().waitUntilFinish();
+    pipeline.run();
 
     List<GenericRecord> records = readGenericFile();
     assertEquals(Lists.newArrayList(savedRecord), records);

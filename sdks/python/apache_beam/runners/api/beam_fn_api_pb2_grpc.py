@@ -22,6 +22,8 @@ from grpc.framework.interfaces.face import utilities as face_utilities
 
 import beam_fn_api_pb2 as beam__fn__api__pb2
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class BeamFnControlStub(object):
   """

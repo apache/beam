@@ -21,38 +21,39 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /** A coder for {@link TableDestination} objects. */
-public class TableDestinationCoder extends CustomCoder<TableDestination> {
+public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final TableDestinationCoder INSTANCE = new TableDestinationCoder();
-  private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
+  private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
+  private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
 
   public static TableDestinationCoder of() {
     return INSTANCE;
   }
 
   @Override
-  public void encode(TableDestination value, OutputStream outStream, Context context)
+  public void encode(TableDestination value, OutputStream outStream)
       throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null value");
     }
-    stringCoder.encode(value.getTableSpec(), outStream, context.nested());
-    stringCoder.encode(value.getTableDescription(), outStream, context);
+    tableSpecCoder.encode(value.getTableSpec(), outStream);
+    tableDescriptionCoder.encode(value.getTableDescription(), outStream);
   }
 
   @Override
-  public TableDestination decode(InputStream inStream, Context context) throws IOException {
-    return new TableDestination(
-        stringCoder.decode(inStream, context.nested()),
-        stringCoder.decode(inStream, context.nested()));
+  public TableDestination decode(InputStream inStream) throws IOException {
+    String tableSpec = tableSpecCoder.decode(inStream);
+    String tableDescription = tableDescriptionCoder.decode(inStream);
+    return new TableDestination(tableSpec, tableDescription);
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {
-    return;
-  }
+  public void verifyDeterministic() throws NonDeterministicException {}
 }

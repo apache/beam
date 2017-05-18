@@ -21,9 +21,9 @@ package org.apache.beam.runners.gearpump;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -25,9 +24,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 /**
  * A {@link Coder} for {@link Void}. Uses zero bytes per {@link Void}.
  */
-public class VoidCoder extends CustomCoder<Void> {
+public class VoidCoder extends AtomicCoder<Void> {
 
-  @JsonCreator
   public static VoidCoder of() {
     return INSTANCE;
   }
@@ -40,12 +38,12 @@ public class VoidCoder extends CustomCoder<Void> {
   private VoidCoder() {}
 
   @Override
-  public void encode(Void value, OutputStream outStream, Context context) {
+  public void encode(Void value, OutputStream outStream) {
     // Nothing to write!
   }
 
   @Override
-  public Void decode(InputStream inStream, Context context) {
+  public Void decode(InputStream inStream) {
     // Nothing to read!
     return null;
   }
@@ -69,7 +67,7 @@ public class VoidCoder extends CustomCoder<Void> {
    * @return {@code true}. {@link VoidCoder#getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Void value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(Void value) {
     return true;
   }
 
@@ -79,7 +77,7 @@ public class VoidCoder extends CustomCoder<Void> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(Void value, Context context)
+  protected long getEncodedElementByteSize(Void value)
       throws Exception {
     return 0;
   }

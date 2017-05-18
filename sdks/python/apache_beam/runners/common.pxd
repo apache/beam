@@ -21,7 +21,7 @@ from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
-cdef type OutputValue, TimestampedValue
+cdef type TaggedOutput, TimestampedValue
 
 
 cdef class Receiver(object):
@@ -43,7 +43,7 @@ cdef class DoFnSignature(object):
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
-  cdef OutputProcessor output_processor
+  cdef _OutputProcessor output_processor
 
   cpdef invoke_process(self, WindowedValue windowed_value)
   cpdef invoke_start_bundle(self)
@@ -77,7 +77,7 @@ cdef class DoFnRunner(Receiver):
   cpdef process(self, WindowedValue windowed_value)
 
 
-cdef class OutputProcessor(object):
+cdef class _OutputProcessor(object):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers

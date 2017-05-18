@@ -29,11 +29,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * A {@code PTransform<InputT, OutputT>} is an operation that takes an
@@ -117,12 +117,12 @@ import org.apache.beam.sdk.values.TypedPValue;
  * mapping from Java types to the default Coder to use, for a standard
  * set of Java types; users can extend this mapping for additional
  * types, via
- * {@link org.apache.beam.sdk.coders.CoderRegistry#registerCoder}.
+ * {@link org.apache.beam.sdk.coders.CoderRegistry#registerCoderProvider}.
  * If this inference process fails, either because the Java type was
  * not known at run-time (e.g., due to Java's "erasure" of generic
  * types) or there was no default Coder registered, then the Coder
  * should be specified manually by calling
- * {@link org.apache.beam.sdk.values.TypedPValue#setCoder}
+ * {@link PCollection#setCoder}
  * on the output PCollection.  The Coder of every output
  * PCollection must be determined one way or another
  * before that output is used as an input to another PTransform, or
@@ -281,7 +281,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * @throws CannotProvideCoderException if no coder can be inferred
    */
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
-    throw new CannotProvideCoderException("PTransform.getDefaultOutputCoder called.");
+    throw new CannotProvideCoderException("PTransform.getOutputCoder called.");
   }
 
   /**
@@ -306,7 +306,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * @throws CannotProvideCoderException if none can be inferred.
    */
   public <T> Coder<T> getDefaultOutputCoder(
-      InputT input, @SuppressWarnings("unused") TypedPValue<T> output)
+      InputT input, @SuppressWarnings("unused") PCollection<T> output)
       throws CannotProvideCoderException {
     @SuppressWarnings("unchecked")
     Coder<T> defaultOutputCoder = (Coder<T>) getDefaultOutputCoder(input);

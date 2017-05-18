@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.xml;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -62,7 +63,7 @@ public class XmlSinkTest {
   public ExpectedException thrown = ExpectedException.none();
 
   private String testRootElement = "testElement";
-  private String testFilePrefix = "/path/to/testPrefix";
+  private String testFilePrefix = "/path/to/file";
 
   /**
    * An XmlWriter correctly writes objects as Xml elements with an enclosing root element.
@@ -72,12 +73,12 @@ public class XmlSinkTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
         XmlIO.<Bird>write()
-            .toFilenamePrefix(testFilePrefix)
+            .to(testFilePrefix)
             .withRecordClass(Bird.class)
             .withRootElement("birds")
             .createSink()
             .createWriteOperation();
-    XmlWriter<Bird> writer = writeOp.createWriter(options);
+    XmlWriter<Bird> writer = writeOp.createWriter();
 
     List<Bird> bundle =
         Lists.newArrayList(new Bird("bemused", "robin"), new Bird("evasive", "goose"));
@@ -89,16 +90,15 @@ public class XmlSinkTest {
 
   @Test
   public void testXmlWriterCharset() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
     XmlWriteOperation<Bird> writeOp =
         XmlIO.<Bird>write()
-            .toFilenamePrefix(testFilePrefix)
+            .to(testFilePrefix)
             .withRecordClass(Bird.class)
             .withRootElement("birds")
             .withCharset(StandardCharsets.ISO_8859_1)
             .createSink()
             .createWriteOperation();
-    XmlWriter<Bird> writer = writeOp.createWriter(options);
+    XmlWriter<Bird> writer = writeOp.createWriter();
 
     List<Bird> bundle = Lists.newArrayList(new Bird("bréche", "pinçon"));
     List<String> lines = Arrays.asList("<birds>", "<bird>", "<species>pinçon</species>",
@@ -113,12 +113,15 @@ public class XmlSinkTest {
   public void testBuildXmlWriteTransform() {
     XmlIO.Write<Bird> write =
         XmlIO.<Bird>write()
-            .toFilenamePrefix(testFilePrefix)
+            .to(testFilePrefix)
             .withRecordClass(Bird.class)
             .withRootElement(testRootElement);
     assertEquals(Bird.class, write.getRecordClass());
     assertEquals(testRootElement, write.getRootElement());
-    assertEquals(testFilePrefix, write.getFilenamePrefix());
+    assertNotNull(write.getFilenamePrefix());
+    assertThat(
+        write.getFilenamePrefix().toString(),
+        containsString(testFilePrefix));
   }
 
   /** Validation ensures no fields are missing. */
@@ -126,19 +129,21 @@ public class XmlSinkTest {
   public void testValidateXmlSinkMissingRecordClass() {
     thrown.expect(NullPointerException.class);
     XmlIO.<Bird>write()
+        .to(testFilePrefix)
         .withRootElement(testRootElement)
-        .toFilenamePrefix(testFilePrefix)
         .validate(null);
   }
 
   @Test
   public void testValidateXmlSinkMissingRootElement() {
     thrown.expect(NullPointerException.class);
-    XmlIO.<Bird>write().withRecordClass(Bird.class).toFilenamePrefix(testFilePrefix).validate(null);
+    XmlIO.<Bird>write().withRecordClass(Bird.class)
+        .to(testFilePrefix)
+        .validate(null);
   }
 
   @Test
-  public void testValidateXmlSinkMissingFilePrefix() {
+  public void testValidateXmlSinkMissingOutputDirectory() {
     thrown.expect(NullPointerException.class);
     XmlIO.<Bird>write().withRecordClass(Bird.class).withRootElement(testRootElement).validate(null);
   }
@@ -151,16 +156,15 @@ public class XmlSinkTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     XmlSink<Bird> sink =
         XmlIO.<Bird>write()
+            .to(testFilePrefix)
             .withRecordClass(Bird.class)
             .withRootElement(testRootElement)
-            .toFilenamePrefix(testFilePrefix)
             .createSink();
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation();
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writeOp.getTemporaryDirectory()).toPath();
-    assertEquals(outputPath.getParent(), tempPath.getParent());
-    assertThat(
-        tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
+    Path tempPath = new File(writeOp.getTemporaryDirectory().toString()).toPath();
+    assertThat(tempPath.getParent(), equalTo(outputPath.getParent()));
+    assertThat(tempPath.getFileName().toString(), containsString("temp-beam-"));
   }
 
   /**
@@ -173,28 +177,28 @@ public class XmlSinkTest {
         XmlIO.<Bird>write()
             .withRecordClass(Bird.class)
             .withRootElement(testRootElement)
-            .toFilenamePrefix(testFilePrefix)
+            .to(testFilePrefix)
             .createSink()
             .createWriteOperation();
-    XmlWriter<Bird> writer = writeOp.createWriter(options);
+    XmlWriter<Bird> writer = writeOp.createWriter();
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writer.getWriteOperation().getTemporaryDirectory()).toPath();
-    assertEquals(outputPath.getParent(), tempPath.getParent());
-    assertThat(
-        tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
+    Path tempPath = new File(writer.getWriteOperation().getTemporaryDirectory().toString())
+        .toPath();
+    assertThat(tempPath.getParent(), equalTo(outputPath.getParent()));
+    assertThat(tempPath.getFileName().toString(), containsString("temp-beam-"));
     assertNotNull(writer.marshaller);
   }
 
   @Test
   public void testDisplayData() {
     XmlIO.Write<Integer> write = XmlIO.<Integer>write()
-        .toFilenamePrefix("foobar")
+        .to(testFilePrefix)
         .withRootElement("bird")
         .withRecordClass(Integer.class);
 
     DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("fileNamePattern", "foobar-SSSSS-of-NNNNN.xml"));
+    assertThat(displayData, hasDisplayItem("filenamePattern", "file-SSSSS-of-NNNNN.xml"));
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));
     assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
   }

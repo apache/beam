@@ -26,6 +26,8 @@ from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 from apache_beam.io.gcp import gcsio
 
+__all__ = ['GCSFileSystem']
+
 
 class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
@@ -33,6 +35,12 @@ class GCSFileSystem(FileSystem):
 
   CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
+
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
+    """
+    return 'gs'
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem

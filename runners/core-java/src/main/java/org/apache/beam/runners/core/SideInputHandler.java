@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,12 +28,11 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SetCoder;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.ValueState;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -161,11 +161,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   @Override
   public <T> T get(PCollectionView<T> sideInput, BoundedWindow window) {
 
-    if (!isReady(sideInput, window)) {
-      throw new IllegalStateException(
-          "Side input " + sideInput + " is not ready for window " + window);
-    }
-
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) sideInput
@@ -180,6 +175,10 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
     Iterable<WindowedValue<?>> elements = state.read();
+
+    if (elements == null) {
+      elements = Collections.emptyList();
+    }
 
     return sideInput.getViewFn().apply(elements);
   }

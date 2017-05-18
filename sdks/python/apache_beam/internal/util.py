@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Utility functions used throughout the package."""
+"""Utility functions used throughout the package.
+
+For internal use only. No backwards compatibility guarantees.
+"""
 
 import logging
 from multiprocessing.pool import ThreadPool
@@ -24,7 +27,9 @@ import weakref
 
 
 class ArgumentPlaceholder(object):
-  """A place holder object replacing PValues in argument lists.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A place holder object replacing PValues in argument lists.
 
   A Fn object can take any number of "side inputs", which are PValues that will
   be evaluated during pipeline execution and will be provided to the function
@@ -48,7 +53,9 @@ class ArgumentPlaceholder(object):
 
 
 def remove_objects_from_args(args, kwargs, pvalue_classes):
-  """Replaces all objects of a given type in args/kwargs with a placeholder.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Replaces all objects of a given type in args/kwargs with a placeholder.
 
   Args:
     args: A list of positional arguments.
@@ -77,7 +84,9 @@ def remove_objects_from_args(args, kwargs, pvalue_classes):
 
 
 def insert_values_in_args(args, kwargs, values):
-  """Replaces all placeholders in args/kwargs with actual values.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Replaces all placeholders in args/kwargs with actual values.
 
   Args:
     args: A list of positional arguments.
@@ -100,7 +109,9 @@ def insert_values_in_args(args, kwargs, values):
 
 
 def run_using_threadpool(fn_to_execute, inputs, pool_size):
-  """Runs the given function on given inputs using a thread pool.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Runs the given function on given inputs using a thread pool.
 
   Args:
     fn_to_execute: Function to execute

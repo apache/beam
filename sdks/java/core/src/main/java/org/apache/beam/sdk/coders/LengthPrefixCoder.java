@@ -17,11 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
@@ -30,7 +27,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -48,15 +44,6 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
     return new LengthPrefixCoder<>(valueCoder);
   }
 
-  @JsonCreator
-  public static LengthPrefixCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1,
-                  "Expecting 1 components, got " + components.size());
-    return of(components.get(0));
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   private final Coder<T> valueCoder;
@@ -66,7 +53,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  public void encode(T value, OutputStream outStream, Context context)
+  public void encode(T value, OutputStream outStream)
       throws CoderException, IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
     valueCoder.encode(value, bos, Context.OUTER);
@@ -75,7 +62,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
-  public T decode(InputStream inStream, Context context) throws CoderException, IOException {
+  public T decode(InputStream inStream) throws CoderException, IOException {
     long size = VarInt.decodeLong(inStream);
     return valueCoder.decode(ByteStreams.limit(inStream, size), Context.OUTER);
   }
@@ -120,18 +107,17 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  protected long getEncodedElementByteSize(T value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(T value) throws Exception {
     if (valueCoder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(
-          value, Context.OUTER);
+      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
       return VarInt.getLength(valueSize) + valueSize;
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior
     // of encoding and counting the bytes. The encoding will include the length prefix.
-    return super.getEncodedElementByteSize(value, context);
+    return super.getEncodedElementByteSize(value);
   }
 
   /**
@@ -140,7 +126,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value, Context context) {
-    return valueCoder.isRegisterByteSizeObserverCheap(value, Context.OUTER);
+  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
+    return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 }

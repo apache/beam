@@ -23,7 +23,6 @@ import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
-
 import de.flapdoodle.embed.mongo.MongodExecutable;
 import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
@@ -35,11 +34,11 @@ import de.flapdoodle.embed.mongo.config.Storage;
 import de.flapdoodle.embed.mongo.distribution.Version;
 import de.flapdoodle.embed.process.io.file.Files;
 import de.flapdoodle.embed.process.runtime.Network;
-
 import java.io.File;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -50,7 +49,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.bson.Document;
 import org.junit.After;
 import org.junit.Assert;
@@ -140,6 +138,22 @@ public class MongoDbIOTest implements Serializable {
     LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
+  }
+
+  @Test
+  public void testSplitIntoFilters() throws Exception {
+    ArrayList<Document> documents = new ArrayList<>();
+    documents.add(new Document("_id", 56));
+    documents.add(new Document("_id", 109));
+    documents.add(new Document("_id", 256));
+    List<String> filters = MongoDbIO.BoundedMongoDbSource.splitKeysToFilters(documents, null);
+    assertEquals(4, filters.size());
+    assertEquals("{ $and: [ {\"_id\":{$lte:ObjectId(\"56\")}} ]}", filters.get(0));
+    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"56\"),$lte:ObjectId(\"109\")}} ]}",
+        filters.get(1));
+    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"109\"),$lte:ObjectId(\"256\")}} ]}",
+        filters.get(2));
+    assertEquals("{ $and: [ {\"_id\":{$gt:ObjectId(\"256\")}} ]}", filters.get(3));
   }
 
   @Test

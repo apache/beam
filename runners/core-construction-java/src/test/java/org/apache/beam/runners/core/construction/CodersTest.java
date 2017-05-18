@@ -30,11 +30,11 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
@@ -149,25 +149,15 @@ public class CodersTest {
 
     static class Record implements Serializable {}
 
-    private static class RecordCoder extends CustomCoder<Record> {
+    private static class RecordCoder extends AtomicCoder<Record> {
       @Override
-      public void encode(Record value, OutputStream outStream, Context context)
+      public void encode(Record value, OutputStream outStream)
           throws CoderException, IOException {}
 
       @Override
-      public Record decode(InputStream inStream, Context context)
+      public Record decode(InputStream inStream)
           throws CoderException, IOException {
         return new Record();
-      }
-
-      @Override
-      public boolean equals(Object other) {
-        return other != null && getClass().equals(other.getClass());
-      }
-
-      @Override
-      public int hashCode() {
-        return getClass().hashCode();
       }
     }
   }

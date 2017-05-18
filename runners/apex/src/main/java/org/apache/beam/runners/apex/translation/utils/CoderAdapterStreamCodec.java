@@ -19,12 +19,10 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.netlet.util.Slice;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Serializable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 

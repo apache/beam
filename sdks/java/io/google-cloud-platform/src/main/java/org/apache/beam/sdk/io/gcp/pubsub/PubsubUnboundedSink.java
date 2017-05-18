@@ -31,11 +31,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
@@ -81,7 +81,7 @@ import org.joda.time.Duration;
  * to dedup messages.
  * </ul>
  */
-public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubMessage>, PDone> {
+public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /**
    * Default maximum number of messages per publish.
    */
@@ -100,7 +100,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
   /**
    * Coder for conveying outgoing messages between internal stages.
    */
-  private static class OutgoingMessageCoder extends CustomCoder<OutgoingMessage> {
+  private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final NullableCoder<Map<String, String>> ATTRIBUTES_CODER =
@@ -108,21 +108,21 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
 
     @Override
     public void encode(
-        OutgoingMessage value, OutputStream outStream, Context context)
+        OutgoingMessage value, OutputStream outStream)
         throws CoderException, IOException {
-      ByteArrayCoder.of().encode(value.elementBytes, outStream, context.nested());
-      ATTRIBUTES_CODER.encode(value.attributes, outStream, context.nested());
-      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, context.nested());
-      RECORD_ID_CODER.encode(value.recordId, outStream, context.nested());
+      ByteArrayCoder.of().encode(value.elementBytes, outStream);
+      ATTRIBUTES_CODER.encode(value.attributes, outStream);
+      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream);
+      RECORD_ID_CODER.encode(value.recordId, outStream);
     }
 
     @Override
     public OutgoingMessage decode(
-        InputStream inStream, Context context) throws CoderException, IOException {
-      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, context.nested());
-      Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context.nested());
-      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, context.nested());
-      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, context.nested());
+        InputStream inStream) throws CoderException, IOException {
+      byte[] elementBytes = ByteArrayCoder.of().decode(inStream);
+      Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
+      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream);
+      @Nullable String recordId = RECORD_ID_CODER.decode(inStream);
       return new OutgoingMessage(elementBytes, attributes, timestampMsSinceEpoch, recordId);
     }
   }
@@ -154,7 +154,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
   /**
    * Convert elements to messages and shard them.
    */
-  private static class ShardFn extends DoFn<PubsubIO.PubsubMessage, KV<Integer, OutgoingMessage>> {
+  private static class ShardFn extends DoFn<PubsubMessage, KV<Integer, OutgoingMessage>> {
     private final Counter elementCounter = Metrics.counter(ShardFn.class, "elements");
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
@@ -167,8 +167,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.inc();
-      PubsubIO.PubsubMessage message = c.element();
-      byte[] elementBytes = message.getMessage();
+      PubsubMessage message = c.element();
+      byte[] elementBytes = message.getPayload();
       Map<String, String> attributes = message.getAttributeMap();
 
       long timestampMsSinceEpoch = c.timestamp().getMillis();
@@ -255,7 +255,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
     }
 
     @StartBundle
-    public void startBundle(Context c) throws Exception {
+    public void startBundle(StartBundleContext c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
       pubsubClient = pubsubFactory.newClient(timestampAttribute, idAttribute,
                                              c.getPipelineOptions().as(PubsubOptions.class));
@@ -287,7 +287,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
+    public void finishBundle() throws Exception {
       pubsubClient.close();
       pubsubClient = null;
     }
@@ -427,11 +427,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubIO.PubsubM
   }
 
   @Override
-  public PDone expand(PCollection<PubsubIO.PubsubMessage> input) {
+  public PDone expand(PCollection<PubsubMessage> input) {
     input
         .apply(
             "PubsubUnboundedSink.Window",
-            Window.<PubsubIO.PubsubMessage>into(new GlobalWindows())
+            Window.<PubsubMessage>into(new GlobalWindows())
                 .triggering(
                     Repeatedly.forever(
                         AfterFirst.of(

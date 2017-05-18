@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
@@ -29,13 +30,19 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.Read.Bounded;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -46,7 +53,7 @@ import org.apache.beam.sdk.values.PDone;
  * {@link PTransform}s for reading and writing Avro files.
  *
  * <p>To read a {@link PCollection} from one or more Avro files, use {@code AvroIO.read()},
- * specifying {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
+ * using {@link AvroIO.Read#from} to specify the filename or filepattern to read from.
  * See {@link FileSystems} for information on supported file systems and filepatterns.
  *
  * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}.
@@ -70,12 +77,14 @@ import org.apache.beam.sdk.values.PDone;
  *                .from("gs://my_bucket/path/to/records-*.avro"));
  * } </pre>
  *
- * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, specifying
- * {@code AvroIO.write().to(String)} to specify the filename or sharded filepattern to write to.
- * See {@link FileSystems} for information on supported file systems and {@link ShardNameTemplate}
- * for information on naming of output files. You can also use {@code AvroIO.write()} with
- * {@link Write#to(FileBasedSink.FilenamePolicy)} to
- * specify a custom file naming policy.
+ * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
+ * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default
+ * {@link DefaultFilenamePolicy} will use this prefix, in conjunction with a
+ * {@link ShardNameTemplate} (set via {@link Write#withShardNameTemplate(String)}) and optional
+ * filename suffix (set via {@link Write#withSuffix(String)}, to generate output filenames in a
+ * sharded way. You can override this default write filename policy using
+ * {@link Write#withFilenamePolicy(FileBasedSink.FilenamePolicy)} to specify a custom file naming
+ * policy.
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner -
@@ -109,11 +118,6 @@ import org.apache.beam.sdk.values.PDone;
  * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the
  * {@link org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can
  * be changed or overridden using {@link AvroIO.Write#withCodec}.
- *
- * <h3>Permissions</h3>
- * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for
- * more details.
  */
 public class AvroIO {
   /**
@@ -172,9 +176,9 @@ public class AvroIO {
 
   private static <T> Write.Builder<T> defaultWriteBuilder() {
     return new AutoValue_AvroIO_Write.Builder<T>()
-        .setFilenameSuffix("")
+        .setFilenameSuffix(null)
+        .setShardTemplate(null)
         .setNumShards(0)
-        .setShardTemplate(Write.DEFAULT_SHARD_TEMPLATE)
         .setCodec(Write.DEFAULT_CODEC)
         .setMetadata(ImmutableMap.<String, Object>of())
         .setWindowedWrites(false);
@@ -246,23 +250,16 @@ public class AvroIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    /**
-     * A {@link PTransform} that writes a bounded {@link PCollection} to an Avro file (or
-     * multiple Avro files matching a sharding pattern).
-     *
-     * @param <T> the type of each of the elements of the input PCollection
-     */
-    private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
     private static final SerializableAvroCodecFactory DEFAULT_CODEC =
         new SerializableAvroCodecFactory(CodecFactory.deflateCodec(6));
     // This should be a multiple of 4 to not get a partial encoded byte.
     private static final int METADATA_BYTES_MAX_LENGTH = 40;
 
-    @Nullable abstract String getFilenamePrefix();
-    abstract String getFilenameSuffix();
+    @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
+    @Nullable abstract String getShardTemplate();
+    @Nullable abstract String getFilenameSuffix();
     abstract int getNumShards();
-    abstract String getShardTemplate();
-    abstract Class<T> getRecordClass();
+    @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
     abstract boolean getWindowedWrites();
     @Nullable abstract FilenamePolicy getFilenamePolicy();
@@ -278,7 +275,7 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setFilenamePrefix(String filenamePrefix);
+      abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
       abstract Builder<T> setFilenameSuffix(String filenameSuffix);
       abstract Builder<T> setNumShards(int numShards);
       abstract Builder<T> setShardTemplate(String shardTemplate);
@@ -293,54 +290,108 @@ public class AvroIO {
     }
 
     /**
-     * Writes to the file(s) with the given prefix. See {@link FileSystems} for information on
+     * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
      * supported file systems.
      *
-     * <p>The files written will begin with this prefix, followed by
-     * a shard identifier (see {@link #withNumShards}, and end
-     * in a common extension, if given by {@link #withSuffix}.
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     *
+     * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
+     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
+     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
      */
-    public Write<T> to(String filenamePrefix) {
-      return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    public Write<T> to(String outputPrefix) {
+      return to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
     }
 
-    /** Writes to the file(s) specified by the provided {@link FileBasedSink.FilenamePolicy}. */
-    public Write<T> to(FilenamePolicy filenamePolicy) {
+    /**
+     * Writes to file(s) with the given output prefix. See {@link FileSystems} for information on
+     * supported file systems.
+     *
+     * <p>The name of the output files will be determined by the {@link FilenamePolicy} used.
+     *
+     * <p>By default, a {@link DefaultFilenamePolicy} will build output filenames using the
+     * specified prefix, a shard name template (see {@link #withShardNameTemplate(String)}, and
+     * a common suffix (if supplied using {@link #withSuffix(String)}). This default can be
+     * overridden using {@link #withFilenamePolicy(FilenamePolicy)}.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> to(ResourceId outputPrefix) {
+      return toResource(StaticValueProvider.of(outputPrefix));
+    }
+
+    /**
+     * Like {@link #to(String)}.
+     */
+    public Write<T> to(ValueProvider<String> outputPrefix) {
+      return toResource(NestedValueProvider.of(outputPrefix,
+          new SerializableFunction<String, ResourceId>() {
+            @Override
+            public ResourceId apply(String input) {
+              return FileBasedSink.convertToFileResourceIfPossible(input);
+            }
+          }));
+    }
+
+    /**
+     * Like {@link #to(ResourceId)}.
+     */
+    @Experimental(Kind.FILESYSTEM)
+    public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
+      return toBuilder().setFilenamePrefix(outputPrefix).build();
+    }
+
+    /**
+     * Configures the {@link FileBasedSink.FilenamePolicy} that will be used to name written files.
+     */
+    public Write<T> withFilenamePolicy(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
     /**
-     * Writes to the file(s) with the given filename suffix.
+     * Uses the given {@link ShardNameTemplate} for naming output files. This option may only be
+     * used when {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
      *
-     * <p>See {@link ShardNameTemplate} for a description of shard templates.
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
+     */
+    public Write<T> withShardNameTemplate(String shardTemplate) {
+      return toBuilder().setShardTemplate(shardTemplate).build();
+    }
+
+    /**
+     * Configures the filename suffix for written files. This option may only be used when
+     * {@link #withFilenamePolicy(FilenamePolicy)} has not been configured.
+     *
+     * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
+     * used.
      */
     public Write<T> withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
     }
 
     /**
-     * Uses the provided shard count. See {@link ShardNameTemplate} for a description of shard
-     * templates.
+     * Configures the number of output shards produced overall (when using unwindowed writes) or
+     * per-window (when using windowed writes).
      *
-     * <p>Constraining the number of shards is likely to reduce
-     * the performance of a pipeline. Setting this value is not recommended
-     * unless you require a specific number of output files.
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
      *
-     * @param numShards the number of shards to use, or 0 to let the system
-     *                  decide.
+     * @param numShards the number of shards to use, or 0 to let the system decide.
      */
     public Write<T> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
       return toBuilder().setNumShards(numShards).build();
     }
 
-    /** Uses the given {@link ShardNameTemplate} for naming output files. */
-    public Write<T> withShardNameTemplate(String shardTemplate) {
-      return toBuilder().setShardTemplate(shardTemplate).build();
-    }
-
     /**
-     * Forces a single file as output.
+     * Forces a single file as output and empty shard name template. This option is only compatible
+     * with unwindowed writes.
+     *
+     * <p>For unwindowed writes, constraining the number of shards is likely to reduce the
+     * performance of a pipeline. Setting this value is not recommended unless you require a
+     * specific number of output files.
      *
      * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
@@ -351,9 +402,9 @@ public class AvroIO {
     /**
      * Preserves windowing of input elements and writes them to files based on the element's window.
      *
-     * <p>Requires use of {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated
-     * using {@link FilenamePolicy#windowedFilename(FileBasedSink.FilenamePolicy.WindowedContext)}.
-     * See also {@link WriteFiles#withWindowedWrites()}.
+     * <p>Requires use of {@link #withFilenamePolicy(FileBasedSink.FilenamePolicy)}. Filenames will
+     * be generated using {@link FilenamePolicy#windowedFilename}. See also
+     * {@link WriteFiles#withWindowedWrites()}.
      */
     public Write<T> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
@@ -386,36 +437,30 @@ public class AvroIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      if (getFilenamePolicy() == null && getFilenamePrefix() == null) {
-        throw new IllegalStateException(
-            "need to set the filename prefix of an AvroIO.Write transform");
-      }
-      if (getFilenamePolicy() != null && getFilenamePrefix() != null) {
-        throw new IllegalStateException(
-            "cannot set both a filename policy and a filename prefix");
-      }
-      if (getSchema() == null) {
-        throw new IllegalStateException("need to set the schema of an AvroIO.Write transform");
+      checkState(getFilenamePrefix() != null,
+          "Need to set the filename prefix of an AvroIO.Write transform.");
+      checkState(
+          (getFilenamePolicy() == null)
+              || (getShardTemplate() == null && getFilenameSuffix() == null),
+          "Cannot set a filename policy and also a filename template or suffix.");
+      checkState(getSchema() != null,
+          "Need to set the schema of an AvroIO.Write transform.");
+      checkState(!getWindowedWrites() || (getFilenamePolicy() != null),
+          "When using windowed writes, a filename policy must be set via withFilenamePolicy().");
+
+      FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
+      if (usedFilenamePolicy == null) {
+        usedFilenamePolicy = DefaultFilenamePolicy.constructUsingStandardParameters(
+            getFilenamePrefix(), getShardTemplate(), getFilenameSuffix());
       }
 
-      WriteFiles<T> write = null;
-      if (getFilenamePolicy() != null) {
-        write = WriteFiles.to(
-            new AvroSink<>(
-                getFilenamePolicy(),
-                AvroCoder.of(getRecordClass(), getSchema()),
-                getCodec(),
-                getMetadata()));
-      } else {
-        write = WriteFiles.to(
+      WriteFiles<T> write = WriteFiles.to(
             new AvroSink<>(
                 getFilenamePrefix(),
-                getFilenameSuffix(),
-                getShardTemplate(),
+                usedFilenamePolicy,
                 AvroCoder.of(getRecordClass(), getSchema()),
                 getCodec(),
                 getMetadata()));
-      }
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -428,17 +473,25 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      checkState(
+          getFilenamePrefix() != null,
+          "Unable to populate DisplayData for invalid AvroIO.Write (unset output prefix).");
+      String outputPrefixString = null;
+      if (getFilenamePrefix().isAccessible()) {
+        ResourceId dir = getFilenamePrefix().get();
+        outputPrefixString = dir.toString();
+      } else {
+        outputPrefixString = getFilenamePrefix().toString();
+      }
       builder
           .add(DisplayData.item("schema", getRecordClass())
             .withLabel("Record Schema"))
-          .addIfNotNull(DisplayData.item("filePrefix", getFilenamePrefix())
+          .addIfNotNull(DisplayData.item("filePrefix", outputPrefixString)
             .withLabel("Output File Prefix"))
-          .addIfNotDefault(DisplayData.item("shardNameTemplate", getShardTemplate())
-              .withLabel("Output Shard Name Template"),
-              DEFAULT_SHARD_TEMPLATE)
-          .addIfNotDefault(DisplayData.item("fileSuffix", getFilenameSuffix())
-              .withLabel("Output File Suffix"),
-              "")
+          .addIfNotNull(DisplayData.item("shardNameTemplate", getShardTemplate())
+              .withLabel("Output Shard Name Template"))
+          .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
+              .withLabel("Output File Suffix"))
           .addIfNotDefault(DisplayData.item("numShards", getNumShards())
               .withLabel("Maximum Output Shards"),
               0)

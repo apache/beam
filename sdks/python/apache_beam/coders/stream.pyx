@@ -15,6 +15,11 @@
 # limitations under the License.
 #
 
+"""Compiled version of the Stream objects used by CoderImpl.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
+
 cimport libc.stdlib
 cimport libc.string
 

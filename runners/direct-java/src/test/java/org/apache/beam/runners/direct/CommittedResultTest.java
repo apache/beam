@@ -27,15 +27,15 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -73,7 +73,7 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             bundleFactory.createBundle(created).commit(Instant.now()),
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
@@ -81,7 +81,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getUncommittedElementsEqualInput() {
-    DirectRunner.CommittedBundle<Integer> bundle =
+    CommittedBundle<Integer> bundle =
         bundleFactory.createBundle(created)
             .add(WindowedValue.valueInGlobalWindow(2))
             .commit(Instant.now());
@@ -89,11 +89,11 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             bundle,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(),
-        Matchers.<DirectRunner.CommittedBundle<?>>equalTo(bundle));
+        Matchers.<CommittedBundle<?>>equalTo(bundle));
   }
 
   @Test
@@ -102,7 +102,7 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             null,
-            Collections.<DirectRunner.CommittedBundle<?>>emptyList(),
+            Collections.<CommittedBundle<?>>emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getUnprocessedInputs(), nullValue());
@@ -110,7 +110,7 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getOutputsEqualInput() {
-    List<? extends DirectRunner.CommittedBundle<?>> outputs =
+    List<? extends CommittedBundle<?>> outputs =
         ImmutableList.of(bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
             WindowingStrategy.globalDefault(),
             PCollection.IsBounded.BOUNDED)).commit(Instant.now()),

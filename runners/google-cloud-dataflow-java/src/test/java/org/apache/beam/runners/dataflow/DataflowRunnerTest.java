@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
@@ -33,6 +32,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
@@ -46,6 +47,7 @@ import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -68,6 +70,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -81,12 +84,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.NoopPathValidator;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -94,7 +96,6 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -154,8 +155,9 @@ public class DataflowRunnerTest {
       }
     });
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
+    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging"))).
+    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/"))).
         thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_PROFILE_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(NON_EXISTENT_BUCKET))).thenReturn(false);
@@ -175,7 +177,7 @@ public class DataflowRunnerTest {
         .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     return p;
   }
@@ -242,6 +244,10 @@ public class DataflowRunnerTest {
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
+
+    // Configure the FileSystem registrar to use these options.
+    FileSystems.setDefaultPipelineOptions(options);
+
     return options;
   }
 
@@ -449,8 +455,7 @@ public class DataflowRunnerTest {
 
   @Test
   public void testRunWithFiles() throws IOException {
-    // Test that the function DataflowRunner.stageFiles works as
-    // expected.
+    // Test that the function DataflowRunner.stageFiles works as expected.
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
@@ -460,6 +465,10 @@ public class DataflowRunnerTest {
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
+
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenReturn(ImmutableList.of(GcsUtil.StorageObjectOrIOException.create(
+            new FileNotFoundException("some/path"))));
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setFilesToStage(ImmutableList.of(
@@ -474,6 +483,16 @@ public class DataflowRunnerTest {
     options.setDataflowClient(buildMockDataflow());
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(new Answer<SeekableByteChannel>() {
+          @Override
+          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+            return FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
+          }
+        });
 
     Pipeline p = buildDataflowPipeline(options);
 
@@ -564,60 +583,6 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
 
     assertNotNull(options.getStagingLocation());
-  }
-
-  @Test
-  public void testNonGcsFilePathInReadFailure() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadMyNonGcsFile", TextIO.read().from(tmpFolder.newFile().getPath()));
-
-    thrown.expectCause(Matchers.allOf(
-        instanceOf(IllegalArgumentException.class),
-        ThrowableMessageMatcher.hasMessage(
-            containsString("Expected a valid 'gs://' path but was given"))));
-    p.run();
-
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
-    assertValidJob(jobCaptor.getValue());
-  }
-
-  @Test
-  public void testNonGcsFilePathInWriteFailure() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-
-    p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"))
-        .apply("WriteMyNonGcsFile", TextIO.write().to("/tmp/file"));
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("Expected a valid 'gs://' path but was given"));
-    p.run();
-  }
-
-  @Test
-  public void testMultiSlashGcsFileReadPath() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    p.apply("ReadInvalidGcsFile", TextIO.read().from("gs://bucket/tmp//file"));
-
-    thrown.expectCause(Matchers.allOf(
-        instanceOf(IllegalArgumentException.class),
-        ThrowableMessageMatcher.hasMessage(containsString("consecutive slashes"))));
-    p.run();
-
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
-    assertValidJob(jobCaptor.getValue());
-  }
-
-  @Test
-  public void testMultiSlashGcsFileWritePath() throws IOException {
-    Pipeline p = buildDataflowPipeline(buildPipelineOptions());
-    PCollection<String> pc = p.apply("ReadMyGcsFile", TextIO.read().from("gs://bucket/object"));
-    pc.apply("WriteInvalidGcsFile", TextIO.write().to("gs://bucket/tmp//file"));
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("consecutive slashes");
-    p.run();
   }
 
   @Test
@@ -806,6 +771,7 @@ public class DataflowRunnerTest {
   @Test
   public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    FileSystems.setDefaultPipelineOptions(options);
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-12345");
 

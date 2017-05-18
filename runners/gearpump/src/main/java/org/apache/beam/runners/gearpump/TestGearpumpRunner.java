@@ -21,9 +21,9 @@ package org.apache.beam.runners.gearpump;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.PipelineRunner;
 
 import org.apache.gearpump.cluster.ClusterConfig;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;

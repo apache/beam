@@ -23,7 +23,6 @@ import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;

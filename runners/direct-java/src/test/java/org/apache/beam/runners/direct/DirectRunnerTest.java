@@ -43,9 +43,10 @@ import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -55,7 +56,6 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -523,15 +523,14 @@ public class DirectRunnerTest implements Serializable {
     p.run();
   }
 
-  private static class LongNoDecodeCoder extends CustomCoder<Long> {
-
+  private static class LongNoDecodeCoder extends AtomicCoder<Long> {
     @Override
     public void encode(
-        Long value, OutputStream outStream, Context context) throws IOException {
+        Long value, OutputStream outStream) throws IOException {
     }
 
     @Override
-    public Long decode(InputStream inStream, Context context) throws IOException {
+    public Long decode(InputStream inStream) throws IOException {
       throw new CoderException("Cannot decode a long");
     }
   }

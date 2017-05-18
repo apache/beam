@@ -178,25 +178,18 @@ public class IntervalWindow extends BoundedWindow
       return INSTANCE;
     }
 
-    /**
-     * Returns an empty list. {@link IntervalWindowCoder} has no components.
-     */
-    public static <T> List<Object> getInstanceComponents(T value) {
-      return Collections.emptyList();
+    @Override
+    public void encode(IntervalWindow window, OutputStream outStream)
+        throws IOException, CoderException {
+      instantCoder.encode(window.end, outStream);
+      durationCoder.encode(new Duration(window.start, window.end), outStream);
     }
 
     @Override
-    public void encode(IntervalWindow window, OutputStream outStream, Context context)
+    public IntervalWindow decode(InputStream inStream)
         throws IOException, CoderException {
-      instantCoder.encode(window.end, outStream, context.nested());
-      durationCoder.encode(new Duration(window.start, window.end), outStream, context);
-    }
-
-    @Override
-    public IntervalWindow decode(InputStream inStream, Context context)
-        throws IOException, CoderException {
-      Instant end = instantCoder.decode(inStream, context.nested());
-      ReadableDuration duration = durationCoder.decode(inStream, context);
+      Instant end = instantCoder.decode(inStream);
+      ReadableDuration duration = durationCoder.decode(inStream);
       return new IntervalWindow(end.minus(duration), end);
     }
 

@@ -19,42 +19,33 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
-* PTransform that performs streaming BigQuery write. To increase consistency,
-* it leverages BigQuery best effort de-dup mechanism.
+ * PTransform that performs streaming BigQuery write. To increase consistency, it leverages
+ * BigQuery's best effort de-dup mechanism.
  */
-public class StreamingInserts extends
-    PTransform<PCollection<KV<TableDestination, TableRow>>, WriteResult> {
-  private final Write<?> write;
-
-  private static class ConstantSchemaFunction implements
-      SerializableFunction<TableDestination, TableSchema> {
-    private final @Nullable String jsonSchema;
-
-    ConstantSchemaFunction(TableSchema schema) {
-      this.jsonSchema = BigQueryHelpers.toJsonString(schema);
-    }
-
-    @Override
-    @Nullable
-    public TableSchema apply(TableDestination table) {
-      return BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
-    }
-  }
+public class StreamingInserts<DestinationT>
+    extends PTransform<PCollection<KV<DestinationT, TableRow>>, WriteResult> {
+  private BigQueryServices bigQueryServices;
+  private final CreateDisposition createDisposition;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /** Constructor. */
-  StreamingInserts(Write<?> write) {
-    this.write = write;
+  StreamingInserts(CreateDisposition createDisposition,
+                   DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this.createDisposition = createDisposition;
+    this.dynamicDestinations = dynamicDestinations;
+    this.bigQueryServices = new BigQueryServicesImpl();
+  }
+
+  void setTestServices(BigQueryServices bigQueryServices) {
+    this.bigQueryServices = bigQueryServices;
   }
 
   @Override
@@ -63,17 +54,13 @@ public class StreamingInserts extends
   }
 
   @Override
-  public WriteResult expand(PCollection<KV<TableDestination, TableRow>> input) {
-    // Since BigQueryIO.java does not yet have support for per-table schemas, inject a constant
-    // schema function here. If no schema is specified, this function will return null.
-    SerializableFunction<TableDestination, TableSchema> schemaFunction =
-        new ConstantSchemaFunction(write.getSchema());
+  public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
+    PCollection<KV<TableDestination, TableRow>> writes =
+        input.apply(
+            "CreateTables",
+            new CreateTables<DestinationT>(createDisposition, dynamicDestinations)
+                .withTestServices(bigQueryServices));
 
-    PCollection<KV<TableDestination, TableRow>> writes = input
-        .apply("CreateTables", new CreateTables(write.getCreateDisposition(), schemaFunction)
-                .withTestServices(write.getBigQueryServices()));
-
-    return writes.apply(new StreamingWriteTables()
-        .withTestServices(write.getBigQueryServices()));
+    return writes.apply(new StreamingWriteTables().withTestServices(bigQueryServices));
   }
 }

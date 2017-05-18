@@ -20,15 +20,14 @@ package org.apache.beam.runners.spark;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.StreamingTransformTranslator;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
@@ -89,10 +88,10 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
         && ((TestSparkPipelineOptions) options).isForceStreaming()) {
       SparkPipelineTranslator streamingTranslator =
           new StreamingTransformTranslator.Translator(translator);
-      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
       visitor = new SparkNativePipelineVisitor(streamingTranslator, ctxt);
     } else {
-      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, jssc);
+      EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options, jssc);
       visitor = new SparkNativePipelineVisitor(translator, ctxt);
     }
 

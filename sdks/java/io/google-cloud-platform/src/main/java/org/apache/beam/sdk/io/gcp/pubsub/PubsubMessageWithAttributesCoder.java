@@ -27,31 +27,45 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** A coder for PubsubMessage including attributes. */
-public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubIO.PubsubMessage> {
-  private static final Coder<byte[]> PAYLOAD_CODER =
-      NullableCoder.of(ByteArrayCoder.of());
-  private static final Coder<Map<String, String>> ATTRIBUTES_CODER = MapCoder.of(
-      StringUtf8Coder.of(), StringUtf8Coder.of());
+public class PubsubMessageWithAttributesCoder extends CustomCoder<PubsubMessage> {
+  // A message's payload can not be null
+  private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
+  // A message's attributes can be null.
+  private static final Coder<Map<String, String>> ATTRIBUTES_CODER =
+      NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+
+  public static Coder<PubsubMessage> of(TypeDescriptor<PubsubMessage> ignored) {
+    return of();
+  }
 
   public static PubsubMessageWithAttributesCoder of() {
     return new PubsubMessageWithAttributesCoder();
   }
 
-  public void encode(PubsubIO.PubsubMessage value, OutputStream outStream, Context context)
+  @Override
+  public void encode(PubsubMessage value, OutputStream outStream)
       throws IOException {
-    PAYLOAD_CODER.encode(
-        value.getMessage(),
-        outStream,
-        context.nested());
+    encode(value, outStream, Context.NESTED);
+  }
+
+  public void encode(PubsubMessage value, OutputStream outStream, Context context)
+      throws IOException {
+    PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream, context);
   }
 
   @Override
-  public PubsubIO.PubsubMessage decode(InputStream inStream, Context context) throws IOException {
-    byte[] payload = PAYLOAD_CODER.decode(inStream, context.nested());
+  public PubsubMessage decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
+  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
+    byte[] payload = PAYLOAD_CODER.decode(inStream);
     Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream, context);
-    return new PubsubIO.PubsubMessage(payload, attributes);
+    return new PubsubMessage(payload, attributes);
   }
 }

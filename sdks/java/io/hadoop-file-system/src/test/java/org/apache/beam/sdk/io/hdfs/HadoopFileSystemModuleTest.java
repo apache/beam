@@ -57,7 +57,7 @@ public class HadoopFileSystemModuleTest {
     String serializedConfiguration = objectMapper.writeValueAsString(configuration);
     Configuration deserializedConfiguration =
         objectMapper.readValue(serializedConfiguration, Configuration.class);
-    assertThat(deserializedConfiguration, Matchers.<Map.Entry<String, String>>contains(
+    assertThat(deserializedConfiguration, Matchers.<Map.Entry<String, String>>containsInAnyOrder(
         new AbstractMap.SimpleEntry("testPropertyA", "A"),
         new AbstractMap.SimpleEntry("testPropertyB", "B"),
         new AbstractMap.SimpleEntry("testPropertyC", "baseC")));

@@ -24,7 +24,9 @@ from apache_beam.pipeline import PipelineVisitor
 
 
 class ConsumerTrackingPipelineVisitor(PipelineVisitor):
-  """Visitor for extracting value-consumer relations from the graph.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Visitor for extracting value-consumer relations from the graph.
 
   Tracks the AppliedPTransforms that consume each PValue in the Pipeline. This
   is used to schedule consuming PTransforms to consume input after the upstream

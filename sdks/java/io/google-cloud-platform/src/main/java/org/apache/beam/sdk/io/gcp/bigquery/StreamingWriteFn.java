@@ -56,7 +56,7 @@ class StreamingWriteFn
 
   /** Prepares a target BigQuery table. */
   @StartBundle
-  public void startBundle(Context context) {
+  public void startBundle() {
     tableRows = new HashMap<>();
     uniqueIdsForTableRows = new HashMap<>();
   }
@@ -75,7 +75,7 @@ class StreamingWriteFn
 
   /** Writes the accumulated rows into BigQuery with streaming API. */
   @FinishBundle
-  public void finishBundle(Context context) throws Exception {
+  public void finishBundle(FinishBundleContext context) throws Exception {
     BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
     for (Map.Entry<String, List<TableRow>> entry : tableRows.entrySet()) {
       TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());

@@ -20,20 +20,22 @@ package org.apache.beam.runners.flink.metrics;
 import java.io.Closeable;
 import java.io.IOException;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.joda.time.Instant;
 
 /**
  * {@link DoFnRunner} decorator which registers
- * {@link org.apache.beam.sdk.metrics.MetricsContainer}. It updates metrics to Flink metrics and
+ * {@link MetricsContainerImpl}. It updates metrics to Flink metrics and
  * accumulators in {@link #finishBundle()}.
  */
 public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
+  private final String stepName;
   private final FlinkMetricContainer container;
   private final DoFnRunner<InputT, OutputT> delegate;
 
@@ -41,14 +43,15 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
       String stepName,
       DoFnRunner<InputT, OutputT> delegate,
       RuntimeContext runtimeContext) {
+    this.stepName = stepName;
     this.delegate = delegate;
-    container = new FlinkMetricContainer(stepName, runtimeContext);
+    container = new FlinkMetricContainer(runtimeContext);
   }
 
   @Override
   public void startBundle() {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.startBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -58,7 +61,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void processElement(final WindowedValue<InputT> elem) {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.processElement(elem);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -69,7 +72,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   public void onTimer(final String timerId, final BoundedWindow window, final Instant timestamp,
                       final TimeDomain timeDomain) {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.onTimer(timerId, window, timestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -79,7 +82,7 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   @Override
   public void finishBundle() {
     try (Closeable ignored =
-             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer())) {
+             MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
       delegate.finishBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);

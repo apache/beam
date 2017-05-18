@@ -23,6 +23,8 @@ encode many elements with minimal overhead.
 
 This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
+
+For internal use only; no backwards-compatibility guarantees.
 """
 from types import NoneType
 
@@ -50,6 +52,7 @@ except ImportError:
 
 
 class CoderImpl(object):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def encode_to_stream(self, value, stream, nested):
     """Reads object from potentially-nested encoding in stream."""
@@ -97,7 +100,9 @@ class CoderImpl(object):
 
 
 class SimpleCoderImpl(CoderImpl):
-  """Subclass of CoderImpl implementing stream methods using encode/decode."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Subclass of CoderImpl implementing stream methods using encode/decode."""
 
   def encode_to_stream(self, value, stream, nested):
     """Reads object from potentially-nested encoding in stream."""
@@ -109,7 +114,9 @@ class SimpleCoderImpl(CoderImpl):
 
 
 class StreamCoderImpl(CoderImpl):
-  """Subclass of CoderImpl implementing encode/decode using stream methods."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Subclass of CoderImpl implementing encode/decode using stream methods."""
 
   def encode(self, value):
     out = create_OutputStream()
@@ -127,7 +134,9 @@ class StreamCoderImpl(CoderImpl):
 
 
 class CallbackCoderImpl(CoderImpl):
-  """A CoderImpl that calls back to the _impl methods on the Coder itself.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A CoderImpl that calls back to the _impl methods on the Coder itself.
 
   This is the default implementation used if Coder._get_impl()
   is not overwritten.
@@ -166,6 +175,7 @@ class CallbackCoderImpl(CoderImpl):
 
 
 class DeterministicFastPrimitivesCoderImpl(CoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, coder, step_label):
     self._underlying_coder = coder
@@ -208,6 +218,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
 
 class ProtoCoderImpl(SimpleCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, proto_message_type):
     self.proto_message_type = proto_message_type
@@ -235,6 +246,7 @@ SET_TYPE = 8
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
@@ -319,7 +331,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
 
 class BytesCoderImpl(CoderImpl):
-  """A coder for bytes/str objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for bytes/str objects."""
 
   def encode_to_stream(self, value, out, nested):
     out.write(value, nested)
@@ -336,6 +350,7 @@ class BytesCoderImpl(CoderImpl):
 
 
 class FloatCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
 
   def encode_to_stream(self, value, out, nested):
     out.write_bigendian_double(value)
@@ -349,6 +364,8 @@ class FloatCoderImpl(StreamCoderImpl):
 
 
 class IntervalWindowCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   # TODO: Fn Harness only supports millis. Is this important enough to fix?
   def _to_normal_time(self, value):
     """Convert "lexicographically ordered unsigned" to signed."""
@@ -379,6 +396,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
 
 class TimestampCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   def encode_to_stream(self, value, out, nested):
     out.write_bigendian_int64(value.micros)
 
@@ -395,7 +414,9 @@ small_ints = [chr(_) for _ in range(128)]
 
 
 class VarIntCoderImpl(StreamCoderImpl):
-  """A coder for long/int objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for long/int objects."""
 
   def encode_to_stream(self, value, out, nested):
     out.write_var_int64(value)
@@ -422,7 +443,9 @@ class VarIntCoderImpl(StreamCoderImpl):
 
 
 class SingletonCoderImpl(CoderImpl):
-  """A coder that always encodes exactly one value."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder that always encodes exactly one value."""
 
   def __init__(self, value):
     self._value = value
@@ -445,7 +468,9 @@ class SingletonCoderImpl(CoderImpl):
 
 
 class AbstractComponentCoderImpl(StreamCoderImpl):
-  """CoderImpl for coders that are comprised of several component coders."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  CoderImpl for coders that are comprised of several component coders."""
 
   def __init__(self, coder_impls):
     for c in coder_impls:
@@ -507,7 +532,9 @@ class TupleCoderImpl(AbstractComponentCoderImpl):
 
 
 class SequenceCoderImpl(StreamCoderImpl):
-  """A coder for sequences.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for sequences.
 
   If the length of the sequence in known we encode the length as a 32 bit
   ``int`` followed by the encoded bytes.
@@ -611,21 +638,27 @@ class SequenceCoderImpl(StreamCoderImpl):
 
 
 class TupleSequenceCoderImpl(SequenceCoderImpl):
-  """A coder for homogeneous tuple objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous tuple objects."""
 
   def _construct_from_sequence(self, components):
     return tuple(components)
 
 
 class IterableCoderImpl(SequenceCoderImpl):
-  """A coder for homogeneous iterable objects."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for homogeneous iterable objects."""
 
   def _construct_from_sequence(self, components):
     return components
 
 
 class WindowedValueCoderImpl(StreamCoderImpl):
-  """A coder for windowed values."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for windowed values."""
 
   # Ensure that lexicographic ordering of the bytes corresponds to
   # chronological order of timestamps.
@@ -713,7 +746,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
 
 class LengthPrefixCoderImpl(StreamCoderImpl):
-  """Coder which prefixes the length of the encoded object in the stream."""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder which prefixes the length of the encoded object in the stream."""
 
   def __init__(self, value_coder):
     self._value_coder = value_coder

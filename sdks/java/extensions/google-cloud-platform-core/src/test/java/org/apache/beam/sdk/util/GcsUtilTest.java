@@ -76,7 +76,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Rule;
@@ -93,10 +92,12 @@ public class GcsUtilTest {
 
   @Test
   public void testGlobTranslation() {
-    assertEquals("foo", GcsUtil.globToRegexp("foo"));
-    assertEquals("fo[^/]*o", GcsUtil.globToRegexp("fo*o"));
-    assertEquals("f[^/]*o\\.[^/]", GcsUtil.globToRegexp("f*o.?"));
-    assertEquals("foo-[0-9][^/]*", GcsUtil.globToRegexp("foo-[0-9]*"));
+    assertEquals("foo", GcsUtil.wildcardToRegexp("foo"));
+    assertEquals("fo.*o", GcsUtil.wildcardToRegexp("fo*o"));
+    assertEquals("f.*o\\.[^/]", GcsUtil.wildcardToRegexp("f*o.?"));
+    assertEquals("foo-[0-9].*", GcsUtil.wildcardToRegexp("foo-[0-9]*"));
+    assertEquals(".*.*foo", GcsUtil.wildcardToRegexp("**/*foo"));
+    assertEquals(".*.*foo", GcsUtil.wildcardToRegexp("**foo"));
   }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
@@ -261,16 +262,51 @@ public class GcsUtilTest {
     }
   }
 
-  // Patterns that contain recursive wildcards ('**') are not supported.
   @Test
-  public void testRecursiveGlobExpansionFails() throws IOException {
+  public void testRecursiveGlobExpansion() throws IOException {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
-    GcsPath pattern = GcsPath.fromUri("gs://testbucket/test**");
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unsupported wildcard usage");
-    gcsUtil.expand(pattern);
+    Storage mockStorage = Mockito.mock(Storage.class);
+    gcsUtil.setStorageClient(mockStorage);
+
+    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
+    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
+    Storage.Objects.List mockStorageList = Mockito.mock(Storage.Objects.List.class);
+
+    Objects modelObjects = new Objects();
+    List<StorageObject> items = new ArrayList<>();
+    // A directory
+    items.add(new StorageObject().setBucket("testbucket").setName("testdirectory/"));
+
+    // Files within the directory
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file1.txt"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file2.txt"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/file3.txt"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/otherfile"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/directory/anotherfile"));
+    items.add(new StorageObject().setBucket("testbucket").setName("test/file4.txt"));
+
+    modelObjects.setItems(items);
+
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get("testbucket", "test/directory/otherfile")).thenReturn(
+        mockStorageGet);
+    when(mockStorageObjects.list("testbucket")).thenReturn(mockStorageList);
+    when(mockStorageGet.execute()).thenReturn(
+        new StorageObject().setBucket("testbucket").setName("test/directory/otherfile"));
+    when(mockStorageList.execute()).thenReturn(modelObjects);
+
+    {
+      GcsPath pattern = GcsPath.fromUri("gs://testbucket/test/**/*.txt");
+      List<GcsPath> expectedFiles = ImmutableList.of(
+          GcsPath.fromUri("gs://testbucket/test/directory/file1.txt"),
+          GcsPath.fromUri("gs://testbucket/test/directory/file2.txt"),
+          GcsPath.fromUri("gs://testbucket/test/directory/file3.txt"),
+          GcsPath.fromUri("gs://testbucket/test/file4.txt"));
+
+      assertThat(expectedFiles, contains(gcsUtil.expand(pattern).toArray()));
+    }
   }
 
   // GCSUtil.expand() should fail when matching a single object when that object does not exist.
@@ -374,7 +410,8 @@ public class GcsUtilTest {
     Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
     Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.withMaxRetries(2).backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.withMaxRetries(2).backoff());
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
@@ -491,7 +528,7 @@ public class GcsUtilTest {
 
     Storage.Buckets.Insert mockStorageInsert = Mockito.mock(Storage.Buckets.Insert.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.insert(
@@ -514,7 +551,7 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Insert mockStorageInsert = Mockito.mock(Storage.Buckets.Insert.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(FluentBackoff.DEFAULT.backoff());
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
             "Waves hand mysteriously", "These aren't the buckets you're looking for");
@@ -541,7 +578,8 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -564,7 +602,8 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.backoff());
     GoogleJsonResponseException expectedException =
         googleJsonResponseException(HttpStatusCodes.STATUS_CODE_FORBIDDEN,
             "Waves hand mysteriously", "These aren't the buckets you're looking for");
@@ -589,7 +628,8 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -612,7 +652,8 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);
@@ -635,7 +676,8 @@ public class GcsUtilTest {
     Storage.Buckets mockStorageObjects = Mockito.mock(Storage.Buckets.class);
     Storage.Buckets.Get mockStorageGet = Mockito.mock(Storage.Buckets.Get.class);
 
-    BackOff mockBackOff = FluentBackoff.DEFAULT.backoff();
+    BackOff mockBackOff = BackOffAdapter.toGcpBackOff(
+        FluentBackoff.DEFAULT.backoff());
 
     when(mockStorage.buckets()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get("testbucket")).thenReturn(mockStorageGet);

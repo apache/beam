@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
@@ -66,13 +66,16 @@ public class PTransforms {
           components.registerPCollection((PCollection<?>) taggedInput.getValue()));
     }
     for (Map.Entry<TupleTag<?>, PValue> taggedOutput : appliedPTransform.getOutputs().entrySet()) {
-      checkArgument(
-          taggedOutput.getValue() instanceof PCollection,
-          "Unexpected output type %s",
-          taggedOutput.getValue().getClass());
-      transformBuilder.putOutputs(
-          toProto(taggedOutput.getKey()),
-          components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
+      // TODO: Remove gating
+      if (taggedOutput.getValue() instanceof PCollection) {
+        checkArgument(
+            taggedOutput.getValue() instanceof PCollection,
+            "Unexpected output type %s",
+            taggedOutput.getValue().getClass());
+        transformBuilder.putOutputs(
+            toProto(taggedOutput.getKey()),
+            components.registerPCollection((PCollection<?>) taggedOutput.getValue()));
+      }
     }
     for (AppliedPTransform<?, ?, ?> subtransform : subtransforms) {
       transformBuilder.addSubtransforms(components.getExistingPTransformId(subtransform));

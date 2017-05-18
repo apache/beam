@@ -20,10 +20,9 @@ package org.apache.beam.runners.core;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -53,7 +52,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public abstract class BaseExecutionContext<T extends ExecutionContext.StepContext>
     implements ExecutionContext {
 
-  private Map<String, T> cachedStepContexts = new HashMap<>();
+  private Map<String, T> cachedStepContexts = new LinkedHashMap<>();
 
   /**
    * Implementations should override this to create the specific type
@@ -105,17 +104,9 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
     return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
 
-  /**
-   * Hook for subclasses to implement that will be called whenever
-   * {@link Context#output(Object)} is called.
-   */
   @Override
   public void noteOutput(WindowedValue<?> output) {}
 
-  /**
-   * Hook for subclasses to implement that will be called whenever
-   * {@link Context#output(TupleTag, Object)} is called.
-   */
   @Override
   public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 

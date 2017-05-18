@@ -22,8 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.Structs;
 
 /** A {@link CloudObjectTranslator} for {@link SerializableCoder}. */
 class SerializableCoderCloudObjectTranslator implements CloudObjectTranslator<SerializableCoder> {

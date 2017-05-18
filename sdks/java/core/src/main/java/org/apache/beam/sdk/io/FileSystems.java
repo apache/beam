@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Verify.verify;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -32,6 +33,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -47,6 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -61,11 +66,12 @@ import org.apache.beam.sdk.values.KV;
 /**
  * Clients facing {@link FileSystem} utility.
  */
+@Experimental(Kind.FILESYSTEM)
 public class FileSystems {
 
   public static final String DEFAULT_SCHEME = "default";
-  private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
-      "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
+  private static final Pattern FILE_SCHEME_PATTERN =
+      Pattern.compile("(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*):.*");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
@@ -105,32 +111,52 @@ public class FileSystems {
     return getFileSystemInternal(getOnlyScheme(specs)).match(specs);
   }
 
+
+  /**
+   * Like {@link #match(List)}, but for a single resource specification.
+   *
+   * <p>The function {@link #match(List)} is preferred when matching multiple patterns, as it allows
+   * for bulk API calls to remote filesystems.
+   */
+  public static MatchResult match(String spec) throws IOException {
+    List<MatchResult> matches = match(Collections.singletonList(spec));
+    verify(
+        matches.size() == 1,
+        "FileSystem implementation for %s did not return exactly one MatchResult: %s",
+        spec,
+        matches);
+    return matches.get(0);
+  }
   /**
    * Returns the {@link Metadata} for a single file resource. Expects a resource specification
    * {@code spec} that matches a single result.
    *
    * @param spec a resource specification that matches exactly one result.
    * @return the {@link Metadata} for the specified resource.
+   * @throws FileNotFoundException if the file resource is not found.
    * @throws IOException in the event of an error in the inner call to {@link #match},
    * or if the given spec does not match exactly 1 result.
    */
   public static Metadata matchSingleFileSpec(String spec) throws IOException {
     List<MatchResult> matches = FileSystems.match(Collections.singletonList(spec));
     MatchResult matchResult = Iterables.getOnlyElement(matches);
-    if (matchResult.status() != Status.OK) {
+    if (matchResult.status() == Status.NOT_FOUND) {
+      throw new FileNotFoundException(String.format("File spec %s not found", spec));
+    } else if (matchResult.status() != Status.OK) {
       throw new IOException(
           String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+    } else {
+      List<Metadata> metadata = matchResult.metadata();
+      if (metadata.size() != 1) {
+        throw new IOException(
+            String.format(
+                "Expecting spec %s to match exactly one file, but matched %s: %s",
+                spec,
+                metadata.size(),
+                metadata));
+      }
+      return metadata.get(0);
     }
-    List<Metadata> metadata = matchResult.metadata();
-    if (metadata.size() != 1) {
-      throw new IOException(
-        String.format(
-            "Expecting spec %s to match exactly one file, but matched %s: %s",
-            spec,
-            metadata.size(),
-            metadata));
-    }
-    return metadata.get(0);
   }
 
   /**
@@ -394,7 +420,7 @@ public class FileSystems {
     // from their use in the URI spec. ('*' is not reserved).
     // Here, we just need the scheme, which is so circumscribed as to be
     // very easy to extract with a regex.
-    Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
+    Matcher matcher = FILE_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
       return "file";
@@ -423,12 +449,21 @@ public class FileSystems {
 
   /********************************** METHODS FOR REGISTRATION **********************************/
 
+  /** @deprecated to be removed. */
+  @Deprecated // for DataflowRunner backwards compatibility.
+  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+    setDefaultPipelineOptions(options);
+  }
+
   /**
    * Sets the default configuration in workers.
    *
    * <p>It will be used in {@link FileSystemRegistrar FileSystemRegistrars} for all schemes.
+   *
+   * <p>This is expected only to be used by runners after {@code Pipeline.run}, or in tests.
    */
-  public static void setDefaultConfigInWorkers(PipelineOptions options) {
+  @Internal
+  public static void setDefaultPipelineOptions(PipelineOptions options) {
     checkNotNull(options, "options");
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);

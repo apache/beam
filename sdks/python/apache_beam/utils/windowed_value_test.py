@@ -22,7 +22,7 @@ import pickle
 import unittest
 
 from apache_beam.utils import windowed_value
-from apache_beam.transforms.timeutil import Timestamp
+from apache_beam.utils.timestamp import Timestamp
 
 
 class WindowedValueTest(unittest.TestCase):

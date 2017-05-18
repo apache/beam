@@ -36,25 +36,12 @@ import org.apache.beam.sdk.values.TimestampedValue;
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element
  * in a {@link PCollection}.
  *
- * <p>Example 1: compute the latest value for each session:
+ * <p>Example: compute the latest value for each session:
  * <pre>{@code
  * PCollection<Long> input = ...;
  * PCollection<Long> sessioned = input
  *    .apply(Window.<Long>into(Sessions.withGapDuration(Duration.standardMinutes(5)));
  * PCollection<Long> latestValues = sessioned.apply(Latest.<Long>globally());
- * }</pre>
- *
- * <p>Example 2: track a latest computed value in an aggregator:
- * <pre>{@code
- * class MyDoFn extends DoFn<String, String> {
- *
- *  {@literal @}ProcessElement
- *  public void processElement(ProcessContext c) {
- *    double val = // ..
- *    latestValue.addValue(TimestampedValue.of(val, c.timestamp()));
- *    // ..
- *  }
- * }
  * }</pre>
  *
  * <p>{@link #combineFn} can also be used manually, in combination with state and with the

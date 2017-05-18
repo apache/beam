@@ -25,16 +25,13 @@ import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 
-import com.google.api.client.util.BackOff;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,17 +39,18 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 
 /** Tests for {@link NumberedShardedFile}. */
 @RunWith(JUnit4.class)
 public class NumberedShardedFileTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
-  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
-
-  @Mock private PipelineResult pResult = Mockito.mock(PipelineResult.class);
+  private Sleeper fastClock = new Sleeper() {
+    @Override
+    public void sleep(long millis) throws InterruptedException {
+      // No sleep.
+    }
+  };
 
   private final BackOff backOff = NumberedShardedFile.BACK_OFF_FACTORY.backoff();
   private String filePattern;

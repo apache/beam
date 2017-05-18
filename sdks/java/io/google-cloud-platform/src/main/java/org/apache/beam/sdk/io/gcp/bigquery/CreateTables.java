@@ -22,30 +22,32 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables
+public class CreateTables<DestinationT>
     extends PTransform<
-        PCollection<KV<TableDestination, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
+        PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
-  private final SerializableFunction<TableDestination, TableSchema> schemaFunction;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -57,40 +59,59 @@ public class CreateTables
 
   public CreateTables(
       CreateDisposition createDisposition,
-      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
-    this(createDisposition, new BigQueryServicesImpl(), schemaFunction);
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations);
   }
 
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
-      SerializableFunction<TableDestination, TableSchema> schemaFunction) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
-    this.schemaFunction = schemaFunction;
+    this.dynamicDestinations = dynamicDestinations;
   }
 
-  CreateTables withTestServices(BigQueryServices bqServices) {
-    return new CreateTables(createDisposition, bqServices, schemaFunction);
+  CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
+    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override
   public PCollection<KV<TableDestination, TableRow>> expand(
-      PCollection<KV<TableDestination, TableRow>> input) {
+      PCollection<KV<DestinationT, TableRow>> input) {
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList();
+    sideInputs.addAll(dynamicDestinations.getSideInputs());
+
     return input.apply(
         ParDo.of(
-            new DoFn<KV<TableDestination, TableRow>, KV<TableDestination, TableRow>>() {
-              @ProcessElement
-              public void processElement(ProcessContext context)
-                  throws InterruptedException, IOException {
-                BigQueryOptions options = context.getPipelineOptions().as(BigQueryOptions.class);
-                possibleCreateTable(options, context.element().getKey());
-                context.output(context.element());
-              }
-            }));
+                new DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context)
+                      throws InterruptedException, IOException {
+                    dynamicDestinations.setSideInputAccessorFromProcessContext(context);
+                    TableDestination tableDestination =
+                        dynamicDestinations.getTable(context.element().getKey());
+                    TableReference tableReference = tableDestination.getTableReference();
+                    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+                      tableReference.setProjectId(
+                          context.getPipelineOptions().as(BigQueryOptions.class).getProject());
+                      tableDestination =
+                          new TableDestination(
+                              tableReference, tableDestination.getTableDescription());
+                    }
+                    TableSchema tableSchema =
+                        dynamicDestinations.getSchema(context.element().getKey());
+                    BigQueryOptions options =
+                        context.getPipelineOptions().as(BigQueryOptions.class);
+                    possibleCreateTable(options, tableDestination, tableSchema);
+                    context.output(KV.of(tableDestination, context.element().getValue()));
+                  }
+                })
+            .withSideInputs(sideInputs));
   }
 
-  private void possibleCreateTable(BigQueryOptions options, TableDestination tableDestination)
+  private void possibleCreateTable(
+      BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
       throws InterruptedException, IOException {
     String tableSpec = tableDestination.getTableSpec();
     TableReference tableReference = tableDestination.getTableReference();
@@ -102,7 +123,6 @@ public class CreateTables
         // every thread from attempting a create and overwhelming our BigQuery quota.
         DatasetService datasetService = bqServices.getDatasetService(options);
         if (!createdTables.contains(tableSpec)) {
-          TableSchema tableSchema = schemaFunction.apply(tableDestination);
           if (datasetService.getTable(tableReference) == null) {
             datasetService.createTable(
                 new Table()

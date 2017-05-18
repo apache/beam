@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.api.client.util.Base64.encodeBase64String;
 
+import com.google.common.io.BaseEncoding;
 import java.util.Arrays;
 
 /**
@@ -53,6 +53,6 @@ public class StructuralByteArray {
 
   @Override
   public String toString() {
-    return "base64:" + encodeBase64String(value);
+    return "base64:" + BaseEncoding.base64().encode(value);
   }
 }

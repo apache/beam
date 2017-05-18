@@ -19,15 +19,16 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 
 /**
  * Transforms for creating {@link PCollectionView PCollectionViews} from
@@ -237,11 +238,13 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asList()}.
    */
+  @Internal
   public static class AsList<T> extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
     private AsList() { }
 
@@ -259,11 +262,13 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asIterable()}.
    */
+  @Internal
   public static class AsIterable<T>
       extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
     private AsIterable() { }
@@ -282,11 +287,13 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asSingleton()}.
    */
+  @Internal
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
     private final T defaultValue;
     private final boolean hasDefault;
@@ -396,11 +403,13 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asMultimap()}.
    */
+  @Internal
   public static class AsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
     private AsMultimap() { }
@@ -422,11 +431,13 @@ public class View {
   }
 
   /**
-   * Not intended for direct use by pipeline authors; public only so a {@link PipelineRunner} may
-   * override its behavior.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Public only so a {@link PipelineRunner} may override its behavior.
    *
    * <p>See {@link View#asMap()}.
    */
+  @Internal
   public static class AsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
     private AsMap() { }
@@ -459,13 +470,14 @@ public class View {
   // Internal details below
 
   /**
-   * Creates a primitive {@link PCollectionView}.
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>For internal use only by runner implementors.
+   * <p>Creates a primitive {@link PCollectionView}.
    *
    * @param <ElemT> The type of the elements of the input PCollection
    * @param <ViewT> The type associated with the {@link PCollectionView} used as a side input
    */
+  @Internal
   public static class CreatePCollectionView<ElemT, ViewT>
       extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
     private PCollectionView<ViewT> view;

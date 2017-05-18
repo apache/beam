@@ -17,18 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.sdk.util.Structs.addBoolean;
-import static org.apache.beam.sdk.util.Structs.addString;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import java.io.Serializable;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 
 /**
  * A {@link TupleTag} is a typed tag to use as the key of a heterogeneously typed tuple, like {@link
@@ -153,24 +146,9 @@ public class TupleTag<V> implements Serializable {
     return caller + "#" + nonce;
   }
 
-  @JsonCreator
-  @SuppressWarnings("unused")
-  private static TupleTag<?> fromJson(
-      @JsonProperty(PropertyNames.VALUE) String id,
-      @JsonProperty(PropertyNames.IS_GENERATED) boolean generated) {
-    return new TupleTag<>(id, generated);
-  }
-
   private TupleTag(String id, boolean generated) {
     this.id = id;
     this.generated = generated;
-  }
-
-  public CloudObject asCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
-    addString(result, PropertyNames.VALUE, id);
-    addBoolean(result, PropertyNames.IS_GENERATED, generated);
-    return result;
   }
 
   @Override

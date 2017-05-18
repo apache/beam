@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.common.base.Joiner;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * Standard {@link org.apache.beam.sdk.io.Source} Metrics.
  */
+@Experimental(Kind.METRICS)
 public class SourceMetrics {
 
   private static final String SOURCE_NAMESPACE = "source";

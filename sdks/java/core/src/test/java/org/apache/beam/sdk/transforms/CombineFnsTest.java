@@ -27,11 +27,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -104,7 +105,7 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombine() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -156,7 +157,7 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineWithContext() {
-    p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
+    p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p
         .apply(Create.of("I"))
@@ -218,8 +219,10 @@ public class  CombineFnsTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testComposedCombineNullValues() {
-    p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
-    p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
+    p.getCoderRegistry().registerCoderForClass(
+        UserString.class, NullableCoder.of(UserStringCoder.of()));
+    p.getCoderRegistry().registerCoderForClass(
+        String.class, NullableCoder.of(StringUtf8Coder.of()));
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -231,7 +234,7 @@ public class  CombineFnsTest {
                 KV.of("b", KV.of(13, UserString.of("13")))),
             Arrays.asList(0L, 4L, 7L, 10L, 16L))
         .withCoder(KvCoder.of(
-            StringUtf8Coder.of(),
+            NullableCoder.of(StringUtf8Coder.of()),
             KvCoder.of(
                 BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
 
@@ -326,7 +329,7 @@ public class  CombineFnsTest {
     }
   }
 
-  private static class UserStringCoder extends CustomCoder<UserString> {
+  private static class UserStringCoder extends AtomicCoder<UserString> {
     public static UserStringCoder of() {
       return INSTANCE;
     }
@@ -334,9 +337,20 @@ public class  CombineFnsTest {
     private static final UserStringCoder INSTANCE = new UserStringCoder();
 
     @Override
+    public void encode(UserString value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(UserString value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       StringUtf8Coder.of().encode(value.strValue, outStream, context);
+    }
+
+    @Override
+    public UserString decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -347,7 +361,7 @@ public class  CombineFnsTest {
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return Collections.emptyList();
     }
 
     @Override

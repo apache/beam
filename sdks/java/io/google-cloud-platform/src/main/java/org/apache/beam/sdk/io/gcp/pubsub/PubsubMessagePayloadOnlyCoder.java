@@ -17,32 +17,42 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.util.StreamUtils;
 
 /** A coder for PubsubMessage treating the raw bytes being decoded as the message's payload. */
-public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubIO.PubsubMessage> {
+public class PubsubMessagePayloadOnlyCoder extends CustomCoder<PubsubMessage> {
+  private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
+
   public static PubsubMessagePayloadOnlyCoder of() {
     return new PubsubMessagePayloadOnlyCoder();
   }
 
   @Override
-  public void encode(PubsubIO.PubsubMessage value, OutputStream outStream, Context context)
+  public void encode(PubsubMessage value, OutputStream outStream)
       throws IOException {
-    checkState(context.isWholeStream, "Expected to only be used in a whole-stream context");
-    outStream.write(value.getMessage());
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
-  public PubsubIO.PubsubMessage decode(InputStream inStream, Context context) throws IOException {
-    checkState(context.isWholeStream, "Expected to only be used in a whole-stream context");
-    return new PubsubIO.PubsubMessage(
-        StreamUtils.getBytes(inStream), ImmutableMap.<String, String>of());
+  public void encode(PubsubMessage value, OutputStream outStream, Context context)
+      throws IOException {
+    PAYLOAD_CODER.encode(value.getPayload(), outStream, context);
+  }
+
+  @Override
+  public PubsubMessage decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
+  public PubsubMessage decode(InputStream inStream, Context context) throws IOException {
+    return new PubsubMessage(
+        PAYLOAD_CODER.decode(inStream, context), ImmutableMap.<String, String>of());
   }
 }

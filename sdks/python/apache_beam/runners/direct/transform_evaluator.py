@@ -37,11 +37,13 @@ from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
 from apache_beam.typehints.typecheck import TypeCheckError
 from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
 from apache_beam.utils import counters
-from apache_beam.utils.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import TypeOptions
 
 
 class TransformEvaluatorRegistry(object):
-  """Creates instances of TransformEvaluator for the application of a transform.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Creates instances of TransformEvaluator for the application of a transform.
   """
 
   def __init__(self, evaluation_context):
@@ -51,7 +53,7 @@ class TransformEvaluatorRegistry(object):
         io.Read: _BoundedReadEvaluator,
         core.Flatten: _FlattenEvaluator,
         core.ParDo: _ParDoEvaluator,
-        core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
     }
 
@@ -81,7 +83,7 @@ class TransformEvaluatorRegistry(object):
     """Returns True if this applied_ptransform should run one bundle at a time.
 
     Some TransformEvaluators use a global state object to keep track of their
-    global execution state. For example evaluator for GroupByKeyOnly uses this
+    global execution state. For example evaluator for _GroupByKeyOnly uses this
     state as an in memory dictionary to buffer keys.
 
     Serially executed evaluators will act as syncing point in the graph and
@@ -97,7 +99,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     return isinstance(applied_ptransform.transform,
-                      (core.GroupByKeyOnly, _NativeWrite))
+                      (core._GroupByKeyOnly, _NativeWrite))
 
 
 class _TransformEvaluator(object):
@@ -253,7 +255,7 @@ class _TaggedReceivers(dict):
     def output(self, element):
       pass
 
-  class InMemoryReceiver(object):
+  class _InMemoryReceiver(object):
     """Buffers undeclared outputs to the given dictionary."""
 
     def __init__(self, target, tag):
@@ -267,7 +269,7 @@ class _TaggedReceivers(dict):
     if self._evaluation_context.has_cache:
       if not self._undeclared_in_memory_tag_values:
         self._undeclared_in_memory_tag_values = collections.defaultdict(list)
-      receiver = _TaggedReceivers.InMemoryReceiver(
+      receiver = _TaggedReceivers._InMemoryReceiver(
           self._undeclared_in_memory_tag_values, key)
     else:
       if not self._null_receiver:
@@ -323,7 +325,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
 
 class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
-  """TransformEvaluator for GroupByKeyOnly transform."""
+  """TransformEvaluator for _GroupByKeyOnly transform."""
 
   MAX_ELEMENT_PER_BUNDLE = None
 
@@ -367,7 +369,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       k, v = element.value
       self.state.output[self.key_coder.encode(k)].append(v)
     else:
-      raise TypeCheckError('Input to GroupByKeyOnly must be a PCollection of '
+      raise TypeCheckError('Input to _GroupByKeyOnly must be a PCollection of '
                            'windowed key-value pairs. Instead received: %r.'
                            % element)
 

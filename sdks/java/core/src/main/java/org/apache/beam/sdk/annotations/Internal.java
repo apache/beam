@@ -26,9 +26,9 @@ import java.lang.annotation.Target;
 
 /**
  * Signifies that a publicly accessible API (public class, method or field) is intended for internal
- * use and not for public consumption. Such an API is subject to incompatible changes or removal at
- * any time. An API bearing this annotation is exempt from any compatibility guarantees made by its
- * containing library.
+ * use only and not for public consumption.
+ *
+ * <p>Such an API is subject to incompatible changes or removal at any time.
  */
 @Retention(RetentionPolicy.CLASS)
 @Target({

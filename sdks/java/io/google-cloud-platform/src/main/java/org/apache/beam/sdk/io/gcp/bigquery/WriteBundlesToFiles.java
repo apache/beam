@@ -18,109 +18,176 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLocation;
+
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Writes each bundle of {@link TableRow} elements out to a separate file using
- * {@link TableRowWriter}.
+ * Writes each bundle of {@link TableRow} elements out to separate file using {@link
+ * TableRowWriter}. Elements destined to different destinations are written to separate files.
+ * The transform will not write an element to a file if it is already writing to
+ * {@link #maxNumWritersPerBundle} files and the element is destined to a new destination. In this
+ * case, the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles}
+ * transform will take care of writing it to a file.
  */
-class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBundlesToFiles.Result> {
+class WriteBundlesToFiles<DestinationT>
+    extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
+  // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
+  // 10TB of data have shown a sharding of 10 to be a good choice.
+  private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
+
   // Map from tablespec to a writer for that table.
-  private transient Map<TableDestination, TableRowWriter> writers;
-  private final String tempFilePrefix;
+  private transient Map<DestinationT, TableRowWriter> writers;
+  private transient Map<DestinationT, BoundedWindow> writerWindows;
+  private final String stepUuid;
+  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag;
+  private int maxNumWritersPerBundle;
+  private long maxFileSize;
 
   /**
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  public static final class Result implements Serializable {
+  public static final class Result<DestinationT> implements Serializable {
     private static final long serialVersionUID = 1L;
     public final String filename;
     public final Long fileByteSize;
-    public final TableDestination tableDestination;
+    public final DestinationT destination;
 
-    public Result(String filename, Long fileByteSize, TableDestination tableDestination) {
+    public Result(String filename, Long fileByteSize, DestinationT destination) {
       this.filename = filename;
       this.fileByteSize = fileByteSize;
-      this.tableDestination = tableDestination;
+      this.destination = destination;
     }
   }
 
-  /**
-   * a coder for the {@link Result} class.
-   */
-  public static class ResultCoder extends CustomCoder<Result> {
-    private static final ResultCoder INSTANCE = new ResultCoder();
+  /** a coder for the {@link Result} class. */
+  public static class ResultCoder<DestinationT> extends StructuredCoder<Result<DestinationT>> {
     private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
     private static final VarLongCoder longCoder = VarLongCoder.of();
-    private static final TableDestinationCoder tableDestinationCoder = TableDestinationCoder.of();
+    private final Coder<DestinationT> destinationCoder;
 
-    public static ResultCoder of() {
-      return INSTANCE;
+    public static <DestinationT> ResultCoder<DestinationT> of(
+        Coder<DestinationT> destinationCoder) {
+      return new ResultCoder<>(destinationCoder);
+    }
+
+    ResultCoder(Coder<DestinationT> destinationCoder) {
+      this.destinationCoder = destinationCoder;
     }
 
     @Override
-    public void encode(Result value, OutputStream outStream, Context context)
+    public void encode(Result<DestinationT> value, OutputStream outStream)
         throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null value");
       }
-      stringCoder.encode(value.filename, outStream, context.nested());
-      longCoder.encode(value.fileByteSize, outStream, context.nested());
-      tableDestinationCoder.encode(value.tableDestination, outStream, context.nested());
+      stringCoder.encode(value.filename, outStream);
+      longCoder.encode(value.fileByteSize, outStream);
+      destinationCoder.encode(value.destination, outStream);
     }
 
     @Override
-    public Result decode(InputStream inStream, Context context)
-        throws IOException {
-      String filename = stringCoder.decode(inStream, context.nested());
-      long fileByteSize = longCoder.decode(inStream, context.nested());
-      TableDestination tableDestination = tableDestinationCoder.decode(inStream, context.nested());
-      return new Result(filename, fileByteSize, tableDestination);
+    public Result<DestinationT> decode(InputStream inStream) throws IOException {
+      String filename = stringCoder.decode(inStream);
+      long fileByteSize = longCoder.decode(inStream);
+      DestinationT destination = destinationCoder.decode(inStream);
+      return new Result<>(filename, fileByteSize, destination);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.singletonList(destinationCoder);
     }
 
     @Override
     public void verifyDeterministic() {}
   }
 
-  WriteBundlesToFiles(String tempFilePrefix) {
-    this.tempFilePrefix = tempFilePrefix;
+  WriteBundlesToFiles(
+      String stepUuid,
+      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittedRecordsTag,
+      int maxNumWritersPerBundle,
+      long maxFileSize) {
+    this.stepUuid = stepUuid;
+    this.unwrittedRecordsTag = unwrittedRecordsTag;
+    this.maxNumWritersPerBundle = maxNumWritersPerBundle;
+    this.maxFileSize = maxFileSize;
   }
 
   @StartBundle
-  public void startBundle(Context c) {
-    // This must be done each bundle, as by default the {@link DoFn} might be reused between
+  public void startBundle() {
+    // This must be done for each bundle, as by default the {@link DoFn} might be reused between
     // bundles.
     this.writers = Maps.newHashMap();
+    this.writerWindows = Maps.newHashMap();
+  }
+
+  TableRowWriter createAndInsertWriter(DestinationT destination, String tempFilePrefix,
+                                       BoundedWindow window) throws Exception {
+    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+    writers.put(destination, writer);
+    writerWindows.put(destination, window);
+    return writer;
   }
 
   @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
-    TableRowWriter writer = writers.get(c.element().getKey());
-    if (writer == null) {
-      writer = new TableRowWriter(tempFilePrefix);
-      writer.open(UUID.randomUUID().toString());
-      writers.put(c.element().getKey(), writer);
-      LOG.debug("Done opening writer {}", writer);
+  public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
+    String tempFilePrefix = resolveTempLocation(
+        c.getPipelineOptions().getTempLocation(), "BigQueryWriteTemp", stepUuid);
+    DestinationT destination = c.element().getKey();
+
+    TableRowWriter writer;
+    if (writers.containsKey(destination)) {
+      writer = writers.get(destination);
+    } else {
+      // Only create a new writer if we have fewer than maxNumWritersPerBundle already in this
+      // bundle.
+      if (writers.size() <= maxNumWritersPerBundle) {
+        writer = createAndInsertWriter(destination, tempFilePrefix, window);
+      } else {
+        // This means that we already had too many writers open in this bundle. "spill" this record
+        // into the output. It will be grouped and written to a file in a subsequent stage.
+        c.output(unwrittedRecordsTag,
+            KV.of(ShardedKey.of(destination,
+                ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR)),
+                c.element().getValue()));
+        return;
+      }
     }
+
+    if (writer.getByteSize() > maxFileSize) {
+      // File is too big. Close it and open a new file.
+      writer.close();
+      TableRowWriter.Result result = writer.getResult();
+      c.output(new Result<>(result.resourceId.toString(), result.byteSize, destination));
+      writer = createAndInsertWriter(destination, tempFilePrefix, window);
+    }
+
     try {
       writer.write(c.element().getValue());
     } catch (Exception e) {
@@ -137,20 +204,37 @@ class WriteBundlesToFiles extends DoFn<KV<TableDestination, TableRow>, WriteBund
   }
 
   @FinishBundle
-  public void finishBundle(Context c) throws Exception {
-    for (Map.Entry<TableDestination, TableRowWriter> entry : writers.entrySet()) {
-      TableRowWriter.Result result = entry.getValue().close();
-      c.output(new Result(result.resourceId.toString(), result.byteSize, entry.getKey()));
+  public void finishBundle(FinishBundleContext c) throws Exception {
+    List<Exception> exceptionList = Lists.newArrayList();
+    for (TableRowWriter writer : writers.values()) {
+      try {
+        writer.close();
+      } catch (Exception e) {
+        exceptionList.add(e);
+      }
+    }
+    if (!exceptionList.isEmpty()) {
+      Exception e = new IOException("Failed to close some writers");
+      for (Exception thrown : exceptionList) {
+        e.addSuppressed(thrown);
+      }
+      throw e;
+    }
+
+    for (Map.Entry<DestinationT, TableRowWriter> entry : writers.entrySet()) {
+      try {
+        DestinationT destination = entry.getKey();
+        TableRowWriter writer = entry.getValue();
+        TableRowWriter.Result result = writer.getResult();
+        c.output(
+            new Result<>(result.resourceId.toString(), result.byteSize, destination),
+            writerWindows.get(destination).maxTimestamp(),
+            writerWindows.get(destination));
+      } catch (Exception e) {
+        exceptionList.add(e);
+      }
     }
     writers.clear();
-  }
 
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    super.populateDisplayData(builder);
-
-    builder
-        .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
-            .withLabel("Temporary File Prefix"));
   }
 }

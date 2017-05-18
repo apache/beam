@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Concat Source, which reads the union of several other sources.
+"""For internal use only; no backwards-compatibility guarantees.
+
+Concat Source, which reads the union of several other sources.
 """
 
 import bisect
@@ -25,7 +27,9 @@ from apache_beam.io import iobase
 
 
 class ConcatSource(iobase.BoundedSource):
-  """A ``BoundedSource`` that can group a set of ``BoundedSources``.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A ``BoundedSource`` that can group a set of ``BoundedSources``.
 
   Primarily for internal use, use the ``apache_beam.Flatten`` transform
   to create the union of several reads.
@@ -89,7 +93,9 @@ class ConcatSource(iobase.BoundedSource):
 
 
 class ConcatRangeTracker(iobase.RangeTracker):
-  """Range tracker for ConcatSource"""
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Range tracker for ConcatSource"""
 
   def __init__(self, start, end, source_bundles):
     """Initializes ``ConcatRangeTracker``
