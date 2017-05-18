@@ -168,7 +168,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     pipeline.traverseTopologically(graphVisitor);
 
     @SuppressWarnings("rawtypes")
-    KeyedPValueTrackingVisitor keyedPValueVisitor = KeyedPValueTrackingVisitor.create();
+    DirectGraphVisitor keyedPValueVisitor = new DirectGraphVisitor();
     pipeline.traverseTopologically(keyedPValueVisitor);
 
     DisplayDataValidator.validatePipeline(pipeline);

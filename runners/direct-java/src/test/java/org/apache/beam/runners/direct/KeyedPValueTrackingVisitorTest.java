@@ -54,19 +54,21 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link KeyedPValueTrackingVisitor}. */
+/** Tests for {@link DirectGraphVisitor#getKeyedPValues()}. */
 @RunWith(JUnit4.class)
 public class KeyedPValueTrackingVisitorTest {
+
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private KeyedPValueTrackingVisitor visitor;
+  private transient DirectGraphVisitor visitor;
+
   @Rule
   public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     p = TestPipeline.create();
-    visitor = KeyedPValueTrackingVisitor.create();
+    visitor = new DirectGraphVisitor();
   }
 
   @Test
@@ -185,8 +187,8 @@ public class KeyedPValueTrackingVisitorTest {
 
     p.traverseTopologically(visitor);
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("already been finalized");
-    thrown.expectMessage(KeyedPValueTrackingVisitor.class.getSimpleName());
+    thrown.expectMessage(DirectGraphVisitor.class.getSimpleName());
+    thrown.expectMessage("is finalized");
     p.traverseTopologically(visitor);
   }
 

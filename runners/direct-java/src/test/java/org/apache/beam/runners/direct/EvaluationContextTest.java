@@ -101,8 +101,8 @@ public class EvaluationContextTest {
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(GenerateSequence.from(0));
 
-    KeyedPValueTrackingVisitor keyedPValueTrackingVisitor = KeyedPValueTrackingVisitor.create();
-    p.traverseTopologically(keyedPValueTrackingVisitor);
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    p.traverseTopologically(graphVisitor);
 
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
     graph = DirectGraphs.getGraph(p);
@@ -112,7 +112,7 @@ public class EvaluationContextTest {
             NanosOffsetClock.create(),
             bundleFactory,
             graph,
-            keyedPValueTrackingVisitor.getKeyedPValues());
+            graphVisitor.getKeyedPValues());
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
