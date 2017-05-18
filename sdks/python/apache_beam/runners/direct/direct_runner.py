@@ -32,8 +32,11 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
-from apache_beam.utils.pipeline_options import DirectOptions
-from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.options.pipeline_options import DirectOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
+
+
+__all__ = ['DirectRunner']
 
 
 class DirectRunner(PipelineRunner):

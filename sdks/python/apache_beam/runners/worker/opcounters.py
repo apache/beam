@@ -25,6 +25,8 @@ import random
 
 from apache_beam.utils.counters import Counter
 
+# This module is experimental. No backwards-compatibility guarantees.
+
 
 class SumAccumulator(object):
   """Accumulator for collecting byte counts."""

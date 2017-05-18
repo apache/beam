@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -32,6 +31,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -45,7 +45,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -65,6 +64,12 @@ import org.slf4j.LoggerFactory;
 /**
  * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
+ *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Pubsub you should use
+ * {@code PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your
+ * local emulator.
  *
  * <h3>Permissions</h3>
  *
@@ -152,44 +157,6 @@ public class PubsubIO {
           : topic.toString();
       builder.add(DisplayData.item("topic", topicString)
           .withLabel("Pubsub Topic"));
-    }
-  }
-
-  /**
-   * Class representing a Pub/Sub message. Each message contains a single message payload and
-   * a map of attached attributes.
-   */
-  public static class PubsubMessage {
-
-    private byte[] message;
-    private Map<String, String> attributes;
-
-    public PubsubMessage(byte[] message, Map<String, String> attributes) {
-      this.message = message;
-      this.attributes = attributes;
-    }
-
-    /**
-     * Returns the main PubSub message.
-     */
-    public byte[] getMessage() {
-      return message;
-    }
-
-    /**
-     * Returns the given attribute value. If not such attribute exists, returns null.
-     */
-    @Nullable
-    public String getAttribute(String attribute) {
-      checkNotNull(attribute, "attribute");
-      return attributes.get(attribute);
-    }
-
-    /**
-     * Returns the full map of attributes. This is an unmodifiable map.
-     */
-    public Map<String, String> getAttributeMap() {
-      return attributes;
     }
   }
 
@@ -471,10 +438,10 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
-   * messages will only contain a {@link PubsubMessage#getMessage() payload}, but no {@link
+   * messages will only contain a {@link PubsubMessage#getPayload() payload}, but no {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+  public static Read<PubsubMessage> readMessages() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -484,10 +451,10 @@ public class PubsubIO {
 
   /**
    * Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. The
-   * messages will contain both a {@link PubsubMessage#getMessage() payload} and {@link
+   * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+  public static Read<PubsubMessage> readMessagesWithAttributes() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -520,7 +487,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the
    * given type from a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Read<T> readAvros(Class<T> clazz) {
+  public static <T> Read<T> readAvros(Class<T> clazz) {
     // TODO: Stop using AvroCoder and instead parse the payload directly.
     // We should not be relying on the fact that AvroCoder's wire format is identical to
     // the Avro wire format, as the wire format is not part of a coder's API.
@@ -534,7 +501,7 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static Write<PubsubMessage> writePubsubMessages() {
+  public static Write<PubsubMessage> writeMessages() {
     return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
@@ -760,14 +727,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input
-          .getPipeline()
-          .apply(source)
-          .setCoder(
-              getNeedsAttributes()
-                  ? PubsubMessageWithAttributesCoder.of()
-                  : PubsubMessagePayloadOnlyCoder.of())
-          .apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn()));
     }
 
     @Override
@@ -927,7 +887,7 @@ public class PubsubIO {
       private transient PubsubClient pubsubClient;
 
       @StartBundle
-      public void startBundle(Context c) throws IOException {
+      public void startBundle(StartBundleContext c) throws IOException {
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
@@ -939,7 +899,7 @@ public class PubsubIO {
       public void processElement(ProcessContext c) throws IOException {
         byte[] payload;
         PubsubMessage message = getFormatFn().apply(c.element());
-        payload = message.getMessage();
+        payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
         // NOTE: The record id is always null.
         output.add(new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null));
@@ -950,7 +910,7 @@ public class PubsubIO {
       }
 
       @FinishBundle
-      public void finishBundle(Context c) throws IOException {
+      public void finishBundle() throws IOException {
         if (!output.isEmpty()) {
           publish();
         }
@@ -981,7 +941,7 @@ public class PubsubIO {
   private static class ParsePayloadAsUtf8 extends SimpleFunction<PubsubMessage, String> {
     @Override
     public String apply(PubsubMessage input) {
-      return new String(input.getMessage(), StandardCharsets.UTF_8);
+      return new String(input.getPayload(), StandardCharsets.UTF_8);
     }
   }
 
@@ -995,7 +955,7 @@ public class PubsubIO {
     @Override
     public T apply(PubsubMessage input) {
       try {
-        return CoderUtils.decodeFromByteArray(coder, input.getMessage());
+        return CoderUtils.decodeFromByteArray(coder, input.getPayload());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

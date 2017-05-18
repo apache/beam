@@ -16,6 +16,7 @@
 #
 
 import logging
+import os
 import tempfile
 import unittest
 
@@ -27,9 +28,9 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
 
 from apache_beam.pvalue import AsList
-from apache_beam.transforms.util import assert_that
-from apache_beam.transforms.util import BeamAssertException
-from apache_beam.transforms.util import equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import BeamAssertException
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.runners.portability import maptask_executor_runner
 
@@ -40,9 +41,9 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
     return beam.Pipeline(runner=maptask_executor_runner.MapTaskExecutorRunner())
 
   def test_assert_that(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegexp(BeamAssertException, 'bad_assert'):
       with self.create_pipeline() as p:
-        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
+        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']), 'bad_assert')
 
   def test_create(self):
     with self.create_pipeline() as p:
@@ -181,12 +182,17 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
 
   def test_read(self):
-    with tempfile.NamedTemporaryFile() as temp_file:
+    # Can't use NamedTemporaryFile as a context
+    # due to https://bugs.python.org/issue14243
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    try:
       temp_file.write('a\nb\nc')
-      temp_file.flush()
+      temp_file.close()
       with self.create_pipeline() as p:
         assert_that(p | beam.io.ReadFromText(temp_file.name),
                     equal_to(['a', 'b', 'c']))
+    finally:
+      os.unlink(temp_file.name)
 
   def test_windowing(self):
     with self.create_pipeline() as p:
@@ -197,6 +203,21 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
              | beam.GroupByKey()
              | beam.Map(lambda (k, vs): (k, sorted(vs))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
+
+  def test_errors(self):
+    with self.assertRaises(BaseException) as e_cm:
+      with self.create_pipeline() as p:
+        def raise_error(x):
+          raise RuntimeError('x')
+        # pylint: disable=expression-not-assigned
+        (p
+         | beam.Create(['a', 'b'])
+         | 'StageA' >> beam.Map(lambda x: x)
+         | 'StageB' >> beam.Map(lambda x: x)
+         | 'StageC' >> beam.Map(raise_error)
+         | 'StageD' >> beam.Map(lambda x: x))
+    self.assertIn('StageC', e_cm.exception.args[0])
+    self.assertNotIn('StageB', e_cm.exception.args[0])
 
 
 if __name__ == '__main__':

@@ -25,7 +25,7 @@ import java.util.BitSet;
 /**
  * Coder for {@link BitSet}.
  */
-public class BitSetCoder extends CustomCoder<BitSet> {
+public class BitSetCoder extends AtomicCoder<BitSet> {
   private static final BitSetCoder INSTANCE = new BitSetCoder();
   private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
@@ -33,6 +33,12 @@ public class BitSetCoder extends CustomCoder<BitSet> {
 
   public static BitSetCoder of() {
     return INSTANCE;
+  }
+
+  @Override
+  public void encode(BitSet value, OutputStream outStream)
+      throws CoderException, IOException {
+    encode(value, outStream, Context.NESTED);
   }
 
   @Override
@@ -45,6 +51,11 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   }
 
   @Override
+  public BitSet decode(InputStream inStream) throws CoderException, IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public BitSet decode(InputStream inStream, Context context)
       throws CoderException, IOException {
     return BitSet.valueOf(BYTE_ARRAY_CODER.decode(inStream, context));
@@ -53,7 +64,7 @@ public class BitSetCoder extends CustomCoder<BitSet> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     verifyDeterministic(
-        "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
+        this, "BitSetCoder requires its ByteArrayCoder to be deterministic.", BYTE_ARRAY_CODER);
   }
 
   @Override

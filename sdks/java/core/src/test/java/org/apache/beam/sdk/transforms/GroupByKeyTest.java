@@ -38,9 +38,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -54,13 +55,12 @@ import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.Reshuffle;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -393,7 +393,8 @@ public class GroupByKeyTest {
     final int numValues = 10;
     final int numKeys = 5;
 
-    p.getCoderRegistry().registerCoder(BadEqualityKey.class, DeterministicKeyCoder.class);
+    p.getCoderRegistry().registerCoderProvider(
+        CoderProviders.fromStaticMethods(BadEqualityKey.class, DeterministicKeyCoder.class));
 
     // construct input data
     List<KV<BadEqualityKey, Long>> input = new ArrayList<>();
@@ -454,7 +455,7 @@ public class GroupByKeyTest {
   /**
    * Deterministic {@link Coder} for {@link BadEqualityKey}.
    */
-  static class DeterministicKeyCoder extends CustomCoder<BadEqualityKey> {
+  static class DeterministicKeyCoder extends AtomicCoder<BadEqualityKey> {
 
     public static DeterministicKeyCoder of() {
       return INSTANCE;
@@ -468,13 +469,13 @@ public class GroupByKeyTest {
     private DeterministicKeyCoder() {}
 
     @Override
-    public void encode(BadEqualityKey value, OutputStream outStream, Context context)
+    public void encode(BadEqualityKey value, OutputStream outStream)
         throws IOException {
       new DataOutputStream(outStream).writeLong(value.key);
     }
 
     @Override
-    public BadEqualityKey decode(InputStream inStream, Context context)
+    public BadEqualityKey decode(InputStream inStream)
         throws IOException {
       return new BadEqualityKey(new DataInputStream(inStream).readLong());
     }

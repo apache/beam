@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -118,6 +118,11 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-spark</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
           <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -275,7 +280,7 @@
                       [
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
-                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"
+                      "--runner=TestDataflowRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -299,7 +304,7 @@
                       [
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
-                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner",
+                      "--runner=TestDataflowRunner",
                       "--streaming=true"
                       ]
                     </beamTestPipelineOptions>
@@ -315,8 +320,9 @@
                 <configuration>
                   <includes>
                     <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
                   </includes>
-                  <parallel>all</parallel>
+                  <parallel>none</parallel>
                   <threadCount>4</threadCount>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
@@ -391,40 +397,6 @@
         </configuration>
       </plugin>
 
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-              <artifactSet>
-                <includes>
-                  <include>*:*</include>
-                </includes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -481,6 +453,11 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>

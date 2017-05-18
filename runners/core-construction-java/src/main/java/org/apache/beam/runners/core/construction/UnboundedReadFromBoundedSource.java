@@ -35,10 +35,10 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.Read;
@@ -203,7 +203,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @VisibleForTesting
-    static class CheckpointCoder<T> extends CustomCoder<Checkpoint<T>> {
+    static class CheckpointCoder<T> extends StructuredCoder<Checkpoint<T>> {
 
       // The coder for a list of residual elements and their timestamps
       private final Coder<List<TimestampedValue<T>>> elemsCoder;
@@ -221,19 +221,19 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       @Override
-      public void encode(Checkpoint<T> value, OutputStream outStream, Context context)
+      public void encode(Checkpoint<T> value, OutputStream outStream)
           throws CoderException, IOException {
-        elemsCoder.encode(value.residualElements, outStream, context.nested());
-        sourceCoder.encode(value.residualSource, outStream, context);
+        elemsCoder.encode(value.residualElements, outStream);
+        sourceCoder.encode(value.residualSource, outStream);
       }
 
       @SuppressWarnings("unchecked")
       @Override
-      public Checkpoint<T> decode(InputStream inStream, Context context)
+      public Checkpoint<T> decode(InputStream inStream)
           throws CoderException, IOException {
         return new Checkpoint<>(
-            elemsCoder.decode(inStream, context.nested()),
-            sourceCoder.decode(inStream, context));
+            elemsCoder.decode(inStream),
+            sourceCoder.decode(inStream));
       }
 
       @Override

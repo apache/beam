@@ -24,7 +24,7 @@ from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
 from apache_beam.io.gcp.tests import bigquery_matcher as bq_verifier
-from apache_beam.tests.test_utils import patch_retry
+from apache_beam.testing.test_utils import patch_retry
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

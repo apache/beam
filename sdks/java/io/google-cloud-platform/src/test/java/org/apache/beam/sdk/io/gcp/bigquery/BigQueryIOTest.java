@@ -20,9 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createJobIdToken;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.createTempTableReference;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -42,6 +47,7 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -64,18 +70,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -83,7 +94,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -111,24 +121,22 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
-import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -204,7 +212,13 @@ public class BigQueryIOTest implements Serializable {
     assertEquals(project, write.getTable().get().getProjectId());
     assertEquals(dataset, write.getTable().get().getDatasetId());
     assertEquals(table, write.getTable().get().getTableId());
-    assertEquals(schema, write.getSchema());
+    if (schema == null) {
+      assertNull(write.getJsonSchema());
+      assertNull(write.getSchemaFromView());
+    } else {
+      assertEquals(schema, BigQueryHelpers.fromJsonString(
+          write.getJsonSchema().get(), TableSchema.class));
+    }
     assertEquals(createDisposition, write.getCreateDisposition());
     assertEquals(writeDisposition, write.getWriteDisposition());
     assertEquals(tableDescription, write.getTableDescription());
@@ -441,6 +455,151 @@ public class BigQueryIOTest implements Serializable {
     p.run();
   }
 
+  // Create an intermediate type to ensure that coder inference up the inheritance tree is tested.
+  abstract static class StringIntegerDestinations extends DynamicDestinations<String, Integer> {
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsBatch() throws Exception {
+    writeDynamicDestinations(false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsStreaming() throws Exception {
+    writeDynamicDestinations(true);
+  }
+
+  public void writeDynamicDestinations(boolean streaming) throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(datasetService);
+
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
+    Pipeline p = TestPipeline.create(bqOptions);
+
+    final PCollectionView<List<String>> sideInput1 =
+        p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
+            .apply("asList", View.<String>asList());
+    final PCollectionView<Map<String, String>> sideInput2 =
+    p.apply("Create SideInput2", Create.of(KV.of("a", "a"), KV.of("b", "b"), KV.of("c", "c")))
+        .apply("AsMap", View.<String, String>asMap());
+
+    final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
+    List<String> userList = Lists.newArrayList();
+    // Make sure that we generate enough users so that WriteBundlesToFiles is forced to spill to
+    // WriteGroupedRecordsToFiles.
+    for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
+      // Every user has 10 nicknames.
+      for (int j = 0; j < 1; ++j) {
+        String nickname = allUsernames.get(
+            ThreadLocalRandom.current().nextInt(allUsernames.size()));
+        userList.add(nickname + i);
+      }
+    }
+    PCollection<String> users = p.apply("CreateUsers", Create.of(userList))
+        .apply(Window.into(new PartitionedGlobalWindows<>(
+            new SerializableFunction<String, String>() {
+              @Override
+              public String apply(String arg) {
+                return arg;
+              }
+        })));
+
+    if (streaming) {
+      users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    }
+    users.apply("WriteBigQuery", BigQueryIO.<String>write()
+            .withTestServices(fakeBqServices)
+            .withMaxFilesPerBundle(5)
+            .withMaxFileSize(10)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withFormatFunction(new SerializableFunction<String, TableRow>() {
+              @Override
+              public TableRow apply(String user) {
+                Matcher matcher = userPattern.matcher(user);
+                if (matcher.matches()) {
+                  return new TableRow().set("name", matcher.group(1))
+                      .set("id", Integer.valueOf(matcher.group(2)));
+                }
+                throw new RuntimeException("Unmatching element " + user);
+              }
+            })
+            .to(new StringIntegerDestinations() {
+              @Override
+              public Integer getDestination(ValueInSingleWindow<String> element) {
+                assertThat(element.getWindow(), Matchers.instanceOf(PartitionedGlobalWindow.class));
+                Matcher matcher = userPattern.matcher(element.getValue());
+                if (matcher.matches()) {
+                  // Since we name tables by userid, we can simply store an Integer to represent
+                  // a table.
+                  return Integer.valueOf(matcher.group(2));
+                }
+                throw new RuntimeException("Unmatching destination " + element.getValue());
+              }
+
+              @Override
+              public TableDestination getTable(Integer userId) {
+                verifySideInputs();
+                // Each user in it's own table.
+                return new TableDestination("dataset-id.userid-" + userId,
+                    "table for userid " + userId);
+              }
+
+              @Override
+              public TableSchema getSchema(Integer userId) {
+                verifySideInputs();
+                return new TableSchema().setFields(
+                    ImmutableList.of(
+                        new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("id").setType("INTEGER")));
+              }
+
+              @Override
+              public List<PCollectionView<?>> getSideInputs() {
+                return ImmutableList.of(sideInput1, sideInput2);
+              }
+
+              private void verifySideInputs() {
+                assertThat(sideInput(sideInput1), containsInAnyOrder("a", "b", "c"));
+                Map<String, String> mapSideInput = sideInput(sideInput2);
+                assertEquals(3, mapSideInput.size());
+                assertThat(mapSideInput,
+                    allOf(hasEntry("a", "a"), hasEntry("b", "b"), hasEntry("c", "c")));
+              }
+            })
+            .withoutValidation());
+    p.run();
+
+    File tempDir = new File(bqOptions.getTempLocation());
+    testNumFiles(tempDir, 0);
+
+    Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
+    for (int i = 0; i < userList.size(); ++i) {
+      Matcher matcher = userPattern.matcher(userList.get(i));
+      checkState(matcher.matches());
+      String nickname = matcher.group(1);
+      int userid = Integer.valueOf(matcher.group(2));
+      List<TableRow> expected = expectedTableRows.get(userid);
+      if (expected == null) {
+        expected = Lists.newArrayList();
+        expectedTableRows.put(userid, expected);
+      }
+      expected.add(new TableRow().set("name", nickname).set("id", userid));
+    }
+
+    for (Map.Entry<Integer, List<TableRow>> entry : expectedTableRows.entrySet()) {
+      assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
+          containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
+    }
+  }
+
   @Test
   public void testWrite() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
@@ -461,6 +620,7 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
+        .withTableDescription(null)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -569,8 +729,6 @@ public class BigQueryIOTest implements Serializable {
       return GlobalWindow.INSTANCE.maxTimestamp();
     }
 
-    // The following methods are only needed due to BEAM-1022. Once this issue is fixed, we will
-    // no longer need these.
     @Override
     public boolean equals(Object other) {
       if (other instanceof PartitionedGlobalWindow) {
@@ -588,11 +746,22 @@ public class BigQueryIOTest implements Serializable {
   /**
    * Coder for @link{PartitionedGlobalWindow}.
    */
-  private static class PartitionedGlobalWindowCoder extends CustomCoder<PartitionedGlobalWindow> {
+  private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
+    @Override
+    public void encode(PartitionedGlobalWindow window, OutputStream outStream)
+        throws IOException, CoderException {
+      encode(window, outStream, Context.NESTED);
+    }
+
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
       StringUtf8Coder.of().encode(window.value, outStream, context);
+    }
+
+    @Override
+    public PartitionedGlobalWindow decode(InputStream inStream) throws IOException, CoderException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -633,7 +802,7 @@ public class BigQueryIOTest implements Serializable {
 
     // Create a windowing strategy that puts the input into five different windows depending on
     // record value.
-    WindowFn<Integer, PartitionedGlobalWindow> window = new PartitionedGlobalWindows(
+    WindowFn<Integer, PartitionedGlobalWindow> windowFn = new PartitionedGlobalWindows(
         new SerializableFunction<Integer, String>() {
           @Override
           public String apply(Integer i) {
@@ -642,24 +811,44 @@ public class BigQueryIOTest implements Serializable {
         }
     );
 
+    final Map<Integer, TableDestination> targetTables = Maps.newHashMap();
+    Map<String, String> schemas = Maps.newHashMap();
+    for (int i = 0; i < 5; i++) {
+      TableDestination destination = new TableDestination("project-id:dataset-id"
+          + ".table-id-" + i, "");
+      targetTables.put(i, destination);
+      // Make sure each target table has its own custom table.
+      schemas.put(destination.getTableSpec(),
+          BigQueryHelpers.toJsonString(new TableSchema().setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("name").setType("STRING"),
+                  new TableFieldSchema().setName("number").setType("INTEGER"),
+                  new TableFieldSchema().setName("custom_" + i).setType("STRING")))));
+    }
+
     SerializableFunction<ValueInSingleWindow<Integer>, TableDestination> tableFunction =
         new SerializableFunction<ValueInSingleWindow<Integer>, TableDestination>() {
           @Override
           public TableDestination apply(ValueInSingleWindow<Integer> input) {
             PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
-            // Check that we can access the element as well here.
+            // Check that we can access the element as well here and that it matches the window.
             checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
                 "Incorrect element");
-            return new TableDestination("project-id:dataset-id.table-id-" + window.value, "");
+            return targetTables.get(input.getValue() % 5);
           }
     };
 
     Pipeline p = TestPipeline.create(bqOptions);
-    PCollection<Integer> input = p.apply(Create.of(inserts));
+    PCollection<Integer> input = p.apply("CreateSource", Create.of(inserts));
     if (streaming) {
       input = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
     }
-    input.apply(Window.<Integer>into(window))
+
+    PCollectionView<Map<String, String>> schemasView =
+        p.apply("CreateSchemaMap", Create.of(schemas))
+        .apply("ViewSchemaAsMap", View.<String, String>asMap());
+
+    input.apply(Window.<Integer>into(windowFn))
         .apply(BigQueryIO.<Integer>write()
             .to(tableFunction)
             .withFormatFunction(new SerializableFunction<Integer, TableRow>() {
@@ -668,35 +857,27 @@ public class BigQueryIOTest implements Serializable {
                 return new TableRow().set("name", "number" + i).set("number", i);
               }})
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-            .withSchema(new TableSchema().setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("name").setType("STRING"),
-                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withSchemaFromView(schemasView)
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
 
+    for (int i = 0; i < 5; ++i) {
+      String tableId = String.format("table-id-%d", i);
+      String tableSpec = String.format("project-id:dataset-id.%s", tableId);
 
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-0"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number0").set("number", 0),
-            new TableRow().set("name", "number5").set("number", 5)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-1"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number1").set("number", 1),
-            new TableRow().set("name", "number6").set("number", 6)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-2"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number2").set("number", 2),
-            new TableRow().set("name", "number7").set("number", 7)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-3"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number3").set("number", 3),
-            new TableRow().set("name", "number8").set("number", 8)));
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id-4"),
-        containsInAnyOrder(
-            new TableRow().set("name", "number4").set("number", 4),
-            new TableRow().set("name", "number9").set("number", 9)));
+      // Verify that table was created with the correct schema.
+      assertThat(BigQueryHelpers.toJsonString(
+          datasetService.getTable(new TableReference().setProjectId("project-id")
+              .setDatasetId("dataset-id").setTableId(tableId)).getSchema()),
+          equalTo(schemas.get(tableSpec)));
+
+      // Verify that the table has the expected contents.
+      assertThat(datasetService.getAllRows("project-id", "dataset-id", tableId),
+          containsInAnyOrder(
+              new TableRow().set("name", String.format("number%d", i)).set("number", i),
+              new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
+    }
   }
 
   @Test
@@ -801,7 +982,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testTableSourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -817,7 +997,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
   public void testQuerySourcePrimitiveDisplayData() throws IOException, InterruptedException {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigQueryIO.Read read = BigQueryIO.read()
@@ -839,41 +1018,7 @@ public class BigQueryIOTest implements Serializable {
             BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
-  }
-
-  @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
-  public void testBatchWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ false);
-  }
-
-  @Test
-  @Ignore("[BEAM-436] DirectRunner tempLocation configuration insufficient")
-  public void testStreamingWritePrimitiveDisplayData() throws IOException, InterruptedException {
-    testWritePrimitiveDisplayData(/* streaming: */ true);
-  }
-
-  private void testWritePrimitiveDisplayData(boolean streaming) throws IOException,
-      InterruptedException {
-    PipelineOptions options = TestPipeline.testingPipelineOptions();
-    options.as(StreamingOptions.class).setStreaming(streaming);
-    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create(options);
-
-    BigQueryIO.Write write = BigQueryIO.writeTableRows()
-        .to("project:dataset.table")
-        .withSchema(new TableSchema().set("col1", "type1").set("col2", "type2"))
-        .withTestServices(new FakeBigQueryServices()
-          .withDatasetService(new FakeDatasetService())
-          .withJobService(new FakeJobService()))
-        .withoutValidation();
-
-    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
-    assertThat("BigQueryIO.Write should include the table spec in its primitive display data",
-        displayData, hasItem(hasDisplayItem("tableSpec")));
-
-    assertThat("BigQueryIO.Write should include the table schema in its primitive display data",
-        displayData, hasItem(hasDisplayItem("schema")));
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -891,7 +1036,7 @@ public class BigQueryIOTest implements Serializable {
         null,
         CreateDisposition.CREATE_IF_NEEDED,
         WriteDisposition.WRITE_EMPTY,
-        "",
+        null,
         false);
   }
 
@@ -902,7 +1047,7 @@ public class BigQueryIOTest implements Serializable {
     checkWriteObject(
         write, null, "somedataset", "sometable",
         null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY,
-        "");
+        null);
   }
 
   @Test
@@ -914,7 +1059,7 @@ public class BigQueryIOTest implements Serializable {
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -924,7 +1069,7 @@ public class BigQueryIOTest implements Serializable {
         BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
+        schema, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -934,7 +1079,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_NEVER);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, "");
+        null, CreateDisposition.CREATE_NEVER, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -944,7 +1089,7 @@ public class BigQueryIOTest implements Serializable {
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -954,7 +1099,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, "");
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_TRUNCATE, null);
   }
 
   @Test
@@ -964,7 +1109,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_APPEND);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, "");
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_APPEND, null);
   }
 
   @Test
@@ -974,7 +1119,7 @@ public class BigQueryIOTest implements Serializable {
         .withWriteDisposition(WriteDisposition.WRITE_EMPTY);
     checkWriteObject(
         write, "foo.com:project", "somedataset", "sometable",
-        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, "");
+        null, CreateDisposition.CREATE_IF_NEEDED, WriteDisposition.WRITE_EMPTY, null);
   }
 
   @Test
@@ -1067,6 +1212,7 @@ public class BigQueryIOTest implements Serializable {
                 .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(new TableSchema())
                 .withTestServices(fakeBqServices));
+    p.run();
   }
 
   @Test
@@ -1213,13 +1359,12 @@ public class BigQueryIOTest implements Serializable {
     datasetService.insertAll(table, expected, null);
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
-    String jobIdToken = "testJobIdToken";
+    String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        baseDir.toString(), fakeBqServices,
-        StaticValueProvider.of("project"));
+        stepUuid, StaticValueProvider.of(table), fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
+    options.setTempLocation(baseDir.toString());
     Assert.assertThat(
         SourceTestUtils.readFromSource(bqSource, options),
         CoreMatchers.is(expected));
@@ -1255,15 +1400,14 @@ public class BigQueryIOTest implements Serializable {
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceInitSplit");
 
-    String jobIdToken = "testJobIdToken";
-    String extractDestinationDir = baseDir.toString();
+    String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
-        extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
-
+        stepUuid, StaticValueProvider.of(table), fakeBqServices);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
 
     List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
@@ -1316,10 +1460,17 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
 
-    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
-    fakeDatasetService.createDataset("project", "data_set", "", "");
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    String stepUuid = "testStepUuid";
+
+    TableReference tempTableReference = createTempTableReference(
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
+    fakeDatasetService.createDataset(
+        bqOptions.getProject(), tempTableReference.getDatasetId(), "", "");
     fakeDatasetService.createTable(new Table()
-        .setTableReference(destinationTable)
+        .setTableReference(tempTableReference)
         .setSchema(new TableSchema()
             .setFields(
                 ImmutableList.of(
@@ -1327,24 +1478,19 @@ public class BigQueryIOTest implements Serializable {
                     new TableFieldSchema().setName("number").setType("INTEGER")))));
     Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryQuerySourceInitSplit");
 
-    String jobIdToken = "testJobIdToken";
-    String query = FakeBigQueryServices.encodeQuery(expected);
-    String extractDestinationDir = baseDir.toString();
-    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
-        true /* flattenResults */, true /* useLegacySql */,
-        extractDestinationDir, fakeBqServices);
 
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(extractDestinationDir);
+    String query = FakeBigQueryServices.encodeQuery(expected);
+    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
+        stepUuid, StaticValueProvider.of(query),
+        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+    options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
-        .setProjectId("project")
-        .setDatasetId("data_set")
-        .setTableId("table_name");
+        .setProjectId(bqOptions.getProject())
+        .setDatasetId(tempTableReference.getDatasetId())
+        .setTableId(tempTableReference.getTableId());
 
-    fakeJobService.expectDryRunQuery("project", query,
+    fakeJobService.expectDryRunQuery(bqOptions.getProject(), query,
         new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
@@ -1387,7 +1533,13 @@ public class BigQueryIOTest implements Serializable {
         .withJobService(jobService)
         .withDatasetService(datasetService);
 
-    TableReference destinationTable = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
+    PipelineOptions options = PipelineOptionsFactory.create();
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    String stepUuid = "testStepUuid";
+
+    TableReference tempTableReference = createTempTableReference(
+        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -1395,10 +1547,10 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4L),
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
-    datasetService.createDataset(destinationTable.getProjectId(), destinationTable.getDatasetId(),
-        "", "");
+    datasetService.createDataset(
+        tempTableReference.getProjectId(), tempTableReference.getDatasetId(), "", "");
     Table table = new Table()
-        .setTableReference(destinationTable)
+        .setTableReference(tempTableReference)
         .setSchema(new TableSchema()
                 .setFields(
                     ImmutableList.of(
@@ -1413,18 +1565,15 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(table.getTableReference()))));
 
-    Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryNoTableQuerySourceInitSplit");
-    String jobIdToken = "testJobIdToken";
+    Path baseDir = Files.createTempDirectory(
+        tempFolder, "testBigQueryNoTableQuerySourceInitSplit");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        StaticValueProvider.of(jobIdToken),
+        stepUuid,
         StaticValueProvider.of(query),
-        StaticValueProvider.of(destinationTable),
-        true /* flattenResults */, true /* useLegacySql */, baseDir.toString(), fakeBqServices);
+        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
 
-
-
-    PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
+
     List<TableRow> read = convertBigDecimaslToLong(
         SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
@@ -1542,7 +1691,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWritePartitionSinglePartition() throws Exception {
-    long numFiles = BigQueryIO.Write.MAX_NUM_FILES;
+    long numFiles = BatchLoads.MAX_NUM_FILES;
     long fileSize = 1;
 
     // One partition is needed.
@@ -1552,7 +1701,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWritePartitionManyFiles() throws Exception {
-    long numFiles = BigQueryIO.Write.MAX_NUM_FILES * 3;
+    long numFiles = BatchLoads.MAX_NUM_FILES * 3;
     long fileSize = 1;
 
     // One partition is needed for each group of BigQueryWrite.MAX_NUM_FILES files.
@@ -1563,7 +1712,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testWritePartitionLargeFileSize() throws Exception {
     long numFiles = 10;
-    long fileSize = BigQueryIO.Write.MAX_SIZE_BYTES / 3;
+    long fileSize = BatchLoads.MAX_SIZE_BYTES / 3;
 
     // One partition is needed for each group of three files.
     long expectedNumPartitions = 4;
@@ -1578,72 +1727,62 @@ public class BigQueryIOTest implements Serializable {
     // In the case where a static destination is specified (i.e. not through a dynamic table
     // function) and there is no input data, WritePartition will generate an empty table. This
     // code is to test that path.
-    TableReference singletonReference = new TableReference()
-        .setProjectId("projectid")
-        .setDatasetId("dataset")
-        .setTableId("table");
-    String singletonDescription = "singleton";
     boolean isSingleton = numTables == 1 && numFilesPerTable == 0;
 
-    List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
+    List<ShardedKey<String>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
-      expectedPartitions.add(ShardedKey.of(
-          new TableDestination(singletonReference, singletonDescription), 1));
+      expectedPartitions.add(ShardedKey.<String>of(null, 1));
     } else {
       for (int i = 0; i < numTables; ++i) {
         for (int j = 1; j <= expectedNumPartitionsPerTable; ++j) {
           String tableName = String.format("project-id:dataset-id.tables%05d", i);
-          TableDestination destination = new TableDestination(tableName, tableName);
-          expectedPartitions.add(ShardedKey.of(destination, j));
+          expectedPartitions.add(ShardedKey.of(tableName, j));
         }
       }
     }
 
-    List<WriteBundlesToFiles.Result> files = Lists.newArrayList();
-    Map<TableDestination, List<String>> filenamesPerTable = Maps.newHashMap();
+    List<WriteBundlesToFiles.Result<String>> files = Lists.newArrayList();
+    Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.tables%05d", i);
-      TableDestination destination = new TableDestination(tableName, tableName);
-      List<String> filenames = filenamesPerTable.get(destination);
+      List<String> filenames = filenamesPerTable.get(tableName);
       if (filenames == null) {
         filenames = Lists.newArrayList();
-        filenamesPerTable.put(destination, filenames);
+        filenamesPerTable.put(tableName, filenames);
       }
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
-        files.add(new Result(fileName, fileSize, destination));
+        files.add(new Result<>(fileName, fileSize, tableName));
       }
     }
 
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("multiPartitionsTag") {};
-    TupleTag<KV<ShardedKey<TableDestination>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<ShardedKey<TableDestination>, List<String>>>("singlePartitionTag") {};
+    TupleTag<KV<ShardedKey<String>, List<String>>> multiPartitionsTag =
+        new TupleTag<KV<ShardedKey<String>, List<String>>>("multiPartitionsTag") {};
+    TupleTag<KV<ShardedKey<String>, List<String>>> singlePartitionTag =
+        new TupleTag<KV<ShardedKey<String>, List<String>>>("singlePartitionTag") {};
 
-    PCollection<WriteBundlesToFiles.Result> filesPCollection =
-        p.apply(Create.of(files).withType(new TypeDescriptor<WriteBundlesToFiles.Result>() {}));
-    PCollectionView<Iterable<WriteBundlesToFiles.Result>> resultsView =
-        PCollectionViews.iterableView(
-        filesPCollection,
-        WindowingStrategy.globalDefault(),
-        WriteBundlesToFiles.ResultCoder.of());
+    PCollectionView<Iterable<WriteBundlesToFiles.Result<String>>> resultsView =
+        p.apply(
+                Create.of(files)
+                    .withCoder(WriteBundlesToFiles.ResultCoder.of(StringUtf8Coder.of())))
+            .apply(View.<WriteBundlesToFiles.Result<String>>asIterable());
 
-    ValueProvider<String> singletonTable = null;
-    if (isSingleton) {
-      singletonTable = StaticValueProvider.of(BigQueryHelpers.toJsonString(singletonReference));
-    }
-    WritePartition writePartition =
-        new WritePartition(singletonTable,
-            "singleton", resultsView,
-            multiPartitionsTag, singlePartitionTag);
+    String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
+    PCollectionView<String> tempFilePrefixView =
+        p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
 
-    DoFnTester<String, KV<ShardedKey<TableDestination>, List<String>>> tester =
+    WritePartition<String> writePartition =
+        new WritePartition<>(
+            isSingleton, tempFilePrefixView, resultsView, multiPartitionsTag, singlePartitionTag);
+
+    DoFnTester<Void, KV<ShardedKey<String>, List<String>>> tester =
         DoFnTester.of(writePartition);
     tester.setSideInput(resultsView, GlobalWindow.INSTANCE, files);
-    tester.processElement(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    tester.setSideInput(tempFilePrefixView, GlobalWindow.INSTANCE, tempFilePrefix);
+    tester.processElement(null);
 
-    List<KV<ShardedKey<TableDestination>, List<String>>> partitions;
+    List<KV<ShardedKey<String>, List<String>>> partitions;
     if (expectedNumPartitionsPerTable > 1) {
       partitions = tester.takeOutputElements(multiPartitionsTag);
     } else {
@@ -1651,10 +1790,10 @@ public class BigQueryIOTest implements Serializable {
     }
 
 
-    List<ShardedKey<TableDestination>> partitionsResult = Lists.newArrayList();
-    Map<TableDestination, List<String>> filesPerTableResult = Maps.newHashMap();
-    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
-      TableDestination table = partition.getKey().getKey();
+    List<ShardedKey<String>> partitionsResult = Lists.newArrayList();
+    Map<String, List<String>> filesPerTableResult = Maps.newHashMap();
+    for (KV<ShardedKey<String>, List<String>> partition : partitions) {
+      String table = partition.getKey().getKey();
       partitionsResult.add(partition.getKey());
       List<String> tableFilesResult = filesPerTableResult.get(table);
       if (tableFilesResult == null) {
@@ -1678,6 +1817,23 @@ public class BigQueryIOTest implements Serializable {
     }
   }
 
+  static class IdentityDynamicTables extends DynamicDestinations<String, String> {
+    @Override
+    public String getDestination(ValueInSingleWindow<String> element) {
+      throw new UnsupportedOperationException("getDestination not expected in this test.");
+    }
+
+    @Override
+    public TableDestination getTable(String destination) {
+      return new TableDestination(destination, destination);
+    }
+
+    @Override
+    public TableSchema getSchema(String destination) {
+      throw new UnsupportedOperationException("getSchema not expected in this test.");
+    }
+  }
+
   @Test
   public void testWriteTables() throws Exception {
     p.enableAbandonedNodeEnforcement(false);
@@ -1691,12 +1847,12 @@ public class BigQueryIOTest implements Serializable {
     long numPartitions = 3;
     long numFilesPerPartition = 10;
     String jobIdToken = "jobIdToken";
-    String tempFilePrefix = "tempFilePrefix";
+    String stepUuid = "stepUuid";
     Map<TableDestination, List<String>> expectedTempTables = Maps.newHashMap();
 
     Path baseDir = Files.createTempDirectory(tempFolder, "testWriteTables");
 
-    List<KV<ShardedKey<TableDestination>, List<String>>> partitions = Lists.newArrayList();
+    List<KV<ShardedKey<String>, List<String>>> partitions = Lists.newArrayList();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.table%05d", i);
       TableDestination tableDestination = new TableDestination(tableName, tableName);
@@ -1706,7 +1862,9 @@ public class BigQueryIOTest implements Serializable {
         for (int k = 0; k < numFilesPerPartition; ++k) {
           String filename = Paths.get(baseDir.toString(),
               String.format("files0x%08x_%05d", tempTableId.hashCode(), k)).toString();
-          try (WritableByteChannel channel = IOChannelUtils.create(filename, MimeTypes.TEXT)) {
+          ResourceId fileResource =
+              FileSystems.matchNewResource(filename, false /* isDirectory */);
+          try (WritableByteChannel channel = FileSystems.create(fileResource, MimeTypes.TEXT)) {
             try (OutputStream output = Channels.newOutputStream(channel)) {
               TableRow tableRow = new TableRow().set("name", tableName);
               TableRowJsonCoder.of().encode(tableRow, output, Context.OUTER);
@@ -1715,7 +1873,7 @@ public class BigQueryIOTest implements Serializable {
           }
           filesPerPartition.add(filename);
         }
-        partitions.add(KV.of(ShardedKey.of(tableDestination, j),
+        partitions.add(KV.of(ShardedKey.of(tableDestination.getTableSpec(), j),
             filesPerPartition));
 
         List<String> expectedTables = expectedTempTables.get(tableDestination);
@@ -1730,23 +1888,30 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
-    PCollectionView<String> jobIdTokenView =
-        jobIdTokenCollection.apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView = p
+        .apply("CreateJobId", Create.of("jobId"))
+        .apply(View.<String>asSingleton());
 
-    WriteTables writeTables = new WriteTables(
-        false,
-        fakeBqServices,
-        jobIdTokenView,
-        tempFilePrefix,
-        WriteDisposition.WRITE_EMPTY,
-        CreateDisposition.CREATE_IF_NEEDED,
-        null);
+    PCollectionView<Map<String, String>> schemaMapView =
+        p.apply("CreateEmptySchema",
+            Create.empty(new TypeDescriptor<KV<String, String>>() {}))
+            .apply(View.<String, String>asMap());
+    WriteTables<String> writeTables =
+        new WriteTables<>(
+            false,
+            fakeBqServices,
+            jobIdTokenView,
+            schemaMapView,
+            WriteDisposition.WRITE_EMPTY,
+            CreateDisposition.CREATE_IF_NEEDED,
+            new IdentityDynamicTables());
 
-    DoFnTester<KV<ShardedKey<TableDestination>, List<String>>,
+    DoFnTester<KV<ShardedKey<String>, List<String>>,
         KV<TableDestination, String>> tester = DoFnTester.of(writeTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
-    for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
+    tester.setSideInput(schemaMapView, GlobalWindow.INSTANCE, ImmutableMap.<String, String>of());
+    tester.getPipelineOptions().setTempLocation("tempLocation");
+    for (KV<ShardedKey<String>, List<String>> partition : partitions) {
       tester.processElement(partition);
     }
 
@@ -1771,25 +1936,19 @@ public class BigQueryIOTest implements Serializable {
     int numFiles = 10;
     List<String> fileNames = Lists.newArrayList();
     String tempFilePrefix = bqOptions.getTempLocation() + "/";
-    TableRowWriter writer = new TableRowWriter(tempFilePrefix);
     for (int i = 0; i < numFiles; ++i) {
-      String fileName = String.format("files%05d", i);
-      writer.open(fileName);
-      fileNames.add(writer.close().resourceId.toString());
+      TableRowWriter writer = new TableRowWriter(tempFilePrefix);
+      writer.close();
+      fileNames.add(writer.getResult().resourceId.toString());
     }
     fileNames.add(tempFilePrefix + String.format("files%05d", numFiles));
 
     File tempDir = new File(bqOptions.getTempLocation());
     testNumFiles(tempDir, 10);
 
-    WriteTables.removeTemporaryFiles(bqOptions, tempFilePrefix, fileNames);
+    WriteTables.removeTemporaryFiles(fileNames);
 
     testNumFiles(tempDir, 0);
-
-    for (String fileName : fileNames) {
-      loggedWriteTables.verifyDebug("Removing file " + fileName);
-    }
-    loggedWriteTables.verifyDebug(fileNames.get(numFiles) + " does not exist.");
   }
 
   @Test
@@ -1860,9 +2019,9 @@ public class BigQueryIOTest implements Serializable {
         KvCoder.of(TableDestinationCoder.of(),
             StringUtf8Coder.of()));
 
-    PCollection<String> jobIdTokenCollection = p.apply("CreateJobId", Create.of("jobId"));
-    PCollectionView<String> jobIdTokenView =
-        jobIdTokenCollection.apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView = p
+        .apply("CreateJobId", Create.of("jobId"))
+        .apply(View.<String>asSingleton());
 
     WriteRename writeRename = new WriteRename(
         fakeBqServices,
@@ -1871,7 +2030,7 @@ public class BigQueryIOTest implements Serializable {
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
 
-    DoFnTester<String, Void> tester = DoFnTester.of(writeRename);
+    DoFnTester<Void, Void> tester = DoFnTester.of(writeRename);
     tester.setSideInput(tempTablesView, GlobalWindow.INSTANCE, tempTables);
     tester.setSideInput(jobIdTokenView, GlobalWindow.INSTANCE, jobIdToken);
     tester.processElement(null);

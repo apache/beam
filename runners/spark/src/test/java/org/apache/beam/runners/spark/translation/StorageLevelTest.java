@@ -15,30 +15,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.PipelineRule;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+
 
 /**
  * Test the RDD storage level defined by user.
  */
 public class StorageLevelTest {
 
+  private static String beamTestPipelineOptions;
+
   @Rule
-  public final transient PipelineRule pipelineRule = PipelineRule.batch();
+  public final TestPipeline pipeline = TestPipeline.create();
+
+  @BeforeClass
+  public static void init() {
+    beamTestPipelineOptions =
+        System.getProperty(TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+
+    System.setProperty(
+        TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS,
+        beamTestPipelineOptions.replace("]", ", \"--storageLevel=DISK_ONLY\"]"));
+  }
+
+  @AfterClass
+  public static void teardown() {
+    System.setProperty(
+        TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS,
+        beamTestPipelineOptions);
+  }
 
   @Test
   public void test() throws Exception {
-    pipelineRule.getOptions().setStorageLevel("DISK_ONLY");
-    Pipeline pipeline = pipelineRule.createPipeline();
-
     PCollection<String> pCollection = pipeline.apply(Create.of("foo"));
 
     // by default, the Spark runner doesn't cache the RDD if it accessed only one time.

@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,46 +33,34 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * which tables each element is written to, and format the element into a {@link TableRow} using the
  * user-supplied format function.
  */
-public class PrepareWrite<T>
-    extends PTransform<PCollection<T>, PCollection<KV<TableDestination, TableRow>>> {
-  private SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction;
+public class PrepareWrite<T, DestinationT>
+    extends PTransform<PCollection<T>, PCollection<KV<DestinationT, TableRow>>> {
+  private DynamicDestinations<T, DestinationT> dynamicDestinations;
   private SerializableFunction<T, TableRow> formatFunction;
 
   public PrepareWrite(
-      SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction,
+      DynamicDestinations<T, DestinationT> dynamicDestinations,
       SerializableFunction<T, TableRow> formatFunction) {
-    this.tableFunction = tableFunction;
+    this.dynamicDestinations = dynamicDestinations;
     this.formatFunction = formatFunction;
   }
 
   @Override
-  public PCollection<KV<TableDestination, TableRow>> expand(PCollection<T> input) {
+  public PCollection<KV<DestinationT, TableRow>> expand(PCollection<T> input) {
     return input.apply(
         ParDo.of(
-            new DoFn<T, KV<TableDestination, TableRow>>() {
+            new DoFn<T, KV<DestinationT, TableRow>>() {
               @ProcessElement
               public void processElement(ProcessContext context, BoundedWindow window)
                   throws IOException {
-                TableDestination tableDestination =
-                    tableSpecFromWindowedValue(
-                        context.getPipelineOptions().as(BigQueryOptions.class),
+                dynamicDestinations.setSideInputAccessorFromProcessContext(context);
+                DestinationT tableDestination =
+                    dynamicDestinations.getDestination(
                         ValueInSingleWindow.of(
                             context.element(), context.timestamp(), window, context.pane()));
                 TableRow tableRow = formatFunction.apply(context.element());
                 context.output(KV.of(tableDestination, tableRow));
               }
-            }));
-  }
-
-  private TableDestination tableSpecFromWindowedValue(
-      BigQueryOptions options, ValueInSingleWindow<T> value) {
-    TableDestination tableDestination = tableFunction.apply(value);
-    TableReference tableReference = tableDestination.getTableReference();
-    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-      tableReference.setProjectId(options.getProject());
-      tableDestination =
-          new TableDestination(tableReference, tableDestination.getTableDescription());
-    }
-    return tableDestination;
+            }).withSideInputs(dynamicDestinations.getSideInputs()));
   }
 }

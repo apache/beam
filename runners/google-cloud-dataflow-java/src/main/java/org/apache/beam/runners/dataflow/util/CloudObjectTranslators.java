@@ -38,14 +38,12 @@ import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.transforms.join.CoGbkResultSchema;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -94,7 +92,9 @@ class CloudObjectTranslators {
 
       @Override
       public KvCoder fromCloudObject(CloudObject object) {
-        return KvCoder.of(getComponents(object));
+        List<Coder<?>> components = getComponents(object);
+        checkArgument(components.size() == 2, "Expecting 2 components, got %s", components.size());
+        return KvCoder.of(components.get(0), components.get(1));
       }
 
       @Override
@@ -125,7 +125,9 @@ class CloudObjectTranslators {
 
       @Override
       public IterableCoder fromCloudObject(CloudObject object) {
-        return IterableCoder.of(getComponents(object));
+        List<Coder<?>> components = getComponents(object);
+        checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
+        return IterableCoder.of(components.get(0));
       }
 
       @Override
@@ -155,7 +157,9 @@ class CloudObjectTranslators {
 
       @Override
       public LengthPrefixCoder fromCloudObject(CloudObject object) {
-        return LengthPrefixCoder.of(getComponents(object));
+        List<Coder<?>> components = getComponents(object);
+        checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
+        return LengthPrefixCoder.of(components.get(0));
       }
 
       @Override
@@ -246,7 +250,12 @@ class CloudObjectTranslators {
 
       @Override
       public FullWindowedValueCoder fromCloudObject(CloudObject object) {
-        return FullWindowedValueCoder.of(getComponents(object));
+        List<Coder<?>> components = getComponents(object);
+        checkArgument(components.size() == 2,
+            "Expecting 2 components, got " + components.size());
+        @SuppressWarnings("unchecked")
+        Coder<? extends BoundedWindow> window = (Coder<? extends BoundedWindow>) components.get(1);
+        return FullWindowedValueCoder.of(components.get(0), window);
       }
 
       @Override

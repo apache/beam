@@ -22,10 +22,9 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -35,7 +34,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>When this code is used in a nested {@link Coder.Context}, the serialized {@link ByteString}
  * objects are first delimited by their size.
  */
-public class ByteStringCoder extends CustomCoder<ByteString> {
+public class ByteStringCoder extends AtomicCoder<ByteString> {
 
   public static ByteStringCoder of() {
     return INSTANCE;
@@ -48,6 +47,12 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
       new TypeDescriptor<ByteString>() {};
 
   private ByteStringCoder() {}
+
+  @Override
+  public void encode(ByteString value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
 
   @Override
   public void encode(ByteString value, OutputStream outStream, Context context)
@@ -64,6 +69,11 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   }
 
   @Override
+  public ByteString decode(InputStream inStream) throws IOException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public ByteString decode(InputStream inStream, Context context) throws IOException {
     if (context.isWholeStream) {
       return ByteString.readFrom(inStream);
@@ -77,12 +87,8 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
   }
 
   @Override
-  protected long getEncodedElementByteSize(ByteString value, Context context) throws Exception {
+  protected long getEncodedElementByteSize(ByteString value) throws Exception {
     int size = value.size();
-
-    if (context.isWholeStream) {
-      return size;
-    }
     return VarInt.getLength(size) + size;
   }
 
@@ -107,7 +113,7 @@ public class ByteStringCoder extends CustomCoder<ByteString> {
    * <p>Returns true. {@link ByteString#size} returns the size of an array and a {@link VarInt}.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {
+  public boolean isRegisterByteSizeObserverCheap(ByteString value) {
     return true;
   }
 

@@ -21,9 +21,10 @@ package org.apache.beam.sdk.runners;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -32,9 +33,12 @@ import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
  * provides mappings between original and replacement outputs.
  */
+@Internal
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformOverrideFactory<
     InputT extends PInput,

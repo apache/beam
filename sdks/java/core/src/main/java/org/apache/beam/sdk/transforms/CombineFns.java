@@ -35,7 +35,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -339,7 +339,7 @@ public class CombineFns {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
         Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
+            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFns.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -478,7 +478,7 @@ public class CombineFns {
       List<Coder<Object>> coders = Lists.newArrayList();
       for (int i = 0; i < combineFnCount; ++i) {
         Coder<Object> inputCoder =
-            registry.getDefaultOutputCoder(extractInputFns.get(i), dataCoder);
+            registry.getOutputCoder(extractInputFns.get(i), dataCoder);
         coders.add(combineFnWithContexts.get(i).getAccumulatorCoder(registry, inputCoder));
       }
       return new ComposedAccumulatorCoder(coders);
@@ -524,13 +524,19 @@ public class CombineFns {
     }
   }
 
-  private static class ComposedAccumulatorCoder extends CustomCoder<Object[]> {
+  private static class ComposedAccumulatorCoder extends StructuredCoder<Object[]> {
     private List<Coder<Object>> coders;
     private int codersCount;
 
     public ComposedAccumulatorCoder(List<Coder<Object>> coders) {
       this.coders = ImmutableList.copyOf(coders);
       this.codersCount  = coders.size();
+    }
+
+    @Override
+    public void encode(Object[] value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
     }
 
     @Override
@@ -541,11 +547,15 @@ public class CombineFns {
         return;
       }
       int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        coders.get(i).encode(value[i], outStream, nestedContext);
+        coders.get(i).encode(value[i], outStream);
       }
       coders.get(lastIndex).encode(value[lastIndex], outStream, context);
+    }
+
+    @Override
+    public Object[] decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -556,9 +566,8 @@ public class CombineFns {
         return ret;
       }
       int lastIndex = codersCount - 1;
-      Context nestedContext = context.nested();
       for (int i = 0; i < lastIndex; ++i) {
-        ret[i] = coders.get(i).decode(inStream, nestedContext);
+        ret[i] = coders.get(i).decode(inStream);
       }
       ret[lastIndex] = coders.get(lastIndex).decode(inStream, context);
       return ret;

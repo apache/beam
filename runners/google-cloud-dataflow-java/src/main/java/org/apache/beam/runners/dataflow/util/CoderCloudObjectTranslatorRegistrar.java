@@ -22,7 +22,6 @@ import com.google.auto.service.AutoService;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.CloudObject;
 
 /**
  * {@link Coder} authors have the ability to automatically have their {@link Coder} registered with

@@ -21,20 +21,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.nio.charset.Charset;
-
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.ValidationEventHandler;
-
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.OffsetBasedSource;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
@@ -102,7 +102,7 @@ public class XmlIO {
    *
    * <h3>Permissions</h3>
    *
-   * <p>Permission requirements depend on the {@link org.apache.beam.sdk.runners.PipelineRunner
+   * <p>Permission requirements depend on the {@link PipelineRunner
    * PipelineRunner} that is used to execute the Beam pipeline. Please refer to the documentation of
    * corresponding {@link PipelineRunner PipelineRunners} for more details.
    *
@@ -450,7 +450,7 @@ public class XmlIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    abstract String getFilenamePrefix();
+    abstract ValueProvider<ResourceId> getFilenamePrefix();
 
     @Nullable
     abstract Class<T> getRecordClass();
@@ -465,7 +465,7 @@ public class XmlIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setFilenamePrefix(String baseOutputFilename);
+      abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> prefix);
 
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
@@ -482,8 +482,9 @@ public class XmlIO {
      * <p>Output files will have the name {@literal {filenamePrefix}-0000i-of-0000n.xml} where n is
      * the number of output bundles.
      */
-    public Write<T> toFilenamePrefix(String filenamePrefix) {
-      return toBuilder().setFilenamePrefix(filenamePrefix).build();
+    public Write<T> to(String filenamePrefix) {
+      ResourceId resourceId = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
+      return toBuilder().setFilenamePrefix(StaticValueProvider.of(resourceId)).build();
     }
 
     /**

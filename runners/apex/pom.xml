@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>2.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,7 +33,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <apex.core.version>3.5.0</apex.core.version>
+    <apex.core.version>3.6.0</apex.core.version>
     <apex.malhar.version>3.4.0</apex.malhar.version>
     <skipIntegrationTests>true</skipIntegrationTests>
     <!-- memory limit for embedded cluster -->
@@ -61,6 +61,10 @@
       <groupId>org.apache.apex</groupId>
       <artifactId>malhar-library</artifactId>
       <version>${apex.malhar.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
     </dependency>
     <dependency>
        <groupId>com.fasterxml.jackson.core</groupId>
@@ -239,7 +243,7 @@
             </goals>
             <configuration>
               <ignoredUsedUndeclaredDependencies>
-                <ignoredUsedUndeclaredDependency>org.apache.apex:apex-api:jar:3.5.0</ignoredUsedUndeclaredDependency>
+                <ignoredUsedUndeclaredDependency>org.apache.apex:apex-api:jar:${apex.core.version}</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>org.apache.commons:commons-lang3::3.1</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>commons-io:commons-io:jar:2.4</ignoredUsedUndeclaredDependency>
                 <ignoredUsedUndeclaredDependency>com.esotericsoftware.kryo:kryo::${apex.kryo.version}</ignoredUsedUndeclaredDependency>

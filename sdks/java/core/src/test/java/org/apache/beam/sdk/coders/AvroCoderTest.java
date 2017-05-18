@@ -169,6 +169,11 @@ public class AvroCoderTest {
    * A classloader that intercepts loading of Pojo and makes a new one.
    */
   private static class InterceptingUrlClassLoader extends ClassLoader {
+
+    private InterceptingUrlClassLoader(ClassLoader parent) {
+      super(parent);
+    }
+
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
       if (name.equals(AvroCoderTestPojo.class.getName())) {
@@ -193,8 +198,10 @@ public class AvroCoderTest {
    */
   @Test
   public void testTwoClassLoaders() throws Exception {
-    ClassLoader loader1 = new InterceptingUrlClassLoader();
-    ClassLoader loader2 = new InterceptingUrlClassLoader();
+    ClassLoader loader1 =
+        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
+    ClassLoader loader2 =
+        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
 
     Class<?> pojoClass1 = loader1.loadClass(AvroCoderTestPojo.class.getName());
     Class<?> pojoClass2 = loader2.loadClass(AvroCoderTestPojo.class.getName());

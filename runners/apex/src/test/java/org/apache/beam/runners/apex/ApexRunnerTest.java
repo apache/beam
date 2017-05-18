@@ -18,15 +18,23 @@
 package org.apache.beam.runners.apex;
 
 import com.datatorrent.api.DAG;
+import com.datatorrent.api.DAG.Locality;
 import com.datatorrent.api.DAG.OperatorMeta;
 import com.datatorrent.stram.engine.OperatorContext;
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Properties;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,16 +49,13 @@ public class ApexRunnerTest {
     String operName = "testProperties";
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
-    options.setRunner(ApexRunner.class);
 
     // default configuration from class path
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create();
     Create.Values<Void> empty = Create.empty(VoidCoder.of());
     p.apply(operName, empty);
-    ApexRunnerResult result = (ApexRunnerResult) p.run();
-    result.cancel();
 
-    DAG dag = result.getApexDAG();
+    DAG dag = TestApexRunner.translate(p, options);
     OperatorMeta t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
     Assert.assertEquals(new Integer(32), t1Meta.getValue(OperatorContext.MEMORY_MB));
@@ -58,19 +63,45 @@ public class ApexRunnerTest {
     File tmp = File.createTempFile("beam-runners-apex-", ".properties");
     tmp.deleteOnExit();
     Properties props = new Properties();
-    props.setProperty("dt.operator." + operName + ".attr.MEMORY_MB", "64");
+    props.setProperty("apex.operator." + operName + ".attr.MEMORY_MB", "64");
     try (FileOutputStream fos = new FileOutputStream(tmp)) {
       props.store(fos, "");
     }
     options.setConfigFile(tmp.getAbsolutePath());
-    result = (ApexRunnerResult) p.run();
-    result.cancel();
+    dag = TestApexRunner.translate(p, options);
     tmp.delete();
-    dag = result.getApexDAG();
+
     t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
     Assert.assertEquals(new Integer(64), t1Meta.getValue(OperatorContext.MEMORY_MB));
 
+  }
+
+  @Test
+  public void testParDoChaining() throws Exception {
+    Pipeline p = Pipeline.create();
+    long numElements = 1000;
+    PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
+    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(numElements);
+
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    DAG dag = TestApexRunner.translate(p, options);
+
+    String[] expectedThreadLocal = { "/CreateActual/FilterActuals/Window.Assign" };
+    Set<String> actualThreadLocal = Sets.newHashSet();
+    for (DAG.StreamMeta sm : dag.getAllStreamsMeta()) {
+      DAG.OutputPortMeta opm = sm.getSource();
+      if (sm.getLocality() == Locality.THREAD_LOCAL) {
+         String name = opm.getOperatorMeta().getName();
+         String prefix = "PAssert$";
+         if (name.startsWith(prefix)) {
+           // remove indeterministic prefix
+           name = name.substring(prefix.length() + 1);
+         }
+         actualThreadLocal.add(name);
+      }
+    }
+    Assert.assertThat(actualThreadLocal, Matchers.hasItems(expectedThreadLocal));
   }
 
 }

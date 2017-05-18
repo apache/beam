@@ -51,7 +51,7 @@ import org.joda.time.Instant;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using a selected runner; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns;
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
@@ -161,12 +161,15 @@ public class WindowedWordCount {
     @Default.InstanceFactory(DefaultToMinTimestampPlusOneHour.class)
     Long getMaxTimestampMillis();
     void setMaxTimestampMillis(Long value);
+
+    @Description("Fixed number of shards to produce per window, or null for runner-chosen sharding")
+    Integer getNumShards();
+    void setNumShards(Integer numShards);
   }
 
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     final String output = options.getOutput();
-    final Duration windowSize = Duration.standardMinutes(options.getWindowSize());
     final Instant minTimestamp = new Instant(options.getMinTimestampMillis());
     final Instant maxTimestamp = new Instant(options.getMaxTimestampMillis());
 
@@ -207,7 +210,7 @@ public class WindowedWordCount {
      */
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-        .apply(new WriteOneFilePerWindow(output));
+        .apply(new WriteOneFilePerWindow(output, options.getNumShards()));
 
     PipelineResult result = pipeline.run();
     try {

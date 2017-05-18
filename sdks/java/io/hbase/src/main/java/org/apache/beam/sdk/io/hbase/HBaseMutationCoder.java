@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
@@ -34,7 +34,7 @@ import org.apache.hadoop.hbase.protobuf.generated.ClientProtos.MutationProto.Mut
  * A {@link Coder} that serializes and deserializes the {@link Mutation} objects using {@link
  * ProtobufUtil}.
  */
-class HBaseMutationCoder extends CustomCoder<Mutation> implements Serializable {
+class HBaseMutationCoder extends AtomicCoder<Mutation> implements Serializable {
   private static final HBaseMutationCoder INSTANCE = new HBaseMutationCoder();
 
   private HBaseMutationCoder() {}
@@ -44,16 +44,14 @@ class HBaseMutationCoder extends CustomCoder<Mutation> implements Serializable {
   }
 
   @Override
-  public void encode(Mutation mutation, OutputStream outStream,
-                     Coder.Context context) throws IOException {
+  public void encode(Mutation mutation, OutputStream outStream) throws IOException {
     MutationType type = getType(mutation);
     MutationProto proto = ProtobufUtil.toMutation(type, mutation);
     proto.writeDelimitedTo(outStream);
   }
 
   @Override
-  public Mutation decode(InputStream inStream,
-                         Coder.Context context) throws IOException {
+  public Mutation decode(InputStream inStream) throws IOException {
     return ProtobufUtil.toMutation(MutationProto.parseDelimitedFrom(inStream));
   }
 

@@ -17,6 +17,8 @@
 
 """Pickler for values, functions, and classes.
 
+For internal use only. No backwards compatibility guarantees.
+
 Pickles created by the pickling library contain non-ASCII characters, so
 we base64-encode the results so that we can put them in a JSON objects.
 The pickler is used to embed FlatMap callable objects into the workflow JSON
@@ -36,25 +38,25 @@ import zlib
 import dill
 
 
-def is_nested_class(cls):
+def _is_nested_class(cls):
   """Returns true if argument is a class object that appears to be nested."""
   return (isinstance(cls, type)
           and cls.__module__ != '__builtin__'
           and cls.__name__ not in sys.modules[cls.__module__].__dict__)
 
 
-def find_containing_class(nested_class):
+def _find_containing_class(nested_class):
   """Finds containing class of a nestec class passed as argument."""
 
-  def find_containing_class_inner(outer):
+  def _find_containing_class_inner(outer):
     for k, v in outer.__dict__.items():
       if v is nested_class:
         return outer, k
       elif isinstance(v, (type, types.ClassType)) and hasattr(v, '__dict__'):
-        res = find_containing_class_inner(v)
+        res = _find_containing_class_inner(v)
         if res: return res
 
-  return find_containing_class_inner(sys.modules[nested_class.__module__])
+  return _find_containing_class_inner(sys.modules[nested_class.__module__])
 
 
 def _nested_type_wrapper(fun):
@@ -76,8 +78,8 @@ def _nested_type_wrapper(fun):
     # do anything special because the pickler itself will save the constituent
     # parts of the type (i.e., name, base classes, dictionary) and then
     # recreate it during unpickling.
-    if is_nested_class(obj) and obj.__module__ != '__main__':
-      containing_class_and_name = find_containing_class(obj)
+    if _is_nested_class(obj) and obj.__module__ != '__main__':
+      containing_class_and_name = _find_containing_class(obj)
       if containing_class_and_name is not None:
         return pickler.save_reduce(
             getattr, containing_class_and_name, obj=obj)
@@ -108,11 +110,11 @@ dill.dill.Pickler.dispatch[type] = _nested_type_wrapper(
 # Dill pickles generators objects without complaint, but unpickling produces
 # TypeError: object.__new__(generator) is not safe, use generator.__new__()
 # on some versions of Python.
-def reject_generators(unused_pickler, unused_obj):
+def _reject_generators(unused_pickler, unused_obj):
   raise TypeError("can't (safely) pickle generator objects")
 
 
-dill.dill.Pickler.dispatch[types.GeneratorType] = reject_generators
+dill.dill.Pickler.dispatch[types.GeneratorType] = _reject_generators
 
 
 # This if guards against dill not being full initialized when generating docs.
@@ -185,6 +187,8 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # pickler.loads() being used for data, which results in an unnecessary base64
 # encoding.  This should be cleaned up.
 def dumps(o, enable_trace=True):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   try:
     s = dill.dumps(o)
   except Exception:      # pylint: disable=broad-except
@@ -206,6 +210,8 @@ def dumps(o, enable_trace=True):
 
 
 def loads(encoded, enable_trace=True):
+  """For internal use only; no backwards-compatibility guarantees."""
+
   c = base64.b64decode(encoded)
 
   s = zlib.decompress(c)
@@ -224,7 +230,9 @@ def loads(encoded, enable_trace=True):
 
 
 def dump_session(file_path):
-  """Pickle the current python session to be used in the worker.
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Pickle the current python session to be used in the worker.
 
   Note: Due to the inconsistency in the first dump of dill dump_session we
   create and load the dump twice to have consistent results in the worker and

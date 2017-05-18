@@ -16,8 +16,11 @@
  * limitations under the License.
  */
 /**
- * Defines reflection-based utilities for analyzing {@link org.apache.beam.sdk.transforms.DoFn}'s
+ * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+ *
+ * <p>Defines reflection-based utilities for analyzing {@link org.apache.beam.sdk.transforms.DoFn}'s
  * and creating {@link org.apache.beam.sdk.transforms.reflect.DoFnSignature}'s and
  * {@link org.apache.beam.sdk.transforms.reflect.DoFnInvoker}'s from them.
  */
 package org.apache.beam.sdk.transforms.reflect;
+

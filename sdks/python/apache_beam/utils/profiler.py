@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""A profiler context manager based on cProfile.Profile objects."""
+"""A profiler context manager based on cProfile.Profile objects.
+
+For internal use only; no backwards-compatibility guarantees.
+"""
 
 import cProfile
 import logging

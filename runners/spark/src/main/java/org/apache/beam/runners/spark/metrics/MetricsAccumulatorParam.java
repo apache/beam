@@ -18,25 +18,31 @@
 
 package org.apache.beam.runners.spark.metrics;
 
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.spark.AccumulatorParam;
 
 
 /**
  * Metrics accumulator param.
  */
-class MetricsAccumulatorParam implements AccumulatorParam<SparkMetricsContainer> {
+class MetricsAccumulatorParam implements AccumulatorParam<MetricsContainerStepMap> {
   @Override
-  public SparkMetricsContainer addAccumulator(SparkMetricsContainer c1, SparkMetricsContainer c2) {
-    return c1.update(c2);
+  public MetricsContainerStepMap addAccumulator(
+      MetricsContainerStepMap c1,
+      MetricsContainerStepMap c2) {
+    return addInPlace(c1, c2);
   }
 
   @Override
-  public SparkMetricsContainer addInPlace(SparkMetricsContainer c1, SparkMetricsContainer c2) {
-    return c1.update(c2);
+  public MetricsContainerStepMap addInPlace(
+      MetricsContainerStepMap c1,
+      MetricsContainerStepMap c2) {
+    c1.updateAll(c2);
+    return c1;
   }
 
   @Override
-  public SparkMetricsContainer zero(SparkMetricsContainer initialValue) {
-    return new SparkMetricsContainer();
+  public MetricsContainerStepMap zero(MetricsContainerStepMap initialValue) {
+    return new MetricsContainerStepMap();
   }
 }

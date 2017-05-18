@@ -33,8 +33,8 @@ import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -135,7 +135,7 @@ public class TrackStreamingSourcesTest {
         Pipeline pipeline,
         Class<? extends PTransform> transformClassToAssert,
         Integer... expected) {
-      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, jssc);
+      this.ctxt = new EvaluationContext(jssc.sparkContext(), pipeline, options, jssc);
       this.evaluator = new SparkRunner.Evaluator(
           new StreamingTransformTranslator.Translator(new TransformTranslator.Translator()), ctxt);
       this.transformClassToAssert = transformClassToAssert;

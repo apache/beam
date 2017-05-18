@@ -72,7 +72,7 @@ public class AfterEach extends Trigger {
   }
 
   @Override
-  public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
+  protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return Repeatedly.forever(new AfterFirst(continuationTriggers));
   }
 

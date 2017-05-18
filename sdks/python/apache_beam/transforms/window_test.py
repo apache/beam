@@ -20,7 +20,8 @@
 import unittest
 
 from apache_beam.runners import pipeline_context
-from apache_beam.test_pipeline import TestPipeline
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -29,21 +30,20 @@ from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
-from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms.window import OutputTimeFn
+from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import Sessions
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 
 def context(element, timestamp):
@@ -271,7 +271,7 @@ class RunnerApiTest(unittest.TestCase):
         Windowing(FixedWindows(1, 3), AfterCount(6),
                   accumulation_mode=AccumulationMode.ACCUMULATING),
         Windowing(SlidingWindows(10, 15, 21), AfterCount(28),
-                  output_time_fn=OutputTimeFn.OUTPUT_AT_LATEST,
+                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_LATEST,
                   accumulation_mode=AccumulationMode.DISCARDING)):
       context = pipeline_context.PipelineContext()
       self.assertEqual(

@@ -22,18 +22,21 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
+import com.google.common.collect.Maps;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
+import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
+import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
+import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -48,6 +51,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -63,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * finalization of the write. The output of a write is {@link PDone}.
  *
  * <p>By default, every bundle in the input {@link PCollection} will be processed by a
- * {@link org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation}, so the number of output
+ * {@link WriteOperation}, so the number of output
  * will vary based on runner behavior, though at least 1 output will always be produced. The
  * exact parallelism of the write stage can be controlled using {@link WriteFiles#withNumShards},
  * typically used to control how many files are produced or to globally limit the number of
@@ -82,11 +86,9 @@ import org.slf4j.LoggerFactory;
 public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
 
-  private static final int UNKNOWN_SHARDNUM = -1;
-  private static final int UNKNOWN_NUMSHARDS = -1;
-
+  static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<T> sink;
-  private FileBasedWriteOperation<T> writeOperation;
+  private WriteOperation<T> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
   @Nullable
@@ -119,9 +121,18 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
   @Override
   public PDone expand(PCollection<T> input) {
-    checkArgument(IsBounded.BOUNDED == input.isBounded() || windowedWrites,
-        "%s can only be applied to an unbounded PCollection if doing windowed writes",
-        WriteFiles.class.getSimpleName());
+    if (input.isBounded() == IsBounded.UNBOUNDED) {
+      checkArgument(windowedWrites,
+          "Must use windowed writes when applying %s to an unbounded PCollection",
+          WriteFiles.class.getSimpleName());
+      // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
+      // and similar behavior in other runners.
+      checkArgument(
+          computeNumShards != null || numShardsProvider != null,
+          "When applying %s to an unbounded PCollection, "
+              + "must specify number of output shards explicitly",
+          WriteFiles.class.getSimpleName());
+    }
     this.writeOperation = sink.createWriteOperation();
     this.writeOperation.setWindowedWrites(windowedWrites);
     return createWrite(input);
@@ -238,58 +249,49 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   /**
-   * Writes all the elements in a bundle using a {@link FileBasedWriter} produced by the
-   * {@link FileBasedSink.FileBasedWriteOperation} associated with the {@link FileBasedSink}.
+   * Writes all the elements in a bundle using a {@link Writer} produced by the
+   * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes enabled.
    */
-  private class WriteBundles extends DoFn<T, FileResult> {
-    // Writer that will write the records in this bundle. Lazily
-    // initialized in processElement.
-    private FileBasedWriter<T> writer = null;
+  private class WriteWindowedBundles extends DoFn<T, FileResult> {
+    private Map<KV<BoundedWindow, PaneInfo>, Writer<T>> windowedWriters;
 
-    WriteBundles() {
+    @StartBundle
+    public void startBundle(StartBundleContext c) {
+      // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
+      windowedWriters = Maps.newHashMap();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      // Lazily initialize the Writer
+      PaneInfo paneInfo = c.pane();
+      Writer<T> writer;
+      // If we are doing windowed writes, we need to ensure that we have separate files for
+      // data in different windows/panes.
+      KV<BoundedWindow, PaneInfo> key = KV.of(window, paneInfo);
+      writer = windowedWriters.get(key);
       if (writer == null) {
-        LOG.info("Opening writer for write operation {}", writeOperation);
-        writer = writeOperation.createWriter(c.getPipelineOptions());
+        String uuid = UUID.randomUUID().toString();
+        LOG.info(
+            "Opening writer {} for write operation {}, window {} pane {}",
+            uuid,
+            writeOperation,
+            window,
+            paneInfo);
+        writer = writeOperation.createWriter();
+        writer.openWindowed(uuid, window, paneInfo, UNKNOWN_SHARDNUM);
+        windowedWriters.put(key, writer);
+        LOG.debug("Done opening writer");
+      }
 
-        if (windowedWrites) {
-          writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), UNKNOWN_SHARDNUM,
-              UNKNOWN_NUMSHARDS);
-        } else {
-          writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
-        }
-        LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
-      }
-      try {
-        writer.write(c.element());
-      } catch (Exception e) {
-        // Discard write result and close the write.
-        try {
-          writer.close();
-          // The writer does not need to be reset, as this DoFn cannot be reused.
-        } catch (Exception closeException) {
-          if (closeException instanceof InterruptedException) {
-            // Do not silently ignore interrupted state.
-            Thread.currentThread().interrupt();
-          }
-          // Do not mask the exception that caused the write to fail.
-          e.addSuppressed(closeException);
-        }
-        throw e;
-      }
+      writeOrClose(writer, c.element());
     }
 
     @FinishBundle
-    public void finishBundle(Context c) throws Exception {
-      if (writer != null) {
-        FileResult result = writer.close();
-        c.output(result);
-        // Reset state in case of reuse.
-        writer = null;
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      for (Map.Entry<KV<BoundedWindow, PaneInfo>, Writer<T>> entry : windowedWriters.entrySet()) {
+        FileResult result = entry.getValue().close();
+        BoundedWindow window = entry.getKey().getKey();
+        c.output(result, window.maxTimestamp(), window);
       }
     }
 
@@ -300,50 +302,70 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   /**
-   * Like {@link WriteBundles}, but where the elements for each shard have been collected into
-   * a single iterable.
-   *
-   * @see WriteBundles
+   * Writes all the elements in a bundle using a {@link Writer} produced by the
+   * {@link WriteOperation} associated with the {@link FileBasedSink} with windowed writes disabled.
    */
-  private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
-    private final PCollectionView<Integer> numShardsView;
+  private class WriteUnwindowedBundles extends DoFn<T, FileResult> {
+    // Writer that will write the records in this bundle. Lazily
+    // initialized in processElement.
+    private Writer<T> writer = null;
+    private BoundedWindow window = null;
 
-    WriteShardedBundles(PCollectionView<Integer> numShardsView) {
-      this.numShardsView = numShardsView;
+    @StartBundle
+    public void startBundle(StartBundleContext c) {
+      // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
+      writer = null;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      int numShards = numShardsView != null ? c.sideInput(numShardsView) : getNumShards().get();
+      // Cache a single writer for the bundle.
+      if (writer == null) {
+        LOG.info("Opening writer for write operation {}", writeOperation);
+        writer = writeOperation.createWriter();
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
+        LOG.debug("Done opening writer");
+      }
+      this.window = window;
+      writeOrClose(this.writer, c.element());
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) throws Exception {
+      if (writer == null) {
+        return;
+      }
+      FileResult result = writer.close();
+      c.output(result, window.maxTimestamp(), window);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.delegate(WriteFiles.this);
+    }
+  }
+
+  /**
+   * Like {@link WriteWindowedBundles} and {@link WriteUnwindowedBundles}, but where the elements
+   * for each shard have been collected into a single iterable.
+   */
+  private class WriteShardedBundles extends DoFn<KV<Integer, Iterable<T>>, FileResult> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       // In a sharded write, single input element represents one shard. We can open and close
       // the writer in each call to processElement.
       LOG.info("Opening writer for write operation {}", writeOperation);
-      FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
+      Writer<T> writer = writeOperation.createWriter();
       if (windowedWrites) {
-        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey(),
-            numShards);
+        writer.openWindowed(UUID.randomUUID().toString(), window, c.pane(), c.element().getKey());
       } else {
-        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM, UNKNOWN_NUMSHARDS);
+        writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
       }
-      LOG.debug("Done opening writer {} for operation {}", writer, writeOperation);
+      LOG.debug("Done opening writer");
 
       try {
-        try {
-          for (T t : c.element().getValue()) {
-            writer.write(t);
-          }
-        } catch (Exception e) {
-          try {
-            writer.close();
-          } catch (Exception closeException) {
-            if (closeException instanceof InterruptedException) {
-              // Do not silently ignore interrupted state.
-              Thread.currentThread().interrupt();
-            }
-            // Do not mask the exception that caused the write to fail.
-            e.addSuppressed(closeException);
-          }
-          throw e;
+        for (T t : c.element().getValue()) {
+          writeOrClose(writer, t);
         }
 
         // Close the writer; if this throws let the error propagate.
@@ -362,6 +384,24 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
     }
   }
 
+  private static <T> void writeOrClose(Writer<T> writer, T t) throws Exception {
+    try {
+      writer.write(t);
+    } catch (Exception e) {
+      try {
+        writer.close();
+      } catch (Exception closeException) {
+        if (closeException instanceof InterruptedException) {
+          // Do not silently ignore interrupted state.
+          Thread.currentThread().interrupt();
+        }
+        // Do not mask the exception that caused the write to fail.
+        e.addSuppressed(closeException);
+      }
+      throw e;
+    }
+  }
+
   private static class ApplyShardingKey<T> extends DoFn<T, KV<Integer, T>> {
     private final PCollectionView<Integer> numShardsView;
     private final ValueProvider<Integer> numShardsProvider;
@@ -376,7 +416,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      int shardCount = 0;
+      final int shardCount;
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
       } else {
@@ -402,29 +442,29 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
   /**
    * A write is performed as sequence of three {@link ParDo}'s.
    *
-   * <p>This singleton collection containing the FileBasedWriteOperation is then used as a side
+   * <p>This singleton collection containing the WriteOperation is then used as a side
    * input to a ParDo over the PCollection of elements to write. In this bundle-writing phase,
-   * {@link FileBasedWriteOperation#createWriter} is called to obtain a {@link FileBasedWriter}.
-   * {@link FileBasedWriter#open} and {@link FileBasedWriter#close} are called in
+   * {@link WriteOperation#createWriter} is called to obtain a {@link Writer}.
+   * {@link Writer#open} and {@link Writer#close} are called in
    * {@link DoFn.StartBundle} and {@link DoFn.FinishBundle}, respectively, and
-   * {@link FileBasedWriter#write} method is called for every element in the bundle. The output
+   * {@link Writer#write} method is called for every element in the bundle. The output
    * of this ParDo is a PCollection of <i>writer result</i> objects (see {@link FileBasedSink}
    * for a description of writer results)-one for each bundle.
    *
    * <p>The final do-once ParDo uses a singleton collection asinput and the collection of writer
-   * results as a side-input. In this ParDo, {@link FileBasedWriteOperation#finalize} is called
+   * results as a side-input. In this ParDo, {@link WriteOperation#finalize} is called
    * to finalize the write.
    *
-   * <p>If the write of any element in the PCollection fails, {@link FileBasedWriter#close} will be
+   * <p>If the write of any element in the PCollection fails, {@link Writer#close} will be
    * called before the exception that caused the write to fail is propagated and the write result
    * will be discarded.
    *
-   * <p>Since the {@link FileBasedWriteOperation} is serialized after the initialization ParDo and
+   * <p>Since the {@link WriteOperation} is serialized after the initialization ParDo and
    * deserialized in the bundle-writing and finalization phases, any state change to the
-   * FileBasedWriteOperation object that occurs during initialization is visible in the latter
-   * phases. However, the FileBasedWriteOperation is not serialized after the bundle-writing
+   * WriteOperation object that occurs during initialization is visible in the latter
+   * phases. However, the WriteOperation is not serialized after the bundle-writing
    * phase. This is why implementations should guarantee that
-   * {@link FileBasedWriteOperation#createWriter} does not mutate FileBasedWriteOperation).
+   * {@link WriteOperation#createWriter} does not mutate WriteOperation).
    */
   private PDone createWrite(PCollection<T> input) {
     Pipeline p = input.getPipeline();
@@ -440,41 +480,42 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
 
     // Perform the per-bundle writes as a ParDo on the input PCollection (with the
-    // FileBasedWriteOperation as a side input) and collect the results of the writes in a
+    // WriteOperation as a side input) and collect the results of the writes in a
     // PCollection. There is a dependency between this ParDo and the first (the
-    // FileBasedWriteOperation PCollection as a side input), so this will happen after the
+    // WriteOperation PCollection as a side input), so this will happen after the
     // initial ParDo.
     PCollection<FileResult> results;
     final PCollectionView<Integer> numShardsView;
+    Coder<BoundedWindow> shardedWindowCoder =
+        (Coder<BoundedWindow>) input.getWindowingStrategy().getWindowFn().windowCoder();
     if (computeNumShards == null && numShardsProvider == null) {
-      if (windowedWrites) {
-        throw new IllegalStateException("When doing windowed writes, numShards must be set"
-            + "explicitly to a positive value");
-      }
       numShardsView = null;
-      results = input
-          .apply("WriteBundles",
-              ParDo.of(new WriteBundles()));
+      results =
+          input.apply(
+              "WriteBundles",
+              ParDo.of(windowedWrites ? new WriteWindowedBundles() : new WriteUnwindowedBundles()));
     } else {
+      List<PCollectionView<?>> sideInputs = Lists.newArrayList();
       if (computeNumShards != null) {
         numShardsView = input.apply(computeNumShards);
-        results  = input
-            .apply("ApplyShardLabel", ParDo.of(
-                new ApplyShardingKey<T>(numShardsView, null)).withSideInputs(numShardsView))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(numShardsView))
-                    .withSideInputs(numShardsView));
+        sideInputs.add(numShardsView);
       } else {
         numShardsView = null;
-        results = input
-            .apply("ApplyShardLabel", ParDo.of(new ApplyShardingKey<T>(null, numShardsProvider)))
-            .apply("GroupIntoShards", GroupByKey.<Integer, T>create())
-            .apply("WriteShardedBundles",
-                ParDo.of(new WriteShardedBundles(null)));
       }
+
+      PCollection<KV<Integer, Iterable<T>>> sharded =
+          input
+              .apply("ApplyShardLabel", ParDo.of(
+                  new ApplyShardingKey<T>(numShardsView,
+                      (numShardsView != null) ? null : numShardsProvider))
+                  .withSideInputs(sideInputs))
+              .apply("GroupIntoShards", GroupByKey.<Integer, T>create());
+      shardedWindowCoder =
+          (Coder<BoundedWindow>) sharded.getWindowingStrategy().getWindowFn().windowCoder();
+
+      results = sharded.apply("WriteShardedBundles", ParDo.of(new WriteShardedBundles()));
     }
-    results.setCoder(writeOperation.getFileResultCoder());
+    results.setCoder(FileResultCoder.of(shardedWindowCoder));
 
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
@@ -484,7 +525,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
       // whenever new data arrives.
       PCollection<KV<Void, FileResult>> keyedResults =
           results.apply("AttachSingletonKey", WithKeys.<Void, FileResult>of((Void) null));
-      keyedResults.setCoder(KvCoder.of(VoidCoder.of(), writeOperation.getFileResultCoder()));
+      keyedResults.setCoder(KvCoder.of(VoidCoder.of(),
+          FileResultCoder.of(shardedWindowCoder)));
 
       // Is the continuation trigger sufficient?
       keyedResults
@@ -494,8 +536,8 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
             public void processElement(ProcessContext c) throws Exception {
               LOG.info("Finalizing write operation {}.", writeOperation);
               List<FileResult> results = Lists.newArrayList(c.element().getValue());
-              writeOperation.finalize(results, c.getPipelineOptions());
-              LOG.debug("Done finalizing write operation {}", writeOperation);
+              writeOperation.finalize(results);
+              LOG.debug("Done finalizing write operation");
             }
           }));
     } else {
@@ -509,7 +551,7 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
 
       // Finalize the write in another do-once ParDo on the singleton collection containing the
       // Writer. The results from the per-bundle writes are given as an Iterable side input.
-      // The FileBasedWriteOperation's state is the same as after its initialization in the first
+      // The WriteOperation's state is the same as after its initialization in the first
       // do-once ParDo. There is a dependency between this ParDo and the parallel write (the writer
       // results collection as a side input), so it will happen after the parallel write.
       // For the non-windowed case, we guarantee that  if no data is written but the user has
@@ -540,15 +582,14 @@ public class WriteFiles<T> extends PTransform<PCollection<T>, PDone> {
                     "Creating {} empty output shards in addition to {} written for a total of {}.",
                     extraShardsNeeded, results.size(), minShardsNeeded);
                 for (int i = 0; i < extraShardsNeeded; ++i) {
-                  FileBasedWriter<T> writer = writeOperation.createWriter(c.getPipelineOptions());
-                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM,
-                      UNKNOWN_NUMSHARDS);
+                  Writer<T> writer = writeOperation.createWriter();
+                  writer.openUnwindowed(UUID.randomUUID().toString(), UNKNOWN_SHARDNUM);
                   FileResult emptyWrite = writer.close();
                   results.add(emptyWrite);
                 }
                 LOG.debug("Done creating extra shards.");
               }
-              writeOperation.finalize(results, c.getPipelineOptions());
+              writeOperation.finalize(results);
               LOG.debug("Done finalizing write operation {}", writeOperation);
             }
           }).withSideInputs(sideInputs.build()));

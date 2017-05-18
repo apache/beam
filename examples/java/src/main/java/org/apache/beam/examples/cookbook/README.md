@@ -67,5 +67,5 @@ larger Apache Beam pipeline. They include:
   </ul>
 
 See the [documentation](http://beam.apache.org/get-started/quickstart/) and the [Examples
-README](../../../../../../../../../README.md) for
+README](../../../../../../../../README.md) for
 information about how to run these examples.

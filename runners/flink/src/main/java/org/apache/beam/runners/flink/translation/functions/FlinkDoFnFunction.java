@@ -30,9 +30,9 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -105,7 +105,6 @@ public class FlinkDoFnFunction<InputT, OutputT>
         // see SimpleDoFnRunner, just use it to limit number of additional outputs
         Collections.<TupleTag<?>>emptyList(),
         new FlinkNoOpStepContext(),
-        null,
         windowingStrategy);
 
     if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))

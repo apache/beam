@@ -14,3 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+"""The DataflowRunner executes pipelines on Google Cloud Dataflow.
+
+Anything in this package not imported here is an internal implementation detail
+with no backwards-compatibility guarantees.
+"""
+
+from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner

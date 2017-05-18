@@ -17,18 +17,25 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link CoderProvider} may create a {@link Coder} for
- * any concrete class.
+ * A {@link CoderProvider} provides {@link Coder}s.
+ *
+ * <p>It may operate on a parameterized type, such as {@link List}, in which case the
+ * {@link #coderFor} method accepts a list of coders to use for the type parameters.
  */
-public interface CoderProvider {
+public abstract class CoderProvider {
 
   /**
-   * Provides a coder for a given class, if possible.
+   * Returns a {@code Coder<T>} to use for values of a particular type, given the Coders for each of
+   * the type's generic parameter types.
    *
-   * @throws CannotProvideCoderException if no coder can be provided
+   * <p>Throws {@link CannotProvideCoderException} if this {@link CoderProvider} cannot provide
+   * a coder for this type and components.
    */
-  <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException;
+  public abstract <T> Coder<T> coderFor(
+      TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)
+      throws CannotProvideCoderException;
 }

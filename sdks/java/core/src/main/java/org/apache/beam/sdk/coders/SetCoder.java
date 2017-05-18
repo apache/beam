@@ -17,14 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
@@ -44,17 +39,6 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   }
 
   /**
-   * Dynamically typed constructor for JSON deserialization.
-   */
-  @JsonCreator
-  public static SetCoder<?> of(
-      @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Coder<?>> components) {
-    checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of(components.get(0));
-  }
-
-  /**
    * {@inheritDoc}
    *
    * @throws NonDeterministicException always. Sets are not ordered, but
@@ -70,15 +54,6 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   public TypeDescriptor<Set<T>> getEncodedTypeDescriptor() {
     return new TypeDescriptor<Set<T>>() {}.where(
         new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
-  }
-
-  /**
-   * Returns the first element in this set if it is non-empty,
-   * otherwise returns {@code null}.
-   */
-  public static <T> List<Object> getInstanceComponents(
-      Set<T> exampleValue) {
-    return getInstanceComponentsHelper(exampleValue);
   }
 
   /////////////////////////////////////////////////////////////////////////////

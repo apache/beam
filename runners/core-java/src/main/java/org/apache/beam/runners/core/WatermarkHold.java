@@ -22,14 +22,14 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -365,8 +365,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       ReduceFn<?, ?, ?, W>.Context context, boolean paneIsEmpty) {
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Instant eow = context.window().maxTimestamp();
-    Instant gcHold = eow.plus(windowingStrategy.getAllowedLateness());
+    Instant gcHold = LateDataUtils.garbageCollectionTime(context.window(), windowingStrategy);
 
     if (!windowingStrategy.getAllowedLateness().isLongerThan(Duration.ZERO)) {
       WindowTracing.trace(
@@ -387,6 +386,12 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       return null;
     }
 
+    if (!gcHold.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      // If the garbage collection hold is past the timestamp we can represent, instead truncate
+      // to the maximum timestamp that is not positive infinity. This ensures all windows will
+      // eventually be garbage collected.
+      gcHold = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1L));
+    }
     checkState(!gcHold.isBefore(inputWM),
         "Garbage collection hold %s cannot be before input watermark %s",
         gcHold, inputWM);

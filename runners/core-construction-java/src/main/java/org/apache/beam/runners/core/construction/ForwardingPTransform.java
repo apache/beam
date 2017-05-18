@@ -22,9 +22,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.TypedPValue;
 
 /**
  * A base class for implementing {@link PTransform} overrides, which behave identically to the
@@ -51,8 +51,8 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
   }
 
   @Override
-  public <T> Coder<T> getDefaultOutputCoder(InputT input, @SuppressWarnings("unused")
-      TypedPValue<T> output) throws CannotProvideCoderException {
+  public <T> Coder<T> getDefaultOutputCoder(InputT input, PCollection<T> output)
+      throws CannotProvideCoderException {
     return delegate().getDefaultOutputCoder(input, output);
   }
 
