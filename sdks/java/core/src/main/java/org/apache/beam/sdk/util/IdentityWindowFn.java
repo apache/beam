@@ -23,6 +23,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.InvalidWindows;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -78,6 +79,16 @@ public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
     throw new UnsupportedOperationException(
         String.format(
             "%s.isCompatible() should never be called."
+                + " It is a private implementation detail of sdk utilities."
+                + " This message indicates a bug in the Beam SDK.",
+            getClass().getCanonicalName()));
+  }
+
+  @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    throw new UnsupportedOperationException(
+        String.format(
+            "%s.verifyCompatibility() should never be called."
                 + " It is a private implementation detail of sdk utilities."
                 + " This message indicates a bug in the Beam SDK.",
             getClass().getCanonicalName()));
