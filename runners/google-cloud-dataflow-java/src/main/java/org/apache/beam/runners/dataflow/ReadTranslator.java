@@ -40,9 +40,8 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
     translateReadHelper(transform.getSource(), transform, context);
   }
 
-  public static <T> void translateReadHelper(Source<T> source,
-      PTransform<?, ? extends PValue> transform,
-      TranslationContext context) {
+  public static <T> void translateReadHelper(
+      Source<T> source, PTransform<?, ? extends PValue> transform, TranslationContext context) {
     try {
       StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
       stepContext.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
