@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -205,6 +206,22 @@ public class HBaseIOTest {
         assertSourcesEqualReferenceSource(source, splits, null /* options */);
     }
 
+    /** Tests that a {@link HBaseSource} can be read twice, verifying its immutability. */
+    @Test
+    public void testReadingSourceTwice() throws Exception {
+        final String table = "TEST-READING-TWICE";
+        final int numRows = 10;
+
+        // Set up test table data and sample row keys for size estimation and splitting.
+        createTable(table);
+        writeData(table, numRows);
+
+        HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
+        HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
+        assertThat(SourceTestUtils.readFromSource(source, null), hasSize(numRows));
+        // second read.
+        assertThat(SourceTestUtils.readFromSource(source, null), hasSize(numRows));
+    }
 
     /** Tests reading all rows using a filter. */
     @Test
