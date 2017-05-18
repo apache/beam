@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
+import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
@@ -76,6 +77,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     }
 
     protected transient DoFnRunner<InputT, OutputT> runner = null;
+    protected transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackRunner = null;
 
     private final String description;
 
@@ -165,7 +167,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
                     StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
             pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService());
             sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
-            runner = PushbackSideInputDoFnRunner.create(getSimpleRunner(), sideInputs, sideInputHandler);
+            pushbackRunner = SimplePushbackSideInputDoFnRunner.create(getSimpleRunner(), sideInputs, sideInputHandler);
         }
 
         // Process user's setup
@@ -186,9 +188,8 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
        if (sideInputs.isEmpty()) {
            runner.processElement((WindowedValue<InputT>) elem);
        } else {
-           PushbackSideInputDoFnRunner pushbackRunner = (PushbackSideInputDoFnRunner) runner;
-
-           Iterable<WindowedValue<InputT>> justPushedBack = pushbackRunner.processElementInReadyWindows(elem);
+           Iterable<WindowedValue<InputT>> justPushedBack =
+               pushbackRunner.processElementInReadyWindows((WindowedValue<InputT>) elem);
            BagState<WindowedValue<InputT>> pushedBack =
                    pushbackStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
@@ -206,7 +207,6 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     private void processSideInput(TupleTag tag, WindowedValue elem) {
         LOG.debug(String.format("side inputs: %s, %s.", tag, elem));
-        PushbackSideInputDoFnRunner pushbackRunner = (PushbackSideInputDoFnRunner) runner;
 
         PCollectionView<?> sideInputView = sideInputTagToView.get(tag);
         sideInputHandler.addSideInputValue(sideInputView, elem);

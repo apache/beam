@@ -42,8 +42,8 @@ public class RandomSentenceSource extends UnboundedSource<String, UnboundedSourc
     }
 
     @Override
-    public List<? extends UnboundedSource<String, CheckpointMark>> generateInitialSplits(int i, PipelineOptions pipelineOptions) throws Exception {
-        return Collections.singletonList(this);
+    public List<? extends UnboundedSource<String, CheckpointMark>> split(int i, PipelineOptions pipelineOptions) throws Exception {
+        throw new UnsupportedOperationException();
     }
 
     @Override
