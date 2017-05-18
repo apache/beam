@@ -18,7 +18,7 @@
 package org.apache.beam.runners.jstorm;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.PipelineRunner;
 
 /**
  * A {@link PipelineRunner} that translates the {@link Pipeline} to a JStorm DAG and executes it

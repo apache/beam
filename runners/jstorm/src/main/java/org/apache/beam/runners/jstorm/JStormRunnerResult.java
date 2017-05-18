@@ -18,11 +18,8 @@
 package org.apache.beam.runners.jstorm;
 
 import java.io.IOException;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
 /**
@@ -47,12 +44,6 @@ public class JStormRunnerResult implements PipelineResult {
 
     @Override
     public State waitUntilFinish() {
-        throw new UnsupportedOperationException("This method is not yet supported.");
-    }
-
-    @Override
-    public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-            throws AggregatorRetrievalException {
         throw new UnsupportedOperationException("This method is not yet supported.");
     }
 
