@@ -20,9 +20,12 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 
 /**
  * {@code Distinct<T>} takes a {@code PCollection<T>} and
@@ -62,12 +65,6 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class Distinct<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
-  private boolean acrossPanes;
-
-  private Distinct(boolean acrossPanes) {
-    this.acrossPanes = acrossPanes;
-  }
-
   /**
    * Returns a {@code Distinct<T>} {@code PTransform}.
    *
@@ -75,14 +72,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    * {@code PCollection}s
    */
   public static <T> Distinct<T> create() {
-    return new Distinct<T>(false);
-  }
-
-  /**
-   * Ensures that elements in different panes are deduped.
-   */
-  public Distinct<T> acrossPanes() {
-    return  new Distinct<>(true);
+    return new Distinct<T>();
   }
 
   /**
@@ -94,16 +84,18 @@ public class Distinct<T> extends PTransform<PCollection<T>,
    */
   public static <T, IdT> WithRepresentativeValues<T, IdT> withRepresentativeValueFn(
       SerializableFunction<T, IdT> fn) {
-    return new WithRepresentativeValues<T, IdT>(fn, null, false);
+    return new WithRepresentativeValues<T, IdT>(fn, null);
   }
 
+  private static <T> boolean distinctAcrossPanes(PCollection<T> in) {
+    return in.getWindowingStrategy().getAllowedLateness().compareTo(Duration.ZERO) > 0
+        || !(in.getWindowingStrategy().getTrigger() instanceof DefaultTrigger);
+
+  }
   @Override
   public PCollection<T> expand(PCollection<T> in) {
-    // TODO: Possibly we should fail or warn if accumulationmode == ACCUMULATING_FIRED_PANES
-    // && acrossPanes == false, as it's unlikely to produce results that the user really cares
-    // about.
-    // Maybe get rid of acrossPanes(), and just enable the new behavior if the accumulationmode
-    // is set?
+    boolean acrossPanes = distinctAcrossPanes(in);
+
     PCollection<KV<T, Void>> combined = in
         .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
           @Override
@@ -154,25 +146,18 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       extends PTransform<PCollection<T>, PCollection<T>> {
     private final SerializableFunction<T, IdT> fn;
     private final TypeDescriptor<IdT> representativeType;
-    boolean acrossPanes;
 
     private WithRepresentativeValues(
-        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType,
-        boolean acrossPanes) {
+        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType) {
       this.fn = fn;
       this.representativeType = representativeType;
-      this.acrossPanes = acrossPanes;
     }
 
-    /**
-     * Ensures that elements in different panes are deduped.
-     */
-    public WithRepresentativeValues<T, IdT> acrossPanes() {
-      return  new WithRepresentativeValues<>(fn, representativeType, true);
-    }
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
+      boolean acrossPanes = distinctAcrossPanes(in);
+
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
@@ -223,7 +208,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
      *         the specified output type descriptor.
      */
     public WithRepresentativeValues<T, IdT> withRepresentativeType(TypeDescriptor<IdT> type) {
-      return new WithRepresentativeValues<>(fn, type, acrossPanes);
+      return new WithRepresentativeValues<>(fn, type);
     }
   }
 }

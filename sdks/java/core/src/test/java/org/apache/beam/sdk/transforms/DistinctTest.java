@@ -207,7 +207,7 @@ public class DistinctTest {
                     Duration.standardSeconds(30))))
             .withAllowedLateness(Duration.ZERO)
             .accumulatingFiredPanes())
-        .apply(Distinct.<String>create().acrossPanes());
+        .apply(Distinct.<String>create());
     PAssert.that(distinctValues).containsInAnyOrder("k1", "k2", "k3");
     triggeredDistinctPipeline.run();
   }
@@ -241,7 +241,7 @@ public class DistinctTest {
                     Duration.standardSeconds(30))))
             .withAllowedLateness(Duration.ZERO)
             .accumulatingFiredPanes())
-        .apply(Distinct.withRepresentativeValueFn(new Keys<Integer>()).acrossPanes()
+        .apply(Distinct.withRepresentativeValueFn(new Keys<Integer>())
             .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
 
