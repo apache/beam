@@ -6,7 +6,13 @@ import (
 )
 
 // GroupByKey inserts a GBK transform into the pipeline.
-func GroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
+func GroupByKey(p *Pipeline, a PCollection) PCollection {
+	return Must(TryGroupByKey(p, a))
+}
+
+// TryGroupByKey inserts a GBK transform into the pipeline. Returns
+// an error on failure.
+func TryGroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 	if !a.IsValid() {
 		return PCollection{}, fmt.Errorf("invalid pcollection to GBK")
 	}
@@ -19,6 +25,13 @@ func GroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 	return ret, nil
 }
 
-func CoGroupByKey(p *Pipeline, cols ...PCollection) (PCollection, error) {
+// CoGroupByKey inserts a CoGBK transform into the pipeline.
+func CoGroupByKey(p *Pipeline, cols ...PCollection) PCollection {
+	return Must(TryCoGroupByKey(p, cols...))
+}
+
+// TryCoGroupByKey inserts a CoGBK transform into the pipeline. Returns
+// an error on failure.
+func TryCoGroupByKey(p *Pipeline, cols ...PCollection) (PCollection, error) {
 	return PCollection{}, nil
 }

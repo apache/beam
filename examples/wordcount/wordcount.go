@@ -21,31 +21,11 @@ var (
 	input = flag.String("input", os.ExpandEnv("$GOPATH/src/github.com/apache/beam/sdks/go/data/haiku/old_pond.txt"), "Files to read.")
 )
 
-// WordCount constructs a pipeline to count words.
-func WordCount(p *beam.Pipeline) error {
-	lines, err := textio.Immediate(p, *input)
-	if err != nil {
-		return err
-	}
-	counted, err := CountWords(p, lines)
-	if err != nil {
-		return err
-	}
-	formatted, err := beam.ParDo(p, formatFn, counted)
-	if err != nil {
-		return err
-	}
-	return debug.Print0(p, formatted)
-}
-
 // CountWords is a composite transform.
-func CountWords(p *beam.Pipeline, lines beam.PCollection) (beam.PCollection, error) {
+func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
 	p = p.Composite("CountWords")
 
-	col, err := beam.ParDo(p, extractFn, lines)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
+	col := beam.ParDo(p, extractFn, lines)
 	return count.PerElement(p, col)
 }
 
@@ -68,10 +48,16 @@ func main() {
 
 	log.Print("Running wordcount")
 
+	// Construct a pipeline to count words.
 	p := beam.NewPipeline()
-	if err := WordCount(p); err != nil {
-		log.Fatalf("Failed to construct job: %v", err)
+	lines, err := textio.Immediate(p, *input)
+	if err != nil {
+		log.Fatalf("Failed to read %v: %v", *input, err)
 	}
+	counted := CountWords(p, lines)
+	formatted := beam.ParDo(p, formatFn, counted)
+	debug.Print(p, formatted)
+
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

@@ -19,46 +19,6 @@ var (
 	short = flag.Bool("short", false, "Filter out long words.")
 )
 
-// WordCap construts an I/O-free, linear pipeline.
-func WordCap(p *beam.Pipeline) error {
-	// Embedded data. Go flags as parameters.
-
-	lines, err := textio.Immediate(p, *input)
-	if err != nil {
-		return err
-	}
-
-	// Named function.
-
-	words, err := beam.ParDo(p, extractFn, lines)
-	if err != nil {
-		return err
-	}
-
-	// Library function.
-
-	cap, err := beam.ParDo(p, strings.ToUpper, words)
-	if err != nil {
-		return err
-	}
-
-	if *short {
-		// Conditional pipeline construction. Function literals.
-
-		filtered, err := filter.Filter(p, cap, func(s string) bool {
-			return len(s) < 5
-		})
-		if err != nil {
-			return err
-		}
-		cap = filtered
-	}
-
-	// Debug helper.
-
-	return debug.Print0(p, cap)
-}
-
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func extractFn(line string, emit func(string)) {
@@ -74,10 +34,23 @@ func main() {
 
 	log.Print("Running wordcap")
 
+	// Construct an I/O-free, linear pipeline.
 	p := beam.NewPipeline()
-	if err := WordCap(p); err != nil {
-		log.Fatalf("Failed to construct job: %v", err)
+
+	lines, err := textio.Immediate(p, *input) // Embedded data. Go flags as parameters.
+	if err != nil {
+		log.Fatalf("Failed to read %v: %v", *input, err)
 	}
+	words := beam.ParDo(p, extractFn, lines) // Named function.
+	cap := beam.ParDo(p, strings.ToUpper, words) // Library function.
+	if *short {
+		// Conditional pipeline construction. Function literals.
+		cap = filter.Filter(p, cap, func(s string) bool {
+			return len(s) < 5
+		})
+	}
+	debug.Print(p, cap) // Debug helper.
+
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

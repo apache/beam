@@ -18,44 +18,21 @@ var (
 	dice = flag.Int("dice", 6, "Formal dice to use.")
 )
 
-// Yatzy constructs a construction-time-randomized pipeline.
-func Yatzy(p *beam.Pipeline) error {
-	var opt []beam.Option
-	for i := 0; i < 5; i++ {
-		col, err := roll(p)
-		if err != nil {
-			return err
-		}
-		opt = append(opt, beam.SideInput{col})
-	}
-	return beam.ParDo0(p, evalFn, debug.Tick(p), opt...)
-}
-
 // roll is a construction-time dice roll. The value is encoded in the shape of
 // the pipeline, which will produce a single element of that value.
-func roll(p *beam.Pipeline) (beam.PCollection, error) {
+func roll(p *beam.Pipeline) beam.PCollection {
 	num := rand.Intn(*real) + 1
 
 	p = p.Composite(fmt.Sprintf("roll[%v]", num))
 
-	col, err := beam.Source(p, zeroFn)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-
+	col := beam.Source(p, zeroFn)
 	for i := 0; i < num; i++ {
-		col, err = beam.ParDo(p, incFn, col)
-		if err != nil {
-			return beam.PCollection{}, err
-		}
+		col = beam.ParDo(p, incFn, col)
 	}
-	col, err = beam.ParDo(p, minFn, col, beam.Data{Data: *dice})
-	if err != nil {
-		return beam.PCollection{}, err
-	}
+	col = beam.ParDo(p, minFn, col, beam.Data{Data: *dice})
 
 	log.Printf("Lucky number %v!", num)
-	return col, nil
+	return col
 }
 
 type minOpt struct {
@@ -86,7 +63,7 @@ func eq(n int, other ...int) bool {
 	return true
 }
 
-// Eval takes 5 dice rolls as singleton side inputs.
+// evalFn takes 5 dice rolls as singleton side inputs.
 func evalFn(_ string, a, b, c, d, e int) {
 	r := []int{a, b, c, d, e}
 	sort.Ints(r)
@@ -118,10 +95,16 @@ func main() {
 
 	log.Print("Running yatzy")
 
+	// Construct a construction-time-randomized pipeline.
 	p := beam.NewPipeline()
-	if err := Yatzy(p); err != nil {
-		log.Fatalf("Failed to construct job: %v", err)
-	}
+	beam.ParDo0(p, evalFn, debug.Tick(p),
+		beam.SideInput{Input: roll(p)},
+		beam.SideInput{Input: roll(p)},
+		beam.SideInput{Input: roll(p)},
+		beam.SideInput{Input: roll(p)},
+		beam.SideInput{Input: roll(p)},
+	)
+
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

@@ -11,27 +11,41 @@ package beam
 
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
-func Seq(p *Pipeline, col PCollection, dofns ...interface{}) (PCollection, error) {
+func Seq(p *Pipeline, col PCollection, dofns ...interface{}) PCollection {
 	cur := col
 	for _, dofn := range dofns {
-		next, err := ParDo(p, dofn, cur)
-		if err != nil {
-			return PCollection{}, err
-		}
-		cur = next
+		cur = ParDo(p, dofn, cur)
 	}
-	return cur, nil
-}
-
-func CompositeN(p *Pipeline, name string, fn func(pipeline *Pipeline) ([]PCollection, error)) ([]PCollection, error) {
-	return fn(p.Composite(name))
-}
-
-func Composite0(p *Pipeline, name string, fn func(pipeline *Pipeline) error) error {
-	return fn(p.Composite(name))
+	return cur
 }
 
 // Composite is a helper to scope a composite transform.
-func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) (PCollection, error)) (PCollection, error) {
+func Composite(p *Pipeline, name string, fn func(pipeline *Pipeline) PCollection) PCollection {
 	return fn(p.Composite(name))
+}
+
+// The MustX functions are convenience helpers to create error-less functions.
+
+// MustN returns the input, but panics if err != nil.
+func MustN(list []PCollection, err error) []PCollection {
+	if err != nil {
+		panic(err)
+	}
+	return list
+}
+
+// Must returns the input, but panics if err != nil.
+func Must(a PCollection, err error) PCollection {
+	if err != nil {
+		panic(err)
+	}
+	return a
+}
+
+// Must2 returns the input, but panics if err != nil.
+func Must2(a, b PCollection, err error) (PCollection, PCollection) {
+	if err != nil {
+		panic(err)
+	}
+	return a, b
 }

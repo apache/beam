@@ -18,39 +18,6 @@ var (
 	output = flag.String("output", "/tmp/dag/out.", "Prefix of output.")
 )
 
-// DAG constructs a pipeline with side-input and multiple outout.
-func DAG(p *beam.Pipeline) error {
-	// Local source.
-
-	lines, err := textio.Read(p, *input)
-	if err != nil {
-		return err
-	}
-	words, err := beam.ParDo(p, extractFn, lines)
-	if err != nil {
-		return err
-	}
-
-	avg, err := beam.ParDo(p, avgFn, debug.Tick(p), beam.SideInput{Input: words})
-	if err != nil {
-		return err
-	}
-
-	// Pre-computed side input as singleton. Multiple outputs.
-
-	small, big, err := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: avg})
-	if err != nil {
-		return err
-	}
-
-	// Local sink.
-
-	if err := textio.Write(p, *output, small); err != nil {
-		return err
-	}
-	return textio.Write(p, *output, big)
-}
-
 // TODO: side input processing into start bundle, once supported, instead of the
 // side input trick.
 
@@ -96,10 +63,22 @@ func main() {
 
 	log.Print("Running dag")
 
+	// Construct a pipeline with side-input and multiple outout.
 	p := beam.NewPipeline()
-	if err := DAG(p); err != nil {
-		log.Fatalf("Failed to construct job: %v", err)
-	}
+
+	// Local source.
+	lines := textio.Read(p, *input)
+	words := beam.ParDo(p, extractFn, lines)
+
+	avg := beam.ParDo(p, avgFn, debug.Tick(p), beam.SideInput{Input: words})
+
+	// Pre-computed side input as singleton. Multiple outputs.
+	small, big := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: avg})
+
+	// Local sinks.
+	textio.Write(p, *output, small)
+	textio.Write(p, *output, big)
+
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

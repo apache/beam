@@ -11,7 +11,7 @@ import (
 
 // Filter filters the elements based on the given function, which must be
 // of the form: T -> bool.
-func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) (beam.PCollection, error) {
+func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
