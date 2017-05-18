@@ -21,7 +21,7 @@ import com.alibaba.jstorm.beam.translation.runtime.DoFnExecutor;
 import com.alibaba.jstorm.beam.translation.runtime.TimerService;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 
 import javax.annotation.Nullable;

@@ -21,9 +21,9 @@ import com.alibaba.jstorm.beam.translation.runtime.TimerService;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.GroupingState;
-import org.apache.beam.sdk.util.state.ReadableState;
-import org.apache.beam.sdk.util.state.WatermarkHoldState;
+import org.apache.beam.sdk.state.GroupingState;
+import org.apache.beam.sdk.state.ReadableState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 import static com.google.common.base.Preconditions.checkNotNull;

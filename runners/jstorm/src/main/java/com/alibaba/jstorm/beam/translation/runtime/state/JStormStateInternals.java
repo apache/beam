@@ -25,12 +25,21 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.SetState;
+import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.StateBinder;
+import org.apache.beam.sdk.state.StateContext;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
-import org.apache.beam.sdk.util.state.*;
 import org.joda.time.Instant;
 
 import javax.annotation.Nullable;
@@ -101,7 +110,7 @@ public class JStormStateInternals<K> implements StateInternals<K> {
 
             @Override
             public <KeyT, ValueT> MapState<KeyT, ValueT> bindMap(String id, StateSpec<? super K, MapState<KeyT, ValueT>> spec, Coder<KeyT> mapKeyCoder,
-                    Coder<ValueT> mapValueCoder) {
+                                                                 Coder<ValueT> mapValueCoder) {
                 try {
                     return new JStormMapState<>(kvStoreManager.<KeyT, ValueT>getOrCreate(id));
                 } catch (IOException e) {

@@ -18,7 +18,7 @@
 package com.alibaba.jstorm.beam.translation.util;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.values.PCollectionView;
 
 import javax.annotation.Nullable;

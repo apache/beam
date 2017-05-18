@@ -18,10 +18,10 @@
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CombiningState;
-import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.ReadableState;
 
 import javax.annotation.Nullable;
 

@@ -17,50 +17,47 @@
  */
 package com.alibaba.jstorm.beam;
 
-import backtype.storm.generated.KillOptions;
-import backtype.storm.topology.IRichBolt;
-import backtype.storm.topology.IRichSpout;
-import com.alibaba.jstorm.beam.translation.runtime.*;
-import com.alibaba.jstorm.beam.translation.translator.Stream;
-import com.alibaba.jstorm.beam.translation.util.CommonInstance;
-import com.alibaba.jstorm.metric.AsmWindow;
-import com.alibaba.jstorm.metric.MetaType;
-import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.transforms.Aggregator;
-import org.joda.time.Duration;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
-
-import com.alibaba.jstorm.beam.translation.StormPipelineTranslator;
-import com.alibaba.jstorm.beam.translation.TranslationContext;
-import com.alibaba.jstorm.cluster.StormConfig;
-
 import backtype.storm.generated.StormTopology;
-
-import com.alibaba.jstorm.utils.JStormUtils;
-
 import backtype.storm.topology.BoltDeclarer;
+import backtype.storm.topology.IRichBolt;
+import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.alibaba.jstorm.beam.translation.StormPipelineTranslator;
+import com.alibaba.jstorm.beam.translation.TranslationContext;
+import com.alibaba.jstorm.beam.translation.runtime.AbstractComponent;
+import com.alibaba.jstorm.beam.translation.runtime.AdaptorBasicBolt;
+import com.alibaba.jstorm.beam.translation.runtime.AdaptorBasicSpout;
+import com.alibaba.jstorm.beam.translation.runtime.ExecutorsBolt;
+import com.alibaba.jstorm.beam.translation.runtime.TxExecutorsBolt;
+import com.alibaba.jstorm.beam.translation.runtime.TxUnboundedSourceSpout;
+import com.alibaba.jstorm.beam.translation.runtime.UnboundedSourceSpout;
+import com.alibaba.jstorm.beam.translation.translator.Stream;
+import com.alibaba.jstorm.beam.translation.util.CommonInstance;
+import com.alibaba.jstorm.cluster.StormConfig;
+import com.alibaba.jstorm.transactional.TransactionTopologyBuilder;
+import com.alibaba.jstorm.utils.JStormUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.joda.time.Duration;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Main entry point into the Storm Runner.
@@ -124,7 +121,7 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
 
     private StormPipelineResult runTopology(String topologyName, StormTopology topology, Config config) {
         try {
-            if(StormConfig.local_mode(config)) {
+            if (StormConfig.local_mode(config)) {
                 LocalCluster localCluster = LocalCluster.getInstance();
                 localCluster.submitTopology(topologyName, config, topology);
                 return new LocalStormPipelineResult(
@@ -198,12 +195,6 @@ public class StormRunner extends PipelineRunner<StormRunner.StormPipelineResult>
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }
-
-        @Override
-        public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-                throws AggregatorRetrievalException {
-            return null;
         }
 
         @Override

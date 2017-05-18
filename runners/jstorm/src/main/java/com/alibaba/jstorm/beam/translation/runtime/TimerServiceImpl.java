@@ -22,7 +22,7 @@ import avro.shaded.com.google.common.collect.Sets;
 import com.alibaba.jstorm.utils.Pair;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 
 import java.util.*;

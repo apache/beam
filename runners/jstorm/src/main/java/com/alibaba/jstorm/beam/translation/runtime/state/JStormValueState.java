@@ -21,7 +21,7 @@ import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
 
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.state.ValueState;
 
 import javax.annotation.Nullable;
 import java.io.IOException;

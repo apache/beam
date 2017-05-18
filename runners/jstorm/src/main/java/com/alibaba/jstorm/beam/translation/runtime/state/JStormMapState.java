@@ -18,8 +18,8 @@
 package com.alibaba.jstorm.beam.translation.runtime.state;
 
 import com.alibaba.jstorm.cache.IKvStore;
-import org.apache.beam.sdk.util.state.MapState;
-import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.ReadableState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

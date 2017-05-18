@@ -20,8 +20,8 @@ package com.alibaba.jstorm.beam.translation.runtime.state;
 import com.alibaba.jstorm.cache.ComposedKey;
 import com.alibaba.jstorm.cache.IKvStore;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.ReadableState;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.ReadableState;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
