@@ -26,6 +26,10 @@ from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.typehints import Any
+from apache_beam.typehints import Iterable
+from apache_beam.typehints import typehints
+from apache_beam.typehints import with_output_types
 
 
 __all__ = [
@@ -105,6 +109,7 @@ class CoGroupByKey(PTransform):
     # Creates the key, value pairs for the output PCollection. Values are either
     # lists or dicts (per the class docstring), initialized by the result of
     # result_ctor(result_ctor_arg).
+    @with_output_types(typehints.Tuple[Any, Iterable[Any]])
     def _merge_tagged_vals_under_key((key, grouped), result_ctor,
                                      result_ctor_arg):
       result_value = result_ctor(result_ctor_arg)
