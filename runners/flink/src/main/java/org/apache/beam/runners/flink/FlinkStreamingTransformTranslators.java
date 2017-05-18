@@ -30,10 +30,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.ElementAndRestriction;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -119,9 +119,11 @@ class FlinkStreamingTransformTranslators {
 
     TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoStreamingTranslator());
     TRANSLATORS.put(
-        SplittableParDo.ProcessElements.class, new SplittableProcessElementsStreamingTranslator());
+        SplittableParDoViaKeyedWorkItems.ProcessElements.class,
+        new SplittableProcessElementsStreamingTranslator());
     TRANSLATORS.put(
-        SplittableParDo.GBKIntoKeyedWorkItems.class, new GBKIntoKeyedWorkItemsTranslator());
+        SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
+        new GBKIntoKeyedWorkItemsTranslator());
 
 
     TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslator());
@@ -329,7 +331,8 @@ class FlinkStreamingTransformTranslators {
   }
 
   /**
-   * Helper for translating {@link ParDo.MultiOutput} and {@link SplittableParDo.ProcessElements}.
+   * Helper for translating {@link ParDo.MultiOutput} and {@link
+   * SplittableParDoViaKeyedWorkItems.ProcessElements}.
    */
   static class ParDoTranslationHelper {
 
@@ -382,7 +385,7 @@ class FlinkStreamingTransformTranslators {
         keyCoder = ((KvCoder) input.getCoder()).getKeyCoder();
         inputDataStream = inputDataStream.keyBy(new KvToByteBufferKeySelector(keyCoder));
         stateful = true;
-      } else if (doFn instanceof SplittableParDo.ProcessFn) {
+      } else if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
         // we know that it is keyed on String
         keyCoder = StringUtf8Coder.of();
         stateful = true;
@@ -578,19 +581,19 @@ class FlinkStreamingTransformTranslators {
   private static class SplittableProcessElementsStreamingTranslator<
       InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
+      SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
 
     @Override
     public void translateNode(
-        SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
+        SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>
+            transform,
         FlinkStreamingTranslationContext context) {
 
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.newProcessFn(transform.getFn()),
           context.getCurrentTransform().getFullName(),
-          (PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>)
-              context.getInput(transform),
+          context.getInput(transform),
           transform.getSideInputs(),
           context.getOutputs(transform),
           transform.getMainOutputTag(),
@@ -930,18 +933,18 @@ class FlinkStreamingTransformTranslators {
 
   private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      SplittableParDo.GBKIntoKeyedWorkItems<K, InputT>> {
+      SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT>> {
 
     @Override
     boolean canTranslate(
-        SplittableParDo.GBKIntoKeyedWorkItems<K, InputT> transform,
+        SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT> transform,
         FlinkStreamingTranslationContext context) {
       return true;
     }
 
     @Override
     public void translateNode(
-        SplittableParDo.GBKIntoKeyedWorkItems<K, InputT> transform,
+        SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT> transform,
         FlinkStreamingTranslationContext context) {
 
       PCollection<KV<K, InputT>> input = context.getInput(transform);

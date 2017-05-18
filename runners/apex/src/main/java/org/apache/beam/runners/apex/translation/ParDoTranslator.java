@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -132,14 +132,13 @@ class ParDoTranslator<InputT, OutputT>
     }
   }
 
-  static class SplittableProcessElementsTranslator<InputT, OutputT,
-      RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-    implements TransformTranslator<SplittableParDo.ProcessElements<InputT, OutputT,
-      RestrictionT, TrackerT>> {
+  static class SplittableProcessElementsTranslator<
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+      implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
 
     @Override
     public void translate(
-        SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
+        ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform,
         TranslationContext context) {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();

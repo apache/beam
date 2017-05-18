@@ -27,8 +27,9 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -244,7 +245,12 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
                 PTransformMatchers.stateOrTimerParDoMulti(), new ParDoMultiOverrideFactory()))
         .add(
             PTransformOverride.of(
-                PTransformMatchers.classEqualTo(GBKIntoKeyedWorkItems.class),
+                PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
+                new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(
+                    SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class),
                 new DirectGBKIntoKeyedWorkItemsOverrideFactory())) /* Returns a GBKO */
         .add(
             PTransformOverride.of(

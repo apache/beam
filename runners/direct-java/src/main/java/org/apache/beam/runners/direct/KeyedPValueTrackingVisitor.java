@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -48,7 +48,7 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
 
   private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
       ImmutableSet.of(
-          SplittableParDo.GBKIntoKeyedWorkItems.class,
+          SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
           DirectGroupByKeyOnly.class,
           DirectGroupAlsoByWindow.class);
 
