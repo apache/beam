@@ -6,7 +6,13 @@ import (
 )
 
 // Flatten merges incoming PCollection<T>s to a single PCollection<T>.
-func Flatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
+func Flatten(p *Pipeline, cols ...PCollection) PCollection {
+	return Must(TryFlatten(p, cols...))
+}
+
+// TryFlatten merges incoming PCollection<T>s to a single PCollection<T>. Returns
+// an error indicating the set of PCollections that could not be flattened.
+func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
 	for i, in := range cols {
 		if !in.IsValid() {
 			return PCollection{}, fmt.Errorf("invalid pcollection to flatten: index %v", i)

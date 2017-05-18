@@ -6,7 +6,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 )
 
-func ParDoN(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
+// TryParDo attempts to insert a ParDo transform into the pipeline. It may fail
+// for multiple reasons, notably that the dofn is not valid or cannot be bound
+// -- due to type mismatch, say -- to the incoming PCollections.
+func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
 	if !col.IsValid() {
 		return nil, fmt.Errorf("invalid main pcollection")
 	}
@@ -43,35 +46,33 @@ func ParDoN(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]P
 	return ret, nil
 }
 
-func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) error {
-	ret, err := ParDoN(p, dofn, col, opts...)
-	if err != nil {
-		return err
-	}
+// ParDoN inserts a ParDo transform into the pipeline.
+func ParDoN(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) []PCollection {
+	return MustN(TryParDo(p, dofn, col, opts...))
+}
+
+// ParDo0 inserts a ParDo transform into the pipeline.
+func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 0 {
-		return fmt.Errorf("expected 0 output. Found: %v", ret)
+		panic(fmt.Sprintf("expected 0 output. Found: %v", ret))
 	}
-	return nil
 }
 
-func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	ret, err := ParDoN(p, dofn, col, opts...)
-	if err != nil {
-		return PCollection{}, err
-	}
+// ParDo inserts a ParDo transform into the pipeline.
+func ParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) PCollection {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 1 {
-		return PCollection{}, fmt.Errorf("expected 1 output. Found: %v", ret)
+		panic(fmt.Sprintf("expected 1 output. Found: %v", ret))
 	}
-	return ret[0], nil
+	return ret[0]
 }
 
-func ParDo2(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, error) {
-	ret, err := ParDoN(p, dofn, col, opts...)
-	if err != nil {
-		return PCollection{}, PCollection{}, err
-	}
+// ParDo2 inserts a ParDo transform into the pipeline.
+func ParDo2(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
+	ret := MustN(TryParDo(p, dofn, col, opts...))
 	if len(ret) != 2 {
-		return PCollection{}, PCollection{}, fmt.Errorf("expected 2 output. Found: %v", ret)
+		panic(fmt.Sprintf("expected 2 output. Found: %v", ret))
 	}
-	return ret[0], ret[1], nil
+	return ret[0], ret[1]
 }

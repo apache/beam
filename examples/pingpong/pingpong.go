@@ -19,67 +19,21 @@ var (
 	output = flag.String("output", "/tmp/pingpong/out.", "Prefix of output.")
 )
 
-// PingPong constructs a convoluted pipeline with two "cyclic" composites.
-func PingPong(p *beam.Pipeline) error {
-	lines, err := textio.Read(p, *input)
-	if err != nil {
-		return err
-	}
-	words, err := beam.ParDo(p, extractFn, lines)
-	if err != nil {
-		return err
-	}
-
-	// Run baseline and stitch; then compare them.
-
-	small, big, err := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: words})
-	if err != nil {
-		return err
-	}
-	small2, big2, err := stitch(p, words)
-	if err != nil {
-		return err
-	}
-
-	if err := subset(p, small, small2); err != nil {
-		return err
-	}
-	if err := subset(p, big2, big); err != nil {
-		return err
-	}
-
-	if err := textio.Write(p, *output, small2); err != nil {
-		return err
-	}
-	return textio.Write(p, *output, big2)
-}
-
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
-func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection, error) {
+func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection) {
 	ping := p.Composite("ping")
 	pong := ping // p.Composite("pong")
 
 	// TODO(herohde) 2/23/2017: Dataflow UX seems to have limited support for composite
 	// structures. Fails to display a graph if "pong" above is used.
 
-	small1, big1, err := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
-	if err != nil {
-		return beam.PCollection{}, beam.PCollection{}, err
-	}
-	small2, big2, err := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1}) // big-sample  (pong). More words are small.
-	if err != nil {
-		return beam.PCollection{}, beam.PCollection{}, err
-	}
-	_, big3, err := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1}) // small-sample big (ping). All words are big.
-	if err != nil {
-		return beam.PCollection{}, beam.PCollection{}, err
-	}
-	small4, _, err := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
-	if err != nil {
-		return beam.PCollection{}, beam.PCollection{}, err
-	}
-	return small4, big3, nil
+	small1, big1 := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
+	small2, big2 := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1}) // big-sample  (pong). More words are small.
+	_, big3 := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1}) // small-sample big (ping). All words are big.
+	small4, _ := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
+
+	return small4, big3
 }
 
 // Slice side input.
@@ -106,8 +60,8 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 	return nil
 }
 
-func subset(p *beam.Pipeline, a, b beam.PCollection) error {
-	return beam.ParDo0(p, subsetFn, debug.Tick(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
+func subset(p *beam.Pipeline, a, b beam.PCollection) {
+	beam.ParDo0(p, subsetFn, debug.Tick(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
 func subsetFn(_ string, a, b func(*string) bool) error {
@@ -139,10 +93,22 @@ func main() {
 
 	log.Print("Running pingpong")
 
+	// PingPong constructs a convoluted pipeline with two "cyclic" composites.
 	p := beam.NewPipeline()
-	if err := PingPong(p); err != nil {
-		log.Fatalf("Failed to construct job: %v", err)
-	}
+
+	lines := textio.Read(p, *input)
+	words := beam.ParDo(p, extractFn, lines)
+
+	// Run baseline and stitch; then compare them.
+	small, big := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: words})
+	small2, big2 := stitch(p, words)
+
+	subset(p, small, small2)
+	subset(p, big2, big)
+
+	textio.Write(p, *output, small2)
+	textio.Write(p, *output, big2)
+
 	if err := beamexec.Run(ctx, p); err != nil {
 		log.Fatalf("Failed to execute job: %v", err)
 	}

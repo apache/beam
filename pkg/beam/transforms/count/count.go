@@ -8,17 +8,11 @@ import (
 // PerElement counts the number of elements in a collection by key. It expects
 // a PCollection<T> as input and returns a PCollection<KV<T,int>>. T's encoding
 // must be a well-defined injection.
-func PerElement(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
+func PerElement(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("count.PerElement")
 
-	pre, err := beam.ParDo(p, mapFn, col)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	post, err := beam.GroupByKey(p, pre)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
+	pre := beam.ParDo(p, mapFn, col)
+	post := beam.GroupByKey(p, pre)
 	return beam.ParDo(p, addFn, post)
 }
 
@@ -41,17 +35,11 @@ func addFn(key typex.T, counts func(*int) bool) (typex.T, int) {
 // Dedup removes all duplicates from a collection, under coder equality. It
 // expects a PCollection<T> as input and returns a PCollection<T> with
 // duplicates removed.
-func Dedup(p *beam.Pipeline, col beam.PCollection) (beam.PCollection, error) {
+func Dedup(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Composite("count.DeDup")
 
-	pre, err := beam.ParDo(p, mapFn, col)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
-	post, err := beam.GroupByKey(p, pre)
-	if err != nil {
-		return beam.PCollection{}, err
-	}
+	pre := beam.ParDo(p, mapFn, col)
+	post := beam.GroupByKey(p, pre)
 	return beam.ParDo(p, dedupFn, post)
 }
 

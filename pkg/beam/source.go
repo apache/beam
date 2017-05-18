@@ -9,7 +9,13 @@ import (
 // TODO(herohde): more sophisticated source/sink model as per Fn API.
 // TODO(herohde): how do a source cut bundles? Or does it even do that?
 
-func Source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) {
+// Source inserts a Source into the pipeline.
+func Source(p *Pipeline, dofn interface{}, opts ...Option) PCollection {
+	return Must(TrySource(p, dofn, opts...))
+}
+
+// TrySource inserts a Source into the pipeline.
+func TrySource(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) {
 	side, data := parseOpts(opts)
 	if len(side) > 0 {
 		return PCollection{}, fmt.Errorf("sources cannot have side input: %v", side)
@@ -35,6 +41,7 @@ func Source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) 
 	return ret, nil
 }
 
-func Sink(p *Pipeline, dofn interface{}, col PCollection, side ...Option) error {
-	return ParDo0(p, dofn, col, side...)
+// Sink inserts a Sink into the pipeline.
+func Sink(p *Pipeline, dofn interface{}, col PCollection, side ...Option) {
+	ParDo0(p, dofn, col, side...)
 }

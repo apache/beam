@@ -16,7 +16,7 @@ import (
 
 // Read reads a local file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.
-func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
+func Read(p *beam.Pipeline, filename string) beam.PCollection {
 	p = p.Composite("textio.Read")
 	return beam.Source(p, readFn, beam.Data{Data: filename})
 }
@@ -43,11 +43,11 @@ func readFn(opt fileOpt, emit func(string)) error {
 
 // Write writes a PCollection<string> to a local file as separate lines. The
 // writer add a newline after each element.
-func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
+func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
 	p = p.Composite("textio.Write")
 
 	// TODO(herohde) 4/28/2017: Write needs bundle hook. Hack as side input for now.
-	return beam.Sink(p, writeFn, debug.Tick(p), beam.SideInput{Input: col}, beam.Data{Data: filename})
+	beam.Sink(p, writeFn, debug.Tick(p), beam.SideInput{Input: col}, beam.Data{Data: filename})
 }
 
 func writeFn(opt fileOpt, _ string, lines func(*string) bool) error {
@@ -96,7 +96,7 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	if err := scanner.Err(); err != nil {
 		return beam.PCollection{}, err
 	}
-	return beam.Source(p, linesFn, beam.Data{Data: data})
+	return beam.Source(p, linesFn, beam.Data{Data: data}), nil
 }
 
 type linesOpt struct {
