@@ -60,13 +60,14 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
     private SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
 
     public GroupByWindowExecutor(
-            String name,
+            String stepName,
+            String description,
             TranslationContext context,
             StormPipelineOptions pipelineOptions,
             WindowingStrategy<?, ?> windowingStrategy,
             TupleTag<KV<K, Iterable<V>>> mainTupleTag, List<TupleTag<?>> sideOutputTags) {
         // The doFn will be created when runtime. Just pass "null" here
-        super(name, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
+        super(stepName, description, pipelineOptions, null, null, windowingStrategy, null, null, null, mainTupleTag, sideOutputTags);
 
         UserGraphContext userGraphContext = context.getUserGraphContext();
         PCollection<KV<K, V>> input = (PCollection<KV<K, V>>) userGraphContext.getInput();
@@ -96,7 +97,7 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
     }
 
     @Override
-    protected DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getSimpleRunner() {
+    protected DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> getDoFnRunner() {
         doFn = getGroupByWindowDoFn();
 
         DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> simpleRunner = DoFnRunners.<KeyedWorkItem<K, V>, KV<K, Iterable<V>>>simpleRunner(
@@ -113,7 +114,8 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
                 simpleRunner,
                 this.stepContext,
                 this.windowingStrategy);
-        return doFnRunner;
+        return new DoFnRunnerWithMetrics<>(
+            stepName, doFnRunner, MetricsReporter.create(metricClient));
     }
 
     @Override

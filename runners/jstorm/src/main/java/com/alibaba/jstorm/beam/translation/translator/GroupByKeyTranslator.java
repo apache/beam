@@ -57,6 +57,7 @@ public class GroupByKeyTranslator<K, V> extends TransformTranslator.Default<Grou
         windowingStrategy = input.getWindowingStrategy();
 
         GroupByWindowExecutor<K, V> groupByWindowExecutor = new GroupByWindowExecutor<>(
+                userGraphContext.getStepName(),
                 description,
                 context,
                 context.getUserGraphContext().getOptions(),

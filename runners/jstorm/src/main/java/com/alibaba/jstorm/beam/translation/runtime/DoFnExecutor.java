@@ -79,6 +79,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected transient DoFnRunner<InputT, OutputT> runner = null;
     protected transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackRunner = null;
 
+    protected final String stepName;
     private final String description;
 
     protected final TupleTag<OutputT> mainTupleTag;
@@ -106,8 +107,10 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     private transient StateTag<WatermarkHoldState> watermarkHoldTag;
     protected transient IKvStoreManager kvStoreManager;
     protected DefaultStepContext stepContext;
+    protected transient MetricClient metricClient;
 
     public DoFnExecutor(
+            String stepName,
             String description,
             StormPipelineOptions pipelineOptions,
             DoFn<InputT, OutputT> doFn,
@@ -118,6 +121,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
             Map<TupleTag, PCollectionView<?>> sideInputTagToView,
             TupleTag<OutputT> mainTupleTag,
             List<TupleTag<?>> sideOutputTags) {
+        this.stepName = checkNotNull(stepName, "stepName");
         this.description = checkNotNull(description, "description");
         this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
         this.doFn = doFn;
@@ -131,8 +135,10 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         this.sideInputTagToView = sideInputTagToView;
     }
 
-    protected DoFnRunner<InputT, OutputT> getSimpleRunner() {
-        return DoFnRunners.simpleRunner(
+    protected DoFnRunner<InputT, OutputT> getDoFnRunner() {
+        return new DoFnRunnerWithMetrics<>(
+            stepName,
+            DoFnRunners.simpleRunner(
                 this.pipelineOptions,
                 this.doFn,
                 this.sideInputHandler == null ? NullSideInputReader.empty() : sideInputHandler,
@@ -140,7 +146,8 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
                 this.mainTupleTag,
                 this.sideOutputTags,
                 this.stepContext,
-                this.windowingStrategy);
+                this.windowingStrategy),
+            MetricsReporter.create(metricClient));
     }
 
     protected void initService(ExecutorContext context) {
@@ -148,6 +155,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         timerInternals = new JStormTimerInternals(null /* key */, this, context.getExecutorsBolt().timerService());
         kvStoreManager = context.getKvStoreManager();
         stepContext = new DefaultStepContext(timerInternals, new JStormStateInternals("state", kvStoreManager, executorsBolt.timerService()));
+        metricClient = new MetricClient(executorContext.getTopologyContext());
     }
 
     @Override
@@ -160,14 +168,14 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
         // Side inputs setup
         if (sideInputs == null || sideInputs.isEmpty()) {
-            runner = getSimpleRunner();
+            runner = getDoFnRunner();
         } else {
             pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
             watermarkHoldTag =
                     StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
             pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService());
             sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
-            pushbackRunner = SimplePushbackSideInputDoFnRunner.create(getSimpleRunner(), sideInputs, sideInputHandler);
+            pushbackRunner = SimplePushbackSideInputDoFnRunner.create(getDoFnRunner(), sideInputs, sideInputHandler);
         }
 
         // Process user's setup

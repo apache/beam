@@ -155,32 +155,30 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
     @Override
     public void execute(Tuple input) {
         // process a batch
-        LOG.debug("ProcessElement: input=" + input);
         String streamId = input.getSourceStreamId();
         ITupleExt tuple = (ITupleExt) input;
         Iterator<List<Object>> valueIterator = tuple.valueIterator();
         if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(streamId)) {
-            while(valueIterator.hasNext()) {
-                processWatermark((Watermark) valueIterator.next().get(0), input.getSourceTask());
+            while (valueIterator.hasNext()) {
+                processWatermark((Long) valueIterator.next().get(0), input.getSourceTask());
             }
         } else {
             doFnStartBundle();
-            while(valueIterator.hasNext()) {
+            while (valueIterator.hasNext()) {
                 processElement(valueIterator.next(), streamId);
             }
             doFnFinishBundle();
         }
     }
 
-    private void processWatermark(Watermark watermark, int sourceTask) {
-        long watermarkTs = watermark.getTimestamp();
+    private void processWatermark(long watermarkTs, int sourceTask) {
         timerService.updateInputWatermark(sourceTask, watermarkTs);
 
         if (!externalOutputTags.isEmpty()) {
             collector.flush();
             collector.emit(
                     CommonInstance.BEAM_WATERMARK_STREAM_ID,
-                    new Values(new Watermark(timerService.currentOutputWatermark())));
+                    new Values(timerService.currentOutputWatermark()));
         }
     }
 

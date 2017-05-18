@@ -72,6 +72,7 @@ public class ParDoBoundTranslator<InputT, OutputT>
         }
 
         DoFnExecutor<InputT, OutputT> executor = new DoFnExecutor<>(
+                userGraphContext.getStepName(),
                 description,
                 userGraphContext.getOptions(),
                 transform.getFn(),

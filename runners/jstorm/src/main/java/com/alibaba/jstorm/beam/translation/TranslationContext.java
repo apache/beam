@@ -229,6 +229,10 @@ public class TranslationContext {
             this.currentTransform = transform;
         }
 
+        public String getStepName() {
+            return currentTransform.getFullName();
+        }
+
         public <T extends PValue> T getInput() {
             return (T) currentTransform.getInputs().values().iterator().next();
         }
