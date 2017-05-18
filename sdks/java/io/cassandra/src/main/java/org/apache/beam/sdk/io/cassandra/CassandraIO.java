@@ -117,6 +117,10 @@ public class CassandraIO {
     @Nullable abstract String table();
     @Nullable abstract Class<T> entity();
     @Nullable abstract Coder<T> coder();
+    @Nullable abstract String username();
+    @Nullable abstract String password();
+    @Nullable abstract String localDc();
+    @Nullable abstract String consistencyLevel();
     @Nullable abstract CassandraService<T> cassandraService();
     abstract Builder<T> builder();
 
@@ -176,6 +180,39 @@ public class CassandraIO {
     }
 
     /**
+     * Specify the username for authentication.
+     */
+    public Read<T> withUsername(String username) {
+      checkArgument(username != null, "CassandraIO.read().withUsername(username) called with "
+          + "null username");
+      return builder().setUsername(username).build();
+    }
+
+    /**
+     * Specify the password for authentication.
+     */
+    public Read<T> withPassword(String password) {
+      checkArgument(password != null, "CassandraIO.read().withPassword(password) called with "
+          + "null password");
+      return builder().setPassword(password).build();
+    }
+
+    /**
+     * Specify the local DC used for the load balancing.
+     */
+    public Read<T> withLocalDc(String localDc) {
+      checkArgument(localDc != null, "CassandraIO.read().withLocalDc(localDc) called with null "
+          + "localDc");
+      return builder().setLocalDc(localDc).build();
+    }
+
+    public Read<T> withConsistencyLevel(String consistencyLevel) {
+      checkArgument(consistencyLevel != null, "CassandraIO.read().withConsistencyLevel"
+          + "(consistencyLevel) called with null consistencyLevel");
+      return builder().setConsistencyLevel(consistencyLevel).build();
+    }
+
+    /**
      * Specify an instance of {@link CassandraService} used to connect and read from Cassandra
      * database.
      */
@@ -217,6 +254,10 @@ public class CassandraIO {
       abstract Builder<T> setTable(String table);
       abstract Builder<T> setEntity(Class<T> entity);
       abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T> setUsername(String username);
+      abstract Builder<T> setPassword(String password);
+      abstract Builder<T> setLocalDc(String localDc);
+      abstract Builder<T> setConsistencyLevel(String consistencyLevel);
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
       abstract Read<T> build();
     }
@@ -286,6 +327,9 @@ public class CassandraIO {
       }
       builder.addIfNotNull(DisplayData.item("keyspace", spec.keyspace()));
       builder.addIfNotNull(DisplayData.item("table", spec.table()));
+      builder.addIfNotNull(DisplayData.item("username", spec.username()));
+      builder.addIfNotNull(DisplayData.item("localDc", spec.localDc()));
+      builder.addIfNotNull(DisplayData.item("consistencyLevel", spec.consistencyLevel()));
     }
   }
 
@@ -300,6 +344,10 @@ public class CassandraIO {
     @Nullable abstract Integer port();
     @Nullable abstract String keyspace();
     @Nullable abstract Class<T> entity();
+    @Nullable abstract String username();
+    @Nullable abstract String password();
+    @Nullable abstract String localDc();
+    @Nullable abstract String consistencyLevel();
     @Nullable abstract CassandraService<T> cassandraService();
     abstract Builder<T> builder();
 
@@ -342,6 +390,39 @@ public class CassandraIO {
     }
 
     /**
+     * Specify the username used for authentication.
+     */
+    public Write<T> withUsername(String username) {
+      checkArgument(username != null, "CassandraIO.write().withUsername(username) called with "
+          + "null username");
+      return builder().setUsername(username).build();
+    }
+
+    /**
+     * Specify the password used for authentication.
+     */
+    public Write<T> withPassword(String password) {
+      checkArgument(password != null, "CassandraIO.write().withPassword(password) called with "
+          + "null password");
+      return builder().setPassword(password).build();
+    }
+
+    /**
+     * Specify the local DC used by the load balancing policy.
+     */
+    public Write<T> withLocalDc(String localDc) {
+      checkArgument(localDc != null, "CassandraIO.write().withLocalDc(localDc) called with null"
+          + " localDc");
+      return builder().setLocalDc(localDc).build();
+    }
+
+    public Write<T> withConsistencyLevel(String consistencyLevel) {
+      checkArgument(consistencyLevel != null, "CassandraIO.write().withConsistencyLevel"
+          + "(consistencyLevel) called with null consistencyLevel");
+      return builder().setConsistencyLevel(consistencyLevel).build();
+    }
+
+    /**
      * Specify the {@link CassandraService} used to connect and write into the Cassandra database.
      */
     public Write<T> withCassandraService(CassandraService<T> cassandraService) {
@@ -376,6 +457,10 @@ public class CassandraIO {
       abstract Builder<T> setPort(Integer port);
       abstract Builder<T> setKeyspace(String keyspace);
       abstract Builder<T> setEntity(Class<T> entity);
+      abstract Builder<T> setUsername(String username);
+      abstract Builder<T> setPassword(String password);
+      abstract Builder<T> setLocalDc(String localDc);
+      abstract Builder<T> setConsistencyLevel(String consistencyLevel);
       abstract Builder<T> setCassandraService(CassandraService<T> cassandraService);
       abstract Write<T> build();
     }

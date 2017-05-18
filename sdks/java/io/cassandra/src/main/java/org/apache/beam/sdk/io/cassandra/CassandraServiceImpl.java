@@ -18,9 +18,15 @@
 package org.apache.beam.sdk.io.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
+import com.datastax.driver.core.PlainTextAuthProvider;
+import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
+import com.datastax.driver.core.policies.RoundRobinPolicy;
+import com.datastax.driver.core.policies.TokenAwarePolicy;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
@@ -67,7 +73,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     @Override
     public boolean start() throws IOException {
       LOG.debug("Starting Cassandra reader");
-      cluster = getCluster(source.spec.hosts(), source.spec.port());
+      cluster = getCluster(source.spec.hosts(), source.spec.port(), source.spec.username(),
+          source.spec.password(), source.spec.localDc(), source.spec.consistencyLevel());
       session = cluster.connect();
       LOG.debug("Query: " + source.splitQuery);
       resultSet = session.execute(source.splitQuery);
@@ -121,7 +128,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
 
   @Override
   public long getEstimatedSizeBytes(CassandraIO.Read<T> spec) {
-    try (Cluster cluster = getCluster(spec.hosts(), spec.port())) {
+    try (Cluster cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
+        spec.localDc(), spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
         try {
           List<TokenRange> tokenRanges = getTokenRanges(cluster,
@@ -155,7 +163,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   @Override
   public List<BoundedSource<T>> split(CassandraIO.Read<T> spec,
       long desiredBundleSizeBytes) {
-    try (Cluster cluster = getCluster(spec.hosts(), spec.port())) {
+    try (Cluster cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
+        spec.localDc(), spec.consistencyLevel())) {
       if (isMurmur3Partitioner(cluster)) {
         LOG.info("Murmur3Partitioner detected, splitting");
         return split(spec, desiredBundleSizeBytes, getEstimatedSizeBytes(spec));
@@ -222,11 +231,29 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   /**
    * Get a Cassandra cluster using hosts and port.
    */
-  private Cluster getCluster(List<String> hosts, int port) {
-    return Cluster.builder()
+  private Cluster getCluster(List<String> hosts, int port, String username, String password,
+                             String localDc, String consistencyLevel) {
+    Cluster.Builder builder = Cluster.builder()
         .addContactPoints(hosts.toArray(new String[0]))
-        .withPort(port)
-        .build();
+        .withPort(port);
+
+    if (username != null) {
+      builder.withAuthProvider(new PlainTextAuthProvider(username, password));
+    }
+
+    if (localDc != null) {
+      builder.withLoadBalancingPolicy(
+          new TokenAwarePolicy(new DCAwareRoundRobinPolicy.Builder().withLocalDc(localDc).build()));
+    } else {
+      builder.withLoadBalancingPolicy(new TokenAwarePolicy(new RoundRobinPolicy()));
+    }
+
+    if (consistencyLevel != null) {
+      builder.withQueryOptions(
+          new QueryOptions().setConsistencyLevel(ConsistencyLevel.valueOf(consistencyLevel)));
+    }
+
+    return builder.build();
   }
 
   /**
@@ -334,7 +361,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
 
     public WriterImpl(CassandraIO.Write<T> spec) {
       this.spec = spec;
-      this.cluster = getCluster(spec.hosts(), spec.port());
+      this.cluster = getCluster(spec.hosts(), spec.port(), spec.username(), spec.password(),
+          spec.localDc(), spec.consistencyLevel());
       this.session = cluster.connect(spec.keyspace());
       this.mappingManager = new MappingManager(session);
     }
