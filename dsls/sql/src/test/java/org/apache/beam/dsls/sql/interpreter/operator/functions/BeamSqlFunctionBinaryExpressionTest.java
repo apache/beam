@@ -7,10 +7,10 @@ import org.apache.beam.dsls.sql.interpreter.BeamSQLFnExecutorTestBase;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.dsls.sql.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.dsls.sql.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
-
 
 
 /**
@@ -43,7 +43,7 @@ public class BeamSqlFunctionBinaryExpressionTest extends BeamSQLFnExecutorTestBa
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.0));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 4.0));
-    Assert.assertEquals(16.0,
+    assertEquals(16.0,
         new BeamSqlPowerExpression(operands).evaluate(record).getValue());
     // operands are of type decimal, double, big decimal
     // power(integer,integer) => long
@@ -82,7 +82,7 @@ public class BeamSqlFunctionBinaryExpressionTest extends BeamSQLFnExecutorTestBa
     operands.add(ref0);
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 2L));
 
-    Assert.assertEquals(1524155677489L,
+    assertEquals(1524155677489L,
         new BeamSqlPowerExpression(operands).evaluate(record).getValue());
   }
 
