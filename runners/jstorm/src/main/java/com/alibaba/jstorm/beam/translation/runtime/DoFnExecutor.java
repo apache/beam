@@ -43,9 +43,8 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.state.BagState;
@@ -102,9 +101,9 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected ExecutorsBolt executorsBolt;
     protected TimerInternals timerInternals;
     protected AggregatorFactory aggregatorFactory;
-    private transient StateInternals<Void> pushbackStateInternals;
-    private transient StateTag<Object, BagState<WindowedValue<InputT>>> pushedBackTag;
-    private transient StateTag<Object, WatermarkHoldState<GlobalWindow>> watermarkHoldTag;
+    private transient StateInternals pushbackStateInternals;
+    private transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
+    private transient StateTag<WatermarkHoldState> watermarkHoldTag;
     protected transient IKvStoreManager kvStoreManager;
     protected DefaultStepContext stepContext;
 
@@ -168,7 +167,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         } else {
             pushedBackTag = StateTags.bag("pushed-back-values", inputCoder);
             watermarkHoldTag =
-                    StateTags.watermarkStateInternal("hold", OutputTimeFns.outputAtEarliestInputTimestamp());
+                    StateTags.watermarkStateInternal("hold", TimestampCombiner.EARLIEST);
             pushbackStateInternals = new JStormStateInternals(null, kvStoreManager, executorsBolt.timerService());
             sideInputHandler = new SideInputHandler(sideInputs, pushbackStateInternals);
             runner = PushbackSideInputDoFnRunner.create(getSimpleRunner(), sideInputs, sideInputHandler);
@@ -239,7 +238,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
             pushedBack.add(pushedBackValue);
         }
 
-        WatermarkHoldState<GlobalWindow> watermarkHold =
+        WatermarkHoldState watermarkHold =
                 pushbackStateInternals.state(StateNamespaces.global(), watermarkHoldTag);
         // TODO: clear-then-add is not thread-safe.
         watermarkHold.clear();
