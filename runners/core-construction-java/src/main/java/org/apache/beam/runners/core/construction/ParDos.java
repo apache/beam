@@ -52,13 +52,7 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
@@ -200,27 +194,7 @@ public class ParDos {
 
   private static Optional<RunnerApi.Parameter> toProto(Parameter parameter) {
     return parameter.match(
-        new Cases<Optional<RunnerApi.Parameter>>() {
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(StartBundleContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(FinishBundleContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(ProcessContextParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(OnTimerContextParameter p) {
-            return Optional.absent();
-          }
-
+        new Cases.WithDefault<Optional<RunnerApi.Parameter>>() {
           @Override
           public Optional<RunnerApi.Parameter> dispatch(WindowParameter p) {
             return Optional.of(RunnerApi.Parameter.newBuilder().setType(Type.WINDOW).build());
@@ -233,12 +207,7 @@ public class ParDos {
           }
 
           @Override
-          public Optional<RunnerApi.Parameter> dispatch(StateParameter p) {
-            return Optional.absent();
-          }
-
-          @Override
-          public Optional<RunnerApi.Parameter> dispatch(TimerParameter p) {
+          protected Optional<RunnerApi.Parameter> dispatchDefault(Parameter p) {
             return Optional.absent();
           }
         });
