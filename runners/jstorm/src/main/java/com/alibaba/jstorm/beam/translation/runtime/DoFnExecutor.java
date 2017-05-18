@@ -26,7 +26,6 @@ import com.alibaba.jstorm.beam.translation.runtime.timer.JStormTimerInternals;
 
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.metric.MetricClient;
-import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -100,7 +99,6 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected ExecutorContext executorContext;
     protected ExecutorsBolt executorsBolt;
     protected TimerInternals timerInternals;
-    protected AggregatorFactory aggregatorFactory;
     private transient StateInternals pushbackStateInternals;
     private transient StateTag<BagState<WindowedValue<InputT>>> pushedBackTag;
     private transient StateTag<WatermarkHoldState> watermarkHoldTag;
@@ -132,7 +130,7 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     }
 
     protected DoFnRunner<InputT, OutputT> getSimpleRunner() {
-        return DoFnRunners.<InputT, OutputT>simpleRunner(
+        return DoFnRunners.simpleRunner(
                 this.pipelineOptions,
                 this.doFn,
                 this.sideInputHandler == null ? NullSideInputReader.empty() : sideInputHandler,
@@ -140,7 +138,6 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
                 this.mainTupleTag,
                 this.sideOutputTags,
                 this.stepContext,
-                aggregatorFactory,
                 this.windowingStrategy);
     }
 
@@ -158,8 +155,6 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         this.pipelineOptions = this.serializedOptions.getPipelineOptions().as(StormPipelineOptions.class);
 
         initService(context);
-
-        aggregatorFactory = new StormAggregatorFactory(new MetricClient(executorContext.getTopologyContext()));
 
         // Side inputs setup
         if (sideInputs == null || sideInputs.isEmpty()) {

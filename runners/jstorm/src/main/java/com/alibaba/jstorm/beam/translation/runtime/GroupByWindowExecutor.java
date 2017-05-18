@@ -107,7 +107,6 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
                 this.mainTupleTag,
                 this.sideOutputTags,
                 this.stepContext,
-                aggregatorFactory,
                 this.windowingStrategy);
 
         DoFnRunner<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> doFnRunner = DoFnRunners.lateDataDroppingRunner(

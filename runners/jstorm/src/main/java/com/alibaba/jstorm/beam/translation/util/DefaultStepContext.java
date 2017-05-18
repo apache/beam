@@ -70,7 +70,7 @@ public class DefaultStepContext implements ExecutionContext.StepContext {
     }
 
     @Override
-    public StateInternals<?> stateInternals() {
+    public StateInternals stateInternals() {
         return stateInternals;
     }
 
