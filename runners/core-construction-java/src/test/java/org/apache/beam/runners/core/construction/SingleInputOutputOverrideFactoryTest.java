@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Map;
+
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -62,7 +63,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
                             MapElements<Integer, Integer>>
                         transform) {
               return PTransformReplacement.of(
-                  PTransformReplacements.getSingletonMainInput(transform),
+              getSingletonMainInput(transform),
                   transform.getTransform());
             }
           };

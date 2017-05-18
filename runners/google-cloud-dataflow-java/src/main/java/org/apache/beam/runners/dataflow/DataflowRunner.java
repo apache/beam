@@ -40,6 +40,7 @@ import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -57,6 +58,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
@@ -408,7 +410,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               .withArg(
                   (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
               .build();
-      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), rep);
+      return PTransformReplacement.of(getSingletonMainInput(transform), rep);
     }
   }
 

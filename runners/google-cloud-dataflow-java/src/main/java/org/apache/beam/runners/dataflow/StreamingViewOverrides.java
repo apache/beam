@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.runners.core.construction.PTransformReplacements;
+
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingPCollectionViewWriterFn;
 import org.apache.beam.sdk.coders.Coder;
@@ -52,7 +52,7 @@ class StreamingViewOverrides {
       StreamingCreatePCollectionView<ElemT, ViewT> streamingView =
           new StreamingCreatePCollectionView<>(transform.getTransform().getView());
       return PTransformReplacement.of(
-          PTransformReplacements.getSingletonMainInput(transform), streamingView);
+          getSingletonMainInput(transform), streamingView);
     }
 
     private static class StreamingCreatePCollectionView<ElemT, ViewT>
