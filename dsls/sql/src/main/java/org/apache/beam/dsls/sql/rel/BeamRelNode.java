@@ -18,7 +18,8 @@
 package org.apache.beam.dsls.sql.rel;
 
 import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
-import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.dsls.sql.schema.BeamSQLRow;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.RelNode;
 
 /**
@@ -29,10 +30,8 @@ import org.apache.calcite.rel.RelNode;
 public interface BeamRelNode extends RelNode {
 
   /**
-   * A {@link BeamRelNode} is a recursive structure, the
-   * {@link BeamPipelineCreator} visits it with a DFS(Depth-First-Search)
-   * algorithm.
-   *
+   * {@code #buildBeamPipeline(BeamPipelineCreator)} applies a transform to upstream,
+   * and generate an output {@code PCollection}.
    */
-  Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception;
+  PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception;
 }

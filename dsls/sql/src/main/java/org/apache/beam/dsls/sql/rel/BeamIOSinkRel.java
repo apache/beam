@@ -24,7 +24,6 @@ import org.apache.beam.dsls.sql.planner.BeamPipelineCreator;
 import org.apache.beam.dsls.sql.planner.BeamSQLRelUtils;
 import org.apache.beam.dsls.sql.schema.BaseBeamTable;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -52,15 +51,17 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
         getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened());
   }
 
+  /**
+   * Note that {@code BeamIOSinkRel} returns the input PCollection.
+   */
   @Override
-  public Pipeline buildBeamPipeline(BeamPipelineCreator planCreator) throws Exception {
-
+  public PCollection<BeamSQLRow> buildBeamPipeline(BeamPipelineCreator planCreator)
+      throws Exception {
     RelNode input = getInput();
-    BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
-
     String stageName = BeamSQLRelUtils.getStageName(this);
 
-    PCollection<BeamSQLRow> upstream = planCreator.popUpstream();
+    PCollection<BeamSQLRow> upstream =
+        BeamSQLRelUtils.getBeamRelInput(input).buildBeamPipeline(planCreator);
 
     String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
 
@@ -68,9 +69,7 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
 
     upstream.apply(stageName, targetTable.buildIOWriter());
 
-    planCreator.setHasPersistent(true);
-
-    return planCreator.getPipeline();
+    return upstream;
   }
 
 }
