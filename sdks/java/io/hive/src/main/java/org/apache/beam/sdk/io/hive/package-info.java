@@ -17,6 +17,6 @@
  */
 
 /**
- * Transforms for reading and writing from MongoDB.
+ * Transforms for reading and writing from Hive.
  */
 package org.apache.beam.sdk.io.hive;
