@@ -18,20 +18,18 @@
 package com.alibaba.jstorm.beam.translation.translator;
 
 import com.alibaba.jstorm.beam.StormPipelineOptions;
-import com.alibaba.jstorm.beam.StormRunner;
 
 import com.alibaba.jstorm.beam.TestJStormRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.*;
 import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.*;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -109,12 +107,14 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    public void testParDoEmptyWithSideOutputs() {
+    public void testParDoWithTaggedOutput() {
+        List<Integer> inputs = Arrays.asList(3, -42, 666);
+
         TupleTag<String> mainOutputTag = new TupleTag<String>("main"){};
-        TupleTag<String> sideOutputTag1 = new TupleTag<String>("side1"){};
-        TupleTag<String> sideOutputTag2 = new TupleTag<String>("side2"){};
-        TupleTag<String> sideOutputTag3 = new TupleTag<String>("side3"){};
-        TupleTag<String> sideOutputTagUnwritten = new TupleTag<String>("sideUnwritten"){};
+        TupleTag<String> additionalOutputTag1 = new TupleTag<String>("additional1"){};
+        TupleTag<String> additionalOutputTag2 = new TupleTag<String>("additional2"){};
+        TupleTag<String> additionalOutputTag3 = new TupleTag<String>("additional3"){};
+        TupleTag<String> additionalOutputTagUnwritten = new TupleTag<String>("unwrittenOutput"){};
 
         StormPipelineOptions options = PipelineOptionsFactory.as(StormPipelineOptions.class);
         options.setRunner(TestJStormRunner.class);
@@ -123,30 +123,31 @@ public class ParDoTest implements Serializable {
         Pipeline pipeline = Pipeline.create(options);
 
         PCollectionTuple outputs = pipeline
-                .apply(Create.empty(VarIntCoder.of()))
-                .apply(ParDo
-                        .of(new TestDoFn(
-                                Arrays.<PCollectionView<Integer>>asList(),
-                                Arrays.asList(sideOutputTag1, sideOutputTag2, sideOutputTag3)))
-                        .withOutputTags(
-                                mainOutputTag,
-                                TupleTagList.of(sideOutputTag3).and(sideOutputTag1)
-                                        .and(sideOutputTagUnwritten).and(sideOutputTag2)));
+            .apply(Create.of(inputs))
+            .apply(ParDo
+                .of(new TestDoFn(
+                    Arrays.<PCollectionView<Integer>>asList(),
+                    Arrays.asList(additionalOutputTag1, additionalOutputTag2, additionalOutputTag3)))
+                .withOutputTags(
+                    mainOutputTag,
+                    TupleTagList.of(additionalOutputTag3)
+                        .and(additionalOutputTag1)
+                        .and(additionalOutputTagUnwritten)
+                        .and(additionalOutputTag2)));
 
-        List<Integer> inputs = Collections.emptyList();
         PAssert.that(outputs.get(mainOutputTag))
-                .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
+            .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
 
-        PAssert.that(outputs.get(sideOutputTag1))
-                .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                        .fromSideOutput(sideOutputTag1));
-        PAssert.that(outputs.get(sideOutputTag2))
-                .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                        .fromSideOutput(sideOutputTag2));
-        PAssert.that(outputs.get(sideOutputTag3))
-                .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
-                        .fromSideOutput(sideOutputTag3));
-        PAssert.that(outputs.get(sideOutputTagUnwritten)).empty();
+        PAssert.that(outputs.get(additionalOutputTag1))
+            .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                .fromOutput(additionalOutputTag1));
+        PAssert.that(outputs.get(additionalOutputTag2))
+            .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                .fromOutput(additionalOutputTag2));
+        PAssert.that(outputs.get(additionalOutputTag3))
+            .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs)
+                .fromOutput(additionalOutputTag3));
+        PAssert.that(outputs.get(additionalOutputTagUnwritten)).empty();
 
         pipeline.run();
     }
@@ -159,11 +160,10 @@ public class ParDoTest implements Serializable {
 
         Pipeline pipeline = Pipeline.create(options);
 
-
         final PCollection<Long> initialWindows =
                 pipeline
-                        .apply(CountingInput.upTo(10L))
-                        .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
+                    .apply(GenerateSequence.from(0).to(10))
+                    .apply("AssignWindows", Window.into(new WindowOddEvenBuckets()));
 
         // Sanity check the window assignment to demonstrate the baseline
         PAssert.that(initialWindows)
@@ -237,22 +237,22 @@ public class ParDoTest implements Serializable {
         }
     }
 
+
     static class TestDoFn extends DoFn<Integer, String> {
         enum State {NOT_SET_UP, UNSTARTED, STARTED, PROCESSING, FINISHED}
-
 
         State state = State.NOT_SET_UP;
 
         final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
-        final List<TupleTag<String>> sideOutputTupleTags = new ArrayList<>();
+        final List<TupleTag<String>> additionalOutputTupleTags = new ArrayList<>();
 
         public TestDoFn() {
         }
 
         public TestDoFn(List<PCollectionView<Integer>> sideInputViews,
-                        List<TupleTag<String>> sideOutputTupleTags) {
+                        List<TupleTag<String>> additionalOutputTupleTags) {
             this.sideInputViews.addAll(sideInputViews);
-            this.sideOutputTupleTags.addAll(sideOutputTupleTags);
+            this.additionalOutputTupleTags.addAll(additionalOutputTupleTags);
         }
 
         @Setup
@@ -262,42 +262,39 @@ public class ParDoTest implements Serializable {
         }
 
         @StartBundle
-        public void startBundle(Context c) {
+        public void startBundle() {
             assertThat(state,
-                    anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
+                anyOf(equalTo(State.UNSTARTED), equalTo(State.FINISHED)));
 
             state = State.STARTED;
-            outputToAll(c, "started");
         }
 
         @ProcessElement
         public void processElement(ProcessContext c) {
             System.out.println("Recv elem: " + c.element());
             assertThat(state,
-                    anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
+                anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
             state = State.PROCESSING;
             outputToAllWithSideInputs(c, "processing: " + c.element());
         }
 
         @FinishBundle
-        public void finishBundle(Context c) {
+        public void finishBundle(FinishBundleContext c) {
             assertThat(state,
-                    anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
+                anyOf(equalTo(State.STARTED), equalTo(State.PROCESSING)));
             state = State.FINISHED;
-            outputToAll(c, "finished");
-        }
-
-        private void outputToAll(Context c, String value) {
-            c.output(value);
-            for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-                c.output(sideOutputTupleTag,
-                        sideOutputTupleTag.getId() + ": " + value);
+            c.output("finished", BoundedWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.INSTANCE);
+            for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
+                c.output(
+                    additionalOutputTupleTag,
+                    additionalOutputTupleTag.getId() + ": " + "finished",
+                    BoundedWindow.TIMESTAMP_MIN_VALUE,
+                    GlobalWindow.INSTANCE);
             }
         }
 
         private void outputToAllWithSideInputs(ProcessContext c, String value) {
             if (!sideInputViews.isEmpty()) {
-                // TODO: re-enable once side inputs are supported.
                 List<Integer> sideInputValues = new ArrayList<>();
                 for (PCollectionView<Integer> sideInputView : sideInputViews) {
                     sideInputValues.add(c.sideInput(sideInputView));
@@ -305,38 +302,36 @@ public class ParDoTest implements Serializable {
                 value += ": " + sideInputValues;
             }
             c.output(value);
-            System.out.println("TestDoFn output: " + value);
-            for (TupleTag<String> sideOutputTupleTag : sideOutputTupleTags) {
-                c.output(sideOutputTupleTag,
-                        sideOutputTupleTag.getId() + ": " + value);
+            for (TupleTag<String> additionalOutputTupleTag : additionalOutputTupleTags) {
+                c.output(additionalOutputTupleTag,
+                    additionalOutputTupleTag.getId() + ": " + value);
             }
         }
     }
 
-
     /** PAssert "matcher" for expected output. */
     static class HasExpectedOutput
-            implements SerializableFunction<Iterable<String>, Void>, Serializable {
+        implements SerializableFunction<Iterable<String>, Void>, Serializable {
         private final List<Integer> inputs;
         private final List<Integer> sideInputs;
-        private final String sideOutput;
+        private final String additionalOutput;
         private final boolean ordered;
 
         public static HasExpectedOutput forInput(List<Integer> inputs) {
             return new HasExpectedOutput(
-                    new ArrayList<Integer>(inputs),
-                    new ArrayList<Integer>(),
-                    "",
-                    false);
+                new ArrayList<Integer>(inputs),
+                new ArrayList<Integer>(),
+                "",
+                false);
         }
 
         private HasExpectedOutput(List<Integer> inputs,
                                   List<Integer> sideInputs,
-                                  String sideOutput,
+                                  String additionalOutput,
                                   boolean ordered) {
             this.inputs = inputs;
             this.sideInputs = sideInputs;
-            this.sideOutput = sideOutput;
+            this.additionalOutput = additionalOutput;
             this.ordered = ordered;
         }
 
@@ -345,29 +340,26 @@ public class ParDoTest implements Serializable {
             for (Integer sideInputValue : sideInputValues) {
                 sideInputs.add(sideInputValue);
             }
-            return new HasExpectedOutput(inputs, sideInputs, sideOutput, ordered);
+            return new HasExpectedOutput(inputs, sideInputs, additionalOutput, ordered);
         }
 
-        public HasExpectedOutput fromSideOutput(TupleTag<String> sideOutputTag) {
-            return fromSideOutput(sideOutputTag.getId());
+        public HasExpectedOutput fromOutput(TupleTag<String> outputTag) {
+            return fromOutput(outputTag.getId());
         }
-        public HasExpectedOutput fromSideOutput(String sideOutput) {
-            return new HasExpectedOutput(inputs, sideInputs, sideOutput, ordered);
+        public HasExpectedOutput fromOutput(String outputId) {
+            return new HasExpectedOutput(inputs, sideInputs, outputId, ordered);
         }
 
         public HasExpectedOutput inOrder() {
-            return new HasExpectedOutput(inputs, sideInputs, sideOutput, true);
+            return new HasExpectedOutput(inputs, sideInputs, additionalOutput, true);
         }
 
         @Override
         public Void apply(Iterable<String> outputs) {
-            List<String> starteds = new ArrayList<>();
             List<String> processeds = new ArrayList<>();
             List<String> finisheds = new ArrayList<>();
             for (String output : outputs) {
-                if (output.contains("started")) {
-                    starteds.add(output);
-                } else if (output.contains("finished")) {
+                if (output.contains("finished")) {
                     finisheds.add(output);
                 } else {
                     processeds.add(output);
@@ -381,32 +373,28 @@ public class ParDoTest implements Serializable {
                 sideInputsSuffix = ": " + sideInputs;
             }
 
-            String sideOutputPrefix;
-            if (sideOutput.isEmpty()) {
-                sideOutputPrefix = "";
+            String additionalOutputPrefix;
+            if (additionalOutput.isEmpty()) {
+                additionalOutputPrefix = "";
             } else {
-                sideOutputPrefix = sideOutput + ": ";
+                additionalOutputPrefix = additionalOutput + ": ";
             }
 
             List<String> expectedProcesseds = new ArrayList<>();
             for (Integer input : inputs) {
                 expectedProcesseds.add(
-                        sideOutputPrefix + "processing: " + input + sideInputsSuffix);
+                    additionalOutputPrefix + "processing: " + input + sideInputsSuffix);
             }
             String[] expectedProcessedsArray =
-                    expectedProcesseds.toArray(new String[expectedProcesseds.size()]);
+                expectedProcesseds.toArray(new String[expectedProcesseds.size()]);
             if (!ordered || expectedProcesseds.isEmpty()) {
                 assertThat(processeds, containsInAnyOrder(expectedProcessedsArray));
             } else {
                 assertThat(processeds, contains(expectedProcessedsArray));
             }
 
-            assertEquals(starteds.size(), finisheds.size());
-            for (String started : starteds) {
-                assertEquals(sideOutputPrefix + "started", started);
-            }
             for (String finished : finisheds) {
-                assertEquals(sideOutputPrefix + "finished", finished);
+                assertEquals(additionalOutputPrefix + "finished", finished);
             }
 
             return null;

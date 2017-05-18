@@ -49,6 +49,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Spout implementation that wraps a Beam UnboundedSource
+ *
+ * TODO: add wrapper to support metrics in UnboundedSource.
  */
 public class UnboundedSourceSpout extends AdaptorBasicSpout {
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceSpout.class);
@@ -161,7 +163,7 @@ public class UnboundedSourceSpout extends AdaptorBasicSpout {
             Instant waterMark = reader.getWatermark();
             if (waterMark != null) {
                 collector.flush();
-                collector.emit(CommonInstance.BEAM_WATERMARK_STREAM_ID, new Values(new Watermark(waterMark.getMillis())));
+                collector.emit(CommonInstance.BEAM_WATERMARK_STREAM_ID, new Values(waterMark.getMillis()));
             }
         } catch (IOException e) {
             throw new RuntimeException("Exception reading values from source.", e);
