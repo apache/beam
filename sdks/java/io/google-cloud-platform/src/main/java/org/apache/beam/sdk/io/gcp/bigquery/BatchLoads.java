@@ -177,7 +177,8 @@ class BatchLoads<DestinationT>
                             c.getPipelineOptions().getTempLocation(),
                             "BigQueryWriteTemp",
                             BigQueryHelpers.randomUUIDString());
-                        LOG.info("BigQuery temporary file location {}", tempLocation);
+                        LOG.info("Writing BigQuery temporary files to {} before loading them.",
+                            tempLocation);
                         c.output(tempLocation);
                       }
                     }))
