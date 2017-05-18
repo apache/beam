@@ -282,7 +282,7 @@ public class HBaseIOTest {
     /** Tests that when writing to a non-existent table, the write fails. */
     @Test
     public void testWritingFailsTableDoesNotExist() throws Exception {
-        final String table = "TEST-TABLE";
+        final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
         PCollection<KV<byte[], Iterable<Mutation>>> emptyInput =
                 p.apply(Create.empty(HBaseIO.WRITE_CODER));
@@ -298,7 +298,7 @@ public class HBaseIOTest {
     /** Tests that when writing an element fails, the write fails. */
     @Test
     public void testWritingFailsBadElement() throws Exception {
-        final String table = "TEST-TABLE";
+        final String table = "TEST-TABLE-BAD-ELEMENT";
         final String key = "KEY";
         createTable(table);
 
