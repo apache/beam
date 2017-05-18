@@ -527,7 +527,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type
    * to a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Write<T> writeAvros(Class<T> clazz) {
+  public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
     return PubsubIO.<T>write().withFormatFn(new FormatPayloadUsingCoder<>(AvroCoder.of(clazz)));
   }
@@ -970,8 +970,7 @@ public class PubsubIO {
     }
   }
 
-  private static class FormatPayloadUsingCoder<T extends Message>
-      extends SimpleFunction<T, PubsubMessage> {
+  private static class FormatPayloadUsingCoder<T> extends SimpleFunction<T, PubsubMessage> {
     private Coder<T> coder;
 
     public FormatPayloadUsingCoder(Coder<T> coder) {
