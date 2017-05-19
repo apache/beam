@@ -24,12 +24,11 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ParDos.ParDoPayloadTranslator;
+import java.util.ServiceLoader;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -40,11 +39,19 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class PTransforms {
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
-      KNOWN_PAYLOAD_TRANSLATORS =
-          ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
-              .put(ParDo.MultiOutput.class, ParDoPayloadTranslator.create())
-              .build();
-  // TODO: Load via service loader.
+      KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
+
+  private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
+      loadTransformPayloadTranslators() {
+    ImmutableMap.Builder<Class<? extends PTransform>, TransformPayloadTranslator> builder =
+        ImmutableMap.builder();
+    for (TransformPayloadTranslatorRegistrar registrar :
+        ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+      builder.putAll(registrar.getTransformPayloadTranslators());
+    }
+    return builder.build();
+  }
+
   private PTransforms() {}
 
   /**
