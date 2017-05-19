@@ -32,7 +32,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -515,58 +514,18 @@ public class ParDoTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testParDoWritingToUndeclaredTag() {
-
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 
     TupleTag<String> notOutputTag = new TupleTag<String>("additional"){};
 
-    PCollection<String> output = pipeline
+    pipeline
         .apply(Create.of(inputs))
         .apply(ParDo.of(new TestDoFn(
             Arrays.<PCollectionView<Integer>>asList(),
-            Arrays.asList(notOutputTag))));
+            Arrays.asList(notOutputTag)))
+            /* No call to .withOutputTags - should cause error */);
 
-    PAssert.that(output)
-        .satisfies(ParDoTest.HasExpectedOutput.forInput(inputs));
-
-    pipeline.run();
-  }
-
-  @Test
-  // TODO: The exception thrown is runner-specific, even if the behavior is general
-  @Category(NeedsRunner.class)
-  public void testParDoUndeclaredTagLimit() {
-
-    PCollection<Integer> input = pipeline.apply(Create.of(Arrays.asList(3)));
-
-    // Success for a total of 1000 outputs.
-    input
-        .apply("Success1000", ParDo.of(new DoFn<Integer, String>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              TupleTag<String> specialOutputTag = new TupleTag<String>(){};
-              c.output(specialOutputTag, "special");
-              c.output(specialOutputTag, "special");
-              c.output(specialOutputTag, "special");
-
-              for (int i = 0; i < 998; i++) {
-                c.output(new TupleTag<String>(){}, "tag" + i);
-              }
-            }}));
-    pipeline.run();
-
-    // Failure for a total of 1001 outputs.
-    input
-        .apply("Failure1001", ParDo.of(new DoFn<Integer, String>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              for (int i = 0; i < 1000; i++) {
-                c.output(new TupleTag<String>(){}, "output" + i);
-              }
-            }}));
-
-    thrown.expect(RuntimeException.class);
-    thrown.expectMessage("the number of outputs has exceeded a limit");
+    thrown.expectMessage("additional");
     pipeline.run();
   }
 
@@ -1107,43 +1066,32 @@ public class ParDoTest implements Serializable {
     private final List<Integer> inputs;
     private final List<Integer> sideInputs;
     private final String additionalOutput;
-    private final boolean ordered;
 
     public static HasExpectedOutput forInput(List<Integer> inputs) {
       return new HasExpectedOutput(
           new ArrayList<Integer>(inputs),
           new ArrayList<Integer>(),
-          "",
-          false);
+          "");
     }
 
     private HasExpectedOutput(List<Integer> inputs,
                               List<Integer> sideInputs,
-                              String additionalOutput,
-                              boolean ordered) {
+                              String additionalOutput) {
       this.inputs = inputs;
       this.sideInputs = sideInputs;
       this.additionalOutput = additionalOutput;
-      this.ordered = ordered;
     }
 
     public HasExpectedOutput andSideInputs(Integer... sideInputValues) {
-      List<Integer> sideInputs = new ArrayList<>();
-      for (Integer sideInputValue : sideInputValues) {
-        sideInputs.add(sideInputValue);
-      }
-      return new HasExpectedOutput(inputs, sideInputs, additionalOutput, ordered);
+      return new HasExpectedOutput(
+          inputs, Arrays.asList(sideInputValues), additionalOutput);
     }
 
     public HasExpectedOutput fromOutput(TupleTag<String> outputTag) {
       return fromOutput(outputTag.getId());
     }
     public HasExpectedOutput fromOutput(String outputId) {
-      return new HasExpectedOutput(inputs, sideInputs, outputId, ordered);
-    }
-
-    public HasExpectedOutput inOrder() {
-      return new HasExpectedOutput(inputs, sideInputs, additionalOutput, true);
+      return new HasExpectedOutput(inputs, sideInputs, outputId);
     }
 
     @Override
@@ -1179,11 +1127,7 @@ public class ParDoTest implements Serializable {
       }
       String[] expectedProcessedsArray =
           expectedProcesseds.toArray(new String[expectedProcesseds.size()]);
-      if (!ordered || expectedProcesseds.isEmpty()) {
-        assertThat(processeds, containsInAnyOrder(expectedProcessedsArray));
-      } else {
-        assertThat(processeds, contains(expectedProcessedsArray));
-      }
+      assertThat(processeds, containsInAnyOrder(expectedProcessedsArray));
 
       for (String finished : finisheds) {
         assertEquals(additionalOutputPrefix + "finished", finished);
