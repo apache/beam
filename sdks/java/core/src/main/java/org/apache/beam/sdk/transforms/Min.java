@@ -158,11 +158,11 @@ public class Min {
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MinFn<T>(identity, new Top.Largest<T>());
+    return new MinFn<T>(identity, new Top.Natural<T>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MinFn<T>(null, new Top.Largest<T>());
+    return new MinFn<T>(null, new Top.Natural<T>());
   }
 
   /**

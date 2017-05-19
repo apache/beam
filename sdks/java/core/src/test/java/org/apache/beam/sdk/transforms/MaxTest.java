@@ -69,7 +69,7 @@ public class MaxTest {
 
   @Test
   public void testDisplayData() {
-    Top.Largest<Integer> comparer = new Top.Largest<>();
+    Top.Natural<Integer> comparer = new Top.Natural<>();
 
     Combine.Globally<Integer, Integer> max = Max.globally(comparer);
     assertThat(DisplayData.from(max), hasDisplayItem("comparer", comparer.getClass()));
