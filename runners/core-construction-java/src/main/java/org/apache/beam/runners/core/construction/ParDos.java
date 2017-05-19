@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
@@ -159,6 +161,20 @@ public class ParDos {
   public static TupleTag<?> getMainOutputTag(ParDoPayload payload)
       throws InvalidProtocolBufferException {
     return doFnAndMainOutputTagFromProto(payload.getDoFn()).getMainOutputTag();
+  }
+
+  public static RunnerApi.PCollection getMainInput(
+      RunnerApi.PTransform ptransform, Components components) throws IOException {
+    checkArgument(
+        ptransform.getSpec().getUrn().equals(PAR_DO_PAYLOAD_URN),
+        "Unexpected payload type %s",
+        ptransform.getSpec().getUrn());
+    ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    String mainInputId =
+        Iterables.getOnlyElement(
+            Sets.difference(
+                ptransform.getInputsMap().keySet(), payload.getSideInputsMap().keySet()));
+    return components.getPcollectionsOrThrow(ptransform.getInputsOrThrow(mainInputId));
   }
 
   // TODO: Implement
