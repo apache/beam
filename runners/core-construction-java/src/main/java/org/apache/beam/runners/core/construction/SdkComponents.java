@@ -62,10 +62,10 @@ class SdkComponents {
     return new SdkComponents();
   }
 
-  public static RunnerApi.Pipeline translatePipeline(Pipeline p) {
+  public static RunnerApi.Pipeline translatePipeline(Pipeline pipeline) {
     final SdkComponents components = create();
     final Collection<String> rootIds = new HashSet<>();
-    p.traverseTopologically(
+    pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =
               ArrayListMultimap.create();
@@ -77,9 +77,10 @@ class SdkComponents {
                 rootIds.add(components.getExistingPTransformId(pipelineRoot));
               }
             } else {
-              children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+              children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
               try {
-                components.registerPTransform(node.toAppliedPTransform(), children.get(node));
+                components.registerPTransform(
+                    node.toAppliedPTransform(getPipeline()), children.get(node));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -88,10 +89,11 @@ class SdkComponents {
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            children.put(node.getEnclosingNode(), node.toAppliedPTransform());
+            children.put(node.getEnclosingNode(), node.toAppliedPTransform(getPipeline()));
             try {
               components.registerPTransform(
-                  node.toAppliedPTransform(), Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+                  node.toAppliedPTransform(getPipeline()),
+                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }
