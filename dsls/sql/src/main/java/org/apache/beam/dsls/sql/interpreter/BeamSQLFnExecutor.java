@@ -206,10 +206,12 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
     }
   }
 
-  @Override public void prepare() {
+  @Override
+  public void prepare() {
   }
 
-  @Override public List<Object> execute(BeamSQLRow inputRecord) {
+  @Override
+  public List<Object> execute(BeamSQLRow inputRecord) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
       results.add(exp.evaluate(inputRecord).getValue());
@@ -217,7 +219,8 @@ public class BeamSQLFnExecutor implements BeamSQLExpressionExecutor {
     return results;
   }
 
-  @Override public void close() {
+  @Override
+  public void close() {
   }
 
 }

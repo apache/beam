@@ -17,6 +17,6 @@
  */
 
 /**
- * Functions operators.
+ * MATH functions/operators.
  */
 package org.apache.beam.dsls.sql.interpreter.operator.math;
