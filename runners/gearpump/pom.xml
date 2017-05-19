@@ -73,6 +73,15 @@
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
                     org.apache.beam.sdk.testing.UsesTestStream
                   </excludedGroups>
+                  <excludes>
+                    <exclude>
+                      org.apache.beam.sdk.io.GenerateSequenceTest,
+                      org.apache.beam.sdk.io.CountingSourceTest,
+		      org.apache.beam.sdk.transforms.FlattenTest,
+		      org.apache.beam.sdk.transforms.ViewTest,
+                      org.apache.beam.sdk.transforms.windowing.WindowingTest
+                    </exclude>
+                  </excludes>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
