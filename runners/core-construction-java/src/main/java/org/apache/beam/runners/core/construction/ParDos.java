@@ -111,6 +111,9 @@ public class ParDos {
           .build();
     }
 
+    /**
+     * Registers {@link ParDoPayloadTranslator}.
+     */
     @AutoService(TransformPayloadTranslatorRegistrar.class)
     public static class Registrar implements TransformPayloadTranslatorRegistrar {
       @Override
