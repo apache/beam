@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
 import java.time.Instant;
@@ -95,18 +94,19 @@ public class GroupByKeyTranslatorTest {
   @Test
   @SuppressWarnings({"rawtypes", "unchecked"})
   public void testKeyedByTimestamp() {
+    WindowFn slidingWindows = Sessions.withGapDuration(Duration.millis(10));
     BoundedWindow window =
         new IntervalWindow(new org.joda.time.Instant(0), new org.joda.time.Instant(10));
     GroupByKeyTranslator.KeyedByTimestamp keyedByTimestamp =
-        new GroupByKeyTranslator.KeyedByTimestamp(timestampCombiner);
+        new GroupByKeyTranslator.KeyedByTimestamp(slidingWindows, timestampCombiner);
     WindowedValue<KV<String, String>> value =
         WindowedValue.of(
             KV.of("key", "val"), org.joda.time.Instant.now(), window, PaneInfo.NO_FIRING);
     KV<org.joda.time.Instant, WindowedValue<KV<String, String>>> result =
         keyedByTimestamp.map(value);
     org.joda.time.Instant time =
-        timestampCombiner.assign(Iterables.getOnlyElement(value.getWindows()),
-            value.getTimestamp());
+        timestampCombiner.assign(window,
+            slidingWindows.getOutputTime(value.getTimestamp(), window));
     assertThat(result, equalTo(KV.of(time, value)));
   }
 
