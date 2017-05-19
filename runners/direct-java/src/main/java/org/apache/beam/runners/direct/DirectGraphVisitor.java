@@ -35,6 +35,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -42,6 +44,7 @@ import org.apache.beam.sdk.values.PValue;
  * input after the upstream transform has produced and committed output.
  */
 class DirectGraphVisitor extends PipelineVisitor.Defaults {
+  private static final Logger LOG = LoggerFactory.getLogger(DirectGraphVisitor.class);
 
   private Map<POutput, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
 
@@ -87,8 +90,10 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
       Collection<PValue> mainInputs =
           TransformInputs.nonAdditionalInputs(node.toAppliedPTransform());
       if (!mainInputs.containsAll(node.getInputs().values())) {
-        System.out.printf(
-            "Main inputs reduced to %s from %s%n", mainInputs, node.getInputs().values());
+        LOG.debug(
+            "Inputs reduced to {} from {} by removing additional inputs",
+            mainInputs,
+            node.getInputs().values());
       }
       for (PValue value : mainInputs) {
         primitiveConsumers.put(value, appliedTransform);
