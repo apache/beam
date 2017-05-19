@@ -20,13 +20,10 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -80,6 +77,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -96,7 +94,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
@@ -109,7 +106,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -148,7 +144,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Pipeline p = Pipeline.create(options);
 
     // Enable the FileSystems API to know about gs:// URIs in this test.
-    FileSystems.setDefaultConfigInWorkers(options);
+    FileSystems.setDefaultPipelineOptions(options);
 
     p.apply("ReadMyFile", TextIO.read().from("gs://bucket/object"))
      .apply("WriteMyFile", TextIO.write().to("gs://bucket/object"));
@@ -807,28 +803,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   private void applyRead(Pipeline pipeline, String path) {
     pipeline.apply("Read(" + path + ")", TextIO.read().from(path));
-  }
-
-  /**
-   * Recursive wildcards are not supported.
-   * This tests "**".
-   */
-  @Test
-  public void testBadWildcardRecursive() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-    Pipeline pipeline = Pipeline.create(options);
-    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
-
-    pipeline.apply(TextIO.read().from("gs://bucket/foo**/baz"));
-
-    // Check that translation does fail.
-    thrown.expectCause(allOf(
-        instanceOf(IllegalArgumentException.class),
-        ThrowableMessageMatcher.hasMessage(containsString("Unsupported wildcard usage"))));
-    t.translate(
-        pipeline,
-        DataflowRunner.fromOptions(options),
-        Collections.<DataflowPackage>emptyList());
   }
 
   private static class TestValueProvider implements ValueProvider<String>, Serializable {

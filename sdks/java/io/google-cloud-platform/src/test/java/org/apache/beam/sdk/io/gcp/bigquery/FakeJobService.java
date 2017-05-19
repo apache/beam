@@ -66,6 +66,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.Transport;
@@ -76,9 +77,9 @@ import org.joda.time.Duration;
  */
 class FakeJobService implements JobService, Serializable {
   static final JsonFactory JSON_FACTORY = Transport.getJsonFactory();
-  // Whenever a job is started, the first 5 calls to GetJob will report the job as pending,
-  // the next 5 will return the job as running, and only then will the job report as done.
-  private static final int GET_JOBS_TRANSITION_INTERVAL = 5;
+  // Whenever a job is started, the first 2 calls to GetJob will report the job as pending,
+  // the next 2 will return the job as running, and only then will the job report as done.
+  private static final int GET_JOBS_TRANSITION_INTERVAL = 2;
 
   private FakeDatasetService datasetService;
 
@@ -187,11 +188,12 @@ class FakeJobService implements JobService, Serializable {
   public Job pollJob(JobReference jobRef, int maxAttempts)
       throws InterruptedException {
     BackOff backoff =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(maxAttempts)
-            .withInitialBackoff(Duration.millis(10))
-            .withMaxBackoff(Duration.standardSeconds(1))
-            .backoff();
+        BackOffAdapter.toGcpBackOff(
+            FluentBackoff.DEFAULT
+                .withMaxRetries(maxAttempts)
+                .withInitialBackoff(Duration.millis(10))
+                .withMaxBackoff(Duration.standardSeconds(1))
+                .backoff());
     Sleeper sleeper = Sleeper.DEFAULT;
     try {
       do {

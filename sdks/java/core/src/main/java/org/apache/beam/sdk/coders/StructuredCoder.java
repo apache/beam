@@ -18,10 +18,6 @@
 package org.apache.beam.sdk.coders;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -36,11 +32,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>To extend {@link StructuredCoder}, override the following methods as appropriate:
  *
  * <ul>
- *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.</li>
- *   <li>{@link #getEncodedElementByteSize} and
- *       {@link #isRegisterByteSizeObserverCheap}: the
+ *   <li>{@link #getComponents}: the default implementation returns {@link #getCoderArguments}.
+ *   <li>{@link #getEncodedElementByteSize} and {@link #isRegisterByteSizeObserverCheap}: the
  *       default implementation encodes values to bytes and counts the bytes, which is considered
- *       expensive.</li>
+ *       expensive. The default element byte size observer uses the value returned by
+ *       {@link #getEncodedElementByteSize}.
  * </ul>
  */
 public abstract class StructuredCoder<T> extends Coder<T> {
@@ -48,6 +44,8 @@ public abstract class StructuredCoder<T> extends Coder<T> {
 
   /**
    * Returns the list of {@link Coder Coders} that are components of this {@link Coder}.
+   *
+   * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
   public List<? extends Coder<?>> getComponents() {
     List<? extends Coder<?>> coderArguments = getCoderArguments();
@@ -99,66 +97,6 @@ public abstract class StructuredCoder<T> extends Coder<T> {
       builder.append(')');
     }
     return builder.toString();
-  }
-
-  @Override
-  public void encode(T value, OutputStream outStream)
-      throws CoderException, IOException {
-    encode(value, outStream, Coder.Context.NESTED);
-  }
-
-  @Deprecated
-  @Override
-  public void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException {
-    encode(value, outStream, Coder.Context.OUTER);
-  }
-
-  @Deprecated
-  public void encode(T value, OutputStream outStream, Coder.Context context)
-      throws CoderException, IOException {
-    if (context == Coder.Context.NESTED) {
-      encode(value, outStream);
-    } else {
-      encodeOuter(value, outStream);
-    }
-  }
-
-  @Override
-  public T decode(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Coder.Context.NESTED);
-  }
-
-  @Deprecated
-  @Override
-  public T decodeOuter(InputStream inStream) throws CoderException, IOException {
-    return decode(inStream, Coder.Context.OUTER);
-  }
-
-  @Deprecated
-  public T decode(InputStream inStream, Coder.Context context)
-      throws CoderException, IOException {
-    if (context == Coder.Context.NESTED) {
-      return decode(inStream);
-    } else {
-      return decodeOuter(inStream);
-    }
-  }
-
-  protected void verifyDeterministic(String message, Iterable<Coder<?>> coders)
-      throws NonDeterministicException {
-    for (Coder<?> coder : coders) {
-      try {
-        coder.verifyDeterministic();
-      } catch (NonDeterministicException e) {
-        throw new NonDeterministicException(this, message, e);
-      }
-    }
-  }
-
-  protected void verifyDeterministic(String message, Coder<?>... coders)
-      throws NonDeterministicException {
-    verifyDeterministic(message, Arrays.asList(coders));
   }
 
   /**

@@ -21,7 +21,6 @@ import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.List;
 import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
 import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.util.VarInt;
@@ -50,6 +49,12 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   private static final TypeDescriptor<byte[]> TYPE_DESCRIPTOR = new TypeDescriptor<byte[]>() {};
 
   private ByteArrayCoder() {}
+
+  @Override
+  public void encode(byte[] value, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(value, outStream, Context.NESTED);
+  }
 
   @Override
   public void encode(byte[] value, OutputStream outStream, Context context)
@@ -86,6 +91,11 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
   }
 
   @Override
+  public byte[] decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public byte[] decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     if (context.isWholeStream) {
@@ -99,11 +109,6 @@ public class ByteArrayCoder extends AtomicCoder<byte[]> {
       ByteStreams.readFully(inStream, value);
       return value;
     }
-  }
-
-  @Override
-  public List<? extends Coder<?>> getCoderArguments() {
-    return null;
   }
 
   @Override

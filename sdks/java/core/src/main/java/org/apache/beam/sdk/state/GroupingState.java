@@ -19,25 +19,24 @@ package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.GroupByKey;
 
 /**
- * State that combines multiple {@code InputT} values using a {@link CombineFn} to produce a single
- * {@code OutputT} value.
+ * A {@link ReadableState} cell that combines multiple input values and outputs a single value of a
+ * different type.
+ *
+ * <p>This generalizes {@link GroupByKey} and {@link Combine} styles of grouping.
  *
  * @param <InputT> the type of values added to the state
  * @param <OutputT> the type of value extracted from the state
  */
 @Experimental(Kind.STATE)
 public interface GroupingState<InputT, OutputT> extends ReadableState<OutputT>, State {
-  /**
-   * Add a value to the buffer.
-   */
+  /** Add a value to the buffer. */
   void add(InputT value);
 
-  /**
-   * Return true if this state is empty.
-   */
+  /** Return true if this state is empty. */
   ReadableState<Boolean> isEmpty();
 
   @Override

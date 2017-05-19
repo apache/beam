@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.join;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -54,6 +55,12 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
     return index;
   }
 
+  @Override
+  public void encode(RawUnionValue union, OutputStream outStream)
+      throws IOException, CoderException {
+    encode(union, outStream, Context.NESTED);
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void encode(
@@ -74,6 +81,11 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
   }
 
   @Override
+  public RawUnionValue decode(InputStream inStream) throws IOException, CoderException {
+    return decode(inStream, Context.NESTED);
+  }
+
+  @Override
   public RawUnionValue decode(InputStream inStream, Context context)
       throws IOException, CoderException {
     int index = VarInt.decodeInt(inStream);
@@ -83,7 +95,7 @@ public class UnionCoder extends StructuredCoder<RawUnionValue> {
 
   @Override
   public List<? extends Coder<?>> getCoderArguments() {
-    return null;
+    return Collections.emptyList();
   }
 
   @Override

@@ -77,18 +77,18 @@ import org.joda.time.format.DateTimeFormatter;
  * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
- * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
- * like this:
+ * <p>To execute this pipeline, specify the pipeline configuration like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_RUNNER
  *   --dataset=YOUR-DATASET
  *   --topic=projects/YOUR-PROJECT/topics/YOUR-TOPIC
  * }
  * </pre>
- * where the BigQuery dataset you specify must already exist.
- * The PubSub topic you specify should be the same topic to which the Injector is publishing.
+ *
+ * <p>The BigQuery dataset you specify must already exist. The PubSub topic you specify should be
+ * the same topic to which the Injector is publishing.
  */
 public class LeaderBoard extends HourlyTeamScore {
 
@@ -105,6 +105,11 @@ public class LeaderBoard extends HourlyTeamScore {
    * Options supported by {@link LeaderBoard}.
    */
   interface Options extends HourlyTeamScore.Options, ExampleOptions, StreamingOptions {
+
+    @Description("BigQuery Dataset to write tables to. Must already exist.")
+    @Validation.Required
+    String getDataset();
+    void setDataset(String value);
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required
@@ -162,6 +167,27 @@ public class LeaderBoard extends HourlyTeamScore {
             "STRING", (c, w) -> c.pane().getTiming().toString()));
     return tableConfigure;
   }
+
+
+  /**
+   * Create a map of information that describes how to write pipeline output to BigQuery. This map
+   * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
+   */
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
+  configureBigQueryWrite() {
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
+        new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
+    tableConfigure.put(
+        "user",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    return tableConfigure;
+  }
+
 
   /**
    * Create a map of information that describes how to write pipeline output to BigQuery. This map

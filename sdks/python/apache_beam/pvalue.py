@@ -31,6 +31,17 @@ import itertools
 from apache_beam import typehints
 
 
+__all__ = [
+    'PCollection',
+    'TaggedOutput',
+    'AsSingleton',
+    'AsIter',
+    'AsList',
+    'AsDict',
+    'EmptySideInput',
+]
+
+
 class PValue(object):
   """Base class for PCollection.
 
@@ -391,13 +402,6 @@ class AsDict(AsSideInput):
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
-
-
-# For backwards compatibility with worker code.
-SingletonPCollectionView = AsSingleton
-IterablePCollectionView = AsIter
-ListPCollectionView = AsList
-DictPCollectionView = AsDict
 
 
 class EmptySideInput(object):

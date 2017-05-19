@@ -413,7 +413,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
-      FileSystems.setDefaultConfigInWorkers(options);
+      FileSystems.setDefaultPipelineOptions(options);
       return options;
     } catch (IOException e) {
       throw new RuntimeException(

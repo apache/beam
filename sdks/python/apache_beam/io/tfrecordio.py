@@ -23,7 +23,7 @@ import struct
 
 from apache_beam import coders
 from apache_beam.io import filebasedsource
-from apache_beam.io import fileio
+from apache_beam.io import filebasedsink
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -210,7 +210,7 @@ class ReadFromTFRecord(PTransform):
     return pvalue.pipeline | Read(self._source)
 
 
-class _TFRecordSink(fileio.FileSink):
+class _TFRecordSink(filebasedsink.FileBasedSink):
   """Sink for writing TFRecords files.
 
   For detailed TFRecord format description see:
@@ -242,7 +242,7 @@ class WriteToTFRecord(PTransform):
                coder=coders.BytesCoder(),
                file_name_suffix='',
                num_shards=0,
-               shard_name_template=fileio.DEFAULT_SHARD_NAME_TEMPLATE,
+               shard_name_template=None,
                compression_type=CompressionTypes.AUTO,
                **kwargs):
     """Initialize WriteToTFRecord transform.
@@ -256,13 +256,12 @@ class WriteToTFRecord(PTransform):
       num_shards: The number of files (shards) used for output. If not set, the
         default value will be used.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. Currently only '' and
-        '-SSSSS-of-NNNNN' are patterns allowed.
-        When constructing a filename for a particular shard number, the
-        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
-        number and shard count respectively.  This argument can be '' in which
-        case it behaves as if num_shards was set to 1 and only one file will be
-        generated. The default pattern is '-SSSSS-of-NNNNN'.
+        the shard number and shard count. When constructing a filename for a
+        particular shard number, the upper-case letters 'S' and 'N' are
+        replaced with the 0-padded shard number and shard count respectively.
+        This argument can be '' in which case it behaves as if num_shards was
+        set to 1 and only one file will be generated. The default pattern used
+        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
       compression_type: Used to handle compressed output files. Typical value
           is CompressionTypes.AUTO, in which case the file_path's extension will
           be used to detect the compression.

@@ -277,10 +277,10 @@ public class DoFnInvokersTest {
     }
 
     @Override
-    public void encode(SomeRestriction value, OutputStream outStream, Context context) {}
+    public void encode(SomeRestriction value, OutputStream outStream) {}
 
     @Override
-    public SomeRestriction decode(InputStream inStream, Context context) {
+    public SomeRestriction decode(InputStream inStream) {
       return null;
     }
   }
@@ -400,10 +400,10 @@ public class DoFnInvokersTest {
 
     @Override
     public void encode(
-        RestrictionWithDefaultTracker value, OutputStream outStream, Context context) {}
+        RestrictionWithDefaultTracker value, OutputStream outStream) {}
 
     @Override
-    public RestrictionWithDefaultTracker decode(InputStream inStream, Context context) {
+    public RestrictionWithDefaultTracker decode(InputStream inStream) {
       return null;
     }
   }
@@ -694,4 +694,23 @@ public class DoFnInvokersTest {
     invoker.invokeOnTimer(timerId, mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
   }
+
+  static class StableNameTestDoFn extends DoFn<Void, Void> {
+    @ProcessElement
+    public void process() {}
+  };
+
+  /**
+   * This is a change-detector test that the generated name is stable across runs.
+   */
+  @Test
+  public void testStableName() {
+    DoFnInvoker<Void, Void> invoker = DoFnInvokers.invokerFor(new StableNameTestDoFn());
+    assertThat(
+        invoker.getClass().getName(),
+        equalTo(
+            String.format(
+                "%s$%s", StableNameTestDoFn.class.getName(), DoFnInvoker.class.getSimpleName())));
+  }
+
 }

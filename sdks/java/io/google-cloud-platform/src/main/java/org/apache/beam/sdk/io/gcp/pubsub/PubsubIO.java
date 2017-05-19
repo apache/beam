@@ -65,6 +65,12 @@ import org.slf4j.LoggerFactory;
  * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
  *
+ * <h3>Using local emulator</h3>
+ *
+ * <p>In order to use local emulator for Pubsub you should use
+ * {@code PubsubOptions#setPubsubRootUrl(String)} method to set host and port of your
+ * local emulator.
+ *
  * <h3>Permissions</h3>
  *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
@@ -435,7 +441,7 @@ public class PubsubIO {
    * messages will only contain a {@link PubsubMessage#getPayload() payload}, but no {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithoutAttributes() {
+  public static Read<PubsubMessage> readMessages() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessagePayloadOnlyCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -448,7 +454,7 @@ public class PubsubIO {
    * messages will contain both a {@link PubsubMessage#getPayload() payload} and {@link
    * PubsubMessage#getAttributeMap() attributes}.
    */
-  public static Read<PubsubMessage> readPubsubMessagesWithAttributes() {
+  public static Read<PubsubMessage> readMessagesWithAttributes() {
     return new AutoValue_PubsubIO_Read.Builder<PubsubMessage>()
         .setCoder(PubsubMessageWithAttributesCoder.of())
         .setParseFn(new IdentityMessageFn())
@@ -481,7 +487,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that continuously reads binary encoded Avro messages of the
    * given type from a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Read<T> readAvros(Class<T> clazz) {
+  public static <T> Read<T> readAvros(Class<T> clazz) {
     // TODO: Stop using AvroCoder and instead parse the payload directly.
     // We should not be relying on the fact that AvroCoder's wire format is identical to
     // the Avro wire format, as the wire format is not part of a coder's API.
@@ -495,7 +501,7 @@ public class PubsubIO {
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
-  public static Write<PubsubMessage> writePubsubMessages() {
+  public static Write<PubsubMessage> writeMessages() {
     return PubsubIO.<PubsubMessage>write().withFormatFn(new IdentityMessageFn());
   }
 
@@ -521,7 +527,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type
    * to a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Write<T> writeAvros(Class<T> clazz) {
+  public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
     return PubsubIO.<T>write().withFormatFn(new FormatPayloadUsingCoder<>(AvroCoder.of(clazz)));
   }
@@ -964,8 +970,7 @@ public class PubsubIO {
     }
   }
 
-  private static class FormatPayloadUsingCoder<T extends Message>
-      extends SimpleFunction<T, PubsubMessage> {
+  private static class FormatPayloadUsingCoder<T> extends SimpleFunction<T, PubsubMessage> {
     private Coder<T> coder;
 
     public FormatPayloadUsingCoder(Coder<T> coder) {

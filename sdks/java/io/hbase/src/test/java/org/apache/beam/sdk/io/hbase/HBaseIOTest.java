@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.hbase.HBaseIO.HBaseSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
@@ -205,6 +206,22 @@ public class HBaseIOTest {
         assertSourcesEqualReferenceSource(source, splits, null /* options */);
     }
 
+    /** Tests that a {@link HBaseSource} can be read twice, verifying its immutability. */
+    @Test
+    public void testReadingSourceTwice() throws Exception {
+        final String table = "TEST-READING-TWICE";
+        final int numRows = 10;
+
+        // Set up test table data and sample row keys for size estimation and splitting.
+        createTable(table);
+        writeData(table, numRows);
+
+        HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
+        HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
+        assertThat(SourceTestUtils.readFromSource(source, null), hasSize(numRows));
+        // second read.
+        assertThat(SourceTestUtils.readFromSource(source, null), hasSize(numRows));
+    }
 
     /** Tests reading all rows using a filter. */
     @Test
@@ -282,7 +299,7 @@ public class HBaseIOTest {
     /** Tests that when writing to a non-existent table, the write fails. */
     @Test
     public void testWritingFailsTableDoesNotExist() throws Exception {
-        final String table = "TEST-TABLE";
+        final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
         PCollection<KV<byte[], Iterable<Mutation>>> emptyInput =
                 p.apply(Create.empty(HBaseIO.WRITE_CODER));
@@ -298,7 +315,7 @@ public class HBaseIOTest {
     /** Tests that when writing an element fails, the write fails. */
     @Test
     public void testWritingFailsBadElement() throws Exception {
-        final String table = "TEST-TABLE";
+        final String table = "TEST-TABLE-BAD-ELEMENT";
         final String key = "KEY";
         createTable(table);
 

@@ -54,7 +54,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -986,12 +985,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(TestDummy value, OutputStream outStream, Context context)
+    public void encode(TestDummy value, OutputStream outStream)
         throws CoderException, IOException {
     }
 
     @Override
-    public TestDummy decode(InputStream inStream, Context context)
+    public TestDummy decode(InputStream inStream)
         throws CoderException, IOException {
       return new TestDummy();
     }
@@ -1090,15 +1089,15 @@ public class ParDoTest implements Serializable {
     }
 
     @Override
-    public void encode(MyInteger value, OutputStream outStream, Context context)
+    public void encode(MyInteger value, OutputStream outStream)
         throws CoderException, IOException {
-      delegate.encode(value.getValue(), outStream, context);
+      delegate.encode(value.getValue(), outStream);
     }
 
     @Override
-    public MyInteger decode(InputStream inStream, Context context) throws CoderException,
+    public MyInteger decode(InputStream inStream) throws CoderException,
         IOException {
-      return new MyInteger(delegate.decode(inStream, context));
+      return new MyInteger(delegate.decode(inStream));
     }
   }
 
@@ -2745,7 +2744,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("relative timers");
@@ -2775,7 +2774,7 @@ public class ParDoTest implements Serializable {
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
-    thrown.expect(PipelineExecutionException.class);
+    thrown.expect(RuntimeException.class);
     // Note that runners can reasonably vary their message - this matcher should be flexible
     // and can be evolved.
     thrown.expectMessage("event time timer");

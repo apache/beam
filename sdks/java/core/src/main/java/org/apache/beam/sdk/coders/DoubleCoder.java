@@ -43,7 +43,7 @@ public class DoubleCoder extends AtomicCoder<Double> {
   private DoubleCoder() {}
 
   @Override
-  public void encode(Double value, OutputStream outStream, Context context)
+  public void encode(Double value, OutputStream outStream)
       throws IOException, CoderException {
     if (value == null) {
       throw new CoderException("cannot encode a null Double");
@@ -52,7 +52,7 @@ public class DoubleCoder extends AtomicCoder<Double> {
   }
 
   @Override
-  public Double decode(InputStream inStream, Context context)
+  public Double decode(InputStream inStream)
       throws IOException, CoderException {
     try {
       return new DataInputStream(inStream).readDouble();

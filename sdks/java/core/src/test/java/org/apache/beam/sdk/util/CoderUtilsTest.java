@@ -50,12 +50,12 @@ public class CoderUtilsTest {
     }
 
     @Override
-    public void encode(Integer value, OutputStream outStream, Context context) {
+    public void encode(Integer value, OutputStream outStream) {
       throw new RuntimeException("not expecting to be called");
     }
 
     @Override
-    public Integer decode(InputStream inStream, Context context) {
+    public Integer decode(InputStream inStream) {
       throw new RuntimeException("not expecting to be called");
     }
 

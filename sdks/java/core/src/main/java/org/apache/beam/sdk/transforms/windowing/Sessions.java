@@ -25,16 +25,17 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 
 /**
- * A {@link WindowFn} windowing values into sessions separated by {@link #gapDuration}-long
- * periods with no elements.
+ * A {@link WindowFn} that windows values into sessions separated by periods with no input for at
+ * least the duration specified by {@link #getGapDuration()}.
  *
- * <p>For example, in order to window data into session with at least 10 minute
- * gaps in between them:
- * <pre> {@code
+ * <p>For example, in order to window data into session with at least 10 minute gaps in between
+ * them:
+ *
+ * <pre>{@code
  * PCollection<Integer> pc = ...;
  * PCollection<Integer> windowed_pc = pc.apply(
  *   Window.<Integer>into(Sessions.withGapDuration(Duration.standardMinutes(10))));
- * } </pre>
+ * }</pre>
  */
 public class Sessions extends WindowFn<Object, IntervalWindow> {
   /**
@@ -77,6 +78,17 @@ public class Sessions extends WindowFn<Object, IntervalWindow> {
   @Override
   public boolean isCompatible(WindowFn<?, ?> other) {
     return other instanceof Sessions;
+  }
+
+  @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is only compatible with %s.",
+              Sessions.class.getSimpleName(), Sessions.class.getSimpleName()));
+    }
   }
 
   @Override

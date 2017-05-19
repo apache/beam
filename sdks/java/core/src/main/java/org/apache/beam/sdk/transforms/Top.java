@@ -66,7 +66,7 @@ public class Top {
    * given {@code Comparator<T>}.  The {@code Comparator<T>} must also
    * be {@code Serializable}.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting
    * {@code List}, albeit in sorted order.
@@ -110,7 +110,7 @@ public class Top {
    * {@code PCollection<T>}, in increasing order, sorted according to
    * their natural order.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
@@ -154,7 +154,7 @@ public class Top {
    * {@code PCollection<T>}, in decreasing order, sorted according to
    * their natural order.
    *
-   * <p>If {@code count} {@code <} the number of elements in the
+   * <p>If {@code count} {@code >} the number of elements in the
    * input {@code PCollection}, then all the elements of the input
    * {@code PCollection} will be in the resulting {@code PCollection}'s
    * {@code List}, albeit in sorted order.
@@ -539,15 +539,15 @@ public class Top {
 
     @Override
     public void encode(
-        BoundedHeap<T, ComparatorT> value, OutputStream outStream, Context context)
+        BoundedHeap<T, ComparatorT> value, OutputStream outStream)
         throws CoderException, IOException {
-      listCoder.encode(value.asList(), outStream, context);
+      listCoder.encode(value.asList(), outStream);
     }
 
     @Override
-    public BoundedHeap<T, ComparatorT> decode(InputStream inStream, Coder.Context context)
+    public BoundedHeap<T, ComparatorT> decode(InputStream inStream)
         throws CoderException, IOException {
-      return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream, context));
+      return new BoundedHeap<>(maximumSize, compareFn, listCoder.decode(inStream));
     }
 
     @Override

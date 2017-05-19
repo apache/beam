@@ -352,7 +352,15 @@ public class ApiSurface {
 
     Set<Class<?>> newRootClasses = Sets.newHashSet();
     for (ClassPath.ClassInfo classInfo : classPath.getTopLevelClassesRecursive(packageName)) {
-      Class clazz = classInfo.load();
+      Class clazz = null;
+      try {
+        clazz = classInfo.load();
+      } catch (NoClassDefFoundError e) {
+        // TODO: Ignore any NoClassDefFoundError errors as a workaround. (BEAM-2231)
+        LOG.warn("Failed to load class: {}", classInfo.toString(), e);
+        continue;
+      }
+
       if (exposed(clazz.getModifiers())) {
         newRootClasses.add(clazz);
       }

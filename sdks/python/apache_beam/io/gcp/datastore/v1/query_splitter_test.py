@@ -157,27 +157,32 @@ class QuerySplitterTest(unittest.TestCase):
       batch_size: the number of entities returned by fake datastore in one req.
     """
 
-    entities = fake_datastore.create_entities(num_entities)
-    mock_datastore = MagicMock()
-    # Assign a fake run_query method as a side_effect to the mock.
-    mock_datastore.run_query.side_effect = \
-        fake_datastore.create_run_query(entities, batch_size)
+    # Test for both random long ids and string ids.
+    id_or_name = [True, False]
 
-    split_queries = query_splitter.get_splits(mock_datastore, query, num_splits)
+    for id_type in id_or_name:
+      entities = fake_datastore.create_entities(num_entities, id_type)
+      mock_datastore = MagicMock()
+      # Assign a fake run_query method as a side_effect to the mock.
+      mock_datastore.run_query.side_effect = \
+          fake_datastore.create_run_query(entities, batch_size)
 
-    # if request num_splits is greater than num_entities, the best it can
-    # do is one entity per split.
-    expected_num_splits = min(num_splits, num_entities + 1)
-    self.assertEqual(len(split_queries), expected_num_splits)
+      split_queries = query_splitter.get_splits(
+          mock_datastore, query, num_splits)
 
-    expected_requests = QuerySplitterTest.create_scatter_requests(
-        query, num_splits, batch_size, num_entities)
+      # if request num_splits is greater than num_entities, the best it can
+      # do is one entity per split.
+      expected_num_splits = min(num_splits, num_entities + 1)
+      self.assertEqual(len(split_queries), expected_num_splits)
 
-    expected_calls = []
-    for req in expected_requests:
-      expected_calls.append(call(req))
+      expected_requests = QuerySplitterTest.create_scatter_requests(
+          query, num_splits, batch_size, num_entities)
 
-    self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
+      expected_calls = []
+      for req in expected_requests:
+        expected_calls.append(call(req))
+
+      self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
 
   @staticmethod
   def create_scatter_requests(query, num_splits, batch_size, num_entities):

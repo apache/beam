@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark.metrics;
 
-import org.apache.beam.sdk.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.spark.AccumulatorParam;
 
 

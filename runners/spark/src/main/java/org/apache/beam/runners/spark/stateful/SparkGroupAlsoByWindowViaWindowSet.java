@@ -23,7 +23,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
+import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
@@ -31,6 +32,8 @@ import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.UnsupportedSideInputReader;
 import org.apache.beam.runners.core.construction.Triggers;
+import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -43,9 +46,7 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.metrics.CounterCell;
 import org.apache.beam.sdk.metrics.MetricName;
-import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -76,7 +77,7 @@ import scala.reflect.ClassTag;
 import scala.runtime.AbstractFunction1;
 
 /**
- * An implementation of {@link org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn}
+ * An implementation of {@link GroupAlsoByWindow}
  * logic for grouping by windows and controlling trigger firings and pane accumulation.
  *
  * <p>This implementation is a composite of Spark transformations revolving around state management
@@ -207,13 +208,13 @@ public class SparkGroupAlsoByWindowViaWindowSet {
             new OutputWindowedValueHolder<>();
         // use in memory Aggregators since Spark Accumulators are not resilient
         // in stateful operators, once done with this partition.
-        final MetricsContainer cellProvider = new MetricsContainer("cellProvider");
+        final MetricsContainerImpl cellProvider = new MetricsContainerImpl("cellProvider");
         final CounterCell droppedDueToClosedWindow = cellProvider.getCounter(
             MetricName.named(SparkGroupAlsoByWindowViaWindowSet.class,
-            GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER));
+            GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER));
         final CounterCell droppedDueToLateness = cellProvider.getCounter(
             MetricName.named(SparkGroupAlsoByWindowViaWindowSet.class,
-                GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER));
+                GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER));
 
         AbstractIterator<
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
@@ -321,12 +322,12 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         long lateDropped = droppedDueToLateness.getCumulative();
         if (lateDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to lateness.", lateDropped));
-          droppedDueToLateness.update(-droppedDueToLateness.getCumulative());
+          droppedDueToLateness.inc(-droppedDueToLateness.getCumulative());
         }
         long closedWindowDropped = droppedDueToClosedWindow.getCumulative();
         if (closedWindowDropped > 0) {
           LOG.info(String.format("Dropped %d elements due to closed window.", closedWindowDropped));
-          droppedDueToClosedWindow.update(-droppedDueToClosedWindow.getCumulative());
+          droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
         }
 
         return scala.collection.JavaConversions.asScalaIterator(outIter);

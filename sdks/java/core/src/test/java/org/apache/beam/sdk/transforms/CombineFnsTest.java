@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -336,9 +337,20 @@ public class  CombineFnsTest {
     private static final UserStringCoder INSTANCE = new UserStringCoder();
 
     @Override
+    public void encode(UserString value, OutputStream outStream)
+        throws CoderException, IOException {
+      encode(value, outStream, Context.NESTED);
+    }
+
+    @Override
     public void encode(UserString value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       StringUtf8Coder.of().encode(value.strValue, outStream, context);
+    }
+
+    @Override
+    public UserString decode(InputStream inStream) throws CoderException, IOException {
+      return decode(inStream, Context.NESTED);
     }
 
     @Override
@@ -349,7 +361,7 @@ public class  CombineFnsTest {
 
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return Collections.emptyList();
     }
 
     @Override

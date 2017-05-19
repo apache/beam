@@ -20,7 +20,6 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
-import com.google.api.client.util.BackOff;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -43,13 +42,9 @@ public class FileChecksumMatcherTest {
   public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule
   public ExpectedException thrown = ExpectedException.none();
-  @Rule
-  public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
 
   @Mock
   private PipelineResult pResult = Mockito.mock(PipelineResult.class);
-
-  private BackOff backOff = FileChecksumMatcher.BACK_OFF_FACTORY.backoff();
 
   @Test
   public void testPreconditionChecksumIsNull() throws IOException {

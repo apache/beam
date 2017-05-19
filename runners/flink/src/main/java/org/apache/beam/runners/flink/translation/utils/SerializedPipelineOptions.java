@@ -56,7 +56,7 @@ public class SerializedPipelineOptions implements Serializable {
       try {
         pipelineOptions = createMapper().readValue(serializedOptions, PipelineOptions.class);
 
-        FileSystems.setDefaultConfigInWorkers(pipelineOptions);
+        FileSystems.setDefaultPipelineOptions(pipelineOptions);
       } catch (IOException e) {
         throw new RuntimeException("Couldn't deserialize the PipelineOptions.", e);
       }

@@ -43,27 +43,22 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * byte streams.
  *
  * <p>{@link Coder} instances are serialized during job creation and deserialized
- * before use, via JSON serialization. See {@link SerializableCoder} for an example of a
- * {@link Coder} that adds a custom field to
- * the {@link Coder} serialization. It provides a constructor annotated with
- * {@link com.fasterxml.jackson.annotation.JsonCreator}, which is a factory method used when
- * deserializing a {@link Coder} instance.
+ * before use. This will generally be performed by serializing the object via Java Serialization.
  *
  * <p>{@link Coder} classes for compound types are often composed from coder classes for types
  * contains therein. The composition of {@link Coder} instances into a coder for the compound
  * class is the subject of the {@link CoderProvider} type, which enables automatic generic
- * composition of {@link Coder} classes within the {@link CoderRegistry}. With particular
- * static methods on a compound {@link Coder} class, a {@link CoderProvider} can be automatically
- * inferred. See {@link KvCoder} for an example of a simple compound {@link Coder} that supports
- * automatic composition in the {@link CoderRegistry}.
+ * composition of {@link Coder} classes within the {@link CoderRegistry}. See {@link CoderProvider}
+ * and {@link CoderRegistry} for more information about how coders are inferred.
  *
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
- * @param <T> the type of the values being transcoded
+ * @param <T> the type of values being encoded and decoded
  */
 public abstract class Coder<T> implements Serializable {
   /** The context in which encoding or decoding is being done. */
   @Deprecated
+  @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
     /**
      * The outer context: the value being encoded or decoded takes
@@ -127,18 +122,6 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Encodes the given value of type {@code T} onto the given output stream
-   * in the outer context.
-   *
-   * @throws IOException if writing to the {@code OutputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be encoded for some reason
-   */
-  @Deprecated
-  public abstract void encodeOuter(T value, OutputStream outStream)
-      throws CoderException, IOException;
-
-  /**
-   * Encodes the given value of type {@code T} onto the given output stream
    * in the given context.
    *
    * @throws IOException if writing to the {@code OutputStream} fails
@@ -146,8 +129,11 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be encoded for some reason
    */
   @Deprecated
-  public abstract void encode(T value, OutputStream outStream, Context context)
-      throws CoderException, IOException;
+  @Experimental(Kind.CODER_CONTEXT)
+  public void encode(T value, OutputStream outStream, Context context)
+      throws CoderException, IOException {
+    encode(value, outStream);
+  }
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
@@ -161,17 +147,6 @@ public abstract class Coder<T> implements Serializable {
 
   /**
    * Decodes a value of type {@code T} from the given input stream in
-   * the outer context.  Returns the decoded value.
-   *
-   * @throws IOException if reading from the {@code InputStream} fails
-   * for some reason
-   * @throws CoderException if the value could not be decoded for some reason
-   */
-  @Deprecated
-  public abstract T decodeOuter(InputStream inStream) throws CoderException, IOException;
-
-  /**
-   * Decodes a value of type {@code T} from the given input stream in
    * the given context.  Returns the decoded value.
    *
    * @throws IOException if reading from the {@code InputStream} fails
@@ -179,14 +154,17 @@ public abstract class Coder<T> implements Serializable {
    * @throws CoderException if the value could not be decoded for some reason
    */
   @Deprecated
-  public abstract T decode(InputStream inStream, Context context)
-      throws CoderException, IOException;
+  @Experimental(Kind.CODER_CONTEXT)
+  public T decode(InputStream inStream, Context context)
+      throws CoderException, IOException {
+    return decode(inStream);
+  }
 
   /**
-   * If this is a {@code Coder} for a parameterized type, returns the
-   * list of {@code Coder}s being used for each of the parameters, or
-   * returns {@code null} if this cannot be done or this is not a
-   * parameterized type.
+   * If this is a {@link Coder} for a parameterized type, returns the
+   * list of {@link Coder}s being used for each of the parameters in the same order they appear
+   * within the parameterized type's type signature. If this cannot be done, or this
+   * {@link Coder} does not encode/decode a parameterized type, returns the empty list.
    */
   public abstract List<? extends Coder<?>> getCoderArguments();
 

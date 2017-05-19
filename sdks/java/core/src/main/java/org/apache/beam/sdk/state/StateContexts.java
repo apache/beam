@@ -22,10 +22,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 
-/**
- * For internal use only; no backwards-compatibility guarantees.
- * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
- */
+/** <b><i>For internal use only; no backwards-compatibility guarantees.</i></b> */
 @Internal
 public class StateContexts {
   private static final StateContext<BoundedWindow> NULL_CONTEXT =

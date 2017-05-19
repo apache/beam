@@ -23,7 +23,10 @@ import java.util.List;
 import org.joda.time.Instant;
 
 /**
- * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
+ * A {@link Trigger} that executes according to its main trigger until its "finally" trigger fires.
+ *
+ * <p>Uniquely among triggers, the "finally" trigger's predicate is applied to all input seen so
+ * far, not input since the last firing.
  */
 public class OrFinallyTrigger extends Trigger {
 

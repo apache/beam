@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.apex.translation.operators;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.datatorrent.api.Context.OperatorContext;
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
@@ -28,8 +31,10 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
@@ -44,20 +49,33 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
+import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StateInternalsFactory;
+import org.apache.beam.runners.core.StateNamespace;
+import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
@@ -65,6 +83,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +91,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Apex operator for Beam {@link DoFn}.
  */
-public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements OutputManager {
+public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements OutputManager,
+    ApexTimerInternals.TimerProcessor<Object> {
   private static final Logger LOG = LoggerFactory.getLogger(ApexParDoOperator.class);
   private boolean traceTuples = true;
 
@@ -139,6 +159,14 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     TimerInternals.TimerDataCoder timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
+
+    if (doFn instanceof ProcessFn) {
+      // we know that it is keyed on String
+      Coder<?> keyCoder = StringUtf8Coder.of();
+      this.currentKeyStateInternals = new StateInternalsProxy<>(
+          stateBackend.newStateInternalsFactory(keyCoder));
+    }
+
   }
 
   @SuppressWarnings("unused") // for Kryo
@@ -272,7 +300,10 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
           keyCoder = kwiCoder.getKeyCoder();
         }
         ((StateInternalsProxy) currentKeyStateInternals).setKey(key);
-        currentKeyTimerInternals.setContext(key, keyCoder, new Instant(this.currentInputWatermark));
+        currentKeyTimerInternals.setContext(key, keyCoder,
+            new Instant(this.currentInputWatermark),
+            new Instant(this.currentOutputWatermark)
+            );
       }
       Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner
           .processElementInReadyWindows(elem);
@@ -286,9 +317,47 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     }
   }
 
+  @Override
+  public void fireTimer(Object key, Collection<TimerData> timerDataSet) {
+    pushbackDoFnRunner.startBundle();
+    @SuppressWarnings("unchecked")
+    Coder<Object> keyCoder = (Coder) currentKeyStateInternals.getKeyCoder();
+    ((StateInternalsProxy) currentKeyStateInternals).setKey(key);
+    currentKeyTimerInternals.setContext(key, keyCoder, new Instant(this.currentInputWatermark),
+        new Instant(this.currentOutputWatermark));
+    for (TimerData timerData : timerDataSet) {
+      StateNamespace namespace = timerData.getNamespace();
+      checkArgument(namespace instanceof WindowNamespace);
+      BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
+      pushbackDoFnRunner.onTimer(timerData.getTimerId(), window,
+          timerData.getTimestamp(), timerData.getDomain());
+    }
+    pushbackDoFnRunner.finishBundle();
+  }
+
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
     this.currentInputWatermark = mark.getTimestamp();
+    long minEventTimeTimer = currentKeyTimerInternals.fireReadyTimers(
+        this.currentInputWatermark,
+        this, TimeDomain.EVENT_TIME);
 
+    checkState(minEventTimeTimer >= currentInputWatermark,
+        "Event time timer processing generates new timer(s) behind watermark.");
+    //LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
+    //    currentInputWatermark);
+
+    // TODO: is this the right way to trigger processing time timers?
+    // drain all timers below current watermark, including those that result from firing
+    long minProcessingTimeTimer = Long.MIN_VALUE;
+    while (minProcessingTimeTimer < currentInputWatermark) {
+      minProcessingTimeTimer = currentKeyTimerInternals.fireReadyTimers(
+        this.currentInputWatermark,
+        this, TimeDomain.PROCESSING_TIME);
+      if (minProcessingTimeTimer < currentInputWatermark) {
+        LOG.info("Processing time timer {} registered behind watermark {}", minProcessingTimeTimer,
+            currentInputWatermark);
+      }
+    }
     if (sideInputs.isEmpty()) {
       if (traceTuples) {
         LOG.debug("\nemitting watermark {}\n", mark);
@@ -376,6 +445,52 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
+    if (doFn instanceof ProcessFn) {
+
+      @SuppressWarnings("unchecked")
+      StateInternalsFactory<String> stateInternalsFactory =
+          (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
+
+      @SuppressWarnings({ "rawtypes", "unchecked" })
+      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
+        splittableDoFn = (ProcessFn) doFn;
+      splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
+      TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
+         @Override
+         public TimerInternals timerInternalsForKey(String key) {
+           return currentKeyTimerInternals;
+          }
+        };
+      splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);
+      splittableDoFn.setProcessElementInvoker(
+          new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
+              doFn,
+              pipelineOptions.get(),
+              new OutputWindowedValue<OutputT>() {
+                @Override
+                public void outputWindowedValue(
+                    OutputT output,
+                    Instant timestamp,
+                    Collection<? extends BoundedWindow> windows,
+                    PaneInfo pane) {
+                  output(
+                      mainOutputTag,
+                      WindowedValue.of(output, timestamp, windows, pane));
+                }
+
+                @Override
+                public <AdditionalOutputT> void outputWindowedValue(TupleTag<AdditionalOutputT> tag,
+                    AdditionalOutputT output, Instant timestamp,
+                    Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+                  output(tag, WindowedValue.of(output, timestamp, windows, pane));
+                }
+              },
+              sideInputReader,
+              Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+              10000,
+              Duration.standardSeconds(10)));
+    }
+
   }
 
   @Override
@@ -390,6 +505,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 
   @Override
   public void endWindow() {
+    currentKeyTimerInternals.fireReadyTimers(
+        currentKeyTimerInternals.currentProcessingTime().getMillis(),
+        this, TimeDomain.PROCESSING_TIME);
   }
 
   private static class LongMin {

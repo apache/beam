@@ -185,18 +185,18 @@ public class Mean {
      private static final Coder<Double> DOUBLE_CODER = DoubleCoder.of();
 
      @Override
-     public void encode(CountSum<NumT> value, OutputStream outStream, Coder.Context context)
+     public void encode(CountSum<NumT> value, OutputStream outStream)
          throws CoderException, IOException {
-       LONG_CODER.encode(value.count, outStream, context.nested());
-       DOUBLE_CODER.encode(value.sum, outStream, context);
+       LONG_CODER.encode(value.count, outStream);
+       DOUBLE_CODER.encode(value.sum, outStream);
      }
 
      @Override
-     public CountSum<NumT> decode(InputStream inStream, Coder.Context context)
+     public CountSum<NumT> decode(InputStream inStream)
          throws CoderException, IOException {
        return new CountSum<>(
-           LONG_CODER.decode(inStream, context.nested()),
-           DOUBLE_CODER.decode(inStream, context));
+           LONG_CODER.decode(inStream),
+           DOUBLE_CODER.decode(inStream));
     }
 
     @Override

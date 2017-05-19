@@ -23,12 +23,12 @@ import unittest
 
 import dill
 
-import coders
 import observable
 from apache_beam.transforms import window
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
+from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 
 

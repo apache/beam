@@ -36,7 +36,8 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.math.BigInteger;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.util.BackOffAdapter;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -131,7 +132,7 @@ public class BigqueryMatcherTest {
           mockBigqueryClient,
           new QueryRequest(),
           fastClock,
-          BigqueryMatcher.BACKOFF_FACTORY.backoff());
+          BackOffAdapter.toGcpBackOff(BigqueryMatcher.BACKOFF_FACTORY.backoff()));
     } finally {
       verify(mockJobs, atLeast(BigqueryMatcher.MAX_QUERY_RETRIES))
           .query(eq(projectId), eq(new QueryRequest()));
@@ -151,7 +152,7 @@ public class BigqueryMatcherTest {
           mockBigqueryClient,
           new QueryRequest(),
           fastClock,
-          BigqueryMatcher.BACKOFF_FACTORY.backoff());
+          BackOffAdapter.toGcpBackOff(BigqueryMatcher.BACKOFF_FACTORY.backoff()));
     } finally {
       verify(mockJobs, atLeast(BigqueryMatcher.MAX_QUERY_RETRIES))
           .query(eq(projectId), eq(new QueryRequest()));

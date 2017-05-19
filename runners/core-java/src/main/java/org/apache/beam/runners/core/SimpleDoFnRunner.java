@@ -215,7 +215,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private DoFnStartBundleContext<InputT, OutputT> createStartBundleContext(
       DoFn<InputT, OutputT> fn, DoFnContext<InputT, OutputT> context) {
-    return new DoFnStartBundleContext<>(this.fn, this.context);
+    return new DoFnStartBundleContext<>(fn, context);
   }
 
   private DoFnFinishBundleContext<InputT, OutputT> createFinishBundleContext(
@@ -949,7 +949,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      */
     private Instant minTargetAndGcTime(Instant target) {
       if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
-        Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
+        Instant windowExpiry = LateDataUtils.garbageCollectionTime(window, allowedLateness);
         if (target.isAfter(windowExpiry)) {
           return windowExpiry;
         }
@@ -986,11 +986,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
      */
     private void setUnderlyingTimer(Instant target) {
       timerInternals.setTimer(namespace, timerId, target, spec.getTimeDomain());
-    }
-
-    @Override
-    public void cancel() {
-      timerInternals.deleteTimer(namespace, timerId);
     }
 
     private Instant getCurrentTime() {

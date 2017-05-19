@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
-import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
+import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
@@ -40,6 +40,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -142,9 +143,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToClosedWindow = Metrics.counter(GroupAlsoByWindowEvaluator.class,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
       droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
-          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER);
+          GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
 
     @Override
@@ -161,13 +162,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       CopyOnAccessInMemoryStateInternals stateInternals =
           (CopyOnAccessInMemoryStateInternals) stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
+      RunnerApi.Trigger runnerApiTrigger =
+          Triggers.toProto(windowingStrategy.getTrigger());
       ReduceFnRunner<K, V, Iterable<V>, BoundedWindow> reduceFnRunner =
           new ReduceFnRunner<>(
               key,
               windowingStrategy,
               ExecutableTriggerStateMachine.create(
-                  TriggerStateMachines.stateMachineForTrigger(
-                      Triggers.toProto(windowingStrategy.getTrigger()))),
+                  TriggerStateMachines.stateMachineForTrigger(runnerApiTrigger)),
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),

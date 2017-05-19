@@ -19,7 +19,6 @@ package org.apache.beam.examples;
 
 import static org.hamcrest.Matchers.equalTo;
 
-import com.google.api.client.util.Sleeper;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.util.ExplicitShardedFile;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.apache.beam.sdk.util.ShardedFile;
+import org.apache.beam.sdk.util.Sleeper;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -86,14 +86,29 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws Exception {
-    testWindowedWordCountPipeline(defaultOptions());
+  public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
+    WindowedWordCountITOptions options = batchOptions();
+    // This is the default value, but make it explicit
+    options.setNumShards(null);
+    testWindowedWordCountPipeline(options);
   }
 
   @Test
+  public void testWindowedWordCountInBatchStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = batchOptions();
+    options.setNumShards(3);
+    testWindowedWordCountPipeline(options);
+  }
+
+  // TODO: add a test with streaming and dynamic sharding after resolving
+  // https://issues.apache.org/jira/browse/BEAM-1438
+
+  @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws Exception {
-    testWindowedWordCountPipeline(streamingOptions());
+  public void testWindowedWordCountInStreamingStaticSharding() throws Exception {
+    WindowedWordCountITOptions options = streamingOptions();
+    options.setNumShards(3);
+    testWindowedWordCountPipeline(options);
   }
 
   private WindowedWordCountITOptions defaultOptions() throws Exception {

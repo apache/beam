@@ -16,7 +16,7 @@
 #
 
 """
-Internal classes for Metrics API.
+This module is for internal use only; no backwards-compatibility guarantees.
 
 The classes in this file keep shared state, and organize metrics information.
 
@@ -24,7 +24,7 @@ Available classes:
 
 - MetricKey - Internal key for a metric.
 - MetricResult - Current status of a metric's updates/commits.
-- MetricsEnvironment - Keeps track of MetricsContainer and other metrics
+- _MetricsEnvironment - Keeps track of MetricsContainer and other metrics
     information for every single execution working thread.
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
@@ -193,6 +193,7 @@ class MetricsContainer(object):
 
 
 class ScopedMetricsContainer(object):
+
   def __init__(self, container=None):
     self._stack = MetricsEnvironment.container_stack()
     self._container = container

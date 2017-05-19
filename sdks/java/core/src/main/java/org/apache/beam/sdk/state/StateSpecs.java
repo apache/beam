@@ -31,9 +31,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 
-/**
- * Static utility methods for creating {@link StateSpec} instances.
- */
+/** Static methods for working with {@link StateSpec StateSpecs}. */
 @Experimental(Kind.STATE)
 public class StateSpecs {
 
@@ -41,30 +39,50 @@ public class StateSpecs {
 
   private StateSpecs() {}
 
-  /** Create a simple state spec for values of type {@code T}. */
+  /**
+   * Create a {@link StateSpec} for a single value of type {@code T}.
+   *
+   * <p>This method attempts to infer the accumulator coder automatically.
+   *
+   * @see #value(Coder)
+   */
   public static <T> StateSpec<ValueState<T>> value() {
     return new ValueStateSpec<>(null);
   }
 
-  /** Create a simple state spec for values of type {@code T}. */
+  /**
+   * Identical to {@link #value()}, but with a coder explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
+   */
   public static <T> StateSpec<ValueState<T>> value(Coder<T> valueCoder) {
     checkArgument(valueCoder != null, "valueCoder should not be null. Consider value() instead");
     return new ValueStateSpec<>(valueCoder);
   }
 
   /**
-   * Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
-   * {@code InputT}s into a single {@code OutputT}.
+   * Create a {@link StateSpec} for a {@link CombiningState} which uses a {@link CombineFn} to
+   * automatically merge multiple values of type {@code InputT} into a single resulting {@code
+   * OutputT}.
+   *
+   * <p>This method attempts to infer the accumulator coder automatically.
+   *
+   * @see #combining(Coder, CombineFn)
    */
   public static <InputT, AccumT, OutputT>
-  StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
-      CombineFn<InputT, AccumT, OutputT> combineFn) {
+      StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
+          CombineFn<InputT, AccumT, OutputT> combineFn) {
     return new CombiningStateSpec<InputT, AccumT, OutputT>(null, combineFn);
   }
 
   /**
-   * Create a state spec for values that use a {@link CombineFnWithContext} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}.
+   * Create a {@link StateSpec} for a {@link CombiningState} which uses a {@link
+   * CombineFnWithContext} to automatically merge multiple values of type {@code InputT} into a
+   * single resulting {@code OutputT}.
+   *
+   * <p>This method attempts to infer the accumulator coder automatically.
+   *
+   * @see #combining(Coder, CombineFnWithContext)
    */
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
@@ -73,8 +91,9 @@ public class StateSpecs {
   }
 
   /**
-   * Create a state spec for values that use a {@link CombineFn} to automatically merge multiple
-   * {@code InputT}s into a single {@code OutputT}.
+   * Identical to {@link #combining(CombineFn)}, but with an accumulator coder explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
    */
   public static <InputT, AccumT, OutputT>
   StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
@@ -86,8 +105,10 @@ public class StateSpecs {
   }
 
   /**
-   * Create a state spec for values that use a {@link CombineFnWithContext} to automatically merge
-   * multiple {@code InputT}s into a single {@code OutputT}.
+   * Identical to {@link #combining(CombineFnWithContext)}, but with an accumulator coder explicitly
+   * supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
    */
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
@@ -96,43 +117,62 @@ public class StateSpecs {
   }
 
   /**
-   * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
-   * all the values that have been added.
+   * Create a {@link StateSpec} for a {@link BagState}, optimized for adding values frequently
+   * and occasionally retrieving all the values that have been added.
+   *
+   * <p>This method attempts to infer the element coder automatically.
+   *
+   * @see #bag(Coder)
    */
   public static <T> StateSpec<BagState<T>> bag() {
     return bag(null);
   }
 
   /**
-   * Create a state spec that is optimized for adding values frequently, and occasionally retrieving
-   * all the values that have been added.
+   * Identical to {@link #bag()}, but with an element coder explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
    */
   public static <T> StateSpec<BagState<T>> bag(Coder<T> elemCoder) {
     return new BagStateSpec<>(elemCoder);
   }
 
   /**
-   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   * Create a {@link StateSpec} for a {@link SetState}, optimized for checking membership.
+   *
+   * <p>This method attempts to infer the element coder automatically.
+   *
+   * @see #set(Coder)
    */
   public static <T> StateSpec<SetState<T>> set() {
     return set(null);
   }
 
   /**
-   * Create a state spec that supporting for {@link java.util.Set} like access patterns.
+   * Identical to {@link #set()}, but with an element coder explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
    */
   public static <T> StateSpec<SetState<T>> set(Coder<T> elemCoder) {
     return new SetStateSpec<>(elemCoder);
   }
 
   /**
-   * Create a state spec that supporting for {@link java.util.Map} like access patterns.
+   * Create a {@link StateSpec} for a {@link SetState}, optimized for key lookups and writes.
+   *
+   * <p>This method attempts to infer the key and value coders automatically.
+   *
+   * @see #map(Coder, Coder)
    */
   public static <K, V> StateSpec<MapState<K, V>> map() {
     return new MapStateSpec<>(null, null);
   }
 
-  /** Create a state spec that supporting for {@link java.util.Map} like access patterns. */
+  /**
+   * Identical to {@link #map()}, but with key and value coders explicitly supplied.
+   *
+   * <p>If automatic coder inference fails, use this method.
+   */
   public static <K, V> StateSpec<MapState<K, V>> map(Coder<K> keyCoder, Coder<V> valueCoder) {
     return new MapStateSpec<>(keyCoder, valueCoder);
   }
