@@ -103,3 +103,4 @@ We also have a [contributor's guide](https://beam.apache.org/contribute/contribu
 * [Apache Beam](http://beam.apache.org)
 * [Overview](http://beam.apache.org/use/beam-overview/)
 * [Quickstart](http://beam.apache.org/use/quickstart/)
+* [Contribution Guides](https://beam.apache.org/contribute/)
