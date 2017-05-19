@@ -251,9 +251,8 @@ class CombineTest(unittest.TestCase):
       result = (
           p
           | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
-          | beam.CombineGlobally(combine.TupleCombineFn(max,
-                                                        combine.MeanCombineFn(),
-                                                        sum)).without_defaults())
+          | beam.CombineGlobally(combine.TupleCombineFn(
+              max, combine.MeanCombineFn(), sum)).without_defaults())
       assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
 
   def test_tuple_combine_fn_without_defaults(self):
@@ -302,15 +301,15 @@ class CombineTest(unittest.TestCase):
       assert_that(result, equal_to([]))
 
   def test_combine_globally_with_default_side_input(self):
-    class CombineWithSideInput(PTransform):
+    class SideInputCombine(PTransform):
       def expand(self, pcoll):
         side = pcoll | CombineGlobally(sum).as_singleton_view()
         main = pcoll.pipeline | Create([None])
         return main | Map(lambda _, s: s, side)
 
     with TestPipeline() as p:
-      result1 = p | 'i1' >> Create([]) | 'c1' >> CombineWithSideInput()
-      result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> CombineWithSideInput()
+      result1 = p | 'i1' >> Create([]) | 'c1' >> SideInputCombine()
+      result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> SideInputCombine()
       assert_that(result1, equal_to([0]), label='r1')
       assert_that(result2, equal_to([10]), label='r2')
 

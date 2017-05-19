@@ -95,22 +95,22 @@ def run(argv=None):
   with beam.Pipeline(options=pipeline_options) as p:
 
     # Read the text file[pattern] into a PCollection.
-    lines = p | 'read' >> ReadFromText(known_args.input)
+    lines = p | ReadFromText(known_args.input)
 
     # Count the occurrences of each word.
-    counts = (lines
-              | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                            .with_output_types(unicode))
-              | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-              | 'group' >> beam.GroupByKey()
-              | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+    counts = (
+        lines
+        | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                      .with_output_types(unicode))
+        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+        | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
     # Format the counts into a PCollection of strings.
-    output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+    output = counts | 'Format' >> beam.Map(lambda (w, c): '%s: %s' % (w, c))
 
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned
-    output | 'write' >> WriteToText(known_args.output)
+    output | WriteToText(known_args.output)
 
 
 

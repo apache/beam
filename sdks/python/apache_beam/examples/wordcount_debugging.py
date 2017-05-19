@@ -128,18 +128,18 @@ def run(argv=None):
         | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
     # assert_that is a convenient PTransform that checks a PCollection has an
-    # expected value. Asserts are best used in unit tests with small data sets but
-    # is demonstrated here as a teaching tool.
+    # expected value. Asserts are best used in unit tests with small data sets
+    # but is demonstrated here as a teaching tool.
     #
-    # Note assert_that does not provide any output and that successful completion
-    # of the Pipeline implies that the expectations were  met. Learn more at
-    # https://cloud.google.com/dataflow/pipelines/testing-your-pipeline on how to
-    # test your pipeline.
+    # Note assert_that does not provide any output and that successful
+    # completion of the Pipeline implies that the expectations were  met. Learn
+    # more at https://cloud.google.com/dataflow/pipelines/testing-your-pipeline
+    # on how to best test your pipeline.
     assert_that(
         filtered_words, equal_to([('Flourish', 3), ('stomach', 1)]))
 
-    # Format the counts into a PCollection of strings and write the output using a
-    # "Write" transform that has side effects.
+    # Format the counts into a PCollection of strings and write the output using
+    # a "Write" transform that has side effects.
     # pylint: disable=unused-variable
     output = (filtered_words
               | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))

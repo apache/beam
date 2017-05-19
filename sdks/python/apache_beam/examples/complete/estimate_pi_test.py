@@ -42,7 +42,8 @@ class EstimatePiTest(unittest.TestCase):
       result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)
 
       # Note: Probabilistically speaking this test can fail with a probability
-      # that is very small (VERY) given that we run at least 500 thousand trials.
+      # that is very small (VERY) given that we run at least 500 thousand
+      # trials.
       assert_that(result, in_between(3.125, 3.155))
 
 

@@ -61,8 +61,9 @@ class TfIdfTest(unittest.TestCase):
           | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
       assert_that(result, equal_to(EXPECTED_RESULTS))
       # Run the pipeline. Note that the assert_that above adds to the pipeline
-      # a check that the result PCollection contains expected values. To actually
-      # trigger the check the pipeline must be run.
+      # a check that the result PCollection contains expected values.
+      # To actually trigger the check the pipeline must be run (e.g. by
+      # exiting the with context).
 
   def test_basics(self):
     # Setup the files with expected content.

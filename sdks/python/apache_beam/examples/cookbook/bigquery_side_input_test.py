@@ -40,8 +40,10 @@ class BigQuerySideInputTest(unittest.TestCase):
       ignore_corpus_pcoll = p | 'CreateIgnoreCorpus' >> beam.Create(['corpus1'])
       ignore_word_pcoll = p | 'CreateIgnoreWord' >> beam.Create(['word1'])
 
-      groups = bigquery_side_input.create_groups(group_ids_pcoll, corpus_pcoll,
-                                                 words_pcoll, ignore_corpus_pcoll,
+      groups = bigquery_side_input.create_groups(group_ids_pcoll,
+                                                 corpus_pcoll,
+                                                 words_pcoll,
+                                                 ignore_corpus_pcoll,
                                                  ignore_word_pcoll)
 
       assert_that(groups, equal_to(

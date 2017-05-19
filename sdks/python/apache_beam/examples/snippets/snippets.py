@@ -553,7 +553,8 @@ def examples_wordcount_debugging(renames):
         p
         | beam.io.ReadFromText(
             'gs://dataflow-samples/shakespeare/kinglear.txt')
-        | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+        | 'ExtractWords' >> beam.FlatMap(
+            lambda x: re.findall(r'[A-Za-z\']+', x))
         | beam.combiners.Count.PerElement()
         | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
@@ -981,9 +982,9 @@ def model_composite_transform_example(contents, output_path):
 def model_multiple_pcollections_flatten(contents, output_path):
   """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
+  partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
   import apache_beam as beam
   with TestPipeline() as p:  # Use TestPipeline for testing.
-    partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
     # Partition into deciles
     partitioned = p | beam.Create(contents) | beam.Partition(partition_fn, 3)

@@ -40,7 +40,8 @@ class CodersTest(unittest.TestCase):
       result = (records
                 | 'points' >> beam.FlatMap(coders.compute_points)
                 | beam.CombinePerKey(sum))
-      assert_that(result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
+      assert_that(result,
+                  equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
 
 
 if __name__ == '__main__':

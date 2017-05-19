@@ -72,8 +72,9 @@ def run(argv=None, assert_results=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
 
-    # Helper: read a tab-separated key-value mapping from a text file, escape all
-    # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
+    # Helper: read a tab-separated key-value mapping from a text file,
+    # escape all quotes/backslashes, and convert it a PCollection of
+    # (key, value) pairs.
     def read_kv_textfile(label, textfile):
       return (p
               | 'Read: %s' % label >> ReadFromText(textfile)
@@ -107,7 +108,7 @@ def run(argv=None, assert_results=None):
     writers = grouped | beam.Filter(   # People without phones.
         lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
     nomads = grouped | beam.Filter(    # People without addresses.
-        lambda (name, (email, phone, snailmail)): not next(iter(snailmail), None))
+        lambda (name, (_, _, snailmail)): not next(iter(snailmail), None))
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()

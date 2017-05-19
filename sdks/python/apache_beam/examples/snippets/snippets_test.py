@@ -119,7 +119,6 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'A', 'C'}, set(all_capitals))
 
   def test_pardo_with_label(self):
-    # pylint: disable=line-too-long
     words = ['aa', 'bbc', 'defg']
     # [START model_pardo_with_label]
     result = words | 'CountUniqueLetters' >> beam.Map(
@@ -129,6 +128,7 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
+    # pylint: disable=line-too-long
     with TestPipeline() as p:
       words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
@@ -152,10 +152,10 @@ class ParDoTest(unittest.TestCase):
           lower_bound=pvalue.AsSingleton(avg_word_len)))
 
       # Mix and match.
-      small_but_nontrivial = words | beam.FlatMap(filter_using_length,
-                                                  lower_bound=2,
-                                                  upper_bound=pvalue.AsSingleton(
-                                                      avg_word_len))
+      small_but_nontrivial = words | beam.FlatMap(
+          filter_using_length,
+          lower_bound=2,
+          upper_bound=pvalue.AsSingleton(avg_word_len))
       # [END model_pardo_side_input]
 
       assert_that(small_words, equal_to(['a', 'bb', 'ccc']))

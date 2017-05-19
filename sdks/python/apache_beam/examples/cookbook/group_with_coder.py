@@ -104,8 +104,8 @@ def run(args=None):
     (p  # pylint: disable=expression-not-assigned
      | ReadFromText(known_args.input)
      # The get_players function is annotated with a type hint above, so the type
-     # system knows the output type of the following operation is a key-value pair
-     # of a Player and an int. Please see the documentation for details on
+     # system knows the output type of the following operation is a key-value
+     # pair of a Player and an int. Please see the documentation for details on
      # types that are inferred automatically as well as other ways to specify
      # type hints.
      | beam.Map(get_players)
