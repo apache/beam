@@ -85,15 +85,13 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
 
-  p = beam.Pipeline(argv=pipeline_args)
-  (p  # pylint: disable=expression-not-assigned
-   | 'read' >> ReadFromText(known_args.input, coder=JsonCoder())
-   | 'points' >> beam.FlatMap(compute_points)
-   | beam.CombinePerKey(sum)
-   | 'write' >> WriteToText(known_args.output, coder=JsonCoder()))
-  p.run()
+  with beam.Pipeline(options=pipeline_options) as p:
+    (p  # pylint: disable=expression-not-assigned
+     | 'read' >> ReadFromText(known_args.input, coder=JsonCoder())
+     | 'points' >> beam.FlatMap(compute_points)
+     | beam.CombinePerKey(sum)
+     | 'write' >> WriteToText(known_args.output, coder=JsonCoder()))
 
 
 if __name__ == '__main__':

@@ -147,18 +147,15 @@ def model_pipelines(argv):
   pipeline_options = PipelineOptions(argv)
   my_options = pipeline_options.view_as(MyOptions)
 
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p
-   | beam.io.ReadFromText(my_options.input)
-   | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | beam.Map(lambda x: (x, 1))
-   | beam.combiners.Count.PerKey()
-   | beam.io.WriteToText(my_options.output))
-
-  result = p.run()
+    (p
+     | beam.io.ReadFromText(my_options.input)
+     | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+     | beam.Map(lambda x: (x, 1))
+     | beam.combiners.Count.PerKey()
+     | beam.io.WriteToText(my_options.output))
   # [END model_pipelines]
-  result.wait_until_finish()
 
 
 def model_pcollection(argv):
@@ -178,21 +175,18 @@ def model_pcollection(argv):
   my_options = pipeline_options.view_as(MyOptions)
 
   # [START model_pcollection]
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  lines = (p
-           | beam.Create([
-               'To be, or not to be: that is the question: ',
-               'Whether \'tis nobler in the mind to suffer ',
-               'The slings and arrows of outrageous fortune, ',
-               'Or to take arms against a sea of troubles, ']))
-  # [END model_pcollection]
+    lines = (p
+             | beam.Create([
+                 'To be, or not to be: that is the question: ',
+                 'Whether \'tis nobler in the mind to suffer ',
+                 'The slings and arrows of outrageous fortune, ',
+                 'Or to take arms against a sea of troubles, ']))
+    # [END model_pcollection]
 
-  (lines
-   | beam.io.WriteToText(my_options.output))
-
-  result = p.run()
-  result.wait_until_finish()
+    (lines
+     | beam.io.WriteToText(my_options.output))
 
 
 def pipeline_options_remote(argv):
