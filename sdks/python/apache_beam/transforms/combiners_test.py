@@ -247,26 +247,24 @@ class CombineTest(unittest.TestCase):
     pipeline.run()
 
   def test_tuple_combine_fn(self):
-    p = TestPipeline()
-    result = (
-        p
-        | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
-        | beam.CombineGlobally(combine.TupleCombineFn(max,
-                                                      combine.MeanCombineFn(),
-                                                      sum)).without_defaults())
-    assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
-    p.run()
+    with TestPipeline() as p:
+      result = (
+          p
+          | Create([('a', 100, 0.0), ('b', 10, -1), ('c', 1, 100)])
+          | beam.CombineGlobally(combine.TupleCombineFn(max,
+                                                        combine.MeanCombineFn(),
+                                                        sum)).without_defaults())
+      assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
 
   def test_tuple_combine_fn_without_defaults(self):
-    p = TestPipeline()
-    result = (
-        p
-        | Create([1, 1, 2, 3])
-        | beam.CombineGlobally(
-            combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
-            .with_common_input()).without_defaults())
-    assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
-    p.run()
+    with TestPipeline() as p:
+      result = (
+          p
+          | Create([1, 1, 2, 3])
+          | beam.CombineGlobally(
+              combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
+              .with_common_input()).without_defaults())
+      assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
 
   def test_to_list_and_to_dict(self):
     pipeline = TestPipeline()
@@ -295,15 +293,13 @@ class CombineTest(unittest.TestCase):
     pipeline.run()
 
   def test_combine_globally_with_default(self):
-    p = TestPipeline()
-    assert_that(p | Create([]) | CombineGlobally(sum), equal_to([0]))
-    p.run()
+    with TestPipeline() as p:
+      assert_that(p | Create([]) | CombineGlobally(sum), equal_to([0]))
 
   def test_combine_globally_without_default(self):
-    p = TestPipeline()
-    result = p | Create([]) | CombineGlobally(sum).without_defaults()
-    assert_that(result, equal_to([]))
-    p.run()
+    with TestPipeline() as p:
+      result = p | Create([]) | CombineGlobally(sum).without_defaults()
+      assert_that(result, equal_to([]))
 
   def test_combine_globally_with_default_side_input(self):
     class CombineWithSideInput(PTransform):
@@ -312,12 +308,11 @@ class CombineTest(unittest.TestCase):
         main = pcoll.pipeline | Create([None])
         return main | Map(lambda _, s: s, side)
 
-    p = TestPipeline()
-    result1 = p | 'i1' >> Create([]) | 'c1' >> CombineWithSideInput()
-    result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> CombineWithSideInput()
-    assert_that(result1, equal_to([0]), label='r1')
-    assert_that(result2, equal_to([10]), label='r2')
-    p.run()
+    with TestPipeline() as p:
+      result1 = p | 'i1' >> Create([]) | 'c1' >> CombineWithSideInput()
+      result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> CombineWithSideInput()
+      assert_that(result1, equal_to([0]), label='r1')
+      assert_that(result2, equal_to([10]), label='r2')
 
 
 if __name__ == '__main__':
