@@ -146,6 +146,27 @@ public class ParDos {
     return doFnAndMainOutputTagFromProto(payload.getDoFn()).getMainOutputTag();
   }
 
+  public static RunnerApi.PCollection getMainInput(
+      RunnerApi.PTransform ptransform, Components components) throws IOException {
+    checkArgument(
+        ptransform.getSpec().getUrn().equals(PAR_DO_PAYLOAD_URN),
+        "Unexpected payload type %s",
+        ptransform.getSpec().getUrn());
+    ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
+    String mainInputId = null;
+    for (Map.Entry<String, String> input : ptransform.getInputsMap().entrySet()) {
+      if (!payload.getSideInputsMap().containsKey(input.getKey())) {
+        checkArgument(
+            mainInputId == null,
+            "Multiple non-side input inputs (Found %s and %s)",
+            mainInputId,
+            input.getValue());
+        mainInputId = input.getValue();
+      }
+    }
+    return components.getPcollectionsOrThrow(mainInputId);
+  }
+
   // TODO: Implement
   private static StateSpec toProto(StateDeclaration state) {
     throw new UnsupportedOperationException("Not yet supported");
