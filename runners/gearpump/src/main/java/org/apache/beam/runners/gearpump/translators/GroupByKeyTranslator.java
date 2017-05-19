@@ -74,7 +74,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
             new GearpumpWindowFn(windowFn.isNonMerging()),
             EventTimeTrigger$.MODULE$, Discarding$.MODULE$), "assign_window")
         .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
-        .map(new KeyedByTimestamp<K, V>(timestampCombiner), "keyed_by_timestamp")
+        .map(new KeyedByTimestamp<K, V>(windowFn, timestampCombiner), "keyed_by_timestamp")
         .fold(new Merge<>(windowFn, timestampCombiner), "merge")
         .map(new Values<K, V>(), "values");
 
@@ -146,17 +146,21 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
       extends MapFunction<WindowedValue<KV<K, V>>,
       KV<Instant, WindowedValue<KV<K, V>>>> {
 
+    private final WindowFn<KV<K, V>, BoundedWindow> windowFn;
     private final TimestampCombiner timestampCombiner;
 
-    public KeyedByTimestamp(TimestampCombiner timestampCombiner) {
+    public KeyedByTimestamp(WindowFn<KV<K, V>, BoundedWindow> windowFn,
+        TimestampCombiner timestampCombiner) {
+      this.windowFn = windowFn;
       this.timestampCombiner = timestampCombiner;
     }
 
     @Override
     public KV<org.joda.time.Instant, WindowedValue<KV<K, V>>> map(
         WindowedValue<KV<K, V>> wv) {
-      Instant timestamp = timestampCombiner.assign(
-          Iterables.getOnlyElement(wv.getWindows()), wv.getTimestamp());
+      BoundedWindow window = Iterables.getOnlyElement(wv.getWindows());
+      Instant timestamp = timestampCombiner.assign(window
+          , windowFn.getOutputTime(wv.getTimestamp(), window));
       return KV.of(timestamp, wv);
     }
   }
