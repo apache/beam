@@ -80,6 +80,9 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
     protected transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackRunner = null;
 
     protected final String stepName;
+
+    private int internalDoFnExecutorId;
+
     private final String description;
 
     protected final TupleTag<OutputT> mainTupleTag;
@@ -271,5 +274,13 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
 
     public DoFnRunner<InputT, OutputT> getRunner() {
         return runner;
+    }
+
+    public void setInternalDoFnExecutorId(int id) {
+        this.internalDoFnExecutorId = id;
+    }
+
+    public int getInternalDoFnExecutorId() {
+        return internalDoFnExecutorId;
     }
 }

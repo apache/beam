@@ -36,18 +36,25 @@ import static com.google.common.base.Preconditions.checkState;
  * Default implementation of {@link TimerService}.
  */
 public class TimerServiceImpl implements TimerService {
+    private transient ExecutorContext executorContext;
+    private transient Map<Integer, DoFnExecutor> idToDoFnExecutor;
 
     private final ConcurrentMap<Integer, Long> upStreamTaskToInputWatermark = new ConcurrentHashMap<>();
     private final PriorityQueue<Long> inputWatermarks = new PriorityQueue<>();
     private final PriorityQueue<Instant> watermarkHolds = new PriorityQueue<>();
     private final Map<String, Instant> namespaceToWatermarkHold = new HashMap<>();
     private transient final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue = new PriorityQueue<>();
-    private transient final Map<TimerInternals.TimerData, Set<Pair<DoFnExecutor, Object>>>
+    private final Map<TimerInternals.TimerData, Set<Pair<Integer, Object>>>
             timerDataToKeyedExecutors = Maps.newHashMap();
 
     private boolean initialized = false;
 
     public TimerServiceImpl() {
+    }
+
+    public TimerServiceImpl(ExecutorContext executorContext) {
+        this.executorContext = executorContext;
+        this.idToDoFnExecutor = executorContext.getExecutorsBolt().getIdToDoFnExecutor();
     }
 
     @Override
@@ -80,8 +87,9 @@ public class TimerServiceImpl implements TimerService {
         TimerInternals.TimerData timerData;
         while ((timerData = eventTimeTimersQueue.peek()) != null
                 && timerData.getTimestamp().getMillis() <= newWatermark) {
-            for (Pair<DoFnExecutor, Object> keyedExecutor : timerDataToKeyedExecutors.get(timerData)) {
-                keyedExecutor.getFirst().onTimer(keyedExecutor.getSecond(), timerData);
+            for (Pair<Integer, Object> keyedExecutor : timerDataToKeyedExecutors.get(timerData)) {
+                DoFnExecutor executor = idToDoFnExecutor.get(keyedExecutor.getFirst());
+                executor.onTimer(keyedExecutor.getSecond(), timerData);
             }
             eventTimeTimersQueue.remove();
             timerDataToKeyedExecutors.remove(timerData);
@@ -129,12 +137,12 @@ public class TimerServiceImpl implements TimerService {
         checkArgument(
                 TimeDomain.EVENT_TIME.equals(timerData.getDomain()),
                 String.format("Does not support domain: %s.", timerData.getDomain()));
-        Set<Pair<DoFnExecutor, Object>> keyedExecutors = timerDataToKeyedExecutors.get(timerData);
+        Set<Pair<Integer, Object>> keyedExecutors = timerDataToKeyedExecutors.get(timerData);
         if (keyedExecutors == null) {
             keyedExecutors = Sets.newHashSet();
             eventTimeTimersQueue.add(timerData);
         }
-        keyedExecutors.add(new Pair<>(doFnExecutor, key));
+        keyedExecutors.add(new Pair<>(doFnExecutor.getInternalDoFnExecutorId(), key));
         timerDataToKeyedExecutors.put(timerData, keyedExecutors);
     }
 }

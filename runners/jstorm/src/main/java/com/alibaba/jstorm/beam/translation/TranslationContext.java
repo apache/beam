@@ -206,6 +206,8 @@ public class TranslationContext {
             checkState(!bolt.getOutputTags().contains(tag));
             addStormStreamDef(TaggedPValue.of(tag, sideInput), name, Stream.Grouping.of(Stream.Grouping.Type.ALL));
         }
+
+        bolt.registerExecutor(executor);
     }
 
     // TODO: add getSideInputs() and getSideOutputs().

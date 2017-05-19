@@ -32,6 +32,7 @@ import com.alibaba.jstorm.window.Watermark;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -60,6 +61,8 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
     protected final Set<TupleTag> outputTags = Sets.newHashSet();
     protected final Set<TupleTag> externalOutputTags = Sets.newHashSet();
     protected final Set<DoFnExecutor> doFnExecutors = Sets.newHashSet();
+    protected int internalDoFnExecutorId = 1;
+    protected final Map<Integer, DoFnExecutor> idToDoFnExecutor = Maps.newHashMap();
 
     protected OutputCollector collector;
 
@@ -81,6 +84,19 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
 
     public Map<TupleTag, Executor> getExecutors() {
         return inputTagToExecutor;
+    }
+
+    public void registerExecutor(Executor executor) {
+        if (executor instanceof DoFnExecutor) {
+            DoFnExecutor doFnExecutor = (DoFnExecutor) executor;
+            idToDoFnExecutor.put(internalDoFnExecutorId, doFnExecutor);
+            doFnExecutor.setInternalDoFnExecutorId(internalDoFnExecutorId);
+            internalDoFnExecutorId++;
+        }
+    }
+
+    public Map<Integer, DoFnExecutor> getIdToDoFnExecutor() {
+        return idToDoFnExecutor;
     }
 
     public void addOutputTags(TupleTag tag) {
@@ -147,7 +163,7 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
                             }
                         })
                 .toList();
-        TimerService ret = new TimerServiceImpl();
+        TimerService ret = new TimerServiceImpl(executorContext);
         ret.init(tasks);
         return ret;
     }
