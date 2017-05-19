@@ -28,6 +28,21 @@
 
   <properties>
     <beam.version>@project.version@</beam.version>
+
+    <bigquery.version>@bigquery.version@</bigquery.version>
+    <google-clients.version>@google-clients.version@</google-clients.version>
+    <guava.version>@guava.version@</guava.version>
+    <hamcrest.version>@hamcrest.version@</hamcrest.version>
+    <jackson.version>@jackson.version@</jackson.version>
+    <joda.version>@joda.version@</joda.version>
+    <junit.version>@junit.version@</junit.version>
+    <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
+    <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
+    <maven-shade-plugin.version>@maven-shade-plugin.version@</maven-shade-plugin.version>
+    <pubsub.version>@pubsub.version@</pubsub.version>
+    <slf4j.version>@slf4j.version@</slf4j.version>
+    <spark.version>@spark.version@</spark.version>
+    <surefire-plugin.version>@surefire-plugin.version@</surefire-plugin.version>
   </properties>
 
   <repositories>
@@ -49,7 +64,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>@maven-compiler-plugin.version@</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>${targetPlatform}</source>
           <target>${targetPlatform}</target>
@@ -59,7 +74,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>@surefire-plugin.version@</version>
+        <version>${surefire-plugin.version}</version>
         <configuration>
           <parallel>all</parallel>
           <threadCount>4</threadCount>
@@ -79,7 +94,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-        <version>@maven-jar-plugin.version@</version>
+        <version>${maven-jar-plugin.version}</version>
       </plugin>
 
       <!--
@@ -89,7 +104,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>@maven-shade-plugin.version@</version>
+        <version>${maven-shade-plugin.version}</version>
         <executions>
           <execution>
             <phase>package</phase>
@@ -122,7 +137,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>@maven-exec-plugin.version@</version>
+          <version>${maven-exec-plugin.version}</version>
           <configuration>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
           </configuration>
@@ -224,7 +239,7 @@
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-streaming_2.10</artifactId>
-          <version>@spark.version@</version>
+          <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -236,7 +251,7 @@
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
           <artifactId>jackson-module-scala_2.10</artifactId>
-          <version>@jackson.version@</version>
+          <version>${jackson.version}</version>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -262,7 +277,7 @@
     <dependency>
       <groupId>com.google.api-client</groupId>
       <artifactId>google-api-client</artifactId>
-      <version>@google-clients.version@</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -276,7 +291,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
-      <version>@bigquery.version@</version>
+      <version>${bigquery.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -290,7 +305,7 @@
     <dependency>
       <groupId>com.google.http-client</groupId>
       <artifactId>google-http-client</artifactId>
-      <version>@google-clients.version@</version>
+      <version>${google-clients.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -304,7 +319,7 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-pubsub</artifactId>
-      <version>@pubsub.version@</version>
+      <version>${pubsub.version}</version>
       <exclusions>
         <!-- Exclude an old version of guava that is being pulled
              in by a transitive dependency of google-api-client -->
@@ -318,26 +333,26 @@
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
-      <version>@joda.version@</version>
+      <version>${joda.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>@guava.version@</version>
+      <version>${guava.version}</version>
     </dependency>
 
     <!-- Add slf4j API frontend binding with JUL backend -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
-      <version>@slf4j.version@</version>
+      <version>${slf4j.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
-      <version>@slf4j.version@</version>
+      <version>${slf4j.version}</version>
       <!-- When loaded at runtime this will wire up slf4j to the JUL backend -->
       <scope>runtime</scope>
     </dependency>
@@ -347,13 +362,13 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
-      <version>@hamcrest.version@</version>
+      <version>${hamcrest.version}</version>
     </dependency>
 
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>@junit.version@</version>
+      <version>${junit.version}</version>
     </dependency>
 
     <!-- The DirectRunner is needed for unit tests. -->
