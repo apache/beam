@@ -69,7 +69,7 @@ public class MinTest {
 
   @Test
   public void testDisplayData() {
-    Top.Smallest<Integer> comparer = new Top.Smallest<>();
+    Top.Reversed<Integer> comparer = new Top.Reversed<>();
 
     Combine.Globally<Integer, Integer> min = Min.globally(comparer);
     assertThat(DisplayData.from(min), hasDisplayItem("comparer", comparer.getClass()));
