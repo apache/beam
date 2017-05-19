@@ -143,6 +143,7 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
             LOG.info("inputTagToExecutor={}", inputTagToExecutor);
             LOG.info("outputTags={}", outputTags);
             LOG.info("externalOutputTags={}", externalOutputTags);
+            LOG.info("doFnExecutors={}", doFnExecutors);
         } catch (IOException e) {
             throw new RuntimeException("Failed to prepare executors bolt", e);
         }
@@ -188,7 +189,13 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
     }
 
     private void processWatermark(long watermarkTs, int sourceTask) {
-        timerService.updateInputWatermark(sourceTask, watermarkTs);
+        long newWaterMark = timerService.updateInputWatermark(sourceTask, watermarkTs);
+        if (newWaterMark != 0) {
+            // Some buffer windows are going to be triggered.
+            doFnStartBundle();
+            timerService.fireTimers(newWaterMark);
+            doFnFinishBundle();
+        }
 
         if (!externalOutputTags.isEmpty()) {
             collector.flush();
@@ -268,13 +275,13 @@ public class ExecutorsBolt extends AdaptorBasicBolt {
 
     private void doFnStartBundle() {
         for (DoFnExecutor doFnExecutor : doFnExecutors) {
-            doFnExecutor.getRunner().startBundle();
+            doFnExecutor.startBundle();
         }
     }
 
     private void doFnFinishBundle() {
         for (DoFnExecutor doFnExecutor : doFnExecutors) {
-            doFnExecutor.getRunner().finishBundle();
+            doFnExecutor.finishBundle();
         }
     }
 

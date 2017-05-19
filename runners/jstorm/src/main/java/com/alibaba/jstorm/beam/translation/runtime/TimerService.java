@@ -30,7 +30,13 @@ public interface TimerService extends Serializable {
 
     void init(List<Integer> upStreamTasks);
 
-    void updateInputWatermark(Integer task, long inputWatermark);
+    /**
+     *
+     * @param task
+     * @param inputWatermark
+     * @return new watermark if any timer is triggered during the update of watermark, otherwise 0
+     */
+    long updateInputWatermark(Integer task, long inputWatermark);
 
     long currentInputWatermark();
 
@@ -41,4 +47,6 @@ public interface TimerService extends Serializable {
     void addWatermarkHold(String namespace, Instant watermarkHold);
 
     void setTimer(Object key, TimerInternals.TimerData timerData, DoFnExecutor doFnExecutor);
+
+    void fireTimers(long newWatermark);
 }

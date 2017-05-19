@@ -67,7 +67,7 @@ public class TimerServiceImpl implements TimerService {
     }
 
     @Override
-    public synchronized void updateInputWatermark(Integer task, long taskInputWatermark) {
+    public synchronized long updateInputWatermark(Integer task, long taskInputWatermark) {
         checkState(initialized, "TimerService has not been initialized.");
         Long oldTaskInputWatermark = upStreamTaskToInputWatermark.get(task);
         // Make sure the input watermark don't go backward.
@@ -78,12 +78,14 @@ public class TimerServiceImpl implements TimerService {
 
             long newLocalInputWatermark = currentInputWatermark();
             if (newLocalInputWatermark > oldTaskInputWatermark) {
-                fireTimers(newLocalInputWatermark);
+                return newLocalInputWatermark;
             }
         }
+        return 0;
     }
 
-    private void fireTimers(long newWatermark) {
+    @Override
+    public void fireTimers(long newWatermark) {
         TimerInternals.TimerData timerData;
         while ((timerData = eventTimeTimersQueue.peek()) != null
                 && timerData.getTimestamp().getMillis() <= newWatermark) {
