@@ -38,13 +38,13 @@ def in_between(lower, upper):
 class EstimatePiTest(unittest.TestCase):
 
   def test_basics(self):
-    p = TestPipeline()
-    result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)
+    with TestPipeline() as p:
+      result = p | 'Estimate' >> estimate_pi.EstimatePiTransform(5000)
 
-    # Note: Probabilistically speaking this test can fail with a probability
-    # that is very small (VERY) given that we run at least 500 thousand trials.
-    assert_that(result, in_between(3.125, 3.155))
-    p.run()
+      # Note: Probabilistically speaking this test can fail with a probability
+      # that is very small (VERY) given that we run at least 500 thousand
+      # trials.
+      assert_that(result, in_between(3.125, 3.155))
 
 
 if __name__ == '__main__':
