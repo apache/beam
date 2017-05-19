@@ -27,7 +27,6 @@ import org.apache.beam.dsls.sql.exception.InvalidFieldException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.util.NlsString;
 import org.joda.time.Instant;
 
 /**
@@ -123,8 +122,7 @@ public class BeamSQLRow implements Serializable {
       break;
     case VARCHAR:
     case CHAR:
-      if (!(fieldValue instanceof String)
-          && !(fieldValue instanceof NlsString)) {
+      if (!(fieldValue instanceof String)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       }
@@ -172,12 +170,7 @@ public class BeamSQLRow implements Serializable {
   }
 
   public String getString(int idx) {
-    Object ret = getFieldValue(idx);
-    if (ret instanceof String) {
-      return (String) ret;
-    } else {
-      return ((NlsString) ret).getValue();
-    }
+    return (String) getFieldValue(idx);
   }
 
   public Date getDate(int idx) {
@@ -240,9 +233,8 @@ public class BeamSQLRow implements Serializable {
         return fieldValue;
       }
     case VARCHAR:
-      case CHAR:
-      if (!(fieldValue instanceof String)
-          && !(fieldValue instanceof NlsString)) {
+    case CHAR:
+      if (!(fieldValue instanceof String)) {
         throw new InvalidFieldException(
             String.format("[%s] doesn't match type [%s]", fieldValue, fieldType));
       } else {
@@ -330,13 +322,7 @@ public class BeamSQLRow implements Serializable {
   public String valueInString() {
     StringBuffer sb = new StringBuffer();
     for (int idx = 0; idx < size(); ++idx) {
-      Object fieldValue = getFieldValue(idx);
-      // handle String VS NlsString
-      if (SqlTypeName.CHAR_TYPES.contains(dataType.getFieldsType().get(idx))) {
-        fieldValue = getString(idx);
-      }
-
-      sb.append(String.format(",%s=%s", dataType.getFieldsName().get(idx), fieldValue));
+      sb.append(String.format(",%s=%s", dataType.getFieldsName().get(idx), getFieldValue(idx)));
     }
     return sb.substring(1);
   }

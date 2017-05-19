@@ -30,7 +30,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
