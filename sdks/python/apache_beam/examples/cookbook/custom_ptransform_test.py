@@ -40,12 +40,11 @@ class CustomCountTest(unittest.TestCase):
     self.run_pipeline(custom_ptransform.Count3(factor), factor=factor)
 
   def run_pipeline(self, count_implementation, factor=1):
-    p = TestPipeline()
-    words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
-    result = words | count_implementation
-    assert_that(
-        result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
-    p.run()
+    with TestPipeline() as p:
+      words = p | beam.Create(['CAT', 'DOG', 'CAT', 'CAT', 'DOG'])
+      result = words | count_implementation
+      assert_that(
+          result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
 
 
 if __name__ == '__main__':

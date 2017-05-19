@@ -168,12 +168,11 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
-    p = TestPipeline()
-    main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | 'side' >> beam.Create([3])
-    result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
-    assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
-    p.run()
+    with TestPipeline() as p:
+      main_input = p | beam.Create(['a', 'bb', 'c'])
+      side_input = p | 'side' >> beam.Create([3])
+      result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
+      assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
 
     bad_side_input = p | 'bad_side' >> beam.Create(['z'])
     with self.assertRaises(typehints.TypeCheckError):
@@ -183,12 +182,11 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
-    p = TestPipeline()
-    main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
-    result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
-    assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
-    p.run()
+    with TestPipeline() as p:
+      main_input = p | beam.Create(['a', 'bb', 'c'])
+      side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
+      result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
+      assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
 
     bad_side_input = p | 'bad_side' >> beam.Create([1, 2, 3])
     with self.assertRaises(typehints.TypeCheckError):

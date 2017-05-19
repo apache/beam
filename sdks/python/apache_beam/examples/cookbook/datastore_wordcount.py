@@ -135,18 +135,15 @@ class EntityWrapper(object):
 
 def write_to_datastore(project, user_options, pipeline_options):
   """Creates a pipeline that writes entities to Cloud Datastore."""
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  # pylint: disable=expression-not-assigned
-  (p
-   | 'read' >> ReadFromText(user_options.input)
-   | 'create entity' >> beam.Map(
-       EntityWrapper(user_options.namespace, user_options.kind,
-                     user_options.ancestor).make_entity)
-   | 'write to datastore' >> WriteToDatastore(project))
-
-  # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+    # pylint: disable=expression-not-assigned
+    (p
+     | 'read' >> ReadFromText(user_options.input)
+     | 'create entity' >> beam.Map(
+         EntityWrapper(user_options.namespace, user_options.kind,
+                       user_options.ancestor).make_entity)
+     | 'write to datastore' >> WriteToDatastore(project))
 
 
 def make_ancestor_query(kind, namespace, ancestor):
@@ -196,7 +193,6 @@ def read_from_datastore(project, user_options, pipeline_options):
   output | 'write' >> beam.io.WriteToText(file_path_prefix=user_options.output,
                                           num_shards=user_options.num_shards)
 
-  # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   # Wait until completion, main thread would access post-completion job results.
   result.wait_until_finish()

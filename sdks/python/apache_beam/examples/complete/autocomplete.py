@@ -44,16 +44,15 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  with beam.Pipeline(options=pipeline_options) as p:
 
-  (p  # pylint: disable=expression-not-assigned
-   | 'read' >> ReadFromText(known_args.input)
-   | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | 'TopPerPrefix' >> TopPerPrefix(5)
-   | 'format' >> beam.Map(
-       lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
-   | 'write' >> WriteToText(known_args.output))
-  p.run()
+    (p  # pylint: disable=expression-not-assigned
+     | 'read' >> ReadFromText(known_args.input)
+     | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+     | 'TopPerPrefix' >> TopPerPrefix(5)
+     | 'format' >> beam.Map(
+         lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+     | 'write' >> WriteToText(known_args.output))
 
 
 class TopPerPrefix(beam.PTransform):
