@@ -272,8 +272,18 @@ public class DoFnExecutor<InputT, OutputT> implements Executor {
         return left.isBefore(right) ? left : right;
     }
 
-    public DoFnRunner<InputT, OutputT> getRunner() {
-        return runner;
+    public void startBundle() {
+        if (runner != null)
+            runner.startBundle();
+        if (pushbackRunner != null)
+            pushbackRunner.startBundle();
+    }
+
+    public void finishBundle() {
+        if (runner != null)
+            runner.finishBundle();
+        if (pushbackRunner != null)
+            pushbackRunner.finishBundle();
     }
 
     public void setInternalDoFnExecutorId(int id) {
