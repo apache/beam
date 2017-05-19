@@ -283,8 +283,8 @@ public class ApproximateQuantiles {
      * Like {@link #create(int, Comparator)}, but sorts values using their natural ordering.
      */
     public static <T extends Comparable<T>>
-        ApproximateQuantilesCombineFn<T, Top.Largest<T>> create(int numQuantiles) {
-      return create(numQuantiles, new Top.Largest<T>());
+        ApproximateQuantilesCombineFn<T, Top.Natural<T>> create(int numQuantiles) {
+      return create(numQuantiles, new Top.Natural<T>());
     }
 
     /**
