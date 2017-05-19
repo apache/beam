@@ -314,8 +314,9 @@ class _Mutate(PTransform):
   """
 
   # Max allowed Datastore writes per batch, and max bytes per batch.
-  # Note that the max bytes per batch is lower than the actual limit enforced
-  # by the API, to allow space for the CommitRequest wrapper around it.
+  # Note that the max bytes per batch set here is lower than the 10MB limit
+  # actually enforced by the API, to allow space for the CommitRequest wrapper
+  # around it.
   _WRITE_BATCH_SIZE = 500
   _WRITE_BATCH_BYTES_SIZE = 5000000
 

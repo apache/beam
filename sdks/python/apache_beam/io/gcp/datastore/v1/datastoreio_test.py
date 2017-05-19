@@ -196,8 +196,7 @@ class DatastoreioTest(unittest.TestCase):
     """60*100kB entities gets split over two Commit RPCs."""
     with patch.object(helper, 'get_datastore',
                       return_value=self._mock_datastore):
-      entities = [e.entity for e in
-                  fake_datastore.create_entities(60)]
+      entities = [e.entity for e in fake_datastore.create_entities(60)]
 
       datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
       datastore_write_fn.start_bundle()
@@ -207,10 +206,7 @@ class DatastoreioTest(unittest.TestCase):
         datastore_write_fn.process(WriteToDatastore.to_upsert_mutation(entity))
       datastore_write_fn.finish_bundle()
 
-      self.assertEqual(
-          math.ceil(sum(e.ByteSize() for e in entities) /
-                    float(_Mutate._WRITE_BATCH_BYTES_SIZE)),
-          self._mock_datastore.commit.call_count)
+      self.assertEqual(2, self._mock_datastore.commit.call_count)
 
   def verify_unique_keys(self, queries):
     """A helper function that verifies if all the queries have unique keys."""
