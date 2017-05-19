@@ -90,8 +90,9 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   /**
-   * A transform evaluator for the pseudo-primitive {@link DirectGroupAlsoByWindow}. Windowing is
-   * ignored; all input should be in the global window since all output will be as well.
+   * A transform evaluator for the pseudo-primitive {@link DirectGroupAlsoByWindow}. The window of
+   * the input {@link KeyedWorkItem} is ignored; it should be in the global window, as element
+   * windows are reified in the {@link KeyedWorkItem#elementsIterable()}.
    *
    * @see GroupByKeyViaGroupByKeyOnly
    */
