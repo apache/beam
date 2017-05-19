@@ -120,17 +120,12 @@ public class GroupByWindowExecutor<K, V> extends DoFnExecutor<KeyedWorkItem<K, V
 
     @Override
     public void process(TupleTag tag, WindowedValue elem) {
-        try {
-            runner.startBundle();
-            /**
-             *  For GroupByKey, KV type elem is received. We need to convert the KV elem 
-             *  into KeyedWorkItem first, which is the expected type in LateDataDroppingDoFnRunner.
-             */
-            KeyedWorkItem<K, V> keyedWorkItem = RunnerUtils.toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
-            runner.processElement(elem.withValue(keyedWorkItem));
-        } finally {
-            runner.finishBundle();
-        }
+        /**
+         *  For GroupByKey, KV type elem is received. We need to convert the KV elem
+         *  into KeyedWorkItem first, which is the expected type in LateDataDroppingDoFnRunner.
+         */
+        KeyedWorkItem<K, V> keyedWorkItem = RunnerUtils.toKeyedWorkItem((WindowedValue<KV<K, V>>) elem);
+        runner.processElement(elem.withValue(keyedWorkItem));
     }
 
     @Override

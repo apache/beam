@@ -9,9 +9,9 @@
     <logger name="org.apache.zookeeper" level="ERROR" />
     <logger name="org.apache.curator" level="ERROR" />
     <logger name="com.netflix.curator" level="ERROR" />
-    <logger name="com.alibaba.jstorm.common.metric" level="INFO" />
+    <logger name="com.alibaba.jstorm.common.metric" level="ERROR" />
     <logger name="com.alibaba.jstorm.daemon.nimbus.metric" level="INFO" />
-    <logger name="com.alibaba.jstorm.metric" level="INFO" />
+    <logger name="com.alibaba.jstorm.metric" level="ERROR" />
     <logger name="shade.storm.org.apache.zookeeper" level="ERROR"/>
     <logger name="shade.storm.org.apache.curator" level="ERROR"/>
     <logger name="com.alibaba.jstorm.beam" level="INFO"/>
@@ -19,10 +19,8 @@
     <!-- sync client logback with jstorm.logback.xml  -->
     <logger name="com.alibaba.jstorm.daemon.worker.hearbeat" level="WARN"/>
     <logger name="com.alibaba.jstorm.task.heartbeat" level="WARN"/>
-    <logger name="com.alibaba.jstorm.common.metric" level="WARN"/>
     <logger name="com.alibaba.jstorm.task.master.metrics" level="WARN"/>
     <logger name="com.alibaba.jstorm.daemon.nimbus.metric" level="WARN"/>
-    <logger name="com.alibaba.jstorm.metric" level="WARN"/>
 
     <root level="INFO">
     <appender-ref ref="A1" />
