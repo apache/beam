@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
@@ -153,17 +155,10 @@ public class ParDos {
         "Unexpected payload type %s",
         ptransform.getSpec().getUrn());
     ParDoPayload payload = ptransform.getSpec().getParameter().unpack(ParDoPayload.class);
-    String mainInputId = null;
-    for (Map.Entry<String, String> input : ptransform.getInputsMap().entrySet()) {
-      if (!payload.getSideInputsMap().containsKey(input.getKey())) {
-        checkArgument(
-            mainInputId == null,
-            "Multiple non-side input inputs (Found %s and %s)",
-            mainInputId,
-            input.getValue());
-        mainInputId = input.getValue();
-      }
-    }
+    String mainInputId =
+        Iterables.getOnlyElement(
+            Sets.difference(
+                ptransform.getInputsMap().keySet(), payload.getSideInputsMap().keySet()));
     return components.getPcollectionsOrThrow(mainInputId);
   }
 
