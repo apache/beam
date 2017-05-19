@@ -22,8 +22,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
-import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
@@ -57,6 +57,7 @@ public class MultiDoFnFunction<InputT, OutputT>
   private final DoFn<InputT, OutputT> doFn;
   private final SparkRuntimeContext runtimeContext;
   private final TupleTag<OutputT> mainOutputTag;
+  private final List<TupleTag<?>> additionalOutputTags;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   private final WindowingStrategy<?, ?> windowingStrategy;
 
@@ -66,6 +67,7 @@ public class MultiDoFnFunction<InputT, OutputT>
    * @param doFn              The {@link DoFn} to be wrapped.
    * @param runtimeContext    The {@link SparkRuntimeContext}.
    * @param mainOutputTag     The main output {@link TupleTag}.
+   * @param additionalOutputTags Additional {@link TupleTag output tags}.
    * @param sideInputs        Side inputs used in this {@link DoFn}.
    * @param windowingStrategy Input {@link WindowingStrategy}.
    */
@@ -76,6 +78,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       DoFn<InputT, OutputT> doFn,
       SparkRuntimeContext runtimeContext,
       TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.aggAccum = aggAccum;
@@ -84,6 +87,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     this.doFn = doFn;
     this.runtimeContext = runtimeContext;
     this.mainOutputTag = mainOutputTag;
+    this.additionalOutputTags = additionalOutputTags;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;
   }
@@ -101,7 +105,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             new SparkSideInputReader(sideInputs),
             outputManager,
             mainOutputTag,
-            Collections.<TupleTag<?>>emptyList(),
+            additionalOutputTags,
             new SparkProcessContext.NoOpStepContext(),
             windowingStrategy);
 
