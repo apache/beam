@@ -107,7 +107,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
     }
 
-    instantCoder.encode(value.getWindowStart(), outStream, context);
+    instantCoder.encode(value.getWindowStart(), outStream, context.nested());
     instantCoder.encode(value.getWindowEnd(), outStream, context);
   }
 
@@ -164,7 +164,7 @@ public class BeamSqlRowCoder extends StandardCoder<BeamSQLRow>{
       }
     }
 
-    record.setWindowStart(instantCoder.decode(inStream, context));
+    record.setWindowStart(instantCoder.decode(inStream, context.nested()));
     record.setWindowEnd(instantCoder.decode(inStream, context));
 
     return record;
