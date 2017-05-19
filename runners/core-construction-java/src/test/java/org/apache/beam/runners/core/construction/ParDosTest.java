@@ -149,6 +149,10 @@ public class ParDosTest {
               view.getWindowingStrategyInternal().fixDefaults()));
       assertThat(restoredView.getCoderInternal(), equalTo(view.getCoderInternal()));
     }
+    String mainInputId = components.registerPCollection(mainInput);
+    assertThat(
+        ParDos.getMainInput(protoTransform, protoComponents),
+        equalTo(protoComponents.getPcollectionsOrThrow(mainInputId)));
   }
 
   private static class DropElementsFn extends DoFn<KV<Long, String>, Void> {
