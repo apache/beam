@@ -38,6 +38,7 @@
     <junit.version>@junit.version@</junit.version>
     <maven-compiler-plugin.version>@maven-compiler-plugin.version@</maven-compiler-plugin.version>
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
+    <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
     <maven-shade-plugin.version>@maven-shade-plugin.version@</maven-shade-plugin.version>
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
