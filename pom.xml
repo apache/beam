@@ -141,6 +141,7 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
+    <snappy-java.version>1.1.4-M3</snappy-java.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
@@ -992,6 +993,12 @@
         <groupId>org.springframework</groupId>
         <artifactId>spring-expression</artifactId>
         <version>${spring.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy-java.version}</version>
       </dependency>
 
       <!-- Testing -->
