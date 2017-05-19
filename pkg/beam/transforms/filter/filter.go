@@ -15,7 +15,7 @@ func Filter(p *beam.Pipeline, col beam.PCollection, fn interface{}) (beam.PColle
 	p = p.Composite("filter.Filter")
 
 	// TODO: validate signature of fn
-	return beam.ParDo(p, filterFn, col, beam.Data{DataFnValue{fn}})
+	return beam.ParDo(p, filterFn, col, beam.Data{Data: DataFnValue{Fn: fn}})
 }
 
 type filterOpt struct {

@@ -157,7 +157,6 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		log.Printf("PB Progress: %v", msg)
 
-		return nil
 		return &pb.InstructionResponse{
 			InstructionId: id,
 			Response: &pb.InstructionResponse_ProcessBundleProgress{
@@ -170,7 +169,6 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		log.Printf("PB Split: %v", msg)
 
-		return nil
 		return &pb.InstructionResponse{
 			InstructionId: id,
 			Response: &pb.InstructionResponse_ProcessBundleSplit{
