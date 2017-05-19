@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 // TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
 // unkeyed
-class KeyedPValueTrackingVisitor implements PipelineVisitor {
+class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
 
   private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
       ImmutableSet.of(
@@ -89,9 +89,6 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
       }
     }
   }
-
-  @Override
-  public void visitPrimitiveTransform(TransformHierarchy.Node node) {}
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {

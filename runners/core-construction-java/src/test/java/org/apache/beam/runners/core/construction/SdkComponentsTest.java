@@ -97,16 +97,11 @@ public class SdkComponentsTest {
 
     final RunnerApi.Pipeline pipelineProto = SdkComponents.translatePipeline(pipeline);
     pipeline.traverseTopologically(
-        new PipelineVisitor() {
+        new PipelineVisitor.Defaults() {
           Set<Node> transforms = new HashSet<>();
           Set<PCollection<?>> pcollections = new HashSet<>();
           Set<Equivalence.Wrapper<? extends Coder<?>>> coders = new HashSet<>();
           Set<WindowingStrategy<?, ?>> windowingStrategies = new HashSet<>();
-
-          @Override
-          public CompositeBehavior enterCompositeTransform(Node node) {
-            return CompositeBehavior.ENTER_TRANSFORM;
-          }
 
           @Override
           public void leaveCompositeTransform(Node node) {

@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * into Apex logical plan {@link DAG}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
+public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(ApexPipelineTranslator.class);
 
   /**
@@ -110,7 +110,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       throw new UnsupportedOperationException(
           "no translator registered for " + transform);
     }
-    translationContext.setCurrentTransform(node);
+    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     translator.translate(transform, translationContext);
   }
 

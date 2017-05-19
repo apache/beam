@@ -79,7 +79,7 @@ public class TransformHierarchyTest implements Serializable {
 
   @Before
   public void setup() {
-    hierarchy = new TransformHierarchy(pipeline);
+    hierarchy = new TransformHierarchy();
   }
 
   @Test

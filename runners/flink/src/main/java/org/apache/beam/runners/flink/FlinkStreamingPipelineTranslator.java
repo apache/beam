@@ -188,7 +188,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
     // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     typedTranslator.translateNode(typedTransform, streamingContext);
   }
 
@@ -203,7 +203,7 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     @SuppressWarnings("unchecked")
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
-    streamingContext.setCurrentTransform(node.toAppliedPTransform());
+    streamingContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
 
     return typedTranslator.canTranslate(typedTransform, streamingContext);
   }
