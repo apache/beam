@@ -24,6 +24,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.beam.dsls.sql.exception.InvalidFieldException;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -31,11 +32,10 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Instant;
 
 /**
- * Repersent a generic ROW record in Beam SQL.
+ * Represent a generic ROW record in Beam SQL.
  *
  */
 public class BeamSqlRow implements Serializable {
-
   private List<Integer> nullFields = new ArrayList<>();
   private List<Object> dataValues;
   private BeamSqlRecordType dataType;
