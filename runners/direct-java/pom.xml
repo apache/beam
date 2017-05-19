@@ -145,12 +145,12 @@
             <configuration>
               <groups>org.apache.beam.sdk.testing.NeedsRunner</groups>
               <!-- 100MB keys work on the direct runner, but make the test too slow. --> 
-              <excludedGroups>org.apache.beam.sdk.testing.LargeKeys.Above100MB</excludedGroups>
+              <excludedGroups>org.apache.beam.sdk.testing.LargeKeys$Above100MB</excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                <dependency>org.apache.beam:beam-runners-core-java</dependency>
+                <dependency>org.apache.beam:beam-runners-java-core</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
