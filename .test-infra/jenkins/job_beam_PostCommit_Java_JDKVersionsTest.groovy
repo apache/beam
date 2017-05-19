@@ -48,13 +48,14 @@ matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
 
   // Maven build for this job.
   steps {
-//    shell('pwd && ls -alR && export')
     maven {
       // Set maven parameters.
       common_job_properties.setMavenConfig(delegate)
 
-      // Maven build project
-      goals('-B -e -P dataflow-runner clean install -pl \'!org.apache.beam:beam-sdks-python\' -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=TestDataflowRunner" ]\'')
+      // Maven build project.
+      // Skip beam-sdks-python since this test is only apply to Java.
+      // TODO[BEAM-2322,BEAM-2323,BEAM-2324]: Enable beam-runners-apex once they are fixed.
+      goals('-B -e -P dataflow-runner clean install -pl \'!org.apache.beam:beam-sdks-python,!org.apache.beam:beam-runners-apex\' -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=TestDataflowRunner" ]\'')
     }
   }
 }
