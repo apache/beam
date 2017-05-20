@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** SDK objects that will be represented at some later point within a {@link Components} object. */
-class SdkComponents {
+public class SdkComponents {
   private final RunnerApi.Components.Builder componentsBuilder;
 
   private final BiMap<AppliedPTransform<?, ?, ?>, String> transformIds;
