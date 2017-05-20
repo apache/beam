@@ -319,7 +319,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
   }
 
   /**
-   * Check if the current partitioner is the Murmur3 (default in Cassandra >= 2).
+   * Check if the current partitioner is the Murmur3 (default in Cassandra version newer than 2).
    */
   @VisibleForTesting
   protected static boolean isMurmur3Partitioner(Cluster cluster) {
