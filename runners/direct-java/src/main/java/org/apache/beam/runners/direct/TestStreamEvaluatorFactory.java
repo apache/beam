@@ -22,12 +22,14 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.Message;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
@@ -37,7 +39,6 @@ import org.apache.beam.sdk.testing.TestStream.Event;
 import org.apache.beam.sdk.testing.TestStream.EventType;
 import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
@@ -180,7 +181,10 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
 
-    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+    static final String DIRECT_TEST_STREAM_URN = "urn:beam:directrunner:transforms:test_stream:v1";
+
+    static class DirectTestStream<T>
+        extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>, Message> {
       private final transient DirectRunner runner;
       private final TestStream<T> original;
 
@@ -196,6 +200,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
         return PCollection.<T>createPrimitiveOutputInternal(
                 input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
             .setCoder(original.getValueCoder());
+      }
+
+      @Override
+      public String getUrn() {
+        return DIRECT_TEST_STREAM_URN;
       }
     }
   }
