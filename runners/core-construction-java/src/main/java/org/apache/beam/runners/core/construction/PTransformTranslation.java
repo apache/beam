@@ -21,15 +21,20 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.Any;
+import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -134,5 +139,51 @@ public class PTransformTranslation {
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components);
+  }
+
+  /**
+   * A {@link PTransform} that indicates its URN and payload directly.
+   *
+   * <p>This is the result of rehydrating transforms from a pipeline proto. There is no {@link
+   * #expand} method since the definition of the transform may be lost. The transform is already
+   * fully expanded in the pipeline proto.
+   */
+  public abstract static class RawPTransform<
+          InputT extends PInput, OutputT extends POutput, PayloadT extends Message>
+      extends PTransform<InputT, OutputT> {
+
+    public abstract String getUrn();
+
+    @Nullable
+    PayloadT getPayload() {
+      return null;
+    }
+  }
+
+  /**
+   * A translator that uses the explicit URN and payload from a {@link RawPTransform}.
+   */
+  public static class RawPTransformTranslator<PayloadT extends Message>
+      implements TransformPayloadTranslator<RawPTransform<?, ?, PayloadT>> {
+    @Override
+    public String getUrn(RawPTransform<?, ?, PayloadT> transform) {
+      return transform.getUrn();
+    }
+
+    @Override
+    public FunctionSpec translate(
+        AppliedPTransform<?, ?, RawPTransform<?, ?, PayloadT>> transform,
+        SdkComponents components) {
+      PayloadT payload = transform.getTransform().getPayload();
+
+      FunctionSpec.Builder transformSpec =
+          FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
+
+      if (payload != null) {
+        transformSpec.setParameter(Any.pack(payload));
+      }
+
+      return transformSpec.build();
+    }
   }
 }
