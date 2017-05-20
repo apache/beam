@@ -350,7 +350,7 @@ public class RandomAccessData {
 
     // Try to double the size of the buffer, if thats not enough, just use the new capacity.
     // Note that we use Math.min(long, long) to not cause overflow on the multiplication.
-    int newCapacity = (int) Math.min(Integer.MAX_VALUE, buffer.length * 2L);
+    int newCapacity = (int) Math.min(Integer.MAX_VALUE - 8, buffer.length * 2L);
     if (newCapacity < minCapacity) {
         newCapacity = minCapacity;
     }
