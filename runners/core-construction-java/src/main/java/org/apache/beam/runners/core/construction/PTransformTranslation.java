@@ -38,6 +38,13 @@ import org.apache.beam.sdk.values.TupleTag;
  * protocol buffers}.
  */
 public class PTransformTranslation {
+
+  public static final String PAR_DO_TRANSFORM_URN = "urn:beam:transform:pardo:v1";
+  public static final String FLATTEN_TRANSFORM_URN = "urn:beam:transform:flatten:v1";
+  public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
+  public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
+  public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
+
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
