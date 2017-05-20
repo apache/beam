@@ -101,6 +101,11 @@ public class ParDoTranslation {
     private ParDoPayloadTranslator() {}
 
     @Override
+    public String getUrn(ParDo.MultiOutput<?, ?> transform) {
+      return PAR_DO_TRANSFORM_URN;
+    }
+
+    @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, MultiOutput<?, ?>> transform, SdkComponents components) {
       ParDoPayload payload = toProto(transform.getTransform(), components);

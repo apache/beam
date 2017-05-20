@@ -27,6 +27,7 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 
 /**
@@ -36,6 +37,12 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 public class WindowIntoTranslation {
 
   static class WindowAssignTranslator implements TransformPayloadTranslator<Window.Assign<?>> {
+
+    @Override
+    public String getUrn(Assign<?> transform) {
+      return PTransforms.WINDOW_TRANSFORM_URN;
+    }
+
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {

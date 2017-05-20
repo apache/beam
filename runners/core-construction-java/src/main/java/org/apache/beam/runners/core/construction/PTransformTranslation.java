@@ -116,11 +116,23 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
+  public static String urnForTransform(PTransform<?, ?> transform) {
+    TransformPayloadTranslator translator =
+    KNOWN_PAYLOAD_TRANSLATORS.get(transform.getClass());
+    if (translator == null) {
+      throw new IllegalStateException(
+          String.format("No translator known for %s", transform.getClass().getName()));
+    }
+
+    return translator.getUrn(transform);
+  }
+
   /**
    * A translator consumes a {@link PTransform} application and produces the appropriate
    * FunctionSpec for a distinguished or primitive transform within the Beam runner API.
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
+    String getUrn();
     FunctionSpec translate(AppliedPTransform<?, ?, T> transform, SdkComponents components);
   }
 }
