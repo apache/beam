@@ -143,8 +143,12 @@
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
+    <maven-compiler-plugin.version>3.6.1</maven-compiler-plugin.version>
+    <maven-exec-plugin.version>1.4.0</maven-exec-plugin.version>
+    <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
-    
+    <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
+
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
@@ -1131,7 +1135,7 @@
 
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.6.1</version>
+          <version>${maven-compiler-plugin.version}</version>
           <configuration>
             <source>1.7</source>
             <target>1.7</target>
@@ -1186,7 +1190,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>${maven-jar-plugin.version}</version>
           <executions>
             <execution>
               <id>default-jar</id>
@@ -1418,7 +1422,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-shade-plugin.version}</version>
           <executions>
             <execution>
               <id>bundle-and-repackage</id>
