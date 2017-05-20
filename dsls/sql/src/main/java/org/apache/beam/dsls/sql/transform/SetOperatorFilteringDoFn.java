@@ -18,9 +18,9 @@
 
 package org.apache.beam.dsls.sql.transform;
 
-import java.io.Serializable;
 import java.util.Iterator;
 
+import org.apache.beam.dsls.sql.rel.BeamSetOperatorRelBase;
 import org.apache.beam.dsls.sql.schema.BeamSQLRow;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -31,23 +31,14 @@ import org.apache.beam.sdk.values.TupleTag;
  * Filter function used for Set operators.
  */
 public class SetOperatorFilteringDoFn extends DoFn<KV<BeamSQLRow, CoGbkResult>, BeamSQLRow> {
-
-  /**
-   * Set operator type.
-   */
-  public enum OpType implements Serializable {
-    INTERSECT,
-    MINUS
-  }
-
   private TupleTag<BeamSQLRow> leftTag;
   private TupleTag<BeamSQLRow> rightTag;
-  private OpType opType;
+  private BeamSetOperatorRelBase.OpType opType;
   // ALL?
   private boolean all;
 
   public SetOperatorFilteringDoFn(TupleTag<BeamSQLRow> leftTag, TupleTag<BeamSQLRow> rightTag,
-      OpType opType, boolean all) {
+      BeamSetOperatorRelBase.OpType opType, boolean all) {
     this.leftTag = leftTag;
     this.rightTag = rightTag;
     this.opType = opType;
@@ -59,6 +50,22 @@ public class SetOperatorFilteringDoFn extends DoFn<KV<BeamSQLRow, CoGbkResult>, 
     Iterable<BeamSQLRow> leftRows = coGbkResult.getAll(leftTag);
     Iterable<BeamSQLRow> rightRows = coGbkResult.getAll(rightTag);
     switch (opType) {
+      case UNION:
+        if (all) {
+          // output both left & right
+          Iterator<BeamSQLRow> iter = leftRows.iterator();
+          while (iter.hasNext()) {
+            ctx.output(iter.next());
+          }
+          iter = rightRows.iterator();
+          while (iter.hasNext()) {
+            ctx.output(iter.next());
+          }
+        } else {
+          // only output the key
+          ctx.output(ctx.element().getKey());
+        }
+        break;
       case INTERSECT:
         if (leftRows.iterator().hasNext() && rightRows.iterator().hasNext()) {
           if (all) {
@@ -86,6 +93,4 @@ public class SetOperatorFilteringDoFn extends DoFn<KV<BeamSQLRow, CoGbkResult>, 
         }
     }
   }
-
-
 }
