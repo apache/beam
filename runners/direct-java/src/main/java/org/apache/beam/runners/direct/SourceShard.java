@@ -17,28 +17,17 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.util.Collection;
-import java.util.Collections;
-import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.UnboundedSource;
 
-/** A {@link RootInputProvider} that provides a singleton empty bundle. */
-class EmptyInputProvider<T> implements RootInputProvider<T, Void, PCollectionList<T>> {
-  EmptyInputProvider() {}
-
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>Returns an empty collection.
-   */
-  @Override
-  public Collection<CommittedBundle<Void>> getInitialInputs(
-      AppliedPTransform<
-              PCollectionList<T>, PCollection<T>, PTransform<PCollectionList<T>, PCollection<T>>>
-          transform,
-      int targetParallelism) {
-    return Collections.emptyList();
-  }
+/**
+ * A shard for a source in the {@link Read} transform.
+ *
+ * <p>Since {@link UnboundedSource} and {@link BoundedSource} have radically different needs, this
+ * is a mostly-empty interface.
+ */
+interface SourceShard<T> {
+  Source<T> getSource();
 }
