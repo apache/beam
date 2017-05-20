@@ -485,7 +485,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
           // We first apply a (trivial) transform to the input PCollection to produce a new
           // PCollection. This ensures that we don't modify the windowing strategy of the input
           // which may be used elsewhere.
-          .apply("Identity", MapElements.via(new SimpleFunction<T, T>() {
+          .apply("Identity", MapElements.<T,T>via(new SimpleFunction<T, T>() {
             @Override public T apply(T element) {
               return element;
             }
