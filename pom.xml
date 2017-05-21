@@ -1109,8 +1109,8 @@
             </dependency>
           </dependencies>
           <configuration>
-            <configLocation>beam/checkstyle.xml</configLocation>
-            <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
+            <configLocation>sdks/java/build-tools/src/main/resources/beam/checkstyle.xml</configLocation>
+            <suppressionsLocation>sdks/java/build-tools/src/main/resources/beam/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
