@@ -30,12 +30,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * {@link #stateInternals}.
  */
 public abstract class BaseStepContext implements StepContext {
-  private final ExecutionContext executionContext;
   private final String stepName;
   private final String transformName;
 
-  public BaseStepContext(ExecutionContext executionContext, String stepName, String transformName) {
-    this.executionContext = executionContext;
+  public BaseStepContext(String stepName, String transformName) {
     this.stepName = stepName;
     this.transformName = transformName;
   }

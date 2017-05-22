@@ -64,7 +64,7 @@ class DirectExecutionContext
 
     public DirectStepContext(
         ExecutionContext executionContext, String stepName, String transformName) {
-      super(executionContext, stepName, transformName);
+      super(stepName, transformName);
     }
 
     @Override
