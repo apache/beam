@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.BaseExecutionContext;
+import org.apache.beam.runners.core.BaseStepContext;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
