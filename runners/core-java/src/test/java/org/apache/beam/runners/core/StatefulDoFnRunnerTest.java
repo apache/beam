@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
-import org.apache.beam.runners.core.BaseExecutionContext.StepContext;
+import org.apache.beam.runners.core.BaseExecutionContext.BaseStepContext;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -69,7 +69,8 @@ public class StatefulDoFnRunnerTest {
   private static final IntervalWindow WINDOW_2 =
       new IntervalWindow(new Instant(10), new Instant(20));
 
-  @Mock StepContext mockStepContext;
+  @Mock
+  BaseStepContext mockStepContext;
 
   private InMemoryStateInternals<String> stateInternals;
   private InMemoryTimerInternals timerInternals;
