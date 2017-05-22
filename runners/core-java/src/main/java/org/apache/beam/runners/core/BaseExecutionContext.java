@@ -49,7 +49,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * {@link #getOrCreateStepContext(String, String)}, and {@link #getAllStepContexts()}
  * will be appropriately specialized.
  */
-public abstract class BaseExecutionContext<T extends ExecutionContext.StepContext>
+public abstract class BaseExecutionContext<T extends StepContext>
     implements ExecutionContext {
 
   private Map<String, T> cachedStepContexts = new LinkedHashMap<>();
@@ -81,7 +81,7 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
    * Factory method interface to create an execution context if none exists during
    * {@link #getOrCreateStepContext(String, CreateStepContextFunction)}.
    */
-  protected interface CreateStepContextFunction<T extends ExecutionContext.StepContext> {
+  protected interface CreateStepContextFunction<T extends org.apache.beam.runners.core.StepContext> {
     T create();
   }
 
@@ -111,12 +111,12 @@ public abstract class BaseExecutionContext<T extends ExecutionContext.StepContex
   public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
 
   /**
-   * Base class for implementations of {@link ExecutionContext.StepContext}.
+   * Base class for implementations of {@link org.apache.beam.runners.core.StepContext}.
    *
    * <p>To complete a concrete subclass, implement {@link #timerInternals} and
    * {@link #stateInternals}.
    */
-  public abstract static class StepContext implements ExecutionContext.StepContext {
+  public abstract static class StepContext implements org.apache.beam.runners.core.StepContext {
     private final ExecutionContext executionContext;
     private final String stepName;
     private final String transformName;
