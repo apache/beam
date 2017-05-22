@@ -352,9 +352,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     void outputWindowedValue(WindowedValue<OutputT> windowedElem) {
       outputManager.output(mainOutputTag, windowedElem);
-      if (stepContext != null) {
-        stepContext.noteOutput(windowedElem);
-      }
     }
 
     private <T> void outputWindowedValue(
@@ -380,9 +377,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       outputManager.output(tag, windowedElem);
-      if (stepContext != null) {
-        stepContext.noteOutput(tag, windowedElem);
-      }
     }
   }
 

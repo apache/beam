@@ -688,12 +688,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     }
 
     @Override
-    public void noteOutput(WindowedValue<?> output) {}
-
-    @Override
-    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
-
-    @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
         Iterable<WindowedValue<T>> data,
