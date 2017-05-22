@@ -36,6 +36,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.io.range.ByteKeyRangeTracker;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -303,6 +304,22 @@ public class HBaseIO {
             this.estimatedSizeBytes = estimatedSizeBytes;
         }
 
+        HBaseSource withStartKey(ByteKey startKey) throws IOException {
+            checkNotNull(startKey, "startKey");
+            Read newRead = new Read(read.serializableConfiguration, read.tableId,
+                new SerializableScan(
+                    new Scan(read.serializableScan.get()).setStartRow(startKey.getBytes())));
+            return new HBaseSource(newRead, estimatedSizeBytes);
+        }
+
+        HBaseSource withEndKey(ByteKey endKey) throws IOException {
+            checkNotNull(endKey, "endKey");
+            Read newRead = new Read(read.serializableConfiguration, read.tableId,
+                new SerializableScan(
+                    new Scan(read.serializableScan.get()).setStopRow(endKey.getBytes())));
+            return new HBaseSource(newRead, estimatedSizeBytes);
+        }
+
         @Override
         public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws Exception {
             if (estimatedSizeBytes == null) {
@@ -463,19 +480,25 @@ public class HBaseIO {
     }
 
     private static class HBaseReader extends BoundedSource.BoundedReader<Result> {
-        private final HBaseSource source;
+        private HBaseSource source;
         private Connection connection;
         private ResultScanner scanner;
         private Iterator<Result> iter;
         private Result current;
+        private final ByteKeyRangeTracker rangeTracker;
         private long recordsReturned;
 
         HBaseReader(HBaseSource source) {
             this.source = source;
+            Scan scan = source.read.serializableScan.get();
+            ByteKeyRange range = ByteKeyRange
+                .of(ByteKey.copyFrom(scan.getStartRow()), ByteKey.copyFrom(scan.getStopRow()));
+            rangeTracker = ByteKeyRangeTracker.of(range);
         }
 
         @Override
         public boolean start() throws IOException {
+            HBaseSource source = getCurrentSource();
             Configuration configuration = source.read.serializableConfiguration.get();
             String tableId = source.read.tableId;
             connection = ConnectionFactory.createConnection(configuration);
@@ -495,9 +518,15 @@ public class HBaseIO {
 
         @Override
         public boolean advance() throws IOException {
-            boolean hasRecord = iter.hasNext();
+            if (!iter.hasNext()) {
+                return rangeTracker.markDone();
+            }
+            final Result next = iter.next();
+            boolean hasRecord =
+                rangeTracker.tryReturnRecordAt(true, ByteKey.copyFrom(next.getRow()))
+                || rangeTracker.markDone();
             if (hasRecord) {
-                current = iter.next();
+                current = next;
                 ++recordsReturned;
             }
             return hasRecord;
@@ -517,8 +546,52 @@ public class HBaseIO {
         }
 
         @Override
-        public BoundedSource<Result> getCurrentSource() {
+        public synchronized HBaseSource getCurrentSource() {
             return source;
+        }
+
+        @Override
+        public final Double getFractionConsumed() {
+            return rangeTracker.getFractionConsumed();
+        }
+
+        @Override
+        public final long getSplitPointsConsumed() {
+            return rangeTracker.getSplitPointsConsumed();
+        }
+
+        @Override
+        @Nullable
+        public final synchronized HBaseSource splitAtFraction(double fraction) {
+            ByteKey splitKey;
+            try {
+                splitKey = rangeTracker.getRange().interpolateKey(fraction);
+            } catch (RuntimeException e) {
+                LOG.info("{}: Failed to interpolate key for fraction {}.", rangeTracker.getRange(),
+                    fraction, e);
+                return null;
+            }
+            LOG.info(
+                "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
+            HBaseSource primary;
+            HBaseSource residual;
+            try {
+                primary = source.withEndKey(splitKey);
+                residual = source.withStartKey(splitKey);
+            } catch (Exception e) {
+                LOG.info(
+                    "{}: Interpolating for fraction {} yielded invalid split key {}.",
+                    rangeTracker.getRange(),
+                    fraction,
+                    splitKey,
+                    e);
+                return null;
+            }
+            if (!rangeTracker.trySplitAtPosition(splitKey)) {
+                return null;
+            }
+            this.source = primary;
+            return residual;
         }
     }
 

@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.hbase;
 
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
+import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
+import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionFails;
+import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionSucceedsAndConsistent;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
@@ -83,7 +86,7 @@ public class HBaseIOTest {
     private static HBaseTestingUtility htu;
     private static HBaseAdmin admin;
 
-    private static Configuration conf = HBaseConfiguration.create();
+    private static final Configuration conf = HBaseConfiguration.create();
     private static final byte[] COLUMN_FAMILY = Bytes.toBytes("info");
     private static final byte[] COLUMN_NAME = Bytes.toBytes("name");
     private static final byte[] COLUMN_EMAIL = Bytes.toBytes("email");
@@ -275,6 +278,57 @@ public class HBaseIOTest {
         // This one tests the second signature of .withKeyRange
         runReadTestLength(HBaseIO.read().withConfiguration(conf).withTableId(table)
                 .withKeyRange(startRow, stopRow), 441);
+    }
+
+    /**
+     * Tests dynamic work rebalancing exhaustively.
+     */
+    @Test
+    public void testReadingSplitAtFractionExhaustive() throws Exception {
+        final String table = "TEST-FEW-ROWS-SPLIT-EXHAUSTIVE-TABLE";
+        final int numRows = 7;
+
+        createTable(table);
+        writeData(table, numRows);
+
+        HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
+        HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */)
+            .withStartKey(ByteKey.of(48)).withEndKey(ByteKey.of(58));
+
+        assertSplitAtFractionExhaustive(source, null);
+    }
+
+    /**
+     * Unit tests of splitAtFraction.
+     */
+    @Test
+    public void testReadingSplitAtFraction() throws Exception {
+        final String table = "TEST-SPLIT-AT-FRACTION";
+        final int numRows = 10;
+
+        createTable(table);
+        writeData(table, numRows);
+
+        HBaseIO.Read read = HBaseIO.read().withConfiguration(conf).withTableId(table);
+        HBaseSource source = new HBaseSource(read, null /* estimatedSizeBytes */);
+
+        // The value k is based on the partitioning schema for the data, in this test case,
+        // the partitioning is HEX-based, so we start from 1/16m and the value k will be
+        // around 1/256, so the tests are done in approximately k ~= 0.003922 steps
+        double k = 0.003922;
+
+        assertSplitAtFractionFails(source, 0, k, null /* options */);
+        assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
+        // With 1 items read, all split requests past k will succeed.
+        assertSplitAtFractionSucceedsAndConsistent(source, 1, k, null /* options */);
+        assertSplitAtFractionSucceedsAndConsistent(source, 1, 0.666, null /* options */);
+        // With 3 items read, all split requests past 3k will succeed.
+        assertSplitAtFractionFails(source, 3, 2 * k, null /* options */);
+        assertSplitAtFractionSucceedsAndConsistent(source, 3, 3 * k, null /* options */);
+        assertSplitAtFractionSucceedsAndConsistent(source, 3, 4 * k, null /* options */);
+        // With 6 items read, all split requests past 6k will succeed.
+        assertSplitAtFractionFails(source, 6, 5 * k, null /* options */);
+        assertSplitAtFractionSucceedsAndConsistent(source, 6, 0.7, null /* options */);
     }
 
     @Test
