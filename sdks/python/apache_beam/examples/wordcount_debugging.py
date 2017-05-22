@@ -146,7 +146,6 @@ def run(argv=None):
               | 'write' >> WriteToText(known_args.output))
 
 
-
 if __name__ == '__main__':
   # Cloud Logging would contain only logging.INFO and higher level logs logged
   # by the root logger. All log statements emitted by the root logger will be

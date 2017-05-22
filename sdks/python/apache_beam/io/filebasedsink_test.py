@@ -175,7 +175,6 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     with TestPipeline() as p:
       p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
-
     concat = ''.join(
         open(temp_path + '_03_%03d_.output' % shard_num).read()
         for shard_num in range(3))

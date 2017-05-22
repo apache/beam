@@ -113,7 +113,6 @@ def run(argv=None):
     output | WriteToText(known_args.output)
 
 
-
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()

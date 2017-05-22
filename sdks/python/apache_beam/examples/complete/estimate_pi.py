@@ -120,7 +120,6 @@ def run(argv=None):
      | WriteToText(known_args.output, coder=JsonCoder()))
 
 
-
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()

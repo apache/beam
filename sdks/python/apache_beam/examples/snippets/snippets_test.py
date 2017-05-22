@@ -362,7 +362,6 @@ class TypeHintsTest(unittest.TestCase):
           equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
-
 class SnippetsTest(unittest.TestCase):
   # Replacing text read/write transforms with dummy transforms for testing.
 

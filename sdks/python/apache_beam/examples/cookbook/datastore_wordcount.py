@@ -146,7 +146,6 @@ def write_to_datastore(project, user_options, pipeline_options):
      | 'write to datastore' >> WriteToDatastore(project))
 
 
-
 def make_ancestor_query(kind, namespace, ancestor):
   """Creates a Cloud Datastore ancestor query.
 

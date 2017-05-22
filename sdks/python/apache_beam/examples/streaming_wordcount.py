@@ -67,7 +67,6 @@ def run(argv=None):
         beam.io.PubSubSink(known_args.output_topic))
 
 
-
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   run()

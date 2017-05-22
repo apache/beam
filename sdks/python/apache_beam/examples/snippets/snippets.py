@@ -297,7 +297,6 @@ def pipeline_options_command_line(argv):
     # [END pipeline_options_command_line]
 
 
-
 def pipeline_logging(lines, output):
   """Logging Pipeline Messages."""
 
@@ -327,7 +326,6 @@ def pipeline_logging(lines, output):
      | beam.Create(lines)
      | beam.ParDo(ExtractWordsFn())
      | beam.io.WriteToText(output))
-
 
 
 def pipeline_monitoring(renames):
@@ -658,7 +656,6 @@ def model_custom_source(count):
         lines, equal_to(
             ['line ' + str(number) for number in range(0, count)]))
 
-
   # We recommend users to start Source classes with an underscore to discourage
   # using the Source class directly when a PTransform for the source is
   # available. We simulate that here by simply extending the previous Source
@@ -792,7 +789,6 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
         SimpleKVSink('http://url_to_simple_kv/', final_table_name))
     # [END model_custom_sink_use_new_sink]
 
-
   # We recommend users to start Sink class names with an underscore to
   # discourage using the Sink class directly when a PTransform for the sink is
   # available. We simulate that here by simply extending the previous Sink
@@ -821,7 +817,6 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
     kvs | 'WriteToSimpleKV' >> WriteToKVSink(
         'http://url_to_simple_kv/', final_table_name)
     # [END model_custom_sink_use_ptransform]
-
 
 
 def model_textio(renames):
@@ -1008,7 +1003,6 @@ def model_multiple_pcollections_flatten(contents, output_path):
     merged | beam.io.WriteToText(output_path)
 
 
-
 def model_multiple_pcollections_partition(contents, output_path):
   """Splitting a PCollection with Partition."""
   some_hash_fn = lambda s: ord(s[0])
@@ -1034,7 +1028,6 @@ def model_multiple_pcollections_partition(contents, output_path):
     ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
      | beam.Flatten()
      | beam.io.WriteToText(output_path))
-
 
 
 def model_group_by_key(contents, output_path):

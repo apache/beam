@@ -108,7 +108,7 @@ def run(argv=None, assert_results=None):
     writers = grouped | beam.Filter(   # People without phones.
         lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
     nomads = grouped | beam.Filter(    # People without addresses.
-        lambda (name, (_, _, snailmail)): not next(iter(snailmail), None))
+        lambda (name, (e, p, snailmail)): not next(iter(snailmail), None))
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
