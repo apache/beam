@@ -85,14 +85,30 @@ func (n *Source) ID() UnitID {
 	return n.UID
 }
 
+// TODO(herohde) 5/22/2017: Setup/StartBundle would be separate once we don't
+// use purely single-bundle processing.
+
 func (n *Source) Up(ctx context.Context) error {
-	return Up(ctx, n.Out...)
+	if err := Up(ctx, n.Out...); err != nil {
+		return err
+	}
+	if err := n.invoke(ctx, n.Edge.DoFn.Setup()); err != nil {
+		return err
+	}
+	return n.invoke(ctx, n.Edge.DoFn.StartBundle())
 }
 
 func (n *Source) Process(ctx context.Context) error {
+	return n.invoke(ctx, n.Edge.DoFn.ProcessElement())
+}
+
+func (n *Source) invoke(ctx context.Context, fn *userfn.UserFn) error {
+	if fn == nil {
+		return nil
+	}
+
 	// (1) Populate contexts
 
-	fn := n.Edge.DoFn
 	args := make([]reflect.Value, len(fn.Param))
 
 	if index, ok := fn.Context(); ok {
@@ -122,17 +138,23 @@ func (n *Source) Process(ctx context.Context) error {
 
 	ret := fn.Fn.Call(args)
 	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		return fmt.Errorf("Source %v failed: %v", n.Edge.DoFn.Name, ret[index].Interface())
+		return fmt.Errorf("Source %v failed: %v", fn.Name, ret[index].Interface())
 	}
 	return nil
 }
 
 func (n *Source) Down(ctx context.Context) error {
+	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundle()); err != nil {
+		return err
+	}
+	if err := n.invoke(ctx, n.Edge.DoFn.Teardown()); err != nil {
+		return err
+	}
 	return Down(ctx, n.Out...)
 }
 
 func (n *Source) String() string {
-	return fmt.Sprintf("Source[%v] Out:%v", path.Base(n.Edge.DoFn.Name), IDs(n.Out...))
+	return fmt.Sprintf("Source[%v] Out:%v", path.Base(n.Edge.DoFn.Name()), IDs(n.Out...))
 }
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
@@ -159,16 +181,27 @@ func (n *ParDo) Up(ctx context.Context) error {
 
 	// TODO: setup, validate side input
 	// TODO: specialize based on type?
-	return nil
+
+	if err := n.invoke(ctx, n.Edge.DoFn.Setup(), false, FullValue{}); err != nil {
+		return err
+	}
+	return n.invoke(ctx, n.Edge.DoFn.StartBundle(), false, FullValue{})
 }
 
 func (n *ParDo) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+	return n.invoke(ctx, n.Edge.DoFn.ProcessElement(), true, value, values...)
+}
+
+func (n *ParDo) invoke(ctx context.Context, fn *userfn.UserFn, hasMainInput bool, value FullValue, values ...ReStream) error {
+	if fn == nil {
+		return nil
+	}
+
 	// TODO: precompute args construction to re-use args and just plug in
 	// context and FullValue as well as reset iterators.
 
 	// (1) Populate contexts
 
-	fn := n.Edge.DoFn
 	args := make([]reflect.Value, len(fn.Param))
 
 	if index, ok := fn.Context(); ok {
@@ -181,31 +214,33 @@ func (n *ParDo) ProcessElement(ctx context.Context, value FullValue, values ...R
 	}
 
 	// (2) Main input from value
-
-	if index, ok := fn.EventTime(); ok {
-		args[index] = reflect.ValueOf(value.Timestamp)
-	}
 	in := fn.Params(userfn.FnValue | userfn.FnIter | userfn.FnReIter)
 	i := 0
 
-	args[in[i]] = Convert(value.Elm, fn.Param[i].T)
-	i++
-	if typex.IsWKV(n.Edge.Input[0].From.Type()) {
-		args[in[i]] = Convert(value.Elm2, fn.Param[i].T)
-		i++
-	}
-
-	for _, iter := range values {
-		param := fn.Param[in[i]]
-
-		if param.Kind != userfn.FnIter {
-			return fmt.Errorf("GBK result values must be iterable: %v", param)
+	if hasMainInput {
+		if index, ok := fn.EventTime(); ok {
+			args[index] = reflect.ValueOf(value.Timestamp)
 		}
 
-		// TODO: allow form conversion on GBK results?
-
-		args[in[i]] = makeIter(param.T, iter.Open())
+		args[in[i]] = Convert(value.Elm, fn.Param[i].T)
 		i++
+		if typex.IsWKV(n.Edge.Input[0].From.Type()) {
+			args[in[i]] = Convert(value.Elm2, fn.Param[i].T)
+			i++
+		}
+
+		for _, iter := range values {
+			param := fn.Param[in[i]]
+
+			if param.Kind != userfn.FnIter {
+				return fmt.Errorf("GBK result values must be iterable: %v", param)
+			}
+
+			// TODO: allow form conversion on GBK results?
+
+			args[in[i]] = makeIter(param.T, iter.Open())
+			i++
+		}
 	}
 
 	// (3) Side inputs and form conversion
@@ -264,7 +299,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, value FullValue, values ...R
 
 	ret := fn.Fn.Call(args)
 	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		panic(fmt.Sprintf("Call %v failed: %v", n.Edge.DoFn.Name, ret[index].Interface()))
+		panic(fmt.Sprintf("Call %v failed: %v", fn.Name, ret[index].Interface()))
 		// return ret[index].Interface().(error)
 	}
 
@@ -290,12 +325,17 @@ func (n *ParDo) ProcessElement(ctx context.Context, value FullValue, values ...R
 }
 
 func (n *ParDo) Down(ctx context.Context) error {
-	// TODO: teardown
+	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundle(), false, FullValue{}); err != nil {
+		return err
+	}
+	if err := n.invoke(ctx, n.Edge.DoFn.Teardown(), false, FullValue{}); err != nil {
+		return err
+	}
 	return Down(ctx, n.Out...)
 }
 
 func (n *ParDo) String() string {
-	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Edge.DoFn.Name), IDs(n.Out...))
+	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Edge.DoFn.Name()), IDs(n.Out...))
 }
 
 // DataSource is a Root execution unit.

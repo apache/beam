@@ -3,7 +3,6 @@ package beam
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 )
 
 // TODO(herohde): more sophisticated source/sink model as per Fn API.
@@ -21,12 +20,16 @@ func TrySource(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, erro
 		return PCollection{}, fmt.Errorf("sources cannot have side input: %v", side)
 	}
 
-	fn, err := userfn.New(dofn)
+	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid DoFn: %v", err)
 	}
-	if err := applyData(fn, data); err != nil {
-		return PCollection{}, err
+	if fn.Fn != nil {
+		if err := applyData(fn.Fn, data); err != nil {
+			return PCollection{}, err
+		}
+	} else if len(data) != 0 {
+		return PCollection{}, fmt.Errorf("data can only be passed to functions: %v", data)
 	}
 
 	edge, err := graph.NewSource(p.real, p.parent, fn)

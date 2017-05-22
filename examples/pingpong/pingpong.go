@@ -29,9 +29,9 @@ func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PC
 	// structures. Fails to display a graph if "pong" above is used.
 
 	small1, big1 := beam.ParDo2(ping, multiFn, words, beam.SideInput{Input: words}) // self-sample (ping)
-	small2, big2 := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1}) // big-sample  (pong). More words are small.
-	_, big3 := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1}) // small-sample big (ping). All words are big.
-	small4, _ := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3}) // big-sample small (pong). All words are small.
+	small2, big2 := beam.ParDo2(pong, multiFn, words, beam.SideInput{Input: big1})  // big-sample  (pong). More words are small.
+	_, big3 := beam.ParDo2(ping, multiFn, big2, beam.SideInput{Input: small1})      // small-sample big (ping). All words are big.
+	small4, _ := beam.ParDo2(pong, multiFn, small2, beam.SideInput{Input: big3})    // big-sample small (pong). All words are small.
 
 	return small4, big3
 }

@@ -41,7 +41,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read %v: %v", *input, err)
 	}
-	words := beam.ParDo(p, extractFn, lines) // Named function.
+	words := beam.ParDo(p, extractFn, lines)     // Named function.
 	cap := beam.ParDo(p, strings.ToUpper, words) // Library function.
 	if *short {
 		// Conditional pipeline construction. Function literals.
