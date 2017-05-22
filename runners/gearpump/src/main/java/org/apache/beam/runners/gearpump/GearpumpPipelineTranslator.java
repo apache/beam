@@ -30,11 +30,9 @@ import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.gearpump.translators.CreateGearpumpPCollectionViewTranslator;
-import org.apache.beam.runners.gearpump.translators.CreatePCollectionViewTranslator;
 import org.apache.beam.runners.gearpump.translators.FlattenPCollectionsTranslator;
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator;
 import org.apache.beam.runners.gearpump.translators.ParDoMultiOutputTranslator;
-import org.apache.beam.runners.gearpump.translators.ParDoSingleOutputTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadBoundedTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.gearpump.translators.TransformTranslator;
@@ -89,7 +87,6 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   static {
     // register TransformTranslators
-    registerTransformTranslator(ParDo.SingleOutput.class, new ParDoSingleOutputTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());
@@ -97,8 +94,6 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
         new FlattenPCollectionsTranslator());
     registerTransformTranslator(ParDo.MultiOutput.class, new ParDoMultiOutputTranslator());
     registerTransformTranslator(Window.Assign.class, new WindowAssignTranslator());
-    registerTransformTranslator(View.CreatePCollectionView.class,
-        new CreatePCollectionViewTranslator());
     registerTransformTranslator(CreateGearpumpPCollectionView.class,
         new CreateGearpumpPCollectionViewTranslator<>());
   }
