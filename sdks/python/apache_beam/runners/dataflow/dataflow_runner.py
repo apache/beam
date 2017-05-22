@@ -62,7 +62,7 @@ class DataflowRunner(PipelineRunner):
   # Environment version information. It is passed to the service during a
   # a job submission and is used by the service to establish what features
   # are expected by the workers.
-  BATCH_ENVIRONMENT_MAJOR_VERSION = '5'
+  BATCH_ENVIRONMENT_MAJOR_VERSION = '6'
   STREAMING_ENVIRONMENT_MAJOR_VERSION = '0'
 
   def __init__(self, cache=None):
