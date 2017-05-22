@@ -82,6 +82,7 @@ public class TransformInputsTest {
     PCollection<Integer> mainInts = pipeline.apply("MainInput", Create.of(12, 3));
     allInputs.put(new TupleTag<Integer>() {}, mainInts);
     PCollection<Void> voids = pipeline.apply("VoidInput", Create.empty(VoidCoder.of()));
+    allInputs.put(new TupleTag<Void>() {}, voids);
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
             "additional-free",

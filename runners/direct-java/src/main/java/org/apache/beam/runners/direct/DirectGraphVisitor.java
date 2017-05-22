@@ -89,7 +89,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
       rootTransforms.add(appliedTransform);
     } else {
       Collection<PValue> mainInputs =
-          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform());
+          TransformInputs.nonAdditionalInputs(node.toAppliedPTransform(getPipeline()));
       if (!mainInputs.containsAll(node.getInputs().values())) {
         LOG.debug(
             "Inputs reduced to {} from {} by removing additional inputs",

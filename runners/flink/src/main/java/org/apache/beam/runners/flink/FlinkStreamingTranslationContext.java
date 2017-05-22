@@ -114,7 +114,7 @@ class FlinkStreamingTranslationContext {
 
   @SuppressWarnings("unchecked")
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {
-    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform);
+    return (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(currentTransform));
   }
 
   public <T extends PInput> Map<TupleTag<?>, PValue> getInputs(PTransform<T, ?> transform) {
