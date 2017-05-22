@@ -8,8 +8,13 @@ type UnitID int
 
 // Unit represents a processing unit.
 type Unit interface {
+	// ID returns the unit ID. Used for debugging.
 	ID() UnitID
+	// Up brings up the processing node. It currently signals that processing
+	// preconditions, such as side input, are met and starts the bundle.
 	Up(ctx context.Context) error
+	// Down signals end of input and thus finishes the bundle. It also takes
+	// down the processing node.
 	Down(ctx context.Context) error
 
 	// Status()

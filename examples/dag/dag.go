@@ -7,10 +7,11 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
 	"log"
 	"os"
 	"regexp"
+	"reflect"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
 var (
@@ -18,34 +19,45 @@ var (
 	output = flag.String("output", "/tmp/dag/out.", "Prefix of output.")
 )
 
-// TODO: side input processing into start bundle, once supported, instead of the
-// side input trick.
+func init() {
+	graphx.Register(reflect.TypeOf(average{}))
+}
 
-func avgFn(_ string, sample func(*string) bool) (int, error) {
-	count := 0
-	size := 0
+// TODO(herohde) 5/22/2017: maybe make it more convenient to use the side
+// input form here? The below version looks worse for this use-case.
 
-	var w string
-	for sample(&w) {
-		count++
-		size += len(w)
-	}
-	if count == 0 {
+// average computes the average length of a bundle of strings.
+type average struct {
+	size int
+	count int
+}
+
+func (a *average) StartBundle() {
+	a.size = 0
+	a.count = 0
+}
+
+func (a *average) ProcessElement(w string, emit func (int) /* emit needed by signature */) {
+	a.count++
+	a.size += len(w)
+}
+
+func (a *average) FinishBundle() (int, error) {
+	if a.count == 0 {
 		return 0, fmt.Errorf("Empty sample")
 	}
-	avg := size / count
+	avg := a.size / a.count
 
-	log.Printf("Sample size: %v, avg: %v", count, avg)
+	log.Printf("Sample size: %v, average: %v", a.count, avg)
 	return avg, nil
 }
 
-func multiFn(word string, avg int, small, big func(string)) error {
+func splitFn(word string, avg int, small, big func(string)) {
 	if len(word) < avg {
 		small(word)
 	} else {
 		big(word)
 	}
-	return nil
 }
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -70,10 +82,10 @@ func main() {
 	lines := textio.Read(p, *input)
 	words := beam.ParDo(p, extractFn, lines)
 
-	avg := beam.ParDo(p, avgFn, debug.Tick(p), beam.SideInput{Input: words})
+	avg := beam.ParDo(p, &average{}, words)
 
 	// Pre-computed side input as singleton. Multiple outputs.
-	small, big := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: avg})
+	small, big := beam.ParDo2(p, splitFn, words, beam.SideInput{Input: avg})
 
 	// Local sinks.
 	textio.Write(p, *output, small)

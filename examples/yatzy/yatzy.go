@@ -11,12 +11,18 @@ import (
 	"math/rand"
 	"sort"
 	"time"
+	"reflect"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 )
 
 var (
 	real = flag.Int("real_dice", 20, "Actual dice to use (cropped to formal).")
 	dice = flag.Int("dice", 6, "Formal dice to use.")
 )
+
+func init() {
+	graphx.Register(reflect.TypeOf(min{}))
+}
 
 // roll is a construction-time dice roll. The value is encoded in the shape of
 // the pipeline, which will produce a single element of that value.
@@ -29,19 +35,19 @@ func roll(p *beam.Pipeline) beam.PCollection {
 	for i := 0; i < num; i++ {
 		col = beam.ParDo(p, incFn, col)
 	}
-	col = beam.ParDo(p, minFn, col, beam.Data{Data: *dice})
+	col = beam.ParDo(p, min{Num: *dice}, col)
 
 	log.Printf("Lucky number %v!", num)
 	return col
 }
 
-type minOpt struct {
-	Num int `beam:"opt"`
+type min struct {
+	Num int `json:"num"`
 }
 
-func minFn(opt minOpt, num int) int {
-	if opt.Num < num {
-		return opt.Num
+func (m min) ProcessElement(num int) int {
+	if m.Num < num {
+		return m.Num
 	}
 	return num
 }

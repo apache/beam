@@ -80,8 +80,8 @@ type ReturnParam struct {
 	T    reflect.Type
 }
 
-// UserFn is the reflected user function, preprocessed. This wrapper is useful
-// both at graph construction time as well as execution time.
+// UserFn is the reflected user function or method, preprocessed. This wrapper
+// is useful both at graph construction time as well as execution time.
 type UserFn struct {
 	Name string // robust name
 	Fn   reflect.Value
@@ -184,8 +184,10 @@ func (u *UserFn) String() string {
 func New(dofn interface{}) (*UserFn, error) {
 	fn := reflect.ValueOf(dofn)
 	if fn.Kind() != reflect.Func {
-		return nil, fmt.Errorf("not a function: %v", fn.Kind())
+		return nil, fmt.Errorf("not a function or method: %v", fn.Kind())
 	}
+
+	// TODO(herohde) 5/23/2017: reject closures. They can't be serialized.
 
 	name := runtime.FuncForPC(fn.Pointer()).Name()
 	fntype := fn.Type()

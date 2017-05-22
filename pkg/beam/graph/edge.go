@@ -3,7 +3,6 @@ package graph
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 	"log"
 )
 
@@ -130,9 +129,9 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op     Opcode
-	DoFn   *userfn.UserFn // ParDo, Source.
-	Port   *Port          // DataSource, DataSink.
-	Target *Target        // DataSource, DataSink.
+	DoFn   *DoFn   // ParDo, Source.
+	Port   *Port   // DataSource, DataSink.
+	Target *Target // DataSource, DataSink.
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -211,17 +210,18 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 }
 
 // NewParDo inserts a new ParDo edge into the graph.
-func NewParDo(g *Graph, s *Scope, u *userfn.UserFn, in []*Node) (*MultiEdge, error) {
-	return newUserFnNode(ParDo, g, s, u, in)
+func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge, error) {
+	return newDoFnNode(ParDo, g, s, u, in)
 }
 
 // NewSource inserts a Source transform.
-func NewSource(g *Graph, s *Scope, u *userfn.UserFn) (*MultiEdge, error) {
-	return newUserFnNode(Source, g, s, u, nil)
+func NewSource(g *Graph, s *Scope, u *DoFn) (*MultiEdge, error) {
+	return newDoFnNode(Source, g, s, u, nil)
 }
 
-func newUserFnNode(op Opcode, g *Graph, s *Scope, u *userfn.UserFn, in []*Node) (*MultiEdge, error) {
-	inbound, kinds, outbound, out, err := Bind(u, NodeTypes(in)...)
+func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node) (*MultiEdge, error) {
+	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative.
+	inbound, kinds, outbound, out, err := Bind(u.ProcessElement(), NodeTypes(in)...)
 	if err != nil {
 		return nil, err
 	}

@@ -22,7 +22,10 @@ type SideInput struct {
 	// ViewFn   interface{}
 }
 
-func (_ SideInput) private() {}
+func (s SideInput) private() {}
+
+// TODO(herohde) 5/18/2017: maybe remove Data concept and require that user functions
+// use a struct to hold both data and methods?
 
 // Data binds a concrete value to data options for a transformation. The actual
 // type must match the field type.
@@ -30,7 +33,7 @@ type Data struct {
 	Data interface{}
 }
 
-func (_ Data) private() {}
+func (d Data) private() {}
 
 func parseOpts(opts []Option) ([]SideInput, []Data) {
 	var side []SideInput

@@ -20,7 +20,7 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	ret := &v1.MultiEdge{}
 
 	if edge.DoFn != nil {
-		ref, err := EncodeUserFn(edge.DoFn)
+		ref, err := EncodeFn((*graph.Fn)(edge.DoFn))
 		if err != nil {
 			return nil, fmt.Errorf("bad userfn: %v", err)
 		}
@@ -47,17 +47,20 @@ func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 // NOTE: we deserialize to components to avoid inserting the edge into
 // a graph or creating a detached edge.
 
-func DecodeMultiEdge(edge *v1.MultiEdge) (*userfn.UserFn, []*graph.Inbound, []*graph.Outbound, error) {
-	var u *userfn.UserFn
+func DecodeMultiEdge(edge *v1.MultiEdge) (*graph.DoFn, []*graph.Inbound, []*graph.Outbound, error) {
+	var u *graph.DoFn
 	var inbound []*graph.Inbound
 	var outbound []*graph.Outbound
 
 	if edge.Dofn != nil {
-		ref, err := DecodeUserFn(edge.Dofn)
+		ref, err := DecodeFn(edge.Dofn)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("bad userfn: %v", err)
 		}
-		u = ref
+		u, err = graph.AsDoFn(ref)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("bad dofn: %v", err)
+		}
 	}
 	for _, in := range edge.Inbound {
 		kind, err := decodeInputKind(in.Kind)
@@ -124,6 +127,62 @@ func DecodeCustomCoder(c *v1.CustomCoder) (*coder.CustomCoder, error) {
 		Dec:  dec,
 	}
 	return ret, nil
+}
+
+// DecodeFn converts a graph.Fn to its serialized representation.
+func EncodeFn(u *graph.Fn) (*v1.Fn, error) {
+	switch {
+	case u.Fn != nil:
+		fn, err := EncodeUserFn(u.Fn)
+		if err != nil {
+			return nil, fmt.Errorf("bad userfn: %v", err)
+		}
+		return &v1.Fn{Fn: fn}, nil
+
+	case u.Recv != nil:
+		t := reflect.TypeOf(u.Recv)
+		key, ok := Key(t)
+		if !ok {
+			return nil, fmt.Errorf("bad recv: %v", u.Recv)
+		}
+		if _, ok := Lookup(key); !ok {
+			return nil, fmt.Errorf("recv type must be registered: %v", t)
+		}
+		typ, err := EncodeType(t)
+		if err != nil {
+			panic(fmt.Sprintf("bad recv type: %v", u.Recv))
+		}
+
+		data, err := json.Marshal(u.Recv)
+		if err != nil {
+			return nil, fmt.Errorf("bad userfn: %v", err)
+		}
+		return &v1.Fn{Type: typ, Opt: string(data)}, nil
+
+	default:
+		panic("Empty Fn")
+	}
+}
+
+// DecodeFn creates a graph.Fn from its serialized representation.
+func DecodeFn(u *v1.Fn) (*graph.Fn, error) {
+	if u.Fn != nil {
+		fn, err := DecodeUserFn(u.Fn)
+		if err != nil {
+			return nil, fmt.Errorf("bad userfn: %v", err)
+		}
+		return &graph.Fn{Fn: fn}, nil
+	}
+
+	t, err := DecodeType(u.Type)
+	if err != nil {
+		return nil, fmt.Errorf("bad type: %v", err)
+	}
+	fn, err := reflectx.UnmarshalJSON(t, u.Opt)
+	if err != nil {
+		return nil, fmt.Errorf("bad struct encoding: %v", err)
+	}
+	return graph.NewFn(fn)
 }
 
 func EncodeUserFn(u *userfn.UserFn) (*v1.UserFn, error) {

@@ -125,6 +125,16 @@ message UserFn {
     repeated string opt = 3;
 }
 
+// Fn represents a serialized function reference or struct.
+message Fn {
+    // (Optional) Function reference.
+    UserFn fn = 1;
+    // (Optional) Struct type.
+    Type type = 2;
+    // (Optional) JSON-serialized value, if struct.
+    string opt = 3;
+}
+
 // CustomCoder
 message CustomCoder {
     // (Required) Name of the coder. For informational purposes only.
@@ -145,7 +155,7 @@ message CustomCoder {
 // MultiEdge represents a partly-serialized MultiEdge. It does not include
 // node information, because runners manipulate the graph structure.
 message MultiEdge {
-    UserFn dofn = 1;
+    Fn dofn = 1;
     // TODO: scope, maybe opcode?
 
     message Inbound {

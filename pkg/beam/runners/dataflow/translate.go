@@ -147,7 +147,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}
 		return "ParallelRead", properties{
 			CustomSourceInputStep: newCustomSourceInputStep(fn),
-			UserName:              buildName(edge.Scope(), edge.DoFn.Name),
+			UserName:              buildName(edge.Scope(), edge.DoFn.Name()),
 			Format:                "custom_source",
 		}, nil
 
@@ -157,7 +157,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			return "", properties{}, err
 		}
 		return "ParallelDo", properties{
-			UserName:     buildName(edge.Scope(), edge.DoFn.Name),
+			UserName:     buildName(edge.Scope(), edge.DoFn.Name()),
 			SerializedFn: fn,
 		}, nil
 

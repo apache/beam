@@ -7,6 +7,14 @@ import (
 	"testing"
 )
 
+type foo struct {
+	i int
+}
+
+func (m foo) Do(context.Context, int, string) (string, int, error) {
+	return "", m.i, nil
+}
+
 func TestNew(t *testing.T) {
 	tests := []struct {
 		Fn    interface{}
@@ -32,6 +40,11 @@ func TestNew(t *testing.T) {
 		{
 			Fn:    func(reflect.Type, typex.EventTime, []byte) {},
 			Param: []FnParamKind{FnType, FnEventTime, FnValue},
+		},
+		{
+			Fn:    foo{1}.Do,
+			Param: []FnParamKind{FnContext, FnValue, FnValue},
+			Ret:   []ReturnKind{RetValue, RetValue, RetError},
 		},
 	}
 

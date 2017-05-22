@@ -3,7 +3,6 @@ package beam
 import (
 	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
 )
 
 // TryParDo attempts to insert a ParDo transform into the pipeline. It may fail
@@ -20,12 +19,16 @@ func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([
 		}
 	}
 
-	fn, err := userfn.New(dofn)
+	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return nil, fmt.Errorf("invalid DoFn: %v", err)
 	}
-	if err := applyData(fn, data); err != nil {
-		return nil, err
+	if fn.Fn != nil {
+		if err := applyData(fn.Fn, data); err != nil {
+			return nil, err
+		}
+	} else if len(data) != 0 {
+		return nil, fmt.Errorf("data can only be passed to functions: %v", data)
 	}
 
 	in := []*graph.Node{col.n}

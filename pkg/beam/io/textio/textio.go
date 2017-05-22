@@ -3,12 +3,17 @@ package textio
 import (
 	"bufio"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/transforms/debug"
+	"github.com/apache/beam/sdks/go/pkg/beam/runtime/graphx"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 )
+
+func init() {
+	graphx.Register(reflect.TypeOf(writeFile{}))
+}
 
 // TODO(herohde) 5/1/2017: should godoc for deferred execution be written as if
 // it's immediate (as below)? We'll just write "Foo does Bar" instead of "Foo
@@ -45,35 +50,44 @@ func readFn(opt fileOpt, emit func(string)) error {
 // writer add a newline after each element.
 func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
 	p = p.Composite("textio.Write")
-
-	// TODO(herohde) 4/28/2017: Write needs bundle hook. Hack as side input for now.
-	beam.Sink(p, writeFn, debug.Tick(p), beam.SideInput{Input: col}, beam.Data{Data: filename})
+	beam.Sink(p, &writeFile{Filename: filename}, col)
 }
 
-func writeFn(opt fileOpt, _ string, lines func(*string) bool) error {
-	if err := os.MkdirAll(filepath.Dir(opt.Filename), 0755); err != nil {
+type writeFile struct {
+	Filename string `json:"filename"`
+
+	writer *bufio.Writer
+	fd     *os.File
+}
+
+func (w *writeFile) Setup() error {
+	if err := os.MkdirAll(filepath.Dir(w.Filename), 0755); err != nil {
 		return err
 	}
-	fd, err := ioutil.TempFile(filepath.Dir(opt.Filename), filepath.Base(opt.Filename))
+	fd, err := ioutil.TempFile(filepath.Dir(w.Filename), filepath.Base(w.Filename))
 	if err != nil {
 		return err
 	}
 	log.Printf("Writing to %v", fd.Name())
 
-	defer fd.Close()
-	writer := bufio.NewWriterSize(fd, 1<<20)
-
-	var line string
-	for lines(&line) {
-		if _, err := writer.WriteString(line); err != nil {
-			return err
-		}
-		if _, err := writer.Write([]byte{'\n'}); err != nil {
-			return err
-		}
-	}
-	writer.Flush()
+	w.fd = fd
+	w.writer = bufio.NewWriterSize(fd, 1<<20)
 	return nil
+}
+
+func (w *writeFile) ProcessElement(line string) error {
+	if _, err := w.writer.WriteString(line); err != nil {
+		return err
+	}
+	_, err := w.writer.Write([]byte{'\n'})
+	return err
+}
+
+func (w *writeFile) Teardown() error {
+	if err := w.writer.Flush(); err != nil {
+		return err
+	}
+	return w.fd.Close()
 }
 
 // Immediate reads a local file at pipeline construction-time and embeds the
