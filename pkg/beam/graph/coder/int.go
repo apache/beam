@@ -2,8 +2,9 @@ package coder
 
 import (
 	"encoding/binary"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/ioutilx"
 	"io"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/util/ioutilx"
 )
 
 // EncodeUint64 encodes an uint64 in big endian format.
