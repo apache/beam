@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.io.IOException;
 import org.apache.beam.runners.core.BaseExecutionContext;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StepContext;
@@ -25,10 +24,6 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -110,14 +105,6 @@ class DirectExecutionContext
     @Override
     public String getTransformName() {
       return transformName;
-    }
-
-    @Override
-    public <T, W extends BoundedWindow> void writePCollectionViewData(
-        TupleTag<?> tag,
-        Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
-        W window, Coder<W> windowCoder) throws IOException {
-      throw new UnsupportedOperationException("Not implemented.");
     }
 
     /**
