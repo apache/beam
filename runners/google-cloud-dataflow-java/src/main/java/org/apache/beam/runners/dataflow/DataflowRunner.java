@@ -729,7 +729,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (!ptransformViewsWithNonDeterministicKeyCoders.isEmpty()) {
       final SortedSet<String> ptransformViewNamesWithNonDeterministicKeyCoders = new TreeSet<>();
       pipeline.traverseTopologically(
-          new PipelineVisitor() {
+          new PipelineVisitor.Defaults() {
             @Override
             public void visitValue(PValue value, TransformHierarchy.Node producer) {}
 

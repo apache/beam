@@ -404,7 +404,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       @SuppressWarnings("unchecked")
       TransformEvaluator<TransformT> evaluator = translate(node, transform, transformClass);
       LOG.info("Evaluating {}", transform);
-      AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
+      AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
       ctxt.setCurrentTransform(appliedTransform);
       evaluator.evaluate(transform, ctxt);
       ctxt.setCurrentTransform(null);
