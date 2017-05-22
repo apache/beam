@@ -21,19 +21,19 @@ import java.util.concurrent.TimeUnit;
 import org.joda.time.Instant;
 
 /**
- * A {@code BoundedWindow} represents window information assigned to data elements.
+ * A {@link BoundedWindow} represents window information assigned to data elements.
  *
- * <p>It has one method {@link #maxTimestamp()} to define an upper bound(included) of element
- * timestamp. Elements within the timestamp range are placed in this window.
- * Technically a window may not have a lower bound. Upper bound is mandatory as watermark,
- * which also controls discarding data and expiring the window, is based on event timestamp.
+ * <p>It has one method {@link #maxTimestamp()} to define an upper bound (inclusive) for element
+ * timestamps. A {@link WindowFn} must assign an element only to windows where {@link
+ * #maxTimestamp()} is greater than or equal to the element timestamp. When the watermark passes the
+ * maximum timestamp, all data for a window is estimated to be received.
  *
- * <p>At some point in time, usually when watermark passes,
- * all data with the same window will arrive and can be processed together.
+ * <p>A window does not need to have a lower bound. Only the upper bound is mandatory because it
+ * governs management of triggering and discarding of the window.
  *
- * <p>Windows must also implement {@link Object#equals} and
- * {@link Object#hashCode} such that windows that are logically equal will
- * be treated as equal by {@code equals()} and {@code hashCode()}.
+ * <p>Windows must also implement {@link Object#equals} and {@link Object#hashCode} such that
+ * windows that are logically equal will be treated as equal by {@code equals()} and {@code
+ * hashCode()}.
  */
 public abstract class BoundedWindow {
   // The min and max timestamps that won't overflow when they are converted to
