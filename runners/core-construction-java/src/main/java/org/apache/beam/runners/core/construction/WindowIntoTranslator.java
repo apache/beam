@@ -40,7 +40,7 @@ public class WindowIntoTranslator {
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Window.Assign<?>> transform, SdkComponents components) {
       return FunctionSpec.newBuilder()
-          .setUrn("foo")
+          .setUrn("urn:beam:transform:window:v1")
           .setParameter(
               Any.pack(WindowIntoTranslator.toProto(transform.getTransform(), components)))
           .build();
