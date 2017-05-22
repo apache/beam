@@ -2,26 +2,54 @@ package userfn
 
 import (
 	"fmt"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 	"reflect"
 	"runtime"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
 )
 
 // TODO(herohde) 4/14/2017: various side input forms + aggregators/counters.
 // Note that we can't tell the difference between K, V and V, S before binding.
 
+// FnParamKind represents the kinds of parameters a user function may take.
 type FnParamKind int
 
 const (
-	FnIllegal   FnParamKind = 0x0
-	FnContext   FnParamKind = 0x1
+	// FnIllegal is an illegal function input parameter type.
+	FnIllegal FnParamKind = 0x0
+	// FnContext marks a function input parameter of type context.Context.
+	FnContext FnParamKind = 0x1
+	// FnEventTime indicates a function input parameter of type typex.EventTime.
 	FnEventTime FnParamKind = 0x2
-	FnValue     FnParamKind = 0x4
-	FnIter      FnParamKind = 0x8
-	FnReIter    FnParamKind = 0x10
-	FnEmit      FnParamKind = 0x20
-	FnType      FnParamKind = 0x40 // coders only
+	// FnValue indicates a function input parameter of an ordinary Go type.
+	FnValue FnParamKind = 0x4
+	// FnIter indicates a function input parameter that is an iterator.
+	// Examples of iterators:
+	//       "func (*int) bool"
+	//       "func (*string, *T) bool"
+	// If there are 2 parameters, a KV input is implied.
+	FnIter FnParamKind = 0x08
+	// FnReIter indicates a function input parameter that is a reiterable
+	// iterator.
+	// The function signature is a function returning a function matching
+	// the iterator signature.
+	//   "func() func (*int) bool"
+	//   "func() func (*string, *T) bool"
+	// are reiterable versions of the FnIter examples.
+	FnReIter FnParamKind = 0x10
+	// FnEmit indicates a function input parameter that is an emitter.
+	// Examples of emitters:
+	//       "func (int)"
+	//       "func (string, T)"
+	//       "func (EventTime, int)"
+	//       "func (EventTime, string, T)"
+	// If there are 2 regular parameters, a KV output is implied. An optional
+	// EventTime is allowed as well. Emitters cannot fail.
+	FnEmit FnParamKind = 0x20
+	// FnType indicates a function input parameter that is a type for a coder. It
+	// is only valid for coders.
+	FnType FnParamKind = 0x40
 )
 
 func (k FnParamKind) String() string {
@@ -45,13 +73,16 @@ func (k FnParamKind) String() string {
 	}
 }
 
+// FnParam captures the kind and type of a single user function parameter.
 type FnParam struct {
 	Kind FnParamKind
 	T    reflect.Type
 }
 
+// ReturnKind represents the kinds of return values a user function may provide.
 type ReturnKind int
 
+// The supported types of ReturnKind.
 const (
 	RetIllegal   ReturnKind = 0x0
 	RetEventTime ReturnKind = 0x1
@@ -72,6 +103,7 @@ func (k ReturnKind) String() string {
 	}
 }
 
+// ReturnParam captures the kind and type of a single user function return value.
 type ReturnParam struct {
 	Kind ReturnKind
 	T    reflect.Type
@@ -89,7 +121,7 @@ type UserFn struct {
 
 // Context returns (index, true) iff the function expects a context.Context.
 // The context should be the first parameter by convention.
-func (u *UserFn) Context() (int, bool) {
+func (u *UserFn) Context() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnContext {
 			return i, true
@@ -98,8 +130,8 @@ func (u *UserFn) Context() (int, bool) {
 	return -1, false
 }
 
-// Context returns (index, true) iff the function expects a reflect.FullType.
-func (u *UserFn) Type() (int, bool) {
+// Type returns (index, true) iff the function expects a reflect.FullType.
+func (u *UserFn) Type() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnType {
 			return i, true
@@ -108,7 +140,8 @@ func (u *UserFn) Type() (int, bool) {
 	return -1, false
 }
 
-func (u *UserFn) EventTime() (int, bool) {
+// EventTime returns (index, true) iff the function expects an event timestamp.
+func (u *UserFn) EventTime() (pos int, exists bool) {
 	for i, p := range u.Param {
 		if p.Kind == FnEventTime {
 			return i, true
@@ -118,7 +151,7 @@ func (u *UserFn) EventTime() (int, bool) {
 }
 
 // Error returns (index, true) iff the function returns an error.
-func (u *UserFn) Error() (int, bool) {
+func (u *UserFn) Error() (pos int, exists bool) {
 	for i, p := range u.Ret {
 		if p.Kind == RetError {
 			return i, true
@@ -127,7 +160,8 @@ func (u *UserFn) Error() (int, bool) {
 	return -1, false
 }
 
-func (u *UserFn) OutEventTime() (int, bool) {
+// OutEventTime returns (index, true) iff the function returns an event timestamp.
+func (u *UserFn) OutEventTime() (pos int, exists bool) {
 	for i, p := range u.Ret {
 		if p.Kind == RetEventTime {
 			return i, true

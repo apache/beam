@@ -1,13 +1,20 @@
 package userfn
 
 import (
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/reflectx"
-	"reflect"
 )
 
-// TODO(herohde) 4/14/2017: Can side input have timestamps or windows?
+// A single sweep functional iterator is a function
+// taking one or more pointers of data as arguments, that returns a single
+// boolean value. The semantics of the function are that when called, if there
+// are values to be supplied, they will be copied into the supplied pointers. The
+// function returns true if data was copied, and false if there is no more data
+// available.
 
+// IsIter returns true iff the supplied type is a single sweep functional iterator.
 func IsIter(t reflect.Type) bool {
 	_, ok := UnfoldIter(t)
 	return ok
@@ -15,9 +22,6 @@ func IsIter(t reflect.Type) bool {
 
 // UnfoldIter returns the parameter types, if a single sweep functional iterator
 // of one or two parameters. For example:
-//       "func (*int) bool"
-//       "func (*string, *T) bool"
-// If there are 2 parameters, a KV input is implied.
 func UnfoldIter(t reflect.Type) ([]reflect.Type, bool) {
 	if t.Kind() != reflect.Func {
 		return nil, false

@@ -2,9 +2,10 @@ package userfn
 
 import (
 	"context"
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
 type foo struct {
