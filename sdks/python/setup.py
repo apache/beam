@@ -94,7 +94,7 @@ REQUIRED_PACKAGES = [
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
-    'protobuf==3.2.0',
+    'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
     ]
 
@@ -103,11 +103,11 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools==0.5.10',
-  'proto-google-cloud-datastore-v1==0.90.0',
+  'google-apitools>=0.5.10,<=0.5.11',
+  'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
   'googledatastore==7.0.1',
   # GCP packages required by tests
-  'google-cloud-bigquery>=0.23.0,<0.24.0',
+  'google-cloud-bigquery>=0.23.0,<0.25.0',
 ]
 
 
