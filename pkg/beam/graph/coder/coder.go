@@ -2,9 +2,10 @@ package coder
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/graph/userfn"
-	"reflect"
 )
 
 // CustomCoder contains possibly untyped encode/decode user functions that are
@@ -36,6 +37,8 @@ func (c *CustomCoder) String() string {
 	return fmt.Sprintf("%s<%v>", c.Name, c.Type)
 }
 
+// NewCustomCoder creates a coder for the supplied parameters defining a
+// particular encoding strategy.
 func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
 	enc, err := userfn.New(encode)
 	if err != nil {
@@ -59,40 +62,42 @@ func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*Cus
 	return c, nil
 }
 
-// WindowKind
-type WindowKind string
+// windowKind tags the kind of window that is used by the coder.
+type windowKind string
 
 const (
-	GlobalWindow WindowKind = "GlobalWindow"
+	// GlobalWindow is the tag for windowing used in bounded pipelines.
+	GlobalWindow windowKind = "GlobalWindow"
 )
 
 // Window represents the window encoding.
 type Window struct {
-	Kind WindowKind
+	Kind windowKind
 }
 
 func (w *Window) String() string {
 	return fmt.Sprintf("%v", w.Kind)
 }
 
-// CoderKind
-type CoderKind string
+// Kind represents the type of coder used.
+type Kind string
 
+// Tags for the various Beam encoding strategies. https://beam.apache.org/documentation/programming-guide/#coders documents the usage of coders in the Beam environment.
 const (
-	Custom        CoderKind = "Custom" // Implicitly length-prefixed
-	VarInt        CoderKind = "VarInt"
-	Bytes         CoderKind = "Bytes"
-	WindowedValue CoderKind = "WindowedValue"
-	KV            CoderKind = "KV"
-	GBK           CoderKind = "GBK"
-	CoGBK         CoderKind = "CoGBK"
+	Custom        Kind = "Custom" // Implicitly length-prefixed
+	VarInt        Kind = "VarInt"
+	Bytes         Kind = "Bytes"
+	WindowedValue Kind = "WindowedValue"
+	KV            Kind = "KV"
+	GBK           Kind = "GBK"
+	CoGBK         Kind = "CoGBK"
 )
 
 // Coder is a description of how to encode and decode values of a given type.
 // Except for the "custom" kind, they are built in and must adhere to the
 // (unwritten) Beam specification.
 type Coder struct {
-	Kind CoderKind
+	Kind Kind
 	T    typex.FullType
 
 	Components []*Coder
@@ -117,10 +122,12 @@ func (c *Coder) String() string {
 
 // Convenience methods to operate through the top-level WindowedValue.
 
+// IsW returns true iff the coder is for a WindowedValue.
 func IsW(c *Coder) bool {
 	return c.Kind == WindowedValue
 }
 
+// NewW returns a WindowedValue coder for the window of elements.
 func NewW(c *Coder, w *Window) *Coder {
 	return &Coder{
 		Kind:       WindowedValue,
@@ -130,10 +137,12 @@ func NewW(c *Coder, w *Window) *Coder {
 	}
 }
 
+// IsWKV returns true iff the coder is for a WindowedValue key-value pair.
 func IsWKV(c *Coder) bool {
 	return IsW(c) && SkipW(c).Kind == KV
 }
 
+// NewWKV returns a WindowedValue coder for the window of KV elements.
 func NewWKV(components []*Coder, w *Window) *Coder {
 	c := &Coder{
 		Kind:       KV,
@@ -143,10 +152,12 @@ func NewWKV(components []*Coder, w *Window) *Coder {
 	return NewW(c, w)
 }
 
+// IsWGBK returns true iff the coder is for a WindowedValue GBK type.
 func IsWGBK(c *Coder) bool {
 	return IsW(c) && SkipW(c).Kind == GBK
 }
 
+// NewWGBK returns a WindowedValue coder for the window of GBK elements.
 func NewWGBK(components []*Coder, w *Window) *Coder {
 	c := &Coder{
 		Kind:       GBK,
@@ -156,10 +167,12 @@ func NewWGBK(components []*Coder, w *Window) *Coder {
 	return NewW(c, w)
 }
 
+// IsWCoGBK returns true iff the coder is for a windowed CoGBK type.
 func IsWCoGBK(c *Coder) bool {
 	return IsW(c) && SkipW(c).Kind == CoGBK
 }
 
+// NewWCoGBK returns a WindowedValue coder for the window of CoGBK elements.
 func NewWCoGBK(components []*Coder, w *Window) *Coder {
 	c := &Coder{
 		Kind:       CoGBK,
@@ -169,6 +182,9 @@ func NewWCoGBK(components []*Coder, w *Window) *Coder {
 	return NewW(c, w)
 }
 
+// SkipW returns the data coder used by a WindowedValue, or returns the coder. This
+// allows code to seamlessly traverse WindowedValues without additional conditional
+// code.
 func SkipW(c *Coder) *Coder {
 	if c.Kind == WindowedValue {
 		return c.Components[0]
@@ -176,6 +192,7 @@ func SkipW(c *Coder) *Coder {
 	return c
 }
 
+// Types returns a slice of types used by the supplied coders.
 func Types(list []*Coder) []typex.FullType {
 	var ret []typex.FullType
 	for _, c := range list {

@@ -5,13 +5,16 @@ import (
 	"io"
 )
 
+// ErrVarIntTooLong indicates a data corruption issue that needs special
+// handling by callers of decode. TODO(herohde): have callers perform
+// this special handling.
+var ErrVarIntTooLong = errors.New("varint too long")
+
 // Variable-length encoding for integers.
 //
 // Takes between 1 and 10 bytes. Less efficient for negative or large numbers.
 // All negative ints are encoded using 5 bytes, longs take 10 bytes. We use
 // uint64 (over int64) as the primitive form to get logical bit shifts.
-
-var ErrVarIntTooLong = errors.New("varint too long")
 
 // EncodeVarUint64 encodes an uint64.
 func EncodeVarUint64(value uint64, w io.Writer) error {

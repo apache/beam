@@ -1,10 +1,11 @@
 package coder
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"io"
 	"math"
 	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
 // TODO(herohde) 5/16/2017: verify whether the below logic is actually the
