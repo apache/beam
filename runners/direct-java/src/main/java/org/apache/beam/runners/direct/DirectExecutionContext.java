@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.runners.core.BaseExecutionContext;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.apache.beam.runners.core.BaseStepContext;
 import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 
@@ -31,12 +34,12 @@ import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
  * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
-class DirectExecutionContext
-    extends BaseExecutionContext<DirectStepContext> {
+class DirectExecutionContext implements ExecutionContext {
   private final Clock clock;
   private final StructuralKey<?> key;
   private final CopyOnAccessInMemoryStateInternals existingState;
   private final TransformWatermarks watermarks;
+  private Map<String, DirectStepContext> cachedStepContexts = new LinkedHashMap<>();
 
   public DirectExecutionContext(
       Clock clock,
@@ -49,9 +52,31 @@ class DirectExecutionContext
     this.watermarks = watermarks;
   }
 
+  private DirectStepContext createStepContext(String stepName, String transformName) {
+    return new DirectStepContext(stepName, transformName);
+  }
+
+  /**
+   * Returns the {@link BaseStepContext} associated with the given step.
+   */
   @Override
-  protected DirectStepContext createStepContext(String stepName, String transformName) {
-    return new DirectStepContext(this, stepName, transformName);
+  public DirectStepContext getOrCreateStepContext(String stepName, String transformName) {
+    final String finalStepName = stepName;
+    final String finalTransformName = transformName;
+    DirectStepContext context = cachedStepContexts.get(stepName);
+    if (context == null) {
+      context = createStepContext(finalStepName, finalTransformName);
+      cachedStepContexts.put(stepName, context);
+    }
+    return context;
+  }
+
+  /**
+   * Returns a collection view of all of the {@link BaseStepContext}s.
+   */
+  @Override
+  public Collection<? extends DirectStepContext> getAllStepContexts() {
+    return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
 
   /**
@@ -64,7 +89,7 @@ class DirectExecutionContext
     private final String transformName;
 
     public DirectStepContext(
-        ExecutionContext executionContext, String stepName, String transformName) {
+        String stepName, String transformName) {
       this.stepName = stepName;
       this.transformName = transformName;
     }
