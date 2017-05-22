@@ -153,42 +153,6 @@ public class BigtableIOTest {
   }
 
   @Test
-  public void testReadBuildsCorrectly() {
-    BigtableIO.Read read =
-        BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
-    assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("instance", read.getBigtableOptions().getInstanceId());
-    assertEquals("table", read.getTableId());
-  }
-
-  @Test
-  public void testReadBuildsCorrectlyInDifferentOrder() {
-    BigtableIO.Read read =
-        BigtableIO.read().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
-    assertEquals("project", read.getBigtableOptions().getProjectId());
-    assertEquals("instance", read.getBigtableOptions().getInstanceId());
-    assertEquals("table", read.getTableId());
-  }
-
-  @Test
-  public void testWriteBuildsCorrectly() {
-    BigtableIO.Write write =
-        BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS).withTableId("table");
-    assertEquals("table", write.getTableId());
-    assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("instance", write.getBigtableOptions().getInstanceId());
-  }
-
-  @Test
-  public void testWriteBuildsCorrectlyInDifferentOrder() {
-    BigtableIO.Write write =
-        BigtableIO.write().withTableId("table").withBigtableOptions(BIGTABLE_OPTIONS);
-    assertEquals("project", write.getBigtableOptions().getProjectId());
-    assertEquals("instance", write.getBigtableOptions().getInstanceId());
-    assertEquals("table", write.getTableId());
-  }
-
-  @Test
   public void testWriteValidationFailsMissingTable() {
     BigtableIO.Write write = BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS);
 
