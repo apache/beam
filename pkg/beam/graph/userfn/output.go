@@ -1,23 +1,18 @@
 package userfn
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/graph/typex"
 )
 
+// IsEmit returns true iff the supplied type is an emitter.
 func IsEmit(t reflect.Type) bool {
 	_, ok := UnfoldEmit(t)
 	return ok
 }
 
 // UnfoldEmit returns the parameter types, if an emitter.
-// For example:
-//       "func (int)"
-//       "func (string, T)"
-//       "func (EventTime, int)"
-//       "func (EventTime, string, T)"
-// If there are 2 regular parameters, a KV output is implied. An optional
-// EventTime is allowed as well. Emitters cannot fail.
 func UnfoldEmit(t reflect.Type) ([]reflect.Type, bool) {
 	if t.Kind() != reflect.Func {
 		return nil, false
