@@ -78,17 +78,21 @@ public class TransformInputsTest {
 
   @Test
   public void nonAdditionalInputsWithMultipleNonAdditionalInputsSucceeds() {
-    PCollection<Long> input = pipeline.apply(GenerateSequence.from(1L));
+    Map<TupleTag<?>, PValue> allInputs = new HashMap<>();
+    PCollection<Integer> mainInts = pipeline.apply("MainInput", Create.of(12, 3));
+    allInputs.put(new TupleTag<Integer>() {}, mainInts);
+    PCollection<Void> voids = pipeline.apply("VoidInput", Create.empty(VoidCoder.of()));
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
             "additional-free",
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>() {}, input),
+            allInputs,
             Collections.<TupleTag<?>, PValue>emptyMap(),
             new TestTransform(),
             pipeline);
 
     assertThat(
-        TransformInputs.nonAdditionalInputs(transform), Matchers.<PValue>containsInAnyOrder(input));
+        TransformInputs.nonAdditionalInputs(transform),
+        Matchers.<PValue>containsInAnyOrder(voids, mainInts));
   }
 
   @Test
