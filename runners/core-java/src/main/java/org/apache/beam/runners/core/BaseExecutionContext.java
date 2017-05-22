@@ -104,12 +104,6 @@ public abstract class BaseExecutionContext<T extends StepContext>
     return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
 
-  @Override
-  public void noteOutput(WindowedValue<?> output) {}
-
-  @Override
-  public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {}
-
   /**
    * Base class for implementations of {@link org.apache.beam.runners.core.StepContext}.
    *
@@ -135,16 +129,6 @@ public abstract class BaseExecutionContext<T extends StepContext>
     @Override
     public String getTransformName() {
       return transformName;
-    }
-
-    @Override
-    public void noteOutput(WindowedValue<?> output) {
-      executionContext.noteOutput(output);
-    }
-
-    @Override
-    public void noteOutput(TupleTag<?> tag, WindowedValue<?> output) {
-      executionContext.noteOutput(tag, output);
     }
 
     @Override

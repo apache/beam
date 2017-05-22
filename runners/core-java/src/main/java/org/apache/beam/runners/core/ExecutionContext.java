@@ -18,9 +18,6 @@
 package org.apache.beam.runners.core;
 
 import java.util.Collection;
-import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Context for the current execution. This is guaranteed to exist during processing,
@@ -36,17 +33,4 @@ public interface ExecutionContext {
    * Returns a collection view of all of the {@link StepContext}s.
    */
   Collection<? extends StepContext> getAllStepContexts();
-
-  /**
-   * Hook for subclasses to implement that will be called whenever
-   * {@link WindowedContext#output(TupleTag, Object)} is called.
-   */
-  void noteOutput(WindowedValue<?> output);
-
-  /**
-   * Hook for subclasses to implement that will be called whenever
-   * {@link WindowedContext#output(TupleTag, Object)} is called.
-   */
-  void noteOutput(TupleTag<?> tag, WindowedValue<?> output);
-
 }
