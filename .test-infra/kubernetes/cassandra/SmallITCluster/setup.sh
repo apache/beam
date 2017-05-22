@@ -18,6 +18,5 @@
 set -e
 
 # Create Cassandra services and Replication controller.
-kubectl create -f cassandra-service-for-local-dev.yaml
 kubectl create -f cassandra-svc-rc.yaml
 
