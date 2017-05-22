@@ -55,8 +55,6 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // TODO: remove once calling finishBundle is fixed, currently finishBundle is not always called.
-    metricsReporter.updateMetrics();
   }
 
   @Override
@@ -67,8 +65,6 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // TODO: remove once calling finishBundle is fixed, currently finishBundle is not always called.
-    metricsReporter.updateMetrics();
   }
 
   @Override
@@ -79,8 +75,6 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    // TODO: remove once calling finishBundle is fixed, currently finishBundle is not always called.
-    metricsReporter.updateMetrics();
   }
 
   @Override
