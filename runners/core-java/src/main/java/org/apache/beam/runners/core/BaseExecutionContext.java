@@ -31,11 +31,11 @@ import org.apache.beam.sdk.values.TupleTag;
  * Base class for implementations of {@link ExecutionContext}.
  *
  * <p>A concrete subclass should implement {@link #createStepContext} to create the appropriate
- * {@link StepContext} implementation. Any {@code StepContext} created will
+ * {@link BaseStepContext} implementation. Any {@code StepContext} created will
  * be cached for the lifetime of this {@link ExecutionContext}.
  *
  * <p>BaseExecutionContext is generic to allow implementing subclasses to return a concrete subclass
- * of {@link StepContext} from {@link #getOrCreateStepContext(String, String)} and
+ * of {@link BaseStepContext} from {@link #getOrCreateStepContext(String, String)} and
  * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
  * <pre>{@code
  * {@literal @}Override
@@ -56,12 +56,12 @@ public abstract class BaseExecutionContext<T extends StepContext>
 
   /**
    * Implementations should override this to create the specific type
-   * of {@link StepContext} they need.
+   * of {@link BaseStepContext} they need.
    */
   protected abstract T createStepContext(String stepName, String transformName);
 
   /**
-   * Returns the {@link StepContext} associated with the given step.
+   * Returns the {@link BaseStepContext} associated with the given step.
    */
   @Override
   public T getOrCreateStepContext(String stepName, String transformName) {
@@ -97,7 +97,7 @@ public abstract class BaseExecutionContext<T extends StepContext>
   }
 
   /**
-   * Returns a collection view of all of the {@link StepContext}s.
+   * Returns a collection view of all of the {@link BaseStepContext}s.
    */
   @Override
   public Collection<? extends T> getAllStepContexts() {
@@ -110,12 +110,12 @@ public abstract class BaseExecutionContext<T extends StepContext>
    * <p>To complete a concrete subclass, implement {@link #timerInternals} and
    * {@link #stateInternals}.
    */
-  public abstract static class StepContext implements org.apache.beam.runners.core.StepContext {
+  public abstract static class BaseStepContext implements org.apache.beam.runners.core.StepContext {
     private final ExecutionContext executionContext;
     private final String stepName;
     private final String transformName;
 
-    public StepContext(ExecutionContext executionContext, String stepName, String transformName) {
+    public BaseStepContext(ExecutionContext executionContext, String stepName, String transformName) {
       this.executionContext = executionContext;
       this.stepName = stepName;
       this.transformName = transformName;
