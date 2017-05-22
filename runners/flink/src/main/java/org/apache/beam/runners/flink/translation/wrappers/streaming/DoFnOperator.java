@@ -32,7 +32,6 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -184,7 +183,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
   }
 
-  private ExecutionContext.StepContext createStepContext() {
+  private org.apache.beam.runners.core.StepContext createStepContext() {
     return new StepContext();
   }
 
@@ -250,7 +249,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     doFnInvoker.invokeSetup();
 
-    ExecutionContext.StepContext stepContext = createStepContext();
+    org.apache.beam.runners.core.StepContext stepContext = createStepContext();
 
     doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
@@ -676,7 +675,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
    * {@link StepContext} for running {@link DoFn DoFns} on Flink. This does not allow
    * accessing state or timer internals.
    */
-  protected class StepContext implements ExecutionContext.StepContext {
+  protected class StepContext implements org.apache.beam.runners.core.StepContext {
 
     @Override
     public String getStepName() {

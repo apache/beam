@@ -19,8 +19,8 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -28,9 +28,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Serializable {@link ExecutionContext.StepContext} that does nothing.
+ * Serializable {@link StepContext} that does nothing.
  */
-public class NoOpStepContext implements ExecutionContext.StepContext, Serializable {
+public class NoOpStepContext implements StepContext, Serializable {
   private static final long serialVersionUID = 1L;
 
   @Override
