@@ -159,7 +159,7 @@ public class ParDos {
         Iterables.getOnlyElement(
             Sets.difference(
                 ptransform.getInputsMap().keySet(), payload.getSideInputsMap().keySet()));
-    return components.getPcollectionsOrThrow(mainInputId);
+    return components.getPcollectionsOrThrow(ptransform.getInputsOrThrow(mainInputId));
   }
 
   // TODO: Implement
