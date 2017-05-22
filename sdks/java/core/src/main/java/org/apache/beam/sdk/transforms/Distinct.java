@@ -87,7 +87,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
   }
 
   private static <T> boolean distinctAcrossPanes(PCollection<T> in) {
-    return in.getWindowingStrategy().getAllowedLateness().compareTo(Duration.ZERO) > 0
+    return in.getWindowingStrategy().getAllowedLateness().isLongerThan(Duration.ZERO)
         || !(in.getWindowingStrategy().getTrigger() instanceof DefaultTrigger);
 
   }
@@ -110,9 +110,9 @@ public class Distinct<T> extends PTransform<PCollection<T>,
                 }
             }));
     if (!acrossPanes) {
-      return combined.apply(Keys.<T>create());
+      return combined.apply("SinglePaneDistinct", Keys.<T>create());
     } else {
-      return combined.apply(ParDo.of(new DoFn<KV<T, Void>, T>() {
+      return combined.apply("StatefulDistinct", ParDo.of(new DoFn<KV<T, Void>, T>() {
         // Keep track of whether we've seen a given key yet.
         @StateId("exists")
         private final StateSpec<CombiningState<Integer, int[], Integer>> stateSpec =
