@@ -17,12 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import java.io.IOException;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
-
 /**
  * Base class for implementations of {@link StepContext}.
  *
@@ -46,14 +40,6 @@ public abstract class BaseStepContext implements StepContext {
   @Override
   public String getTransformName() {
     return transformName;
-  }
-
-  @Override
-  public <T, W extends BoundedWindow> void writePCollectionViewData(
-      TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
-      W window, Coder<W> windowCoder) throws IOException {
-    throw new UnsupportedOperationException("Not implemented.");
   }
 
   @Override
