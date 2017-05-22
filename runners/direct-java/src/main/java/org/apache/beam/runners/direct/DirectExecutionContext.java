@@ -17,13 +17,18 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.io.IOException;
 import org.apache.beam.runners.core.BaseExecutionContext;
-import org.apache.beam.runners.core.BaseStepContext;
 import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -57,14 +62,16 @@ class DirectExecutionContext
   /**
    * Step Context for the {@link DirectRunner}.
    */
-  public class DirectStepContext
-      extends BaseStepContext {
+  public class DirectStepContext implements StepContext {
     private CopyOnAccessInMemoryStateInternals<?> stateInternals;
     private DirectTimerInternals timerInternals;
+    private final String stepName;
+    private final String transformName;
 
     public DirectStepContext(
         ExecutionContext executionContext, String stepName, String transformName) {
-      super(stepName, transformName);
+      this.stepName = stepName;
+      this.transformName = transformName;
     }
 
     @Override
@@ -93,6 +100,24 @@ class DirectExecutionContext
         return stateInternals.commit();
       }
       return null;
+    }
+
+    @Override
+    public String getStepName() {
+      return stepName;
+    }
+
+    @Override
+    public String getTransformName() {
+      return transformName;
+    }
+
+    @Override
+    public <T, W extends BoundedWindow> void writePCollectionViewData(
+        TupleTag<?> tag,
+        Iterable<WindowedValue<T>> data, Coder<Iterable<WindowedValue<T>>> dataCoder,
+        W window, Coder<W> windowCoder) throws IOException {
+      throw new UnsupportedOperationException("Not implemented.");
     }
 
     /**
