@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Utilities for extracting subsets of inputs from an {@link AppliedPTransform}. */
-class TransformInputs {
+public class TransformInputs {
   /**
    * Gets all inputs of the {@link AppliedPTransform} that are not returned by {@link
    * PTransform#getAdditionalInputs()}.
