@@ -77,88 +77,8 @@ import org.slf4j.LoggerFactory;
  * it on the cluster.
  */
 public class ApexYarnLauncher {
+
   private static final Logger LOG = LoggerFactory.getLogger(ApexYarnLauncher.class);
-
-  public AppHandle launchApp(StreamingApplication app, Properties configProperties)
-      throws IOException {
-
-    List<File> jarsToShip = getYarnDeployDependencies();
-    StringBuilder classpath = new StringBuilder();
-    for (File path : jarsToShip) {
-      if (path.isDirectory()) {
-        File tmpJar = File.createTempFile("beam-runners-apex-", ".jar");
-        createJar(path, tmpJar);
-        tmpJar.deleteOnExit();
-        path = tmpJar;
-      }
-      if (classpath.length() != 0) {
-        classpath.append(':');
-      }
-      classpath.append(path.getAbsolutePath());
-    }
-
-    EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
-    DAG dag = embeddedLauncher.getDAG();
-    app.populateDAG(dag, new Configuration(false));
-
-    Attribute.AttributeMap launchAttributes = new Attribute.AttributeMap.DefaultAttributeMap();
-    launchAttributes.put(YarnAppLauncher.LIB_JARS, classpath.toString().replace(':', ','));
-    LaunchParams lp = new LaunchParams(dag, launchAttributes, configProperties);
-    lp.cmd = "hadoop " + ApexYarnLauncher.class.getName();
-    HashMap<String, String> env = new HashMap<>();
-    env.put("HADOOP_USER_CLASSPATH_FIRST", "1");
-    env.put("HADOOP_CLASSPATH", classpath.toString());
-    lp.env = env;
-    return launchApp(lp);
-  }
-
-  protected AppHandle launchApp(LaunchParams params) throws IOException {
-    File tmpFile = File.createTempFile("beam-runner-apex", "params");
-    tmpFile.deleteOnExit();
-    try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
-      SerializationUtils.serialize(params, fos);
-    }
-    if (params.getCmd() == null) {
-      ApexYarnLauncher.main(new String[] {tmpFile.getAbsolutePath()});
-    } else {
-      String cmd = params.getCmd() + " " + tmpFile.getAbsolutePath();
-      ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
-      LOG.info("Executing: {} with {}", cmd, params.getEnv());
-
-      ProcessBuilder pb = new ProcessBuilder("bash", "-c", cmd);
-      Map<String, String> env = pb.environment();
-      env.putAll(params.getEnv());
-      Process p = pb.start();
-      ProcessWatcher pw = new ProcessWatcher(p);
-      InputStream output = p.getInputStream();
-      InputStream error = p.getErrorStream();
-      while (!pw.isFinished()) {
-        IOUtils.copy(output, consoleOutput);
-        IOUtils.copy(error, consoleOutput);
-      }
-      if (pw.rc != 0) {
-        String msg = "The Beam Apex runner in non-embedded mode requires the Hadoop client"
-            + " to be installed on the machine from which you launch the job"
-            + " and the 'hadoop' script in $PATH";
-        LOG.error(msg);
-        throw new RuntimeException("Failed to run: " + cmd + " (exit code " + pw.rc + ")" + "\n"
-            + consoleOutput.toString());
-      }
-    }
-    return new AppHandle() {
-      @Override
-      public boolean isFinished() {
-        // TODO (future PR): interaction with child process
-        LOG.warn("YARN application runs asynchronously and status check not implemented.");
-        return true;
-      }
-      @Override
-      public void shutdown(ShutdownMode arg0) throws LauncherException {
-        // TODO (future PR): interaction with child process
-        throw new UnsupportedOperationException();
-      }
-    };
-  }
 
   /**
    * From the current classpath, find the jar files that need to be deployed
@@ -251,10 +171,10 @@ public class ApexYarnLauncher {
 
       final java.nio.file.Path root = dir.toPath();
       Files.walkFileTree(root, new java.nio.file.SimpleFileVisitor<Path>() {
+
         String relativePath;
 
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+        @Override public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
             throws IOException {
           relativePath = root.relativize(dir).toString();
           if (!relativePath.isEmpty()) {
@@ -269,8 +189,8 @@ public class ApexYarnLauncher {
           return super.preVisitDirectory(dir, attrs);
         }
 
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        @Override public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+            throws IOException {
           String name = relativePath + file.getFileName();
           if (!JarFile.MANIFEST_NAME.equals(name)) {
             try (final OutputStream out = Files.newOutputStream(zipfs.getPath(name))) {
@@ -280,8 +200,8 @@ public class ApexYarnLauncher {
           return super.visitFile(file, attrs);
         }
 
-        @Override
-        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        @Override public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+            throws IOException {
           relativePath = root.relativize(dir.getParent()).toString();
           if (!relativePath.isEmpty() && !relativePath.endsWith("/")) {
             relativePath += "/";
@@ -311,18 +231,17 @@ public class ApexYarnLauncher {
     checkArgument(args.length == 1, "exactly one argument expected");
     File file = new File(args[0]);
     checkArgument(file.exists() && file.isFile(), "invalid file path %s", file);
-    final LaunchParams params = (LaunchParams) SerializationUtils.deserialize(
-        new FileInputStream(file));
+    final LaunchParams params = SerializationUtils.deserialize(new FileInputStream(file));
     StreamingApplication apexApp = new StreamingApplication() {
-      @Override
-      public void populateDAG(DAG dag, Configuration conf) {
+
+      @Override public void populateDAG(DAG dag, Configuration conf) {
         copyShallow(params.dag, dag);
       }
     };
     Configuration conf = new Configuration(); // configuration from Hadoop client
     addProperties(conf, params.configProperties);
-    AppHandle appHandle = params.getApexLauncher().launchApp(apexApp, conf,
-        params.launchAttributes);
+    AppHandle appHandle = params.getApexLauncher()
+        .launchApp(apexApp, conf, params.launchAttributes);
     if (appHandle == null) {
       throw new AssertionError("Launch returns null handle.");
     }
@@ -331,11 +250,110 @@ public class ApexYarnLauncher {
     // allow the parent to implement the runner result.
   }
 
+  private static void copyShallow(DAG from, DAG to) {
+    checkArgument(from.getClass() == to.getClass(), "must be same class %s %s", from.getClass(),
+        to.getClass());
+    Field[] fields = from.getClass().getDeclaredFields();
+    AccessibleObject.setAccessible(fields, true);
+    for (int i = 0; i < fields.length; i++) {
+      Field field = fields[i];
+      if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+        try {
+          field.set(to, field.get(from));
+        } catch (IllegalArgumentException | IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
+
+  public AppHandle launchApp(StreamingApplication app, Properties configProperties)
+      throws IOException {
+
+    List<File> jarsToShip = getYarnDeployDependencies();
+    StringBuilder classpath = new StringBuilder();
+    for (File path : jarsToShip) {
+      if (path.isDirectory()) {
+        File tmpJar = File.createTempFile("beam-runners-apex-", ".jar");
+        createJar(path, tmpJar);
+        tmpJar.deleteOnExit();
+        path = tmpJar;
+      }
+      if (classpath.length() != 0) {
+        classpath.append(':');
+      }
+      classpath.append(path.getAbsolutePath());
+    }
+
+    EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
+    DAG dag = embeddedLauncher.getDAG();
+    app.populateDAG(dag, new Configuration(false));
+
+    Attribute.AttributeMap launchAttributes = new Attribute.AttributeMap.DefaultAttributeMap();
+    launchAttributes.put(YarnAppLauncher.LIB_JARS, classpath.toString().replace(':', ','));
+    LaunchParams lp = new LaunchParams(dag, launchAttributes, configProperties);
+    lp.cmd = "hadoop " + ApexYarnLauncher.class.getName();
+    HashMap<String, String> env = new HashMap<>();
+    env.put("HADOOP_USER_CLASSPATH_FIRST", "1");
+    env.put("HADOOP_CLASSPATH", classpath.toString());
+    lp.env = env;
+    return launchApp(lp);
+  }
+
+  protected AppHandle launchApp(LaunchParams params) throws IOException {
+    File tmpFile = File.createTempFile("beam-runner-apex", "params");
+    tmpFile.deleteOnExit();
+    try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
+      SerializationUtils.serialize(params, fos);
+    }
+    if (params.getCmd() == null) {
+      ApexYarnLauncher.main(new String[] { tmpFile.getAbsolutePath() });
+    } else {
+      String cmd = params.getCmd() + " " + tmpFile.getAbsolutePath();
+      ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
+      LOG.info("Executing: {} with {}", cmd, params.getEnv());
+
+      ProcessBuilder pb = new ProcessBuilder("bash", "-c", cmd);
+      Map<String, String> env = pb.environment();
+      env.putAll(params.getEnv());
+      Process p = pb.start();
+      ProcessWatcher pw = new ProcessWatcher(p);
+      InputStream output = p.getInputStream();
+      InputStream error = p.getErrorStream();
+      while (!pw.isFinished()) {
+        IOUtils.copy(output, consoleOutput);
+        IOUtils.copy(error, consoleOutput);
+      }
+      if (pw.rc != 0) {
+        String msg = "The Beam Apex runner in non-embedded mode requires the Hadoop client"
+            + " to be installed on the machine from which you launch the job"
+            + " and the 'hadoop' script in $PATH";
+        LOG.error(msg);
+        throw new RuntimeException(
+            "Failed to run: " + cmd + " (exit code " + pw.rc + ")" + "\n" + consoleOutput
+                .toString());
+      }
+    }
+    return new AppHandle() {
+
+      @Override public boolean isFinished() {
+        // TODO (future PR): interaction with child process
+        LOG.warn("YARN application runs asynchronously and status check not implemented.");
+        return true;
+      }
+
+      @Override public void shutdown(ShutdownMode arg0) throws LauncherException {
+        // TODO (future PR): interaction with child process
+        throw new UnsupportedOperationException();
+      }
+    };
+  }
+
   /**
    * Launch parameters that will be serialized and passed to the child process.
    */
-  @VisibleForTesting
-  protected static class LaunchParams implements Serializable {
+  @VisibleForTesting protected static class LaunchParams implements Serializable {
+
     private static final long serialVersionUID = 1L;
     private final DAG dag;
     private final Attribute.AttributeMap launchAttributes;
@@ -363,27 +381,11 @@ public class ApexYarnLauncher {
 
   }
 
-  private static void copyShallow(DAG from, DAG to) {
-    checkArgument(from.getClass() == to.getClass(), "must be same class %s %s",
-        from.getClass(), to.getClass());
-    Field[] fields = from.getClass().getDeclaredFields();
-    AccessibleObject.setAccessible(fields, true);
-    for (int i = 0; i < fields.length; i++) {
-      Field field = fields[i];
-      if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
-        try {
-          field.set(to,  field.get(from));
-        } catch (IllegalArgumentException | IllegalAccessException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
-  }
-
   /**
    * Starts a command and waits for it to complete.
    */
   public static class ProcessWatcher implements Runnable {
+
     private final Process p;
     private volatile boolean finished = false;
     private volatile int rc;
@@ -397,8 +399,7 @@ public class ApexYarnLauncher {
       return finished;
     }
 
-    @Override
-    public void run() {
+    @Override public void run() {
       try {
         rc = p.waitFor();
       } catch (Exception e) {
