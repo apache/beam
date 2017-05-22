@@ -18,6 +18,4 @@
 set -e
 
 # Create Elasticsearch services and deployments.
-kubectl create -f elasticsearch-service-for-local-dev.yaml
-kubectl create -f elasticsearch-svc-rc.yaml
-
+kubectl create -f es-services-deployments.yaml
