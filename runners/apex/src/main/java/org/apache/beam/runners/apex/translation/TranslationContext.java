@@ -34,6 +34,7 @@ import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.CoderAdapterStreamCodec;
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -93,7 +94,8 @@ class TranslationContext {
   }
 
   public <InputT extends PValue> InputT getInput() {
-    return (InputT) Iterables.getOnlyElement(getCurrentTransform().getInputs().values());
+    return (InputT)
+        Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(getCurrentTransform()));
   }
 
   public Map<TupleTag<?>, PValue> getOutputs() {
