@@ -143,7 +143,7 @@ public class ReadTranslation {
 
     @Override
     public String getUrn(Read.Unbounded<?> transform) {
-      return PTransformTranslation.WINDOW_TRANSFORM_URN;
+      return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
     @Override
@@ -151,7 +151,7 @@ public class ReadTranslation {
         AppliedPTransform<?, ?, Read.Unbounded<?>> transform, SdkComponents components) {
       ReadPayload payload = toProto(transform.getTransform());
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PTransformTranslation.READ_TRANSFORM_URN)
+          .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(payload))
           .build();
     }
@@ -170,7 +170,7 @@ public class ReadTranslation {
 
     @Override
     public String getUrn(Read.Bounded<?> transform) {
-      return PTransformTranslation.WINDOW_TRANSFORM_URN;
+      return PTransformTranslation.READ_TRANSFORM_URN;
     }
 
     @Override
@@ -178,7 +178,7 @@ public class ReadTranslation {
         AppliedPTransform<?, ?, Read.Bounded<?>> transform, SdkComponents components) {
       ReadPayload payload = toProto(transform.getTransform());
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(PTransformTranslation.READ_TRANSFORM_URN)
+          .setUrn(getUrn(transform.getTransform()))
           .setParameter(Any.pack(payload))
           .build();
     }
