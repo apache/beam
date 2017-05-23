@@ -117,7 +117,7 @@ func (m *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := exec.StreamID{m.port, graph.Target{elm.GetTarget().PrimitiveTransformReference, elm.GetTarget().GetName()}, elm.GetInstructionReference()}
+			id := exec.StreamID{Port: m.port, Target: graph.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
 			sid := id.String()
 
 			var r *dataReader
