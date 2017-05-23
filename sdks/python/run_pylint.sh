@@ -49,6 +49,7 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/runners/api/beam_fn_api_pb2.py"
 "apache_beam/runners/api/beam_fn_api_pb2_grpc.py"
 "apache_beam/runners/api/beam_runner_api_pb2.py"
+"apache_beam/runners/api/beam_runner_api_pb2_grpc.py"
 )
 
 FILES_TO_IGNORE=""
