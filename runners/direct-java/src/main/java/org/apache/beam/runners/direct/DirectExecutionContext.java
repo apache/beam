@@ -56,9 +56,8 @@ class DirectExecutionContext {
   }
 
   /**
-   * Returns the {@link BaseStepContext} associated with the given step.
+   * Returns the {@link StepContext} associated with the given step.
    */
-  @Override
   public DirectStepContext getOrCreateStepContext(String stepName, String transformName) {
     final String finalStepName = stepName;
     final String finalTransformName = transformName;
@@ -68,14 +67,6 @@ class DirectExecutionContext {
       cachedStepContexts.put(stepName, context);
     }
     return context;
-  }
-
-  /**
-   * Returns a collection view of all of the {@link BaseStepContext}s.
-   */
-  @Override
-  public Collection<? extends DirectStepContext> getAllStepContexts() {
-    return Collections.unmodifiableCollection(cachedStepContexts.values());
   }
 
   /**
