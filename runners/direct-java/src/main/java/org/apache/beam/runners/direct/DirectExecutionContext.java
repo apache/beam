@@ -55,7 +55,7 @@ class DirectExecutionContext {
   /**
    * Returns the {@link StepContext} associated with the given step.
    */
-  public DirectStepContext getOrCreateStepContext(String stepName, String transformName) {
+  public DirectStepContext getStepContext(String stepName, String transformName) {
     final String finalStepName = stepName;
     final String finalTransformName = transformName;
     DirectStepContext context = cachedStepContexts.get(stepName);

@@ -140,7 +140,7 @@ public class ParDoEvaluatorTest {
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);
     when(
-            executionContext.getOrCreateStepContext(
+            executionContext.getStepContext(
                 Mockito.any(String.class), Mockito.any(String.class)))
         .thenReturn(stepContext);
     when(stepContext.getTimerUpdate()).thenReturn(TimerUpdate.empty());
