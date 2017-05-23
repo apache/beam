@@ -73,7 +73,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /**
  * Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos.
  */
-public class ParDos {
+public class ParDoTranslation {
   /**
    * The URN for a {@link ParDoPayload}.
    */
@@ -191,7 +191,7 @@ public class ParDos {
   abstract static class DoFnAndMainOutput implements Serializable {
     public static DoFnAndMainOutput of(
         DoFn<?, ?> fn, TupleTag<?> tag) {
-      return new AutoValue_ParDos_DoFnAndMainOutput(fn, tag);
+      return new AutoValue_ParDoTranslation_DoFnAndMainOutput(fn, tag);
     }
 
     abstract DoFn<?, ?> getDoFn();
