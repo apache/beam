@@ -114,7 +114,7 @@ public class StormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
     }
 
     public void visitValue(PValue value, TransformHierarchy.Node node) {
-        LOG.info("visiting value {}", value);
+        LOG.info(genSpaces(this.depth) + "visiting value {}", value);
     }
 
     private <T extends PTransform<?, ?>> void applyStreamingTransform(PTransform<?, ?> transform, TransformHierarchy.Node node,
