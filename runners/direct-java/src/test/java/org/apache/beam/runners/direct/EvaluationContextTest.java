@@ -160,7 +160,7 @@ public class EvaluationContextTest {
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    DirectStepContext stepContext = fooContext.getStepContext("s1", "s1");
+    DirectStepContext stepContext = fooContext.getStepContext("s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
     context.handleResult(
@@ -177,7 +177,7 @@ public class EvaluationContextTest {
             StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
         secondFooContext
-            .getStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -194,7 +194,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
-        .getStepContext("s1", "s1")
+        .getStepContext("s1")
         .stateInternals()
         .state(StateNamespaces.global(), intBag)
         .add(1);
@@ -205,7 +205,7 @@ public class EvaluationContextTest {
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
         barContext
-            .getStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -221,7 +221,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
-        .getStepContext("s1", "s1")
+        .getStepContext("s1")
         .stateInternals()
         .state(StateNamespaces.global(), intBag)
         .add(1);
@@ -230,7 +230,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(downstreamProducer, myKey);
     assertThat(
         barContext
-            .getStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -246,7 +246,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     CopyOnAccessInMemoryStateInternals<?> state =
-        fooContext.getStepContext("s1", "s1").stateInternals();
+        fooContext.getStepContext("s1").stateInternals();
     BagState<Integer> bag = state.state(StateNamespaces.global(), intBag);
     bag.add(1);
     bag.add(2);
@@ -266,7 +266,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(downstreamProducer, myKey);
 
     CopyOnAccessInMemoryStateInternals<?> afterResultState =
-        afterResultContext.getStepContext("s1", "s1").stateInternals();
+        afterResultContext.getStepContext("s1").stateInternals();
     assertThat(afterResultState.state(StateNamespaces.global(), intBag).read(), contains(1, 2, 4));
   }
 
