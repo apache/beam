@@ -24,13 +24,15 @@ import os
 import pkg_resources
 import platform
 import shutil
+import subprocess
 import sys
 import warnings
 
 import setuptools
 
-from distutils.command.build_py import build_py as original_build_py
-from distutils.command.sdist import sdist as original_sdist
+from setuptools.command.build_py import build_py
+from setuptools.command.sdist import sdist
+from setuptools.command.test import test
 
 from pkg_resources import get_distribution, DistributionNotFound
 
@@ -104,8 +106,12 @@ REQUIRED_PACKAGES = [
     'pyyaml>=3.12,<4.0.0',
     ]
 
+REQUIRED_SETUP_PACKAGES = [
+    'nose>=1.0',
+    ]
+
 REQUIRED_TEST_PACKAGES = [
-    'pyhamcrest>=1.9,<2.0'
+    'pyhamcrest>=1.9,<2.0',
     ]
 
 GCP_REQUIREMENTS = [
@@ -118,8 +124,6 @@ GCP_REQUIREMENTS = [
 
 
 def generate_proto_files():
-  from grpc_tools import protoc
-
   py_sdk_root = os.path.dirname(os.path.abspath(__file__))
   common = os.path.join(os.path.dirname(py_sdk_root), 'common')
   proto_dirs = [os.path.join(common, '%s-api' % t, 'src', 'main', 'proto')
@@ -135,12 +139,18 @@ def generate_proto_files():
           'Not in apache git tree; unable to find proto definitions.')
     else:
       raise RuntimeError(
-          'Proto files not found at %s.' % proto_dirs)
+          'No proto files found at %s.' % proto_dirs)
 
-  elif (not out_files
-      or len(out_files) < len(proto_files)
-      or min(os.path.getmtime(path) for path in out_files)
+  elif not out_files or len(out_files) < len(proto_files) or (
+      proto_files
+      and min(os.path.getmtime(path) for path in out_files)
       <= max(os.path.getmtime(path) for path in proto_files)):
+    try:
+      from grpc_tools import protoc
+    except ImportError:
+      raise RuntimeError(
+          "grpcio-tools must be installed to generate proto stubs")
+
     print 'Regenerating out-of-date Python proto definitions.'
     proto_include = pkg_resources.resource_filename('grpc_tools', '_proto')
     args = (
@@ -157,16 +167,34 @@ def generate_proto_files():
           '%s' % ret_code)
 
 
-class proto_build_py(original_build_py, object):
-  def run(self):
-    generate_proto_files()
-    super(proto_build_py, self).run()
+# We must generate protos after setup_requires are installed.
+def generate_protos_first(original_cmd):
+  class cmd(original_cmd, object):
+    def run(self):
+      generate_proto_files()
+      super(cmd, self).run()
+  return cmd
 
 
-class proto_sdist(original_sdist, object):
-  def run(self):
-    generate_proto_files()
-    super(proto_sdist, self).run()
+# Though wheels are available for grpcio-tools, setup_requires uses
+# easy_install which doesn't understand them.  This means that it is
+# compiled from scratch (which is expensive as it compiles the full
+# protoc compiler).  Instead, we attempt to install a wheel in a temporary
+# directory and add it to the path.
+try:
+  import grpc_tools
+except ImportError:
+  grpcio_tools = 'grpcio-tools>=1.3.5'
+  try:
+    py_sdk_root = os.path.dirname(os.path.abspath(__file__))
+    install_path = os.path.join(py_sdk_root, '.eggs', 'grpcio-virtualenv')
+    warnings.warn(
+        'Installing grpcio-tools is recommended for development; '
+        'Installing a local copy at %s'.format(install_path))
+    subprocess.check_call(['pip', 'install', '-t', install_path, grpcio_tools])
+    sys.path.append(install_path)
+  except:
+    REQUIRED_SETUP_PACKAGES.append(grpcio_tools)
 
 
 setuptools.setup(
@@ -193,7 +221,7 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
-    setup_requires=['nose>=1.0', 'grpcio-tools'],
+    setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
@@ -218,5 +246,9 @@ setuptools.setup(
         'nose.plugins.0.10': [
             'beam_test_plugin = test_config:BeamTestPlugin'
             ]},
-    cmdclass={'build_py': proto_build_py, 'sdist': proto_sdist},
+    cmdclass={
+        'build_py': generate_protos_first(build_py),
+        'sdist': generate_protos_first(sdist),
+        'test': generate_protos_first(test),
+    },
 )
