@@ -532,6 +532,44 @@ class DataflowRunner(PipelineRunner):
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
+  def apply_Read(self, transform, pcoll):
+    """Adds a necessary transform to convert native PubSubSource representations
+    to the expected type based upon the user specified coder within the
+    PubSubSource.
+    """
+
+    # Import here to avoid adding the dependency for local running scenarios.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import Map
+    from apache_beam.io.gcp.pubsub import PubSubSource
+
+    # Only add the additional portion if this is a PubSubSource
+    if not isinstance(transform.source, PubSubSource):
+      return pvalue.PCollection(pcoll.pipeline)
+
+    class PubSubMessagePayloadTransformer(object):
+      """Converts from a payload of bytes encoded in the nested context to
+      the supplied coder type.
+      """
+      def __init__(self, value_coder):
+        self._input_coder = coders.BytesCoder()
+        self._value_coder = value_coder
+
+      def transform_value(self, encoded_value):
+        bytes = self._input_coder.decode(encoded_value)
+        return self._value_coder.decode(bytes)
+
+    pcoll.element_type = coders.WindowedValueCoder(
+        coders.BytesCoder(),
+        coders.coders.GlobalWindowCoder())
+
+    pcoll = pcoll | 'parse fn' >> Map(
+        PubSubMessagePayloadTransformer(transform.source.coder).transform_value)
+    pcoll.element_type = coders.WindowedValueCoder(
+        transform.source.coder,
+        coders.coders.GlobalWindowCoder())
+    return pcoll
+
   def run_Read(self, transform_node):
     transform = transform_node.transform
     step = self._add_step(

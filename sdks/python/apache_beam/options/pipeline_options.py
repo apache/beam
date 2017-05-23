@@ -278,14 +278,6 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
-  # TODO(BEAM-1265): Remove this error, once at least one runner supports
-  # streaming pipelines.
-  def validate(self, validator):
-    errors = []
-    if self.view_as(StandardOptions).streaming:
-      errors.append('Streaming pipelines are not supported.')
-    return errors
-
 
 class TypeOptions(PipelineOptions):
 

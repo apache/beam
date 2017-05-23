@@ -302,11 +302,11 @@ class SetupTest(unittest.TestCase):
 
   def test_streaming(self):
     pipeline_options = PipelineOptions(['--streaming'])
-    runner = MockRunners.TestDataflowRunner()
+    runner = MockRunners.OtherRunner()
     validator = PipelineOptionsValidator(pipeline_options, runner)
     errors = validator.validate()
 
-    self.assertIn('Streaming pipelines are not supported.', errors)
+    self.assertEqual(len(errors), 0)
 
   def test_test_matcher(self):
     def get_validator(matcher):
