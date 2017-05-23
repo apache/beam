@@ -129,8 +129,8 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       structuralKey = inputBundle.getKey();
       stepContext = evaluationContext
           .getExecutionContext(application, inputBundle.getKey())
-          .getOrCreateStepContext(
-              evaluationContext.getStepName(application), application.getTransform().getName());
+          .getStepContext(
+              evaluationContext.getStepName(application));
       windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>)
               application.getTransform().getInputWindowingStrategy();

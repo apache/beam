@@ -15,25 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.flink.translation.functions;
-
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StepContext;
-import org.apache.beam.runners.core.TimerInternals;
+package org.apache.beam.runners.core;
 
 /**
- * A {@link StepContext} for Flink Batch Runner execution.
+ * The context in which a specific step is executing, including access to state and timers.
+ *
+ * <p>This interface exists as the API between a runner and the support code, but is not user
+ * facing.
+ *
+ * <p>These will often be scoped to a particular step and key, though it is not required.
  */
-public class FlinkNoOpStepContext implements StepContext {
+public interface StepContext {
 
-  @Override
-  public StateInternals stateInternals() {
-    return null;
-  }
+  StateInternals stateInternals();
 
-  @Override
-  public TimerInternals timerInternals() {
-    return null;
-  }
+  TimerInternals timerInternals();
 }
-

@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ExecutionContext.StepContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
@@ -353,9 +352,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     void outputWindowedValue(WindowedValue<OutputT> windowedElem) {
       outputManager.output(mainOutputTag, windowedElem);
-      if (stepContext != null) {
-        stepContext.noteOutput(windowedElem);
-      }
     }
 
     private <T> void outputWindowedValue(
@@ -381,9 +377,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       outputManager.output(tag, windowedElem);
-      if (stepContext != null) {
-        stepContext.noteOutput(tag, windowedElem);
-      }
     }
   }
 
