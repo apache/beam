@@ -35,12 +35,11 @@ func (n *Node) Type() typex.FullType {
 func (n *Node) String() string {
 	if n.Coder != nil {
 		return fmt.Sprintf("{%v: %v/%v}", n.id, n.t, n.Coder)
-	} else {
-		return fmt.Sprintf("{%v: %v/$}", n.id, n.t)
 	}
+	return fmt.Sprintf("{%v: %v/$}", n.id, n.t)
 }
 
-// NodeTypes returns the types of a slice of nodes.
+// NodeTypes returns the fulltypes of the supplied slice of nodes.
 func NodeTypes(list []*Node) []typex.FullType {
 	var ret []typex.FullType
 	for _, c := range list {
